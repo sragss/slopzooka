@@ -27,5 +27,12 @@ struct SlopZookaApp: App {
         .defaultSize(width: 1280, height: 832)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
+
+        WindowGroup("Palm Spike", id: "palm-spike") {
+            HandLauncherSpikeView()
+        }
+        .defaultSize(width: 640, height: 520)
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
     }
 }

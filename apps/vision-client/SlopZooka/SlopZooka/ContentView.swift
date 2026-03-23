@@ -331,6 +331,7 @@ final class LauncherState: ObservableObject {
         do {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
+            request.timeoutInterval = dataRequestTimeout
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(
                 LaunchWorkspaceRequest(
@@ -388,6 +389,7 @@ final class LauncherState: ObservableObject {
         do {
             var request = URLRequest(url: url)
             request.httpMethod = "POST"
+            request.timeoutInterval = dataRequestTimeout
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try JSONEncoder().encode(
                 ReopenWorkspaceRequest(profile: selectedTool.queryValue)
@@ -505,7 +507,7 @@ struct ContentView: View {
     private let launcherWindowSize = CGSize(width: 460, height: 680)
 
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
@@ -519,7 +521,10 @@ struct ContentView: View {
                 state.onTerminalLaunch = { payload in
                     appModel.registerTerminal(payload)
                     openWindow(id: "terminal", value: payload.id)
-                    dismissWindow(id: "launcher")
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(250))
+                        dismiss()
+                    }
                 }
                 state.loadSavedPreferences()
                 discovery.onCompanionResolved = { companion in
@@ -649,6 +654,11 @@ struct ContentView: View {
 
                         Button("Demo") {
                             state.openDemoSession()
+                        }
+                        .buttonStyle(.bordered)
+
+                        Button("Palm Spike") {
+                            openWindow(id: "palm-spike")
                         }
                         .buttonStyle(.bordered)
                     }

@@ -246,6 +246,69 @@ Mitigation:
 - use a simple cluster launcher/control window
 - avoid fancy 3D scene management until basic window layout feels good
 
+### Risk 4A. Wrist or palm launcher may be compelling but not production-safe
+
+The ideal one-step summon experience is:
+
+- look at wall
+- look at hand
+- tap
+- launcher appears
+- choose repo
+- terminal launches
+
+This may be feasible with hand anchors, but it is not yet proven to be a safe foundation for a many-window productivity app.
+
+Failure modes:
+
+- requires a different scene model than the shared-space window app
+- hand-attached UI is too unstable or too fatiguing
+- gesture recognition is unreliable for repeated launches
+- the launcher feels magical in demos but worse than a small utility panel in real work
+
+Mitigation:
+
+- treat wrist/palm UI as a separate spike, not as the default architecture
+- first build a minimal prototype that only proves:
+  - can we attach a tiny launcher-like object to palm or wrist
+  - is it stable enough to select
+  - does it feel better than a utility panel
+
+### Wrist Launcher Spike
+
+Question:
+
+- Can we build a reliable hand-attached quick launcher without abandoning the shared-space terminal architecture?
+
+Success criteria:
+
+- the panel appears stably on palm or wrist
+- the panel remains legible while the hand is in a natural resting posture
+- a person can target at least two fake buttons repeatedly without frustration
+- the prototype does not require reworking the main terminal architecture yet
+
+Failure criteria:
+
+- requires a full immersive mode to be usable
+- the panel jitters, disappears, or becomes uncomfortable during repeated use
+- selection is materially worse than a utility panel or ordinary launcher window
+
+Implementation plan:
+
+1. Add a tiny isolated spike scene in the vision client.
+2. Use `RealityView` and `AnchorEntity(.hand(...))` to attach a small mock launcher to palm and/or wrist.
+3. Use simple colored shapes instead of real repo UI.
+4. Evaluate stability, comfort, and selection quality on device.
+5. Only if it passes, plan a second spike to map those fake buttons to the real repo launcher.
+
+Real-device test steps:
+
+1. Open the new `Palm Spike` scene from the compact launcher.
+2. Hold the left hand in a natural resting posture rather than a forced demo pose.
+3. Check whether the palm panel stays visible and readable for at least 10-15 seconds.
+4. Check whether the wrist marker gives enough orientation to understand where the panel is attached.
+5. Decide whether this feels better than a tiny utility-panel launcher for repeated launches.
+
 ### Risk 5. Browser surface behavior for local dev servers
 
 The browser window sounds straightforward, but local development servers introduce practical issues.
