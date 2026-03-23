@@ -9,11 +9,22 @@ import SwiftUI
 
 @main
 struct SlopZookaApp: App {
+    @StateObject private var appModel = AppModel()
+
     var body: some Scene {
         WindowGroup("Launcher", id: "launcher") {
             ContentView()
+                .environmentObject(appModel)
         }
         .defaultSize(width: 620, height: 820)
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
+
+        WindowGroup("Terminal", id: "terminal", for: String.self) { sessionID in
+            TerminalWindowView(sessionID: sessionID.wrappedValue)
+                .environmentObject(appModel)
+        }
+        .defaultSize(width: 1280, height: 832)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
     }

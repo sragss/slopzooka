@@ -14,8 +14,6 @@ final class LauncherState: ObservableObject {
     @Published var busyRepoID: String?
     @Published var busyWorkspaceID: String?
     @Published var launchMessage: String?
-    @Published var activeTerminalPayload: TerminalWindowPayload?
-    @Published var terminalLoadState: TerminalLoadState = .idle
 
     private let userDefaults = UserDefaults.standard
     private var autoConnectInFlight = false
@@ -24,6 +22,7 @@ final class LauncherState: ObservableObject {
     private let autoConnectCooldown: TimeInterval = 6
     private let healthRequestTimeout: TimeInterval = 4
     private let dataRequestTimeout: TimeInterval = 15
+    var onTerminalLaunch: ((TerminalWindowPayload) -> Void)?
 
     var normalizedHost: String {
         host.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -413,20 +412,14 @@ final class LauncherState: ObservableObject {
             urlString = "https://example.com"
         }
 
-        terminalLoadState = .loading(urlString)
         launchMessage = "Opening demo session."
-        activeTerminalPayload = TerminalWindowPayload(
+        let payload = TerminalWindowPayload(
             id: UUID().uuidString,
             title: "Demo Session",
             urlString: urlString
         )
+        onTerminalLaunch?(payload)
         slzLog("openDemoSession \(urlString)")
-    }
-
-    func closeTerminal() {
-        slzLog("closeTerminal")
-        terminalLoadState = .idle
-        activeTerminalPayload = nil
     }
 
     private func applyLaunchPayload(_ payload: LaunchWorkspaceResponse) {
@@ -438,14 +431,14 @@ final class LauncherState: ObservableObject {
             return
         }
 
-        terminalLoadState = .loading(terminalURL.absoluteString)
         launchMessage = "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)"
-        activeTerminalPayload = TerminalWindowPayload(
+        let terminalPayload = TerminalWindowPayload(
             id: payload.clusterId,
             title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
             urlString: terminalURL.absoluteString
         )
-        slzLog("active terminal assigned \(activeTerminalPayload?.id ?? "nil")")
+        onTerminalLaunch?(terminalPayload)
+        slzLog("active terminal assigned \(terminalPayload.id)")
     }
 
     private func companionURL(path: String, queryItems: [URLQueryItem] = []) -> URL? {
@@ -494,30 +487,23 @@ final class LauncherState: ObservableObject {
 struct ContentView: View {
     private let debugBuildStamp = "terminal-inline-v6 2026-03-22 23:35"
     private let launcherWindowSize = CGSize(width: 620, height: 820)
-    private let terminalWindowSize = CGSize(width: 1280, height: 832)
 
+    @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject private var appModel: AppModel
     @StateObject private var state = LauncherState()
-    @StateObject private var debugLog = AppDebugLog.shared
     @StateObject private var discovery = CompanionDiscovery()
-    @State private var isTerminalUtilitiesExpanded = false
-    @State private var isTerminalSessionDetailsExpanded = false
 
     var body: some View {
-        Group {
-            if let activeTerminalPayload = state.activeTerminalPayload {
-                terminalMode(payload: activeTerminalPayload)
-            } else {
-                ScrollView {
-                    launcherMode
-                }
-            }
+        ScrollView {
+            launcherMode
         }
-        .frame(
-            width: state.activeTerminalPayload == nil ? launcherWindowSize.width : terminalWindowSize.width,
-            height: state.activeTerminalPayload == nil ? launcherWindowSize.height : terminalWindowSize.height
-        )
+        .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
         .padding(24)
         .task {
+            state.onTerminalLaunch = { payload in
+                appModel.registerTerminal(payload)
+                openWindow(id: "terminal", value: payload.id)
+            }
             state.loadSavedHost()
             discovery.onCompanionResolved = { companion in
                 Task {
@@ -536,9 +522,6 @@ struct ContentView: View {
         .onDisappear {
             discovery.stop()
         }
-        .onChange(of: state.activeTerminalPayload?.id) { _, newValue in
-            slzLog("active terminal payload changed \(newValue ?? "nil")")
-        }
     }
 
     private var launcherMode: some View {
@@ -555,10 +538,6 @@ struct ContentView: View {
                 Text("Debug Build: \(debugBuildStamp)")
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-
-                Text("Session State: \(state.activeTerminalPayload == nil ? "none" : "active")")
-                    .font(.caption)
-                    .foregroundStyle(state.activeTerminalPayload == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.green))
             }
 
             VStack(alignment: .leading, spacing: 12) {
@@ -677,178 +656,6 @@ struct ContentView: View {
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)
                 .foregroundStyle(.orange)
-        }
-    }
-
-    private func terminalMode(payload: TerminalWindowPayload) -> some View {
-        ZStack(alignment: .top) {
-            if let url = payload.url {
-                CompanionWebView(url: url, loadState: $state.terminalLoadState)
-                    .id(payload.id)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            } else {
-                ContentUnavailableView(
-                    "Invalid Terminal URL",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text("SlopZooka could not open the terminal surface.")
-                )
-                .frame(maxWidth: .infinity, minHeight: 360)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    if let statusText = terminalStatusText {
-                        Text(statusText)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(terminalStatusColor)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(.regularMaterial, in: Capsule())
-                    }
-
-                    Spacer(minLength: 0)
-
-                    Button {
-                        isTerminalUtilitiesExpanded.toggle()
-                        if !isTerminalUtilitiesExpanded {
-                            isTerminalSessionDetailsExpanded = false
-                        }
-                    } label: {
-                        Image(systemName: isTerminalUtilitiesExpanded ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(10)
-                    .background(.regularMaterial, in: Circle())
-
-                    Button {
-                        state.closeTerminal()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.headline.weight(.semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(12)
-                    .background(.regularMaterial, in: Circle())
-                }
-
-                if isTerminalUtilitiesExpanded {
-                    terminalUtilitiesSection(payload: payload)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-            }
-            .padding(14)
-        }
-        .onAppear {
-            slzLog("terminalMode appeared \(payload.id)")
-        }
-    }
-
-    private var debugLogView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Debug Log")
-                .font(.headline)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(debugLog.entries.suffix(20).enumerated()), id: \.offset) { _, entry in
-                        Text(entry)
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                }
-            }
-            .frame(minHeight: 120, maxHeight: 180)
-        }
-        .padding(16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
-
-    private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            if case let .failed(message) = state.terminalLoadState {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-            }
-
-            DisclosureGroup(isExpanded: $isTerminalSessionDetailsExpanded) {
-                VStack(alignment: .leading, spacing: 12) {
-                    if let host = payload.url?.host {
-                        labeledDetailRow(label: "Connected Host", value: host)
-                    }
-
-                    labeledDetailRow(label: "Terminal URL", value: payload.urlString)
-
-                    debugLogView
-                }
-                .padding(.top, 8)
-            } label: {
-                Label("Session Details", systemImage: "list.bullet.rectangle")
-                    .font(.subheadline.weight(.semibold))
-            }
-        }
-        .padding(14)
-        .frame(maxWidth: 520, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    private func labeledDetailRow(label: String, value: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text(label)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-
-            Text(value)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
-        }
-    }
-
-    private var loadStateText: String {
-        switch state.terminalLoadState {
-        case .idle:
-            return "Terminal idle."
-        case let .loading(url):
-            return "Loading terminal: \(url)"
-        case .loaded:
-            return "Terminal loaded."
-        case let .failed(message):
-            return "Terminal failed: \(message)"
-        }
-    }
-
-    private var loadStateColor: AnyShapeStyle {
-        switch state.terminalLoadState {
-        case .failed:
-            return AnyShapeStyle(.red)
-        case .loaded:
-            return AnyShapeStyle(.green)
-        case .idle, .loading:
-            return AnyShapeStyle(.secondary)
-        }
-    }
-
-    private var terminalStatusText: String? {
-        switch state.terminalLoadState {
-        case .idle, .loaded:
-            return nil
-        case .loading:
-            return "Loading"
-        case .failed:
-            return "Failed"
-        }
-    }
-
-    private var terminalStatusColor: AnyShapeStyle {
-        switch state.terminalLoadState {
-        case .failed:
-            return AnyShapeStyle(.red)
-        case .loading, .idle, .loaded:
-            return AnyShapeStyle(.secondary)
         }
     }
 
