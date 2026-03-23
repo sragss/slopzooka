@@ -1,0 +1,11 @@
+{
+  "name": "slopzooka",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "scripts": {
+    "postinstall": "node scripts/fix-node-pty-perms.mjs",
+    "dev:companion": "pnpm --filter @slz/mac-companion dev",
+    "build:harness": "pnpm --filter @slz/mac-companion build:harness",
+    "typecheck": "pnpm --filter @slz/mac-companion typecheck"
+  }
+}

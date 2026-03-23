@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SlopZooka Terminal</title>
+    <link rel="stylesheet" href="/terminal.css" />
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #05070b;
+        --overlay: rgba(12, 16, 24, 0.84);
+        --border: rgba(136, 153, 176, 0.24);
+        --text: #e7edf7;
+        --muted: #99a7bc;
+        --error: #ffb4b4;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: radial-gradient(circle at top, #121824, var(--bg) 55%);
+        color: var(--text);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      #terminal {
+        width: 100%;
+        height: 100%;
+      }
+
+      .overlay {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        right: 14px;
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 12px;
+        pointer-events: none;
+      }
+
+      .pill {
+        max-width: min(50vw, 720px);
+        padding: 10px 14px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--overlay);
+        backdrop-filter: blur(14px);
+        font-size: 13px;
+        line-height: 1.3;
+        color: var(--muted);
+      }
+
+      .pill strong {
+        color: var(--text);
+      }
+
+      .error {
+        color: var(--error);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="terminal"></div>
+    <div class="overlay">
+      <div id="title-pill" class="pill"><strong>SlopZooka</strong> Preparing terminal...</div>
+      <div id="status-pill" class="pill">Connecting...</div>
+    </div>
+    <script type="module" src="/terminal.js"></script>
+  </body>
+</html>
+
