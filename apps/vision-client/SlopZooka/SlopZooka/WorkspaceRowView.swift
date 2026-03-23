@@ -12,79 +12,55 @@ struct WorkspaceRowView: View {
     }()
 
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             avatar
 
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 8) {
-                    Text(workspace.repo.name)
-                        .font(.headline)
-                        .lineLimit(1)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(workspace.repo.nameWithOwner)
+                    .font(.subheadline.weight(.semibold))
+                    .lineLimit(1)
 
+                HStack(spacing: 8) {
                     Text(workspace.branchName)
                         .font(.caption)
                         .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
+                        .padding(.vertical, 3)
                         .background(.quaternary.opacity(0.6), in: Capsule())
+
+                    Text("updated \(relativeUpdatedAt)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+
+                    if !workspace.existsOnDisk {
+                        Text("missing")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.orange)
+                            .lineLimit(1)
+                    }
                 }
-
-                Text(workspace.repo.nameWithOwner)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-
-                Text("\(workspace.baseRef) • updated \(relativeUpdatedAt)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(selectedTool == .terminal ? "Open Shell" : "Reopen")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Text(workspace.existsOnDisk ? statusText : "missing")
-                    .font(.caption2)
-                    .foregroundStyle(workspace.existsOnDisk ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.orange))
-                    .lineLimit(1)
-
-                if isBusy {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
+            if isBusy {
+                ProgressView()
+                    .scaleEffect(0.8)
             }
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 22, style: .continuous)
                 .fill(.quaternary.opacity(0.28))
         )
-        .overlay(alignment: .topTrailing) {
-            if !workspace.existsOnDisk {
-                Label("Missing", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption2)
-                    .padding(10)
-                    .foregroundStyle(.orange)
-            }
-        }
         .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 
     private var relativeUpdatedAt: String {
         Self.timestampFormatter.localizedString(for: workspace.updatedAt, relativeTo: Date())
     }
-
-    private var statusText: String {
-        if selectedTool == .terminal {
-            return "shell"
-        }
-
-        return workspace.profile ?? "workspace"
-    }
-
     @ViewBuilder
     private var avatar: some View {
         if let url = URL(string: workspace.repo.owner.avatarUrl) {
@@ -100,12 +76,12 @@ struct WorkspaceRowView: View {
                             .scaleEffect(0.75)
                     }
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 40, height: 40)
             .clipShape(Circle())
         } else {
             Circle()
                 .fill(.quaternary)
-                .frame(width: 52, height: 52)
+                .frame(width: 40, height: 40)
         }
     }
 }

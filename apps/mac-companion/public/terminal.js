@@ -9162,10 +9162,13 @@ var host = window.location.host;
 var socket = new WebSocket(wsUrlForHost(host));
 var activeSurface = null;
 var closedByClient = false;
+var pendingInjectedInputs = [];
 window.slzFocusTerminal = focusTerminal;
 window.slzSendTerminalInput = sendTerminalInput;
+window.slzEnqueueTerminalInput = enqueueTerminalInput;
 titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
 setStatus("Connecting...");
+flushWindowQueuedInputs();
 socket.addEventListener("open", () => {
   send({ type: "hello", clientName: "terminal-page" });
 });
@@ -9229,6 +9232,7 @@ function handleServerMessage(message) {
     case "surface_created":
       activeSurface = message.surface;
       queueResize();
+      flushPendingInjectedInputs();
       setStatus(`Connected \u2022 ${message.surface.cwd}`);
       break;
     case "terminal_output":
@@ -9281,17 +9285,65 @@ function focusTerminal() {
     terminal.focus();
   });
 }
-function sendTerminalInput(text) {
-  if (!activeSurface || !text) {
+function sendTerminalInput(text, sendReturn = false) {
+  if (!text) {
+    return;
+  }
+  if (!activeSurface) {
+    pendingInjectedInputs.push(text);
+    if (sendReturn) {
+      pendingInjectedInputs.push("\r");
+    }
+    return;
+  }
+  sendRawTerminalInput(text);
+  if (sendReturn) {
+    sendRawTerminalInput("\r");
+  }
+  focusTerminal();
+}
+function enqueueTerminalInput(text, sendReturn = false) {
+  if (!text) {
+    return;
+  }
+  pendingInjectedInputs.push(text);
+  if (sendReturn) {
+    pendingInjectedInputs.push("\r");
+  }
+  flushPendingInjectedInputs();
+}
+function sendRawTerminalInput(data) {
+  if (!activeSurface || !data) {
     return;
   }
   const message = {
     type: "terminal_input",
     surfaceId: activeSurface.id,
-    data: text
+    data
   };
   send(message);
-  focusTerminal();
+}
+function flushPendingInjectedInputs() {
+  if (!activeSurface || pendingInjectedInputs.length === 0) {
+    return;
+  }
+  while (pendingInjectedInputs.length > 0) {
+    const nextText = pendingInjectedInputs.shift();
+    if (!nextText) {
+      continue;
+    }
+    sendRawTerminalInput(nextText);
+  }
+}
+function flushWindowQueuedInputs() {
+  const queued = window.__slzQueuedTerminalInputs;
+  if (!queued || queued.length === 0) {
+    return;
+  }
+  window.__slzQueuedTerminalInputs = [];
+  for (const item of queued) {
+    enqueueTerminalInput(item.text, item.sendReturn);
+  }
 }
 function setStatus(message, isError = false) {
   statusPill.textContent = message;

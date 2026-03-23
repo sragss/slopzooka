@@ -645,7 +645,7 @@ final class LauncherState: ObservableObject {
 
 struct ContentView: View {
     private let debugBuildStamp = "quick-launch-v1 2026-03-22 23:45"
-    private let launcherWindowSize = CGSize(width: 460, height: 680)
+    private let launcherWindowSize = CGSize(width: 620, height: 760)
 
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismiss) private var dismiss
@@ -945,7 +945,7 @@ struct ContentView: View {
             } else {
                 VStack(spacing: 10) {
                     ForEach(Array(state.recentWorkspaces.prefix(4))) { workspace in
-                        HStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             Button {
                                 Task {
                                     await state.reopen(workspace)
@@ -968,9 +968,9 @@ struct ContentView: View {
                                 }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
-                                    .font(.title3)
+                                    .font(.body)
                                     .foregroundStyle(.secondary)
-                                    .padding(8)
+                                    .padding(6)
                                     .background(.quaternary.opacity(0.35), in: Circle())
                             }
                             .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)

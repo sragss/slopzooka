@@ -7,6 +7,7 @@ struct CompanionWebView: UIViewRepresentable {
     let focusRequestToken: Int
     let pendingInputToken: Int
     let pendingInputText: String?
+    let pendingInputSendReturn: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(loadState: $loadState, fallbackURL: url)
@@ -40,7 +41,7 @@ struct CompanionWebView: UIViewRepresentable {
         if context.coordinator.lastInputToken != pendingInputToken,
            let pendingInputText {
             context.coordinator.lastInputToken = pendingInputToken
-            sendInput(pendingInputText, to: webView)
+            sendInput(pendingInputText, sendReturn: pendingInputSendReturn, to: webView)
         }
         guard webView.url != url else {
             return
@@ -66,15 +67,18 @@ struct CompanionWebView: UIViewRepresentable {
         webView.evaluateJavaScript(script)
     }
 
-    private func sendInput(_ text: String, to webView: WKWebView) {
-        guard let data = try? JSONSerialization.data(withJSONObject: [text]),
+    private func sendInput(_ text: String, sendReturn: Bool, to webView: WKWebView) {
+        guard let data = try? JSONSerialization.data(withJSONObject: [text, sendReturn]),
               let encoded = String(data: data, encoding: .utf8) else {
             return
         }
 
         let script = """
-        if (typeof window.slzSendTerminalInput === 'function') {
-            window.slzSendTerminalInput(\(encoded)[0]);
+        const args = \(encoded);
+        window.__slzQueuedTerminalInputs = window.__slzQueuedTerminalInputs || [];
+        window.__slzQueuedTerminalInputs.push({ text: args[0], sendReturn: args[1] });
+        if (typeof window.slzEnqueueTerminalInput === 'function') {
+            window.slzEnqueueTerminalInput(args[0], args[1]);
         }
         """
         webView.evaluateJavaScript(script)

@@ -1069,3 +1069,65 @@ v0 rule:
 - keyboard-first terminal interaction remains supported directly in the terminal
 - dictation uses the native compose panel and submits text into the PTY
 - do not build custom speech recognition or Whisper for v0
+
+### New Repo Flow
+
+The launcher should also support a first-class `New Repo` path:
+
+1. open quick launcher
+2. choose tool
+3. tap `New Repo`
+4. choose owner (`user` or `org`)
+5. type or dictate a repo name in a native input field
+6. show a normalized slug preview
+7. create the repo remotely, clone it locally, create the default worktree, and launch the chosen tool
+
+UX rules:
+
+- use a native SwiftUI sheet/popover so system dictation works
+- keep the flow compact and launcher-native, not terminal-based
+- default visibility to `Private`
+- default repository initialization to `README`
+- hide advanced options such as template/license/gitignore selection for v0
+
+Slug normalization rules:
+
+- lowercase everything
+- trim leading and trailing whitespace
+- replace runs of spaces or underscores with `-`
+- collapse repeated dashes
+- remove unsupported characters outside `[a-z0-9-]`
+- strip leading and trailing dashes
+
+Examples:
+
+- `My Cool App` -> `my-cool-app`
+- `foo_bar` -> `foo-bar`
+- ` Vision Pro CLI ` -> `vision-pro-cli`
+
+Companion API shape:
+
+- add `GET /api/owners` to return the authenticated user plus accessible orgs
+- add `POST /api/repos/create-and-launch`
+- validate the requested owner against current GitHub auth
+- create the repo via `gh repo create`
+- ensure the local checkout under `~/.slopzooka/workspaces/repos/<owner>/<repo>`
+- create the default worktree and return the existing launch payload shape
+
+Error handling requirements:
+
+- owner permission denied
+- repo already exists
+- invalid normalized slug
+- GitHub auth missing or expired
+- clone failure
+- worktree creation failure
+
+Testing checklist:
+
+- create a personal repo
+- create an org repo where the user has permission
+- dictate a repo name with spaces
+- create a name with punctuation/noise and verify normalization
+- attempt a duplicate repo name
+- verify successful create flows directly into terminal launch

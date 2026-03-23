@@ -15,6 +15,7 @@ struct TerminalSessionState: Identifiable {
 struct TerminalInjectedInput {
     let token: Int
     let text: String
+    let sendReturn: Bool
 }
 
 @MainActor
@@ -119,13 +120,13 @@ final class AppModel: ObservableObject {
         terminalSessions[id] = session
     }
 
-    func queueTerminalInput(id: String, text: String) {
+    func queueTerminalInput(id: String, text: String, sendReturn: Bool = true) {
         guard var session = terminalSessions[id] else {
             return
         }
 
         let nextToken = (session.pendingInput?.token ?? 0) + 1
-        session.pendingInput = TerminalInjectedInput(token: nextToken, text: text)
+        session.pendingInput = TerminalInjectedInput(token: nextToken, text: text, sendReturn: sendReturn)
         terminalSessions[id] = session
     }
 
