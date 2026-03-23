@@ -4,6 +4,7 @@ struct TerminalWindowView: View {
     let sessionID: String?
 
     @EnvironmentObject private var appModel: AppModel
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @StateObject private var debugLog = AppDebugLog.shared
     @State private var loadState: TerminalLoadState = .idle
@@ -65,6 +66,16 @@ struct TerminalWindowView: View {
                     }
 
                     Spacer(minLength: 0)
+
+                    Button {
+                        openWindow(id: "launcher")
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .background(.regularMaterial, in: Circle())
 
                     Button {
                         isUtilitiesExpanded.toggle()

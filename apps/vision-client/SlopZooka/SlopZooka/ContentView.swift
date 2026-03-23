@@ -40,6 +40,22 @@ final class LauncherState: ObservableObject {
         }
     }
 
+    func loadSavedPreferences() {
+        loadSavedHost()
+
+        if let savedTool = userDefaults.string(forKey: "selectedTool"),
+           let launchTarget = LaunchTarget(rawValue: savedTool) {
+            selectedTool = launchTarget
+            slzLog("loaded saved tool \(savedTool)")
+        } else {
+            slzLog("no saved tool found")
+        }
+    }
+
+    func persistSelectedTool() {
+        userDefaults.set(selectedTool.rawValue, forKey: "selectedTool")
+    }
+
     func loadSavedHost() {
         if let savedHost = userDefaults.string(forKey: "companionHost"), !savedHost.isEmpty {
             host = savedHost
@@ -485,92 +501,74 @@ final class LauncherState: ObservableObject {
 }
 
 struct ContentView: View {
-    private let debugBuildStamp = "terminal-inline-v6 2026-03-22 23:35"
-    private let launcherWindowSize = CGSize(width: 620, height: 820)
+    private let debugBuildStamp = "quick-launch-v1 2026-03-22 23:45"
+    private let launcherWindowSize = CGSize(width: 460, height: 680)
 
     @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
+    @State private var isMoreExpanded = false
 
     var body: some View {
-        ScrollView {
-            launcherMode
-        }
-        .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
-        .padding(24)
-        .task {
-            state.onTerminalLaunch = { payload in
-                appModel.registerTerminal(payload)
-                openWindow(id: "terminal", value: payload.id)
-            }
-            state.loadSavedHost()
-            discovery.onCompanionResolved = { companion in
-                Task {
-                    await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
+        launcherMode
+            .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
+            .padding(20)
+            .task {
+                state.onTerminalLaunch = { payload in
+                    appModel.registerTerminal(payload)
+                    openWindow(id: "terminal", value: payload.id)
+                    dismissWindow(id: "launcher")
                 }
+                state.loadSavedPreferences()
+                discovery.onCompanionResolved = { companion in
+                    Task {
+                        await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
+                    }
+                }
+                discovery.start()
+                if !state.normalizedHost.isEmpty {
+                    await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
+                }
+                slzLog("ContentView task completed")
             }
-            discovery.start()
-            if !state.normalizedHost.isEmpty {
-                await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
+            .onAppear {
+                slzLog("ContentView appeared")
             }
-            slzLog("ContentView task completed")
-        }
-        .onAppear {
-            slzLog("ContentView appeared")
-        }
-        .onDisappear {
-            discovery.stop()
-        }
+            .onDisappear {
+                discovery.stop()
+            }
+            .onChange(of: state.selectedTool) { _, _ in
+                state.persistSelectedTool()
+            }
     }
 
     private var launcherMode: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("SlopZooka")
-                    .font(.extraLargeTitle)
-                    .fontWeight(.semibold)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Quick Launch")
+                        .font(.title2)
+                        .fontWeight(.semibold)
 
-                Text("Pick a tool, select a recent GitHub repo, and open a fresh worktree on your nearby Mac.")
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-
-                Text("Debug Build: \(debugBuildStamp)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-            }
-
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Companion Host")
-                    .font(.headline)
-
-                TextField("MacName.local:7777", text: $state.host)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-
-                HStack(spacing: 12) {
-                    Button("Reconnect") {
-                        Task {
-                            await state.connectAndRefresh()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Debug Open Demo Session") {
-                        state.openDemoSession()
-                    }
-                    .buttonStyle(.bordered)
+                    Text("Pick a tool and tap a repo.")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
                 }
 
-                discoveryStatusView
+                Spacer(minLength: 0)
 
-                HealthStatusView(state: state.healthState)
+                if let launchMessage = state.launchMessage {
+                    Text(launchMessage)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
+                }
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Tool")
-                    .font(.headline)
-
+            VStack(alignment: .leading, spacing: 10) {
                 Picker("Tool", selection: $state.selectedTool) {
                     ForEach(LaunchTarget.allCases) { target in
                         Text(target.title).tag(target)
@@ -582,8 +580,10 @@ struct ContentView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+            .padding(16)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text("Recent Workspaces")
                         .font(.headline)
@@ -591,50 +591,82 @@ struct ContentView: View {
                     Spacer()
 
                     if case let .loaded(count) = state.workspaceState {
-                        Text("\(count) saved")
-                            .font(.footnote)
+                        Text("\(count)")
+                            .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                workspaceContent
+                quickWorkspaceContent
             }
-            .padding(20)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(16)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text("Recent Repositories")
+                    Text(state.searchText.isEmpty ? "Recent Repositories" : "Search Results")
                         .font(.headline)
 
                     Spacer()
 
                     if case let .loaded(viewerLogin, count) = state.repoState {
                         Text("\(count) from \(viewerLogin)")
-                            .font(.footnote)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
                     }
                 }
 
-                TextField("Search owner or repo", text: $state.searchText)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-
-                repoContent
+                quickRepoContent
             }
-            .padding(20)
-            .frame(minHeight: 520)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(16)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
-            Text("Selecting a repo ensures a checkout and fresh worktree, then opens \(state.selectedTool.title).")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
+            DisclosureGroup(isExpanded: $isMoreExpanded) {
+                VStack(alignment: .leading, spacing: 12) {
+                    TextField("Search owner or repo", text: $state.searchText)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
 
-            if let launchMessage = state.launchMessage {
-                Text(launchMessage)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Companion Host")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+
+                        TextField("MacName.local:7777", text: $state.host)
+                            .textInputAutocapitalization(.never)
+                            .disableAutocorrection(true)
+                    }
+
+                    HStack(spacing: 10) {
+                        Button("Reconnect") {
+                            Task {
+                                await state.connectAndRefresh()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button("Demo") {
+                            state.openDemoSession()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    discoveryStatusView
+                    HealthStatusView(state: state.healthState)
+
+                    Text("Build: \(debugBuildStamp)")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.top, 8)
+            } label: {
+                Label("More", systemImage: "ellipsis.circle")
+                    .font(.subheadline.weight(.semibold))
             }
+            .padding(16)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
     }
 
@@ -660,38 +692,18 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var workspaceContent: some View {
+    private var quickWorkspaceContent: some View {
         switch state.workspaceState {
-        case .idle:
-            ContentUnavailableView(
-                "No Workspaces Yet",
-                systemImage: "square.stack.3d.up.slash",
-                description: Text("Launch a repo once and it will show up here for quick reopen.")
-            )
-        case .loading:
-            VStack(spacing: 16) {
-                ProgressView()
-                Text("Loading saved workspaces...")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-            .frame(maxWidth: .infinity, minHeight: 180)
+        case .idle, .loading:
+            compactLoadingView(title: "Loading workspaces...")
         case let .failure(message):
-            ContentUnavailableView(
-                "Workspace Load Failed",
-                systemImage: "exclamationmark.triangle",
-                description: Text(message)
-            )
+            compactFailureView(message: message)
         case .loaded:
             if state.recentWorkspaces.isEmpty {
-                ContentUnavailableView(
-                    "No Saved Workspaces",
-                    systemImage: "square.stack.3d.up",
-                    description: Text("Launch a repo to create your first workspace.")
-                )
+                compactEmptyView("No saved workspaces yet.")
             } else {
-                LazyVStack(spacing: 12) {
-                    ForEach(state.recentWorkspaces) { workspace in
+                VStack(spacing: 10) {
+                    ForEach(Array(state.recentWorkspaces.prefix(4))) { workspace in
                         Button {
                             Task {
                                 await state.reopen(workspace)
@@ -712,60 +724,62 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var repoContent: some View {
+    private var quickRepoContent: some View {
         switch state.repoState {
-        case .idle:
-            ContentUnavailableView(
-                "No Repositories Yet",
-                systemImage: "folder.badge.questionmark",
-                description: Text("Connect to your Mac companion to load recent GitHub repositories.")
-            )
-        case .loading:
-            VStack(spacing: 16) {
-                Spacer()
-                ProgressView()
-                Text("Loading recent repositories...")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-                Spacer()
-            }
+        case .idle, .loading:
+            compactLoadingView(title: "Loading repositories...")
         case let .failure(message):
-            ContentUnavailableView(
-                "Repository Load Failed",
-                systemImage: "exclamationmark.triangle",
-                description: Text(message)
-            )
+            compactFailureView(message: message)
         case .loaded:
-            if state.filteredRepos.isEmpty {
-                ContentUnavailableView(
-                    "No Matching Repositories",
-                    systemImage: "magnifyingglass",
-                    description: Text("Try a different search or refresh your recent repo list.")
-                )
+            let quickRepos = Array((state.searchText.isEmpty ? state.recentRepos : state.filteredRepos).prefix(state.searchText.isEmpty ? 6 : 10))
+
+            if quickRepos.isEmpty {
+                compactEmptyView(state.searchText.isEmpty ? "No recent repositories yet." : "No matching repositories.")
             } else {
-                ScrollView {
-                    LazyVStack(spacing: 12) {
-                        ForEach(state.filteredRepos) { repo in
-                            Button {
-                                Task {
-                                    await state.launch(repo)
-                                }
-                            } label: {
-                                RepoRowView(
-                                    repo: repo,
-                                    isBusy: state.busyRepoID == repo.id,
-                                    isSelectedToolTerminal: state.selectedTool == .terminal
-                                )
+                VStack(spacing: 10) {
+                    ForEach(quickRepos) { repo in
+                        Button {
+                            Task {
+                                await state.launch(repo)
                             }
-                            .buttonStyle(.plain)
-                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
+                        } label: {
+                            RepoRowView(
+                                repo: repo,
+                                isBusy: state.busyRepoID == repo.id,
+                                isSelectedToolTerminal: state.selectedTool == .terminal
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
                     }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 2)
                 }
             }
         }
+    }
+
+    private func compactLoadingView(title: String) -> some View {
+        HStack(spacing: 10) {
+            ProgressView()
+
+            Text(title)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+    }
+
+    private func compactFailureView(message: String) -> some View {
+        Text(message)
+            .font(.footnote)
+            .foregroundStyle(.orange)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+    }
+
+    private func compactEmptyView(_ message: String) -> some View {
+        Text(message)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
     }
 }
 
