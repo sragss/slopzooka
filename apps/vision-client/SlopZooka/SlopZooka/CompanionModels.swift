@@ -26,6 +26,34 @@ struct RecentReposResponse: Decodable {
     let repos: [RecentRepoSummary]
 }
 
+struct AvailableOwnersResponse: Decodable {
+    let viewerLogin: String
+    let owners: [RepoOwnerSummary]
+}
+
+struct RepoOwnerSummary: Decodable, Identifiable, Hashable {
+    let login: String
+    let name: String?
+    let avatarUrl: String
+    let kind: Kind
+
+    enum Kind: String, Decodable {
+        case user
+        case org
+    }
+
+    var id: String { login }
+
+    var badgeTitle: String {
+        switch kind {
+        case .user:
+            return "Personal"
+        case .org:
+            return "Org"
+        }
+    }
+}
+
 struct RecentRepoSummary: Decodable, Identifiable, Hashable {
     struct OwnerSummary: Decodable, Hashable {
         let login: String
@@ -59,6 +87,13 @@ struct LaunchWorkspaceResponse: Decodable {
     let wasCloned: Bool
     let clusterId: String
     let repo: RecentRepoSummary
+}
+
+struct CreateRepoAndLaunchRequest: Encodable {
+    let owner: String
+    let repoName: String
+    let visibility: String
+    let profile: String?
 }
 
 struct RecentWorkspacesResponse: Decodable {

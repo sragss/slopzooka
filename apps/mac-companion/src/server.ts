@@ -98,6 +98,20 @@ app.get("/api/repos/recent", async (req, res) => {
   }
 });
 
+app.get("/api/owners", async (_req, res) => {
+  try {
+    const result = await gitHubClient.listAvailableOwners();
+    res.json(result);
+  } catch (error) {
+    logger.error("Failed to load available owners", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to load available owners."
+    });
+  }
+});
+
 app.get("/api/workspaces", async (req, res) => {
   const limit = normalizeLimit(req.query.limit);
   const includeArchived = req.query.includeArchived === "1" || req.query.includeArchived === "true";
@@ -147,6 +161,61 @@ app.post("/api/workspaces/launch", async (req, res) => {
       error: error instanceof Error ? error.message : String(error)
     });
     sendWorkspaceError(res, error, "Failed to launch workspace.");
+  }
+});
+
+app.post("/api/repos/create-and-launch", async (req, res) => {
+  const body = req.body as Partial<{
+    owner: string;
+    repoName: string;
+    visibility: "private" | "public";
+    profile: TuiProfile | null;
+  }> | undefined;
+
+  const owner = body?.owner?.trim();
+  const repoName = normalizeRepoName(body?.repoName);
+  const visibility = body?.visibility === "public" ? "public" : "private";
+  const profile = normalizeProfile(body?.profile);
+
+  if (!owner) {
+    res.status(400).json({
+      error: "owner is required."
+    });
+    return;
+  }
+
+  if (!repoName) {
+    res.status(400).json({
+      error: "repoName is required."
+    });
+    return;
+  }
+
+  try {
+    const repo = await gitHubClient.createRepo({
+      owner,
+      repoName,
+      visibility,
+      addReadme: true
+    });
+    const result = await workspaceService.launchWorkspace(
+      {
+        nameWithOwner: repo.nameWithOwner,
+        profile
+      },
+      repo
+    );
+
+    res.status(201).json(result);
+  } catch (error) {
+    logger.error("Failed to create and launch repository", {
+      owner,
+      repoName,
+      visibility,
+      profile: profile ?? "terminal",
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to create and launch repository.");
   }
 });
 
@@ -592,6 +661,22 @@ function normalizeLimit(value: unknown): number {
   }
 
   return Math.max(1, Math.min(Math.floor(parsed), 100));
+}
+
+function normalizeRepoName(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_]+/g, "-")
+    .replace(/[^a-z0-9-]+/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+
+  return normalized || null;
 }
 
 function normalizeProfile(value: unknown): TuiProfile | null {

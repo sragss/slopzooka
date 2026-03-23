@@ -39,7 +39,7 @@ const socket = new WebSocket(wsUrlForHost(host));
 
 let activeSurface: SurfaceSummary | null = null;
 let closedByClient = false;
-const pendingInjectedInputs: string[] = [];
+const pendingInjectedInputs: Array<{ text: string; sendReturn: boolean }> = [];
 
 window.slzFocusTerminal = focusTerminal;
 window.slzSendTerminalInput = sendTerminalInput;
@@ -190,16 +190,13 @@ function sendTerminalInput(text: string, sendReturn = false): void {
   }
 
   if (!activeSurface) {
-    pendingInjectedInputs.push(text);
-    if (sendReturn) {
-      pendingInjectedInputs.push("\r");
-    }
+    pendingInjectedInputs.push({ text, sendReturn });
     return;
   }
 
-  sendRawTerminalInput(text);
+  terminal.input(text, true);
   if (sendReturn) {
-    sendRawTerminalInput("\r");
+    terminal.input("\r", true);
   }
   focusTerminal();
 }
@@ -209,25 +206,8 @@ function enqueueTerminalInput(text: string, sendReturn = false): void {
     return;
   }
 
-  pendingInjectedInputs.push(text);
-  if (sendReturn) {
-    pendingInjectedInputs.push("\r");
-  }
+  pendingInjectedInputs.push({ text, sendReturn });
   flushPendingInjectedInputs();
-}
-
-function sendRawTerminalInput(data: string): void {
-  if (!activeSurface || !data) {
-    return;
-  }
-
-  const message: TerminalInputMessage = {
-    type: "terminal_input",
-    surfaceId: activeSurface.id,
-    data
-  };
-
-  send(message);
 }
 
 function flushPendingInjectedInputs(): void {
@@ -236,12 +216,15 @@ function flushPendingInjectedInputs(): void {
   }
 
   while (pendingInjectedInputs.length > 0) {
-    const nextText = pendingInjectedInputs.shift();
-    if (!nextText) {
+    const nextInput = pendingInjectedInputs.shift();
+    if (!nextInput) {
       continue;
     }
 
-    sendRawTerminalInput(nextText);
+    terminal.input(nextInput.text, true);
+    if (nextInput.sendReturn) {
+      terminal.input("\r", true);
+    }
   }
 }
 

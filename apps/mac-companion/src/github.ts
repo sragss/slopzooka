@@ -19,6 +19,13 @@ export type RecentRepo = {
   };
 };
 
+export type RepoOwner = {
+  login: string;
+  name: string | null;
+  avatarUrl: string;
+  kind: "user" | "org";
+};
+
 type GraphQLResponse<T> = {
   data?: T;
   errors?: Array<{ message?: string }>;
@@ -61,6 +68,22 @@ type RepoByNameQueryResult = {
       name: string | null;
     };
   } | null;
+};
+
+type AvailableOwnersQueryResult = {
+  viewer: {
+    login: string;
+    name: string | null;
+    avatarUrl: string;
+    organizations: {
+      nodes: Array<{
+        login: string;
+        name: string | null;
+        avatarUrl: string;
+        viewerCanCreateRepositories?: boolean | null;
+      }>;
+    };
+  };
 };
 
 export class GitHubClient {
@@ -149,6 +172,83 @@ export class GitHubClient {
     }
 
     return mapRepo(data.repository);
+  }
+
+  async listAvailableOwners(): Promise<{ viewerLogin: string; owners: RepoOwner[] }> {
+    const data = await this.graphql<AvailableOwnersQueryResult>(
+      `
+        query AvailableOwners {
+          viewer {
+            login
+            name
+            avatarUrl
+            organizations(first: 100) {
+              nodes {
+                login
+                name
+                avatarUrl
+                viewerCanCreateRepositories
+              }
+            }
+          }
+        }
+      `,
+      {}
+    );
+
+    const owners: RepoOwner[] = [
+      {
+        login: data.viewer.login,
+        name: data.viewer.name ?? null,
+        avatarUrl: data.viewer.avatarUrl,
+        kind: "user"
+      },
+      ...data.viewer.organizations.nodes
+        .filter((org) => org.viewerCanCreateRepositories !== false)
+        .map((org) => ({
+          login: org.login,
+          name: org.name ?? null,
+          avatarUrl: org.avatarUrl,
+          kind: "org" as const
+        }))
+    ];
+
+    return {
+      viewerLogin: data.viewer.login,
+      owners
+    };
+  }
+
+  async createRepo(input: {
+    owner: string;
+    repoName: string;
+    visibility: "private" | "public";
+    addReadme?: boolean;
+  }): Promise<RecentRepo> {
+    const nameWithOwner = `${input.owner}/${input.repoName}`;
+    const availableOwners = await this.listAvailableOwners();
+    const isAllowedOwner = availableOwners.owners.some((owner) => owner.login === input.owner);
+    if (!isAllowedOwner) {
+      throw new Error(`GitHub owner is not available for repo creation: ${input.owner}`);
+    }
+
+    const args = [
+      "repo",
+      "create",
+      nameWithOwner,
+      input.visibility === "public" ? "--public" : "--private"
+    ];
+
+    if (input.addReadme !== false) {
+      args.push("--add-readme");
+    }
+
+    await execFileAsync("gh", args, {
+      timeout: 120_000,
+      maxBuffer: 8 * 1024 * 1024
+    });
+
+    return this.getRepo(nameWithOwner);
   }
 
   private async graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {

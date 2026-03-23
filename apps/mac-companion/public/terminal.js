@@ -9290,15 +9290,12 @@ function sendTerminalInput(text, sendReturn = false) {
     return;
   }
   if (!activeSurface) {
-    pendingInjectedInputs.push(text);
-    if (sendReturn) {
-      pendingInjectedInputs.push("\r");
-    }
+    pendingInjectedInputs.push({ text, sendReturn });
     return;
   }
-  sendRawTerminalInput(text);
+  terminal.input(text, true);
   if (sendReturn) {
-    sendRawTerminalInput("\r");
+    terminal.input("\r", true);
   }
   focusTerminal();
 }
@@ -9306,33 +9303,22 @@ function enqueueTerminalInput(text, sendReturn = false) {
   if (!text) {
     return;
   }
-  pendingInjectedInputs.push(text);
-  if (sendReturn) {
-    pendingInjectedInputs.push("\r");
-  }
+  pendingInjectedInputs.push({ text, sendReturn });
   flushPendingInjectedInputs();
-}
-function sendRawTerminalInput(data) {
-  if (!activeSurface || !data) {
-    return;
-  }
-  const message = {
-    type: "terminal_input",
-    surfaceId: activeSurface.id,
-    data
-  };
-  send(message);
 }
 function flushPendingInjectedInputs() {
   if (!activeSurface || pendingInjectedInputs.length === 0) {
     return;
   }
   while (pendingInjectedInputs.length > 0) {
-    const nextText = pendingInjectedInputs.shift();
-    if (!nextText) {
+    const nextInput = pendingInjectedInputs.shift();
+    if (!nextInput) {
       continue;
     }
-    sendRawTerminalInput(nextText);
+    terminal.input(nextInput.text, true);
+    if (nextInput.sendReturn) {
+      terminal.input("\r", true);
+    }
   }
 }
 function flushWindowQueuedInputs() {

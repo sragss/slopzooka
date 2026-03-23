@@ -7,12 +7,15 @@ final class LauncherState: ObservableObject {
     @Published var healthState: HealthState = .idle
     @Published var recentRepos: [RecentRepoSummary] = []
     @Published var recentWorkspaces: [WorkspaceSummary] = []
+    @Published var availableOwners: [RepoOwnerSummary] = []
     @Published var repoState: RepoState = .idle
     @Published var workspaceState: WorkspaceState = .idle
+    @Published var ownerState: OwnerState = .idle
     @Published var selectedTool: LaunchTarget = .codex
     @Published var searchText = ""
     @Published var busyRepoID: String?
     @Published var busyWorkspaceID: String?
+    @Published var isCreatingRepo = false
     @Published var mutatingWorkspaceID: String?
     @Published var isPruningMissingWorkspaces = false
     @Published var feedback: LaunchFeedback?
@@ -27,7 +30,7 @@ final class LauncherState: ObservableObject {
     var onTerminalLaunch: ((TerminalWindowPayload) -> Void)?
 
     var isMutatingWorkspace: Bool {
-        mutatingWorkspaceID != nil || isPruningMissingWorkspaces
+        mutatingWorkspaceID != nil || isPruningMissingWorkspaces || isCreatingRepo
     }
 
     var normalizedHost: String {
@@ -163,15 +166,18 @@ final class LauncherState: ObservableObject {
         guard didConnect else {
             repoState = .idle
             workspaceState = .idle
+            ownerState = .idle
             recentRepos = []
             recentWorkspaces = []
+            availableOwners = []
             slzLog("connectAndRefresh failed")
             return false
         }
 
         async let reposTask: Void = loadRecentRepos()
         async let workspacesTask: Void = loadWorkspaces()
-        _ = await (reposTask, workspacesTask)
+        async let ownersTask: Void = loadOwners()
+        _ = await (reposTask, workspacesTask, ownersTask)
         return true
     }
 
@@ -316,6 +322,59 @@ final class LauncherState: ObservableObject {
         }
     }
 
+    func loadOwners() async {
+        guard !normalizedHost.isEmpty else {
+            ownerState = .failure("Enter a companion host first.")
+            slzLog("loadOwners blocked: empty host")
+            return
+        }
+
+        guard let url = companionURL(path: "/api/owners") else {
+            ownerState = .failure("Invalid host.")
+            slzLog("loadOwners blocked: invalid host \(normalizedHost)")
+            return
+        }
+
+        ownerState = .loading
+        slzLog("loadOwners start \(url.absoluteString)")
+
+        do {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = dataRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                ownerState = .failure("No HTTP response.")
+                return
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                ownerState = .failure(message)
+                slzLog("loadOwners failed status=\(httpResponse.statusCode) message=\(message)")
+                return
+            }
+
+            let payload = try JSONDecoder().decode(AvailableOwnersResponse.self, from: data)
+            availableOwners = payload.owners
+            ownerState = .loaded(count: payload.owners.count)
+            slzLog("loadOwners success count=\(payload.owners.count)")
+        } catch {
+            let message = transportMessage(from: error)
+            ownerState = .failure(message)
+            slzLog("loadOwners error \(message)")
+        }
+    }
+
+    func preferredOwnerLogin() -> String? {
+        if let savedOwner = userDefaults.string(forKey: "newRepoOwnerLogin"),
+           availableOwners.contains(where: { $0.login == savedOwner }) {
+            return savedOwner
+        }
+
+        return availableOwners.first?.login
+    }
+
     func launch(_ repo: RecentRepoSummary) async {
         guard !normalizedHost.isEmpty else {
             healthState = .failure("Enter a companion host first.")
@@ -372,6 +431,68 @@ final class LauncherState: ObservableObject {
             let message = transportMessage(from: error)
             feedback = LaunchFeedback(message: message, style: .error)
             slzLog("launch error \(message)")
+        }
+    }
+
+    func createRepoAndLaunch(owner: String, repoName: String, isPrivate: Bool) async -> Bool {
+        guard !normalizedHost.isEmpty else {
+            healthState = .failure("Enter a companion host first.")
+            return false
+        }
+
+        guard let url = companionURL(path: "/api/repos/create-and-launch") else {
+            healthState = .failure("Invalid host.")
+            return false
+        }
+
+        isCreatingRepo = true
+        feedback = nil
+        slzLog("createRepoAndLaunch start owner=\(owner) repo=\(repoName) visibility=\(isPrivate ? "private" : "public")")
+
+        defer {
+            isCreatingRepo = false
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 60
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(
+                CreateRepoAndLaunchRequest(
+                    owner: owner,
+                    repoName: repoName,
+                    visibility: isPrivate ? "private" : "public",
+                    profile: selectedTool.queryValue
+                )
+            )
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                feedback = LaunchFeedback(message: "Create repo failed: no HTTP response.", style: .error)
+                return false
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                feedback = LaunchFeedback(message: message, style: .error)
+                slzLog("createRepoAndLaunch failed status=\(httpResponse.statusCode) message=\(message)")
+                return false
+            }
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
+            userDefaults.set(owner, forKey: "newRepoOwnerLogin")
+            applyLaunchPayload(payload)
+            await loadRecentRepos()
+            await loadWorkspaces()
+            return true
+        } catch {
+            let message = transportMessage(from: error)
+            feedback = LaunchFeedback(message: message, style: .error)
+            slzLog("createRepoAndLaunch error \(message)")
+            return false
         }
     }
 
@@ -653,6 +774,7 @@ struct ContentView: View {
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
     @State private var isMoreExpanded = false
+    @State private var isNewRepoPresented = false
 
     var body: some View {
         ScrollView {
@@ -662,6 +784,21 @@ struct ContentView: View {
         }
         .scrollIndicators(.hidden)
         .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
+            .sheet(isPresented: $isNewRepoPresented) {
+                NewRepoSheetView(
+                    owners: state.availableOwners,
+                    suggestedOwnerLogin: state.preferredOwnerLogin(),
+                    selectedTool: state.selectedTool,
+                    isSubmitting: state.isCreatingRepo
+                ) { owner, repoName, isPrivate in
+                    Task {
+                        let didCreate = await state.createRepoAndLaunch(owner: owner, repoName: repoName, isPrivate: isPrivate)
+                        if didCreate {
+                            isNewRepoPresented = false
+                        }
+                    }
+                }
+            }
             .task {
                 state.onTerminalLaunch = { payload in
                     appModel.registerTerminal(payload)
@@ -773,6 +910,12 @@ struct ContentView: View {
                         .font(.headline)
 
                     Spacer()
+
+                    Button("New Repo") {
+                        isNewRepoPresented = true
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(state.isMutatingWorkspace || state.availableOwners.isEmpty)
 
                     if case let .loaded(viewerLogin, count) = state.repoState {
                         Text("\(count) from \(viewerLogin)")
@@ -1101,6 +1244,13 @@ enum RepoState {
 }
 
 enum WorkspaceState {
+    case idle
+    case loading
+    case loaded(count: Int)
+    case failure(String)
+}
+
+enum OwnerState {
     case idle
     case loading
     case loaded(count: Int)
