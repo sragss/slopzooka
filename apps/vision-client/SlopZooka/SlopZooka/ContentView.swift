@@ -18,6 +18,12 @@ final class LauncherState: ObservableObject {
     @Published var terminalLoadState: TerminalLoadState = .idle
 
     private let userDefaults = UserDefaults.standard
+    private var autoConnectInFlight = false
+    private var lastAutoConnectHost: String?
+    private var lastAutoConnectAttemptAt: Date?
+    private let autoConnectCooldown: TimeInterval = 6
+    private let healthRequestTimeout: TimeInterval = 4
+    private let dataRequestTimeout: TimeInterval = 15
 
     var normalizedHost: String {
         host.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -44,7 +50,93 @@ final class LauncherState: ObservableObject {
         }
     }
 
-    func connectAndRefresh() async {
+    func maybeAutoConnect(candidateHost: String, reason: String) async {
+        let candidateHost = candidateHost.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !candidateHost.isEmpty else {
+            return
+        }
+
+        guard !autoConnectInFlight else {
+            slzLog("auto-connect skipped: already in flight")
+            return
+        }
+
+        if case .success = healthState, normalizedHost == candidateHost {
+            return
+        }
+
+        if let lastAutoConnectHost,
+           lastAutoConnectHost == candidateHost,
+           let lastAutoConnectAttemptAt,
+           Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
+            return
+        }
+
+        autoConnectInFlight = true
+        lastAutoConnectHost = candidateHost
+        lastAutoConnectAttemptAt = Date()
+
+        if host != candidateHost {
+            host = candidateHost
+        }
+
+        slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
+
+        defer {
+            autoConnectInFlight = false
+        }
+
+        await connectAndRefresh()
+    }
+
+    func maybeAutoConnect(candidateHosts: [String], reason: String) async {
+        let normalizedCandidates = Array(
+            Set(
+                candidateHosts
+                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                    .filter { !$0.isEmpty }
+            )
+        )
+
+        guard !normalizedCandidates.isEmpty else {
+            return
+        }
+
+        guard !autoConnectInFlight else {
+            slzLog("auto-connect skipped: already in flight")
+            return
+        }
+
+        autoConnectInFlight = true
+        defer {
+            autoConnectInFlight = false
+        }
+
+        for candidateHost in normalizedCandidates {
+            if let lastAutoConnectHost,
+               lastAutoConnectHost == candidateHost,
+               let lastAutoConnectAttemptAt,
+               Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
+                continue
+            }
+
+            lastAutoConnectHost = candidateHost
+            lastAutoConnectAttemptAt = Date()
+
+            if host != candidateHost {
+                host = candidateHost
+            }
+
+            slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
+
+            let didConnect = await connectAndRefresh()
+            if didConnect {
+                return
+            }
+        }
+    }
+
+    func connectAndRefresh() async -> Bool {
         slzLog("connectAndRefresh start host=\(normalizedHost)")
         let didConnect = await runHealthCheck()
         guard didConnect else {
@@ -53,12 +145,13 @@ final class LauncherState: ObservableObject {
             recentRepos = []
             recentWorkspaces = []
             slzLog("connectAndRefresh failed")
-            return
+            return false
         }
 
         async let reposTask: Void = loadRecentRepos()
         async let workspacesTask: Void = loadWorkspaces()
         _ = await (reposTask, workspacesTask)
+        return true
     }
 
     func runHealthCheck() async -> Bool {
@@ -78,7 +171,10 @@ final class LauncherState: ObservableObject {
         slzLog("health check start \(url.absoluteString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = healthRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 healthState = .failure("No HTTP response.")
                 slzLog("health check failed: no HTTP response")
@@ -120,7 +216,10 @@ final class LauncherState: ObservableObject {
         slzLog("loadRecentRepos start \(url.absoluteString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = dataRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 repoState = .failure("No HTTP response.")
                 slzLog("loadRecentRepos failed: no HTTP response")
@@ -164,7 +263,10 @@ final class LauncherState: ObservableObject {
         slzLog("loadWorkspaces start \(url.absoluteString)")
 
         do {
-            let (data, response) = try await URLSession.shared.data(from: url)
+            var request = URLRequest(url: url)
+            request.timeoutInterval = dataRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
                 workspaceState = .failure("No HTTP response.")
                 slzLog("loadWorkspaces failed: no HTTP response")
@@ -390,13 +492,15 @@ final class LauncherState: ObservableObject {
 }
 
 struct ContentView: View {
-    private let debugBuildStamp = "terminal-inline-v5 2026-03-22 22:45"
+    private let debugBuildStamp = "terminal-inline-v6 2026-03-22 23:35"
     private let launcherWindowSize = CGSize(width: 620, height: 820)
     private let terminalWindowSize = CGSize(width: 1280, height: 832)
 
     @StateObject private var state = LauncherState()
     @StateObject private var debugLog = AppDebugLog.shared
+    @StateObject private var discovery = CompanionDiscovery()
     @State private var isTerminalUtilitiesExpanded = false
+    @State private var isTerminalSessionDetailsExpanded = false
 
     var body: some View {
         Group {
@@ -415,10 +519,22 @@ struct ContentView: View {
         .padding(24)
         .task {
             state.loadSavedHost()
+            discovery.onCompanionResolved = { companion in
+                Task {
+                    await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
+                }
+            }
+            discovery.start()
+            if !state.normalizedHost.isEmpty {
+                await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
+            }
             slzLog("ContentView task completed")
         }
         .onAppear {
             slzLog("ContentView appeared")
+        }
+        .onDisappear {
+            discovery.stop()
         }
         .onChange(of: state.activeTerminalPayload?.id) { _, newValue in
             slzLog("active terminal payload changed \(newValue ?? "nil")")
@@ -454,26 +570,20 @@ struct ContentView: View {
                     .disableAutocorrection(true)
 
                 HStack(spacing: 12) {
-                    Button("Connect") {
+                    Button("Reconnect") {
                         Task {
                             await state.connectAndRefresh()
                         }
                     }
                     .buttonStyle(.borderedProminent)
 
-                    Button("Refresh Repos") {
-                        Task {
-                            await state.connectAndRefresh()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.normalizedHost.isEmpty)
-
                     Button("Debug Open Demo Session") {
                         state.openDemoSession()
                     }
                     .buttonStyle(.bordered)
                 }
+
+                discoveryStatusView
 
                 HealthStatusView(state: state.healthState)
             }
@@ -549,33 +659,34 @@ struct ContentView: View {
         }
     }
 
+    @ViewBuilder
+    private var discoveryStatusView: some View {
+        switch discovery.state {
+        case .idle:
+            EmptyView()
+        case .searching:
+            Label("Searching for a nearby Mac companion…", systemImage: "dot.radiowaves.left.and.right")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case let .found(count):
+            let hostText = discovery.preferredHost ?? "nearby companion"
+            Label("Discovered \(count) companion\(count == 1 ? "" : "s"). Auto-connecting to \(hostText).", systemImage: "network")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        case let .failed(message):
+            Label(message, systemImage: "exclamationmark.triangle")
+                .font(.footnote)
+                .foregroundStyle(.orange)
+        }
+    }
+
     private func terminalMode(payload: TerminalWindowPayload) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(spacing: 12) {
-                Text("Active Session")
-                    .font(.headline)
-
-                Spacer()
-
-                VStack(alignment: .trailing, spacing: 4) {
-                    Text(payload.title)
-                        .font(.headline)
-                    Text(loadStateText)
-                        .font(.footnote)
-                        .foregroundStyle(loadStateColor)
-                }
-
-                Button("Close") {
-                    state.closeTerminal()
-                }
-                .buttonStyle(.bordered)
-            }
-
+        ZStack(alignment: .top) {
             if let url = payload.url {
                 CompanionWebView(url: url, loadState: $state.terminalLoadState)
                     .id(payload.id)
-                    .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
-                    .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
             } else {
                 ContentUnavailableView(
                     "Invalid Terminal URL",
@@ -585,13 +696,53 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, minHeight: 360)
             }
 
-            terminalUtilitiesSection(payload: payload)
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    if let statusText = terminalStatusText {
+                        Text(statusText)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(terminalStatusColor)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(.regularMaterial, in: Capsule())
+                    }
+
+                    Spacer(minLength: 0)
+
+                    Button {
+                        isTerminalUtilitiesExpanded.toggle()
+                        if !isTerminalUtilitiesExpanded {
+                            isTerminalSessionDetailsExpanded = false
+                        }
+                    } label: {
+                        Image(systemName: isTerminalUtilitiesExpanded ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .background(.regularMaterial, in: Circle())
+
+                    Button {
+                        state.closeTerminal()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.headline.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(12)
+                    .background(.regularMaterial, in: Circle())
+                }
+
+                if isTerminalUtilitiesExpanded {
+                    terminalUtilitiesSection(payload: payload)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+            }
+            .padding(14)
         }
-        .padding(20)
         .onAppear {
             slzLog("terminalMode appeared \(payload.id)")
         }
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
     }
 
     private var debugLogView: some View {
@@ -612,36 +763,49 @@ struct ContentView: View {
             .frame(minHeight: 120, maxHeight: 180)
         }
         .padding(16)
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
-        DisclosureGroup(isExpanded: $isTerminalUtilitiesExpanded) {
-            VStack(alignment: .leading, spacing: 14) {
-                Text(payload.urlString)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .textSelection(.enabled)
-
-                Text("If this view is visible, the native state transition worked.")
+        VStack(alignment: .leading, spacing: 12) {
+            if case let .failed(message) = state.terminalLoadState {
+                Text(message)
                     .font(.footnote)
-                    .foregroundStyle(.secondary)
-
-                debugLogView
+                    .foregroundStyle(.red)
             }
-            .padding(.top, 8)
-        } label: {
-            HStack {
-                Text("Session Details")
-                    .font(.headline)
-                Spacer()
-                Text(isTerminalUtilitiesExpanded ? "Hide" : "Show")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+
+            DisclosureGroup(isExpanded: $isTerminalSessionDetailsExpanded) {
+                VStack(alignment: .leading, spacing: 12) {
+                    if let host = payload.url?.host {
+                        labeledDetailRow(label: "Connected Host", value: host)
+                    }
+
+                    labeledDetailRow(label: "Terminal URL", value: payload.urlString)
+
+                    debugLogView
+                }
+                .padding(.top, 8)
+            } label: {
+                Label("Session Details", systemImage: "list.bullet.rectangle")
+                    .font(.subheadline.weight(.semibold))
             }
         }
-        .padding(20)
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+        .padding(14)
+        .frame(maxWidth: 520, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func labeledDetailRow(label: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+
+            Text(value)
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .textSelection(.enabled)
+        }
     }
 
     private var loadStateText: String {
@@ -664,6 +828,26 @@ struct ContentView: View {
         case .loaded:
             return AnyShapeStyle(.green)
         case .idle, .loading:
+            return AnyShapeStyle(.secondary)
+        }
+    }
+
+    private var terminalStatusText: String? {
+        switch state.terminalLoadState {
+        case .idle, .loaded:
+            return nil
+        case .loading:
+            return "Loading"
+        case .failed:
+            return "Failed"
+        }
+    }
+
+    private var terminalStatusColor: AnyShapeStyle {
+        switch state.terminalLoadState {
+        case .failed:
+            return AnyShapeStyle(.red)
+        case .loading, .idle, .loaded:
             return AnyShapeStyle(.secondary)
         }
     }

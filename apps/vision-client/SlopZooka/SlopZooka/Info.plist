@@ -9,6 +9,10 @@
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>SlopZooka connects to your nearby Mac companion on the local network.</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_slopzooka._tcp</string>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>

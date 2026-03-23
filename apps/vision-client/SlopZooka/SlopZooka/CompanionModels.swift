@@ -15,6 +15,7 @@ struct CompanionHealthResponse: Decodable {
     let hostname: String
     let localHostName: String
     let controlOrigin: String
+    let bonjourServiceType: String?
     let cwd: String
     let logFilePath: String
     let workspacePaths: WorkspacePaths?
@@ -109,6 +110,22 @@ enum HealthState {
     case checking
     case success(CompanionHealthResponse)
     case failure(String)
+}
+
+struct DiscoveredCompanion: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let host: String
+    let hostname: String
+    let port: Int
+    let candidateHosts: [String]
+}
+
+enum CompanionDiscoveryState: Equatable {
+    case idle
+    case searching
+    case found(count: Int)
+    case failed(String)
 }
 
 enum LaunchTarget: String, CaseIterable, Identifiable, Codable, Hashable {

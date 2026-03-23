@@ -8,6 +8,7 @@ import express from "express";
 import pty, { type IPty } from "node-pty";
 import { WebSocketServer, type WebSocket } from "ws";
 
+import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
 import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
 import { WorkspaceService, workspacePaths, type LaunchWorkspaceRequest } from "./workspace.js";
@@ -59,6 +60,7 @@ app.get("/health", (_req, res) => {
     hostname: os.hostname(),
     localHostName: localHostName(),
     controlOrigin: CONTROL_ORIGIN,
+    bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
     logFilePath: logger.logFilePath,
     workspacePaths: paths
@@ -239,13 +241,19 @@ server.listen(
     ipv6Only: false
   },
   () => {
-  logger.info("Companion listening", {
-    controlOrigin: CONTROL_ORIGIN,
-    bindHost: HOST,
-    defaultCwd: DEFAULT_CWD,
-    logFilePath: logger.logFilePath,
-    workspacePaths: workspacePaths()
-  });
+    logger.info("Companion listening", {
+      controlOrigin: CONTROL_ORIGIN,
+      bindHost: HOST,
+      defaultCwd: DEFAULT_CWD,
+      logFilePath: logger.logFilePath,
+      workspacePaths: workspacePaths()
+    });
+    bonjourAdvertiser = startBonjourAdvertiser({
+      logger,
+      name: localHostName(),
+      host: `${localHostName()}.local`,
+      port: PORT
+    });
   }
 );
 
@@ -359,6 +367,7 @@ class SurfaceManager {
 }
 
 const surfaceManager = new SurfaceManager();
+let bonjourAdvertiser: { stop: () => Promise<void> } | null = null;
 
 function handleClientMessage(
   ws: WebSocket,
@@ -574,3 +583,37 @@ process.on("unhandledRejection", (reason) => {
     reason: reason instanceof Error ? reason.message : String(reason)
   });
 });
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+  process.on(signal, () => {
+    void shutdown(signal);
+  });
+}
+
+let shuttingDown = false;
+
+async function shutdown(signal: string): Promise<void> {
+  if (shuttingDown) {
+    return;
+  }
+
+  shuttingDown = true;
+  logger.info("Shutdown requested", {
+    signal
+  });
+
+  try {
+    await bonjourAdvertiser?.stop();
+  } catch (error) {
+    logger.error("Bonjour shutdown failed", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+
+  server.close(() => {
+    logger.info("HTTP server closed", {
+      signal
+    });
+    process.exit(0);
+  });
+}
