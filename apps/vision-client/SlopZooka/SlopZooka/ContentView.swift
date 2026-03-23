@@ -86,7 +86,7 @@ final class LauncherState: ObservableObject {
             autoConnectInFlight = false
         }
 
-        await connectAndRefresh()
+        _ = await connectAndRefresh()
     }
 
     func maybeAutoConnect(candidateHosts: [String], reason: String) async {
