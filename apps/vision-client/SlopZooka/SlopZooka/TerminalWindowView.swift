@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 struct TerminalWindowView: View {
     let sessionID: String?
@@ -9,13 +8,15 @@ struct TerminalWindowView: View {
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var debugLog = AppDebugLog.shared
+    @StateObject private var speechCapture = SpeechCaptureController()
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
     @State private var isSessionDetailsExpanded = false
-    @State private var isInputExpanded = false
-    @State private var inputText = ""
+    @State private var isSpeechPanelExpanded = false
+    @State private var isSubmittingSpeech = false
+    @State private var speechSubmitError: String?
+    @State private var speechOrbPulse = false
     @State private var focusRequestToken = 0
-    @FocusState private var isInputFocused: Bool
 
     var body: some View {
         Group {
@@ -39,6 +40,7 @@ struct TerminalWindowView: View {
             }
         }
         .onDisappear {
+            speechCapture.stopListening()
             if let sessionID {
                 appModel.markTerminalPresented(id: sessionID, isPresented: false)
                 appModel.markTerminalFocused(id: sessionID, isFocused: false)
@@ -98,18 +100,19 @@ struct TerminalWindowView: View {
                     Spacer(minLength: 0)
 
                     Button {
-                        isInputExpanded.toggle()
-                        if isInputExpanded {
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(100))
-                                isInputFocused = true
-                            }
+                        if isSpeechPanelExpanded {
+                            speechCapture.stopListening()
+                            isSpeechPanelExpanded = false
                         } else {
-                            isInputFocused = false
+                            isSpeechPanelExpanded = true
+                            Task {
+                                await speechCapture.startListening()
+                            }
                         }
                     } label: {
-                        Image(systemName: isInputExpanded ? "mic.circle.fill" : "mic.circle")
+                        Image(systemName: speechCapture.isListening ? "mic.circle.fill" : "mic.circle")
                             .font(.title3)
+                            .foregroundStyle(speechCapture.isListening ? .red : .primary)
                     }
                     .buttonStyle(.plain)
                     .padding(10)
@@ -149,8 +152,8 @@ struct TerminalWindowView: View {
                     .background(.regularMaterial, in: Circle())
                 }
 
-                if isInputExpanded {
-                    terminalInputPanel(payloadID: payload.id)
+                if isSpeechPanelExpanded {
+                    speechPanel(payloadID: payload.id)
                         .frame(maxWidth: 420, alignment: .trailing)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -167,6 +170,9 @@ struct TerminalWindowView: View {
         .onAppear {
             slzLog("terminal scene appeared \(payload.id)")
             appModel.markTerminalPresented(id: payload.id, isPresented: true)
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                speechOrbPulse = true
+            }
         }
         .onChange(of: loadState) { _, newLoadState in
             appModel.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
@@ -209,41 +215,76 @@ struct TerminalWindowView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    private func terminalInputPanel(payloadID: String) -> some View {
+    private func speechPanel(payloadID: String) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Label("Dictate or Submit Text", systemImage: "mic.fill")
-                .font(.subheadline.weight(.semibold))
+            HStack(spacing: 12) {
+                Circle()
+                    .fill(speechCapture.isListening ? .red.opacity(0.9) : .secondary.opacity(0.45))
+                    .frame(width: 18, height: 18)
+                    .scaleEffect(speechCapture.isListening && speechOrbPulse ? 1.18 : 0.92)
+                    .overlay {
+                        Circle()
+                            .strokeBorder(.white.opacity(0.3), lineWidth: 1)
+                    }
 
-            TextField("Type or dictate to terminal", text: $inputText, axis: .vertical)
-                .focused($isInputFocused)
-                .font(.body)
-                .lineLimit(2 ... 5)
-                .textInputAutocapitalization(.never)
-                .disableAutocorrection(true)
-                .submitLabel(.send)
-                .onSubmit {
-                    submitInputStrip(payloadID: payloadID)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Voice Input")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text(speechCapture.statusText)
+                        .font(.caption)
+                        .foregroundStyle(speechCapture.isListening ? .red : .secondary)
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
-            Text(inputHintText)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+                Spacer()
+            }
+
+            ScrollView {
+                Text(speechCapture.transcript.isEmpty ? speechPlaceholderText : speechCapture.transcript)
+                    .font(.body)
+                    .foregroundStyle(speechCapture.transcript.isEmpty ? .tertiary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .textSelection(.enabled)
+            }
+            .frame(minHeight: 88, maxHeight: 148)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             HStack(spacing: 10) {
                 Button("Close") {
-                    isInputExpanded = false
-                    isInputFocused = false
+                    speechCapture.stopListening()
+                    isSpeechPanelExpanded = false
                 }
                 .buttonStyle(.bordered)
 
+                if speechCapture.isListening {
+                    Button("Stop") {
+                        speechCapture.stopListening()
+                    }
+                    .buttonStyle(.bordered)
+                } else {
+                    Button("Start") {
+                        Task {
+                            await speechCapture.startListening()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                }
+
                 Button("Submit") {
-                    submitInputStrip(payloadID: payloadID)
+                    Task {
+                        await submitSpeechTranscript(payloadID: payloadID)
+                    }
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(inputSubmissionText.isEmpty || !canSubmitInput)
+                .disabled(submissionTranscript.isEmpty || !canSubmitSpeech || isSubmittingSpeech)
+            }
+
+            if let speechSubmitError {
+                Text(speechSubmitError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
             }
         }
         .padding(14)
@@ -312,8 +353,8 @@ struct TerminalWindowView: View {
         return appModel.terminalSession(for: sessionID)
     }
 
-    private var inputSubmissionText: String {
-        let trimmed = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
+    private var submissionTranscript: String {
+        let trimmed = speechCapture.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return ""
         }
@@ -323,7 +364,7 @@ struct TerminalWindowView: View {
             .replacingOccurrences(of: "\u{2028}", with: "\n")
     }
 
-    private var canSubmitInput: Bool {
+    private var canSubmitSpeech: Bool {
         if case .loading = loadState {
             return false
         }
@@ -331,16 +372,12 @@ struct TerminalWindowView: View {
         return payload != nil
     }
 
-    private var inputHintText: String {
-        if UITextInputContext.current()?.isHardwareKeyboardInputExpected == true {
-            return "Look here to dictate, or type here and submit to the PTY."
+    private var speechPlaceholderText: String {
+        if speechCapture.isListening {
+            return "Listening… speak naturally, then stop or submit."
         }
 
-        if UITextInputContext.current()?.isDictationInputExpected == true {
-            return "visionOS dictation is available here. Submitted text sends Return automatically."
-        }
-
-        return "Keep terminal typing direct. Use this strip for dictated or explicit prompt submission."
+        return "Tap Start and speak. Submit sends the transcript and Enter to the active PTY."
     }
 
     private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
@@ -351,9 +388,11 @@ struct TerminalWindowView: View {
             focusRequestToken += 1
             slzLog("terminal scene active \(sessionID)")
         case .inactive:
+            speechCapture.stopListening()
             appModel.markTerminalFocused(id: sessionID, isFocused: false)
             slzLog("terminal scene inactive \(sessionID)")
         case .background:
+            speechCapture.stopListening()
             appModel.markTerminalPresented(id: sessionID, isPresented: false)
             appModel.markTerminalFocused(id: sessionID, isFocused: false)
             slzLog("terminal scene background \(sessionID)")
@@ -362,17 +401,100 @@ struct TerminalWindowView: View {
         }
     }
 
-    private func submitInputStrip(payloadID: String) {
-        let text = inputSubmissionText
+    private func submitSpeechTranscript(payloadID: String) async {
+        let text = submissionTranscript
         guard !text.isEmpty else {
             return
         }
 
-        appModel.queueTerminalInput(id: payloadID, text: text, sendReturn: true)
-        inputText = ""
-        isInputFocused = false
-        isInputExpanded = false
-        focusRequestToken += 1
-        slzLog("terminal input strip submitted \(payloadID)")
+        guard let payload,
+              let inputURL = surfaceInputURL(for: payload) else {
+            speechSubmitError = "Terminal input route is unavailable."
+            slzLog("terminal speech submit missing route \(payloadID)")
+            return
+        }
+
+        speechCapture.stopListening()
+        speechSubmitError = nil
+        isSubmittingSpeech = true
+
+        defer {
+            isSubmittingSpeech = false
+        }
+
+        do {
+            try await submitSurfaceInput(text: text, to: inputURL)
+
+            speechCapture.clearTranscript()
+            isSpeechPanelExpanded = false
+            focusRequestToken += 1
+            slzLog("terminal speech submitted \(payloadID)")
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            speechSubmitError = message
+            slzLog("terminal speech submit failed \(payloadID): \(message)")
+        }
+    }
+
+    private func surfaceInputURL(for payload: TerminalWindowPayload) -> URL? {
+        guard let baseURL = payload.url,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.path = "/api/surfaces/\(payload.id)/input"
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
+
+    private func submitSurfaceInput(text: String, to inputURL: URL) async throws {
+        let encoder = JSONEncoder()
+        let requestBody = try encoder.encode(SurfaceInputRequest(text: text, sendReturn: true))
+
+        for attempt in 0 ..< 8 {
+            var request = URLRequest(url: inputURL)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 8
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = requestBody
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw TerminalSpeechSubmitError.invalidResponse
+            }
+
+            if (200 ..< 300).contains(httpResponse.statusCode) {
+                return
+            }
+
+            let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+            let message = apiError?.error ?? "Terminal input request failed with status \(httpResponse.statusCode)."
+            if httpResponse.statusCode == 404, attempt < 7 {
+                try await Task.sleep(for: .milliseconds(250))
+                continue
+            }
+
+            throw TerminalSpeechSubmitError.requestFailed(message)
+        }
+    }
+}
+
+private struct SurfaceInputRequest: Encodable {
+    let text: String
+    let sendReturn: Bool
+}
+
+private enum TerminalSpeechSubmitError: LocalizedError {
+    case invalidResponse
+    case requestFailed(String)
+
+    var errorDescription: String? {
+        switch self {
+        case .invalidResponse:
+            return "Terminal input request returned an invalid response."
+        case let .requestFailed(message):
+            return message
+        }
     }
 }

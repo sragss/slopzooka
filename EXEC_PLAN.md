@@ -1131,3 +1131,69 @@ Testing checklist:
 - create a name with punctuation/noise and verify normalization
 - attempt a duplicate repo name
 - verify successful create flows directly into terminal launch
+
+### Native Speech Input Strategy
+
+Use Apple’s native `Speech` framework before considering any bundled third-party STT model.
+
+Recommended stack:
+
+- `SpeechAnalyzer`
+- `DictationTranscriber`
+- `SpeechDetector` for voice activity detection if needed
+
+Why:
+
+- Apple documents `SpeechAnalyzer` as the modern speech-to-text path.
+- Apple documents `DictationTranscriber` as behavior similar to system dictation without requiring the keyboard to be present.
+- This is the lowest-friction path for a Vision Pro app and avoids shipping a large model prematurely.
+
+Product rule:
+
+- do not try to make the app always listen by default
+- speech capture should be explicitly started and explicitly stopped/submitted
+- speech should target the currently active terminal window only
+
+Recommended UX:
+
+- each terminal gets a compact mic control in the top-right
+- tapping it enters `Listening` state for that terminal only
+- while listening, show a small orb-like indicator with:
+  - pulsing active state
+  - `Listening` label
+  - live partial transcript preview
+  - `Stop` and `Submit` actions
+- `Stop` ends capture without sending
+- `Submit` sends the finalized transcript into the active terminal and then sends Enter
+
+Design constraints:
+
+- keep the terminal visually primary
+- avoid a full-width composer by default
+- make listening state impossible to miss
+- avoid ambiguous auto-submit behavior while the user is still speaking
+
+Implementation notes:
+
+- request `NSSpeechRecognitionUsageDescription`
+- request `NSMicrophoneUsageDescription`
+- run the capture pipeline natively in Swift, not inside `WKWebView`
+- route finalized transcript text into the same active terminal session model already used by the client
+- submit text and Enter through the same terminal input path as hardware keyboard input
+
+Fallback policy:
+
+- only evaluate a bundled OSS model if Apple Speech fails on:
+  - reliability
+  - latency
+  - offline behavior
+  - App Review or permission UX
+
+Testing checklist:
+
+- active terminal targeting with two open terminal windows
+- start speaking, stop without submit
+- start speaking, submit finalized transcript
+- verify live partial transcript updates while listening
+- verify mic permission denial behavior
+- verify behavior when speech recognition availability is temporarily unavailable

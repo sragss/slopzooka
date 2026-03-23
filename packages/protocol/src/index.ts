@@ -23,6 +23,7 @@ export type HelloMessage = {
 
 export type CreateSurfaceMessage = {
   type: "create_surface";
+  surfaceId?: string;
   kind: SurfaceKind;
   profile?: TuiProfile;
   cwd?: string;

@@ -13,6 +13,10 @@
 	<array>
 		<string>_slopzooka._tcp</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>SlopZooka uses the microphone for native terminal dictation.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>SlopZooka uses speech recognition to turn your voice into terminal input.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>

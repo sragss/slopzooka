@@ -34,6 +34,7 @@ terminal.focus();
 const params = new URLSearchParams(window.location.search);
 const profile = parseProfile(params.get("profile"));
 const cwd = params.get("cwd")?.trim() || undefined;
+const requestedSurfaceId = params.get("surfaceId")?.trim() || undefined;
 const host = window.location.host;
 const socket = new WebSocket(wsUrlForHost(host));
 
@@ -104,6 +105,7 @@ function handleServerMessage(message: ServerMessage): void {
     case "hello_ack": {
       const createMessage: CreateSurfaceMessage = {
         type: "create_surface",
+        surfaceId: requestedSurfaceId,
         kind: profile ? "tui" : "terminal",
         profile: profile ?? undefined,
         cwd,

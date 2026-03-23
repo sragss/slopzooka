@@ -553,18 +553,16 @@ final class LauncherState: ObservableObject {
     }
 
     func openDemoSession() {
-        let urlString: String
-        if let demoURL = companionURL(path: "/terminal", queryItems: [
-            URLQueryItem(name: "profile", value: selectedTool.queryValue ?? "shell")
-        ])?.absoluteString {
-            urlString = demoURL
-        } else {
-            urlString = "https://example.com"
-        }
+        let sessionID = UUID().uuidString
+        let urlString = terminalLaunchURLString(
+            basePath: "/terminal",
+            sessionID: sessionID,
+            profileQueryValue: selectedTool.queryValue ?? "shell"
+        ) ?? "https://example.com"
 
         feedback = LaunchFeedback(message: "Opening demo session.", style: .neutral)
         let payload = TerminalWindowPayload(
-            id: UUID().uuidString,
+            id: sessionID,
             title: "Demo Session",
             urlString: urlString
         )
@@ -585,13 +583,43 @@ final class LauncherState: ObservableObject {
             message: "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)",
             style: .success
         )
+        let sessionID = payload.clusterId
         let terminalPayload = TerminalWindowPayload(
-            id: payload.clusterId,
+            id: sessionID,
             title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
-            urlString: terminalURL.absoluteString
+            urlString: terminalLaunchURLString(
+                from: terminalURL,
+                sessionID: sessionID
+            ) ?? terminalURL.absoluteString
         )
         onTerminalLaunch?(terminalPayload)
         slzLog("active terminal assigned \(terminalPayload.id)")
+    }
+
+    private func terminalLaunchURLString(from url: URL, sessionID: String) -> String? {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        var items = components.queryItems ?? []
+        items.removeAll(where: { $0.name == "surfaceId" })
+        items.append(URLQueryItem(name: "surfaceId", value: sessionID))
+        components.queryItems = items
+        return components.url?.absoluteString
+    }
+
+    private func terminalLaunchURLString(
+        basePath: String,
+        sessionID: String,
+        profileQueryValue: String
+    ) -> String? {
+        guard let baseURL = companionURL(path: basePath, queryItems: [
+            URLQueryItem(name: "profile", value: profileQueryValue)
+        ]) else {
+            return nil
+        }
+
+        return terminalLaunchURLString(from: baseURL, sessionID: sessionID)
     }
 
     func archive(_ workspace: WorkspaceSummary) async {

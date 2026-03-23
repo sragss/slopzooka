@@ -280,6 +280,41 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
   }
 });
 
+app.post("/api/surfaces/:surfaceId/input", (req, res) => {
+  const surfaceId = req.params.surfaceId?.trim();
+  const body = req.body as Partial<{
+    text: string;
+    sendReturn: boolean;
+  }> | undefined;
+
+  if (!surfaceId) {
+    res.status(400).json({
+      error: "surfaceId is required."
+    });
+    return;
+  }
+
+  if (typeof body?.text !== "string" || body.text.length === 0) {
+    res.status(400).json({
+      error: "text is required."
+    });
+    return;
+  }
+
+  try {
+    surfaceManager.injectInput(surfaceId, body.text, body.sendReturn === true);
+    res.status(202).json({
+      ok: true
+    });
+  } catch (error) {
+    logger.error("Failed to inject surface input", {
+      surfaceId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to inject terminal input.");
+  }
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
@@ -373,6 +408,9 @@ class SurfaceManager {
 
   createSurface(ws: WebSocket, message: CreateSurfaceMessage): SurfaceSummary {
     const summary = createSurfaceSummary(message);
+    if (this.surfaces.has(summary.id)) {
+      throw new WorkspaceServiceError(`Surface already exists: ${summary.id}`, 409);
+    }
     const term = spawnSurface(
       summary.kind,
       summary.profile,
@@ -428,6 +466,18 @@ class SurfaceManager {
   writeInput(surfaceId: string, data: string): void {
     const surface = this.requireSurface(surfaceId);
     surface.pty.write(data);
+  }
+
+  injectInput(surfaceId: string, text: string, sendReturn: boolean): void {
+    const normalized = normalizeTerminalInput(text);
+    if (!normalized) {
+      return;
+    }
+
+    this.writeInput(surfaceId, normalized);
+    if (sendReturn) {
+      this.writeInput(surfaceId, "\r");
+    }
   }
 
   resize(surfaceId: string, cols: number, rows: number): void {
@@ -524,7 +574,7 @@ function handleClientMessage(
 function createSurfaceSummary(message: CreateSurfaceMessage): SurfaceSummary {
   const cwd = resolveCwd(message.cwd);
   return {
-    id: crypto.randomUUID(),
+    id: normalizeSurfaceId(message.surfaceId) ?? crypto.randomUUID(),
     kind: message.kind,
     profile: message.kind === "tui" ? message.profile : undefined,
     title: surfaceTitle(message.kind, message.profile, cwd),
@@ -677,6 +727,23 @@ function normalizeRepoName(value: unknown): string | null {
     .replace(/^-|-$/g, "");
 
   return normalized || null;
+}
+
+function normalizeSurfaceId(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  return /^[A-Za-z0-9._/-]{1,120}$/.test(trimmed) ? trimmed : null;
+}
+
+function normalizeTerminalInput(value: string): string {
+  return value.replace(/\r\n|\r|\n/g, "\r");
 }
 
 function normalizeProfile(value: unknown): TuiProfile | null {
