@@ -1038,3 +1038,14 @@ Local SDK verification performed on this machine:
 - Xcode `26.1.1` is installed.
 - The local Xcode SDKs include `visionOS 26.1` and `Simulator - visionOS 26.1`.
 - The installed `xros` SDK includes `WebKit.framework` and `WKWebView`, which supports the proposed embedded browser/terminal strategy.
+
+## Near-Term Todo
+
+Current execution slice:
+
+- [x] Make the quick launcher scroll cleanly instead of vertically compressing repo rows.
+- [x] Add clearer launch/error feedback so failures are visible in the launcher.
+- [x] Add safe workspace lifecycle actions in the companion and client.
+- [x] Add a missing-workspace cleanup action instead of leaving stale entries around forever.
+- [x] Return cleaner workspace HTTP error codes for not-found and conflict cases.
+- [ ] Validate the refined launcher flow on device and simulator with a few real workspaces.

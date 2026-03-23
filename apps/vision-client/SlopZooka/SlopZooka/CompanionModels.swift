@@ -65,6 +65,14 @@ struct RecentWorkspacesResponse: Decodable {
     let workspaces: [WorkspaceSummary]
 }
 
+struct ArchiveWorkspaceResponse: Decodable {
+    let workspace: WorkspaceSummary
+}
+
+struct PruneMissingWorkspacesResponse: Decodable {
+    let archivedCount: Int
+}
+
 struct ReopenWorkspaceRequest: Encodable {
     let profile: String?
 }
@@ -79,9 +87,21 @@ struct WorkspaceSummary: Decodable, Identifiable, Hashable {
     let baseRef: String
     let createdAt: Date
     let updatedAt: Date
+    let archivedAt: Date?
     let existsOnDisk: Bool
 
     var id: String { clusterId }
+}
+
+struct LaunchFeedback: Equatable {
+    enum Style {
+        case neutral
+        case success
+        case error
+    }
+
+    let message: String
+    let style: Style
 }
 
 struct APIErrorResponse: Decodable {

@@ -19,6 +19,7 @@ struct WorkspaceRowView: View {
                 HStack(spacing: 8) {
                     Text(workspace.repo.name)
                         .font(.headline)
+                        .lineLimit(1)
 
                     Text(workspace.branchName)
                         .font(.caption)
@@ -35,11 +36,6 @@ struct WorkspaceRowView: View {
                     .font(.caption)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
-
-                Text(workspace.worktreePath)
-                    .font(.caption2)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
             }
 
             Spacer()
@@ -49,9 +45,10 @@ struct WorkspaceRowView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
 
-                Text(workspace.existsOnDisk ? (workspace.profile ?? "terminal") : "missing")
+                Text(workspace.existsOnDisk ? statusText : "missing")
                     .font(.caption2)
                     .foregroundStyle(workspace.existsOnDisk ? AnyShapeStyle(.tertiary) : AnyShapeStyle(.orange))
+                    .lineLimit(1)
 
                 if isBusy {
                     ProgressView()
@@ -78,6 +75,14 @@ struct WorkspaceRowView: View {
 
     private var relativeUpdatedAt: String {
         Self.timestampFormatter.localizedString(for: workspace.updatedAt, relativeTo: Date())
+    }
+
+    private var statusText: String {
+        if selectedTool == .terminal {
+            return "shell"
+        }
+
+        return workspace.profile ?? "workspace"
     }
 
     @ViewBuilder

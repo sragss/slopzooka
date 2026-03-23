@@ -13,7 +13,9 @@ final class LauncherState: ObservableObject {
     @Published var searchText = ""
     @Published var busyRepoID: String?
     @Published var busyWorkspaceID: String?
-    @Published var launchMessage: String?
+    @Published var mutatingWorkspaceID: String?
+    @Published var isPruningMissingWorkspaces = false
+    @Published var feedback: LaunchFeedback?
 
     private let userDefaults = UserDefaults.standard
     private var autoConnectInFlight = false
@@ -23,6 +25,10 @@ final class LauncherState: ObservableObject {
     private let healthRequestTimeout: TimeInterval = 4
     private let dataRequestTimeout: TimeInterval = 15
     var onTerminalLaunch: ((TerminalWindowPayload) -> Void)?
+
+    var isMutatingWorkspace: Bool {
+        mutatingWorkspaceID != nil || isPruningMissingWorkspaces
+    }
 
     var normalizedHost: String {
         host.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -208,8 +214,9 @@ final class LauncherState: ObservableObject {
             slzLog("health check success controlOrigin=\(payload.controlOrigin)")
             return true
         } catch {
-            healthState = .failure(error.localizedDescription)
-            slzLog("health check error \(error.localizedDescription)")
+            let message = transportMessage(from: error)
+            healthState = .failure(message)
+            slzLog("health check error \(message)")
             return false
         }
     }
@@ -256,8 +263,9 @@ final class LauncherState: ObservableObject {
             repoState = .loaded(viewerLogin: payload.viewerLogin, count: payload.repos.count)
             slzLog("loadRecentRepos success count=\(payload.repos.count)")
         } catch {
-            repoState = .failure(error.localizedDescription)
-            slzLog("loadRecentRepos error \(error.localizedDescription)")
+            let message = transportMessage(from: error)
+            repoState = .failure(message)
+            slzLog("loadRecentRepos error \(message)")
         }
     }
 
@@ -302,8 +310,9 @@ final class LauncherState: ObservableObject {
             workspaceState = .loaded(count: payload.workspaces.count)
             slzLog("loadWorkspaces success count=\(payload.workspaces.count)")
         } catch {
-            workspaceState = .failure(error.localizedDescription)
-            slzLog("loadWorkspaces error \(error.localizedDescription)")
+            let message = transportMessage(from: error)
+            workspaceState = .failure(message)
+            slzLog("loadWorkspaces error \(message)")
         }
     }
 
@@ -321,7 +330,7 @@ final class LauncherState: ObservableObject {
         }
 
         busyRepoID = repo.id
-        launchMessage = nil
+        feedback = nil
         slzLog("launch start repo=\(repo.nameWithOwner) tool=\(selectedTool.rawValue)")
 
         defer {
@@ -342,14 +351,14 @@ final class LauncherState: ObservableObject {
 
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
-                launchMessage = "Workspace launch failed: no HTTP response."
+                feedback = LaunchFeedback(message: "Workspace launch failed: no HTTP response.", style: .error)
                 slzLog("launch failed: no HTTP response")
                 return
             }
 
             guard (200...299).contains(httpResponse.statusCode) else {
                 let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                launchMessage = message
+                feedback = LaunchFeedback(message: message, style: .error)
                 slzLog("launch failed status=\(httpResponse.statusCode) message=\(message)")
                 return
             }
@@ -360,8 +369,9 @@ final class LauncherState: ObservableObject {
             applyLaunchPayload(payload)
             await loadWorkspaces()
         } catch {
-            launchMessage = error.localizedDescription
-            slzLog("launch error \(error.localizedDescription)")
+            let message = transportMessage(from: error)
+            feedback = LaunchFeedback(message: message, style: .error)
+            slzLog("launch error \(message)")
         }
     }
 
@@ -379,7 +389,7 @@ final class LauncherState: ObservableObject {
         }
 
         busyWorkspaceID = workspace.id
-        launchMessage = nil
+        feedback = nil
         slzLog("reopen start workspace=\(workspace.id) repo=\(workspace.repo.nameWithOwner) tool=\(selectedTool.rawValue)")
 
         defer {
@@ -397,14 +407,14 @@ final class LauncherState: ObservableObject {
 
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
-                launchMessage = "Workspace reopen failed: no HTTP response."
+                feedback = LaunchFeedback(message: "Workspace reopen failed: no HTTP response.", style: .error)
                 slzLog("reopen failed: no HTTP response")
                 return
             }
 
             guard (200...299).contains(httpResponse.statusCode) else {
                 let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                launchMessage = message
+                feedback = LaunchFeedback(message: message, style: .error)
                 slzLog("reopen failed status=\(httpResponse.statusCode) message=\(message)")
                 return
             }
@@ -415,8 +425,9 @@ final class LauncherState: ObservableObject {
             applyLaunchPayload(payload)
             await loadWorkspaces()
         } catch {
-            launchMessage = error.localizedDescription
-            slzLog("reopen error \(error.localizedDescription)")
+            let message = transportMessage(from: error)
+            feedback = LaunchFeedback(message: message, style: .error)
+            slzLog("reopen error \(message)")
         }
     }
 
@@ -430,7 +441,7 @@ final class LauncherState: ObservableObject {
             urlString = "https://example.com"
         }
 
-        launchMessage = "Opening demo session."
+        feedback = LaunchFeedback(message: "Opening demo session.", style: .neutral)
         let payload = TerminalWindowPayload(
             id: UUID().uuidString,
             title: "Demo Session",
@@ -444,12 +455,15 @@ final class LauncherState: ObservableObject {
         slzLog("launch response repo=\(payload.repo.nameWithOwner) branch=\(payload.branchName) url=\(payload.launchURL)")
 
         guard let terminalURL = URL(string: payload.launchURL) else {
-            launchMessage = "Workspace launched, but terminal URL was invalid."
+            feedback = LaunchFeedback(message: "Workspace launched, but terminal URL was invalid.", style: .error)
             slzLog("launch failed: invalid terminal URL \(payload.launchURL)")
             return
         }
 
-        launchMessage = "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)"
+        feedback = LaunchFeedback(
+            message: "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)",
+            style: .success
+        )
         let terminalPayload = TerminalWindowPayload(
             id: payload.clusterId,
             title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
@@ -457,6 +471,116 @@ final class LauncherState: ObservableObject {
         )
         onTerminalLaunch?(terminalPayload)
         slzLog("active terminal assigned \(terminalPayload.id)")
+    }
+
+    func archive(_ workspace: WorkspaceSummary) async {
+        guard !normalizedHost.isEmpty else {
+            healthState = .failure("Enter a companion host first.")
+            slzLog("archive blocked: empty host")
+            return
+        }
+
+        guard let url = companionURL(path: "/api/workspaces/\(workspace.id)/archive") else {
+            healthState = .failure("Invalid host.")
+            slzLog("archive blocked: invalid host \(normalizedHost)")
+            return
+        }
+
+        mutatingWorkspaceID = workspace.id
+        feedback = nil
+        slzLog("archive start workspace=\(workspace.id) repo=\(workspace.repo.nameWithOwner)")
+
+        defer {
+            mutatingWorkspaceID = nil
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = dataRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                feedback = LaunchFeedback(message: "Archive failed: no HTTP response.", style: .error)
+                slzLog("archive failed: no HTTP response")
+                return
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                feedback = LaunchFeedback(message: message, style: .error)
+                slzLog("archive failed status=\(httpResponse.statusCode) message=\(message)")
+                return
+            }
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let payload = try decoder.decode(ArchiveWorkspaceResponse.self, from: data)
+            recentWorkspaces.removeAll { $0.id == payload.workspace.id }
+            workspaceState = .loaded(count: max(0, recentWorkspaces.count))
+            feedback = LaunchFeedback(message: "Archived \(payload.workspace.repo.nameWithOwner).", style: .success)
+            slzLog("archive success workspace=\(payload.workspace.id)")
+            await loadWorkspaces()
+        } catch {
+            let message = transportMessage(from: error)
+            feedback = LaunchFeedback(message: message, style: .error)
+            slzLog("archive error \(message)")
+        }
+    }
+
+    func pruneMissingWorkspaces() async {
+        guard !normalizedHost.isEmpty else {
+            healthState = .failure("Enter a companion host first.")
+            slzLog("pruneMissingWorkspaces blocked: empty host")
+            return
+        }
+
+        guard let url = companionURL(path: "/api/workspaces/prune-missing") else {
+            healthState = .failure("Invalid host.")
+            slzLog("pruneMissingWorkspaces blocked: invalid host \(normalizedHost)")
+            return
+        }
+
+        isPruningMissingWorkspaces = true
+        feedback = nil
+        slzLog("pruneMissingWorkspaces start")
+
+        defer {
+            isPruningMissingWorkspaces = false
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.timeoutInterval = dataRequestTimeout
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                feedback = LaunchFeedback(message: "Prune failed: no HTTP response.", style: .error)
+                slzLog("pruneMissingWorkspaces failed: no HTTP response")
+                return
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                feedback = LaunchFeedback(message: message, style: .error)
+                slzLog("pruneMissingWorkspaces failed status=\(httpResponse.statusCode) message=\(message)")
+                return
+            }
+
+            let payload = try JSONDecoder().decode(PruneMissingWorkspacesResponse.self, from: data)
+            if payload.archivedCount == 0 {
+                feedback = LaunchFeedback(message: "No missing workspaces to hide.", style: .neutral)
+            } else {
+                feedback = LaunchFeedback(message: "Hidden \(payload.archivedCount) missing workspace\(payload.archivedCount == 1 ? "" : "s").", style: .success)
+            }
+            slzLog("pruneMissingWorkspaces success archivedCount=\(payload.archivedCount)")
+            await loadWorkspaces()
+        } catch {
+            let message = transportMessage(from: error)
+            feedback = LaunchFeedback(message: message, style: .error)
+            slzLog("pruneMissingWorkspaces error \(message)")
+        }
     }
 
     private func companionURL(path: String, queryItems: [URLQueryItem] = []) -> URL? {
@@ -500,6 +624,23 @@ final class LauncherState: ObservableObject {
 
         return "Request failed with status \(statusCode)."
     }
+
+    private func transportMessage(from error: Error) -> String {
+        guard let urlError = error as? URLError else {
+            return error.localizedDescription
+        }
+
+        switch urlError.code {
+        case .timedOut:
+            return "Request timed out. Check that the companion is running and reachable."
+        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
+            return "Could not reach the companion host."
+        case .notConnectedToInternet, .networkConnectionLost:
+            return "Network connection dropped while talking to the companion."
+        default:
+            return urlError.localizedDescription
+        }
+    }
 }
 
 struct ContentView: View {
@@ -514,9 +655,13 @@ struct ContentView: View {
     @State private var isMoreExpanded = false
 
     var body: some View {
-        launcherMode
-            .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
-            .padding(20)
+        ScrollView {
+            launcherMode
+                .frame(maxWidth: .infinity, alignment: .topLeading)
+                .padding(20)
+        }
+        .scrollIndicators(.hidden)
+        .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
             .task {
                 state.onTerminalLaunch = { payload in
                     appModel.registerTerminal(payload)
@@ -563,14 +708,10 @@ struct ContentView: View {
                 }
 
                 Spacer(minLength: 0)
+            }
 
-                if let launchMessage = state.launchMessage {
-                    Text(launchMessage)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.trailing)
-                }
+            if let feedback = state.feedback {
+                feedbackBanner(feedback)
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -625,7 +766,7 @@ struct ContentView: View {
                 quickRepoContent
             }
             .padding(16)
-            .frame(maxHeight: .infinity, alignment: .top)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
             .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
 
             DisclosureGroup(isExpanded: $isMoreExpanded) {
@@ -651,16 +792,36 @@ struct ContentView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
+                        .disabled(state.isMutatingWorkspace)
 
                         Button("Demo") {
                             state.openDemoSession()
                         }
                         .buttonStyle(.bordered)
+                        .disabled(state.isMutatingWorkspace)
 
                         Button("Palm Spike") {
                             openWindow(id: "palm-spike")
                         }
                         .buttonStyle(.bordered)
+                        .disabled(state.isMutatingWorkspace)
+                    }
+
+                    HStack(spacing: 10) {
+                        Button(state.isPruningMissingWorkspaces ? "Hiding Missing..." : "Hide Missing") {
+                            Task {
+                                await state.pruneMissingWorkspaces()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(state.isMutatingWorkspace)
+
+                        if state.feedback != nil {
+                            Button("Clear Status") {
+                                state.feedback = nil
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
 
                     discoveryStatusView
@@ -714,19 +875,36 @@ struct ContentView: View {
             } else {
                 VStack(spacing: 10) {
                     ForEach(Array(state.recentWorkspaces.prefix(4))) { workspace in
-                        Button {
-                            Task {
-                                await state.reopen(workspace)
+                        HStack(spacing: 10) {
+                            Button {
+                                Task {
+                                    await state.reopen(workspace)
+                                }
+                            } label: {
+                                WorkspaceRowView(
+                                    workspace: workspace,
+                                    selectedTool: state.selectedTool,
+                                    isBusy: state.busyWorkspaceID == workspace.id
+                                )
                             }
-                        } label: {
-                            WorkspaceRowView(
-                                workspace: workspace,
-                                selectedTool: state.selectedTool,
-                                isBusy: state.busyWorkspaceID == workspace.id
-                            )
+                            .buttonStyle(.plain)
+                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+
+                            Menu {
+                                Button(workspace.existsOnDisk ? "Archive Workspace" : "Hide Missing Workspace", role: .destructive) {
+                                    Task {
+                                        await state.archive(workspace)
+                                    }
+                                }
+                            } label: {
+                                Image(systemName: "ellipsis.circle")
+                                    .font(.title3)
+                                    .foregroundStyle(.secondary)
+                                    .padding(8)
+                                    .background(.quaternary.opacity(0.35), in: Circle())
+                            }
+                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
                     }
                 }
             }
@@ -760,10 +938,48 @@ struct ContentView: View {
                             )
                         }
                         .buttonStyle(.plain)
-                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
+                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                     }
                 }
             }
+        }
+    }
+
+    private func feedbackBanner(_ feedback: LaunchFeedback) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: feedbackIconName(for: feedback.style))
+                .foregroundStyle(feedbackColor(for: feedback.style))
+
+            Text(feedback.message)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .lineLimit(2)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+
+    private func feedbackColor(for style: LaunchFeedback.Style) -> AnyShapeStyle {
+        switch style {
+        case .neutral:
+            return AnyShapeStyle(.secondary)
+        case .success:
+            return AnyShapeStyle(.green)
+        case .error:
+            return AnyShapeStyle(.orange)
+        }
+    }
+
+    private func feedbackIconName(for style: LaunchFeedback.Style) -> String {
+        switch style {
+        case .neutral:
+            return "info.circle"
+        case .success:
+            return "checkmark.circle"
+        case .error:
+            return "exclamationmark.triangle"
         }
     }
 

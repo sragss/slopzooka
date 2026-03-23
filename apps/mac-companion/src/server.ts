@@ -11,7 +11,12 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
 import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
-import { WorkspaceService, workspacePaths, type LaunchWorkspaceRequest } from "./workspace.js";
+import {
+  WorkspaceService,
+  WorkspaceServiceError,
+  workspacePaths,
+  type LaunchWorkspaceRequest
+} from "./workspace.js";
 import {
   isClientMessage,
   type ClientMessage,
@@ -95,9 +100,10 @@ app.get("/api/repos/recent", async (req, res) => {
 
 app.get("/api/workspaces", async (req, res) => {
   const limit = normalizeLimit(req.query.limit);
+  const includeArchived = req.query.includeArchived === "1" || req.query.includeArchived === "true";
 
   try {
-    const workspaces = await workspaceService.listWorkspaces(limit);
+    const workspaces = await workspaceService.listWorkspaces(limit, includeArchived);
     res.json({
       workspaces
     });
@@ -105,9 +111,7 @@ app.get("/api/workspaces", async (req, res) => {
     logger.error("Failed to load workspaces", {
       error: error instanceof Error ? error.message : String(error)
     });
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to load workspaces."
-    });
+    sendWorkspaceError(res, error, "Failed to load workspaces.");
   }
 });
 
@@ -142,9 +146,7 @@ app.post("/api/workspaces/launch", async (req, res) => {
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error)
     });
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to launch workspace."
-    });
+    sendWorkspaceError(res, error, "Failed to launch workspace.");
   }
 });
 
@@ -169,9 +171,43 @@ app.post("/api/workspaces/:clusterId/reopen", async (req, res) => {
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error)
     });
-    res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to reopen workspace."
+    sendWorkspaceError(res, error, "Failed to reopen workspace.");
+  }
+});
+
+app.post("/api/workspaces/:clusterId/archive", async (req, res) => {
+  const clusterId = req.params.clusterId?.trim();
+
+  if (!clusterId) {
+    res.status(400).json({
+      error: "clusterId is required."
     });
+    return;
+  }
+
+  try {
+    const workspace = await workspaceService.archiveWorkspace(clusterId);
+    res.status(200).json({
+      workspace
+    });
+  } catch (error) {
+    logger.error("Failed to archive workspace", {
+      clusterId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to archive workspace.");
+  }
+});
+
+app.post("/api/workspaces/prune-missing", async (_req, res) => {
+  try {
+    const result = await workspaceService.pruneMissingWorkspaces();
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error("Failed to prune missing workspaces", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to prune missing workspaces.");
   }
 });
 
@@ -518,6 +554,23 @@ function resolveCwd(candidate?: string): string {
   }
 
   return DEFAULT_CWD;
+}
+
+function sendWorkspaceError(
+  res: express.Response,
+  error: unknown,
+  fallbackMessage: string
+): void {
+  if (error instanceof WorkspaceServiceError) {
+    res.status(error.statusCode).json({
+      error: error.message
+    });
+    return;
+  }
+
+  res.status(500).json({
+    error: error instanceof Error ? error.message : fallbackMessage
+  });
 }
 
 function normalizeDimension(value: number | undefined, fallback: number): number {

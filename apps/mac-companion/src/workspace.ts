@@ -51,11 +51,22 @@ export type WorkspaceRecord = {
   baseRef: string;
   createdAt: string;
   updatedAt: string;
+  archivedAt?: string | null;
 };
 
 export type WorkspaceSummary = WorkspaceRecord & {
   existsOnDisk: boolean;
 };
+
+export class WorkspaceServiceError extends Error {
+  constructor(
+    message: string,
+    readonly statusCode: number
+  ) {
+    super(message);
+    this.name = "WorkspaceServiceError";
+  }
+}
 
 export class WorkspaceService {
   constructor(
@@ -109,9 +120,10 @@ export class WorkspaceService {
     };
   }
 
-  async listWorkspaces(limit: number): Promise<WorkspaceSummary[]> {
+  async listWorkspaces(limit: number, includeArchived = false): Promise<WorkspaceSummary[]> {
     const records = await readWorkspaceIndex();
-    const sorted = records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const filtered = includeArchived ? records : records.filter((record) => !record.archivedAt);
+    const sorted = filtered.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
     const limited = sorted.slice(0, Math.max(1, Math.min(limit, 100)));
 
     return Promise.all(
@@ -126,18 +138,19 @@ export class WorkspaceService {
     const records = await readWorkspaceIndex();
     const record = records.find((candidate) => candidate.clusterId === clusterId);
     if (!record) {
-      throw new Error(`Workspace not found: ${clusterId}`);
+      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
     }
 
     if (!(await pathExists(record.worktreePath))) {
-      throw new Error(`Workspace is missing on disk: ${record.worktreePath}`);
+      throw new WorkspaceServiceError(`Workspace is missing on disk: ${record.worktreePath}`, 409);
     }
 
     const nextProfile = profileOverride === undefined ? record.profile : profileOverride;
     const updatedRecord: WorkspaceRecord = {
       ...record,
       profile: nextProfile ?? null,
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      archivedAt: null
     };
     await upsertWorkspaceRecord(updatedRecord);
 
@@ -158,6 +171,65 @@ export class WorkspaceService {
       wasCloned: false,
       clusterId
     };
+  }
+
+  async archiveWorkspace(clusterId: string): Promise<WorkspaceSummary> {
+    const records = await readWorkspaceIndex();
+    const record = records.find((candidate) => candidate.clusterId === clusterId);
+    if (!record) {
+      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
+    }
+
+    const updatedRecord: WorkspaceRecord = {
+      ...record,
+      archivedAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    await upsertWorkspaceRecord(updatedRecord);
+
+    this.logger.info("Workspace archived", {
+      clusterId,
+      repo: record.repo.nameWithOwner,
+      worktreePath: record.worktreePath
+    });
+
+    return {
+      ...updatedRecord,
+      existsOnDisk: await pathExists(updatedRecord.worktreePath)
+    };
+  }
+
+  async pruneMissingWorkspaces(): Promise<{ archivedCount: number }> {
+    const records = await readWorkspaceIndex();
+    let archivedCount = 0;
+    let mutated = false;
+    const now = new Date().toISOString();
+    const nextRecords: WorkspaceRecord[] = [];
+
+    for (const record of records) {
+      const existsOnDisk = await pathExists(record.worktreePath);
+      if (!existsOnDisk && !record.archivedAt) {
+        archivedCount += 1;
+        mutated = true;
+        nextRecords.push({
+          ...record,
+          archivedAt: now,
+          updatedAt: now
+        });
+        continue;
+      }
+
+      nextRecords.push(record);
+    }
+
+    if (mutated) {
+      await writeWorkspaceIndex(nextRecords);
+      this.logger.info("Pruned missing workspaces", {
+        archivedCount
+      });
+    }
+
+    return { archivedCount };
   }
 }
 
@@ -196,9 +268,13 @@ async function upsertWorkspaceRecord(record: WorkspaceRecord): Promise<void> {
   next.push(record);
   next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
+  await writeWorkspaceIndex(next);
+}
+
+async function writeWorkspaceIndex(records: WorkspaceRecord[]): Promise<void> {
   await fs.mkdir(WORKSPACES_ROOT, { recursive: true });
   const tempPath = `${WORKSPACE_INDEX_PATH}.tmp`;
-  await fs.writeFile(tempPath, JSON.stringify(next, null, 2) + "\n", "utf8");
+  await fs.writeFile(tempPath, JSON.stringify(records, null, 2) + "\n", "utf8");
   await fs.rename(tempPath, WORKSPACE_INDEX_PATH);
 }
 
@@ -226,7 +302,7 @@ async function assertRepoMatches(localCheckoutPath: string, repo: RecentRepo): P
   try {
     await git(["-C", localCheckoutPath, "rev-parse", "--show-toplevel"]);
   } catch {
-    throw new Error(`Target path exists but is not a git repository: ${localCheckoutPath}`);
+    throw new WorkspaceServiceError(`Target path exists but is not a git repository: ${localCheckoutPath}`, 409);
   }
 
   const { stdout } = await git(["-C", localCheckoutPath, "remote", "get-url", "origin"]);
@@ -234,8 +310,9 @@ async function assertRepoMatches(localCheckoutPath: string, repo: RecentRepo): P
   const expected = normalizeGitHubRemote(repo.sshUrl);
 
   if (!actual || !expected || actual !== expected) {
-    throw new Error(
-      `Target path already exists for a different repository: ${localCheckoutPath} (expected ${repo.nameWithOwner})`
+    throw new WorkspaceServiceError(
+      `Target path already exists for a different repository: ${localCheckoutPath} (expected ${repo.nameWithOwner})`,
+      409
     );
   }
 }
@@ -269,7 +346,7 @@ async function resolveBaseRef(
     return originHead;
   }
 
-  throw new Error(`Unable to resolve a base branch for ${repo.nameWithOwner}.`);
+  throw new WorkspaceServiceError(`Unable to resolve a base branch for ${repo.nameWithOwner}.`, 422);
 }
 
 async function symbolicOriginHead(localCheckoutPath: string): Promise<string | null> {
@@ -313,7 +390,7 @@ async function reserveWorktreePath(repo: RecentRepo, branchName: string): Promis
     }
   }
 
-  throw new Error(`Unable to reserve a unique worktree path for ${repo.nameWithOwner}.`);
+  throw new WorkspaceServiceError(`Unable to reserve a unique worktree path for ${repo.nameWithOwner}.`, 409);
 }
 
 async function git(args: string[]): Promise<{ stdout: string; stderr: string }> {
