@@ -40,6 +40,8 @@ const socket = new WebSocket(wsUrlForHost(host));
 let activeSurface: SurfaceSummary | null = null;
 let closedByClient = false;
 
+window.slzFocusTerminal = focusTerminal;
+
 titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
 setStatus("Connecting...");
 
@@ -82,6 +84,16 @@ terminal.onData((data) => {
 
 window.addEventListener("resize", queueResize);
 window.addEventListener("pagehide", teardownSurface);
+window.addEventListener("focus", focusTerminal);
+window.addEventListener("pageshow", focusTerminal);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    focusTerminal();
+  }
+});
+mount.addEventListener("pointerdown", () => {
+  focusTerminal();
+});
 
 function handleServerMessage(message: ServerMessage): void {
   switch (message.type) {
@@ -161,6 +173,12 @@ function teardownSurface(): void {
   });
 }
 
+function focusTerminal(): void {
+  requestAnimationFrame(() => {
+    terminal.focus();
+  });
+}
+
 function setStatus(message: string, isError = false): void {
   statusPill.textContent = message;
   statusPill.classList.toggle("error", isError);
@@ -203,4 +221,10 @@ function mustQuery<T extends Element>(selector: string): T {
   }
 
   return element;
+}
+
+declare global {
+  interface Window {
+    slzFocusTerminal?: () => void;
+  }
 }

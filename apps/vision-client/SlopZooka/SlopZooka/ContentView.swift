@@ -731,6 +731,25 @@ struct ContentView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
+                    Text("Open Sessions")
+                        .font(.headline)
+
+                    Spacer()
+
+                    if !appModel.openTerminalSessions.isEmpty {
+                        Text("\(appModel.openTerminalSessions.count)")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                quickOpenSessionsContent
+            }
+            .padding(16)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
+                HStack {
                     Text("Recent Workspaces")
                         .font(.headline)
 
@@ -859,6 +878,57 @@ struct ContentView: View {
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)
                 .foregroundStyle(.orange)
+        }
+    }
+
+    @ViewBuilder
+    private var quickOpenSessionsContent: some View {
+        if appModel.openTerminalSessions.isEmpty {
+            compactEmptyView("No open terminal sessions.")
+        } else {
+            VStack(spacing: 10) {
+                ForEach(Array(appModel.openTerminalSessions.prefix(4))) { session in
+                    Button {
+                        openWindow(id: "terminal", value: session.id)
+                    } label: {
+                        HStack(spacing: 12) {
+                            VStack(alignment: .leading, spacing: 6) {
+                                HStack(spacing: 8) {
+                                    Text(session.payload.title)
+                                        .font(.subheadline.weight(.semibold))
+                                        .lineLimit(1)
+
+                                    if session.isFocused {
+                                        Text("Active")
+                                            .font(.caption2.weight(.semibold))
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(.green.opacity(0.18), in: Capsule())
+                                    }
+                                }
+
+                                Text(sessionStateSummary(session))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Image(systemName: "arrow.up.forward.square")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(.quaternary.opacity(0.24))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
 
@@ -1006,6 +1076,20 @@ struct ContentView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+    }
+
+    private func sessionStateSummary(_ session: TerminalSessionState) -> String {
+        switch session.loadState {
+        case .failed:
+            return session.isPresented ? "Visible • failed" : "Hidden • failed"
+        case .loading:
+            return session.isPresented ? "Visible • loading" : "Hidden • loading"
+        case .idle, .loaded:
+            if session.isFocused {
+                return "Focused"
+            }
+            return session.isPresented ? "Visible" : "Hidden"
+        }
     }
 }
 

@@ -9162,6 +9162,7 @@ var host = window.location.host;
 var socket = new WebSocket(wsUrlForHost(host));
 var activeSurface = null;
 var closedByClient = false;
+window.slzFocusTerminal = focusTerminal;
 titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
 setStatus("Connecting...");
 socket.addEventListener("open", () => {
@@ -9196,6 +9197,16 @@ terminal.onData((data) => {
 });
 window.addEventListener("resize", queueResize);
 window.addEventListener("pagehide", teardownSurface);
+window.addEventListener("focus", focusTerminal);
+window.addEventListener("pageshow", focusTerminal);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) {
+    focusTerminal();
+  }
+});
+mount.addEventListener("pointerdown", () => {
+  focusTerminal();
+});
 function handleServerMessage(message) {
   switch (message.type) {
     case "hello_ack": {
@@ -9262,6 +9273,11 @@ function teardownSurface() {
   send({
     type: "close_surface",
     surfaceId: activeSurface.id
+  });
+}
+function focusTerminal() {
+  requestAnimationFrame(() => {
+    terminal.focus();
   });
 }
 function setStatus(message, isError = false) {

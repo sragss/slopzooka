@@ -4,6 +4,7 @@ import WebKit
 struct CompanionWebView: UIViewRepresentable {
     let url: URL
     @Binding var loadState: TerminalLoadState
+    let focusRequestToken: Int
 
     func makeCoordinator() -> Coordinator {
         Coordinator(loadState: $loadState, fallbackURL: url)
@@ -30,6 +31,10 @@ struct CompanionWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
         context.coordinator.fallbackURL = url
+        if context.coordinator.lastFocusRequestToken != focusRequestToken {
+            context.coordinator.lastFocusRequestToken = focusRequestToken
+            focusTerminal(in: webView)
+        }
         guard webView.url != url else {
             return
         }
@@ -43,9 +48,21 @@ struct CompanionWebView: UIViewRepresentable {
         webView.load(URLRequest(url: url))
     }
 
+    private func focusTerminal(in webView: WKWebView) {
+        let script = """
+        if (typeof window.slzFocusTerminal === 'function') {
+            window.slzFocusTerminal();
+        } else if (document.body) {
+            document.body.focus();
+        }
+        """
+        webView.evaluateJavaScript(script)
+    }
+
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadState: Binding<TerminalLoadState>
         var fallbackURL: URL
+        var lastFocusRequestToken = 0
 
         init(loadState: Binding<TerminalLoadState>, fallbackURL: URL) {
             self.loadState = loadState

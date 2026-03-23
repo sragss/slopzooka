@@ -6,10 +6,12 @@ struct TerminalWindowView: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var debugLog = AppDebugLog.shared
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
     @State private var isSessionDetailsExpanded = false
+    @State private var focusRequestToken = 0
 
     var body: some View {
         Group {
@@ -27,6 +29,23 @@ struct TerminalWindowView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear {
             slzLog("TerminalWindowView appeared \(sessionID ?? "nil")")
+            if let sessionID {
+                appModel.markTerminalPresented(id: sessionID, isPresented: true)
+                syncScenePhase(scenePhase, sessionID: sessionID)
+            }
+        }
+        .onDisappear {
+            if let sessionID {
+                appModel.markTerminalPresented(id: sessionID, isPresented: false)
+                appModel.markTerminalFocused(id: sessionID, isFocused: false)
+            }
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            guard let sessionID else {
+                return
+            }
+
+            syncScenePhase(newPhase, sessionID: sessionID)
         }
     }
 
@@ -41,7 +60,7 @@ struct TerminalWindowView: View {
     private func terminalMode(payload: TerminalWindowPayload) -> some View {
         ZStack(alignment: .top) {
             if let url = payload.url {
-                CompanionWebView(url: url, loadState: $loadState)
+                CompanionWebView(url: url, loadState: $loadState, focusRequestToken: focusRequestToken)
                     .id(payload.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -110,6 +129,10 @@ struct TerminalWindowView: View {
         }
         .onAppear {
             slzLog("terminal scene appeared \(payload.id)")
+            appModel.markTerminalPresented(id: payload.id, isPresented: true)
+        }
+        .onChange(of: loadState) { _, newLoadState in
+            appModel.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
         }
     }
 
@@ -200,6 +223,25 @@ struct TerminalWindowView: View {
             return AnyShapeStyle(.red)
         case .loading, .idle, .loaded:
             return AnyShapeStyle(.secondary)
+        }
+    }
+
+    private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
+        switch phase {
+        case .active:
+            appModel.markTerminalPresented(id: sessionID, isPresented: true)
+            appModel.markTerminalFocused(id: sessionID, isFocused: true)
+            focusRequestToken += 1
+            slzLog("terminal scene active \(sessionID)")
+        case .inactive:
+            appModel.markTerminalFocused(id: sessionID, isFocused: false)
+            slzLog("terminal scene inactive \(sessionID)")
+        case .background:
+            appModel.markTerminalPresented(id: sessionID, isPresented: false)
+            appModel.markTerminalFocused(id: sessionID, isFocused: false)
+            slzLog("terminal scene background \(sessionID)")
+        @unknown default:
+            break
         }
     }
 }
