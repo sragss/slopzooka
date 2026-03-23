@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct TerminalWindowView: View {
     let sessionID: String?
@@ -11,7 +12,11 @@ struct TerminalWindowView: View {
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
     @State private var isSessionDetailsExpanded = false
+    @State private var isComposerExpanded = false
+    @State private var composerText = ""
+    @State private var composerSendsReturn = true
     @State private var focusRequestToken = 0
+    @FocusState private var isComposerFocused: Bool
 
     var body: some View {
         Group {
@@ -60,7 +65,13 @@ struct TerminalWindowView: View {
     private func terminalMode(payload: TerminalWindowPayload) -> some View {
         ZStack(alignment: .top) {
             if let url = payload.url {
-                CompanionWebView(url: url, loadState: $loadState, focusRequestToken: focusRequestToken)
+                CompanionWebView(
+                    url: url,
+                    loadState: $loadState,
+                    focusRequestToken: focusRequestToken,
+                    pendingInputToken: session?.pendingInput?.token ?? 0,
+                    pendingInputText: session?.pendingInput?.text
+                )
                     .id(payload.id)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -85,6 +96,24 @@ struct TerminalWindowView: View {
                     }
 
                     Spacer(minLength: 0)
+
+                    Button {
+                        isComposerExpanded.toggle()
+                        if isComposerExpanded {
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(100))
+                                isComposerFocused = true
+                            }
+                        } else {
+                            composerText = ""
+                        }
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .background(.regularMaterial, in: Circle())
 
                     Button {
                         openWindow(id: "launcher")
@@ -118,6 +147,11 @@ struct TerminalWindowView: View {
                     .buttonStyle(.plain)
                     .padding(12)
                     .background(.regularMaterial, in: Circle())
+                }
+
+                if isComposerExpanded {
+                    composerPanel(payloadID: payload.id)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 }
 
                 if isUtilitiesExpanded {
@@ -168,6 +202,64 @@ struct TerminalWindowView: View {
             }
         }
         .padding(14)
+        .frame(maxWidth: 520, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func composerPanel(payloadID: String) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Type or Dictate")
+                        .font(.headline)
+
+                    Text(composerHintText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            ZStack(alignment: .topLeading) {
+                if composerText.isEmpty {
+                    Text("Describe the change, paste a command, or dictate text here.")
+                        .font(.body)
+                        .foregroundStyle(.tertiary)
+                        .padding(.top, 8)
+                        .padding(.leading, 6)
+                }
+
+                TextEditor(text: $composerText)
+                    .focused($isComposerFocused)
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 120, maxHeight: 180)
+                    .padding(4)
+                    .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+            }
+
+            Toggle("Send Return", isOn: $composerSendsReturn)
+                .toggleStyle(.switch)
+                .font(.footnote)
+
+            HStack(spacing: 10) {
+                Button("Cancel") {
+                    composerText = ""
+                    isComposerExpanded = false
+                    focusRequestToken += 1
+                }
+                .buttonStyle(.bordered)
+
+                Button("Send") {
+                    submitComposer(payloadID: payloadID)
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(composerSubmissionText.isEmpty || !canSubmitComposer)
+            }
+        }
+        .padding(16)
         .frame(maxWidth: 520, alignment: .leading)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
@@ -226,6 +318,43 @@ struct TerminalWindowView: View {
         }
     }
 
+    private var session: TerminalSessionState? {
+        guard let sessionID else {
+            return nil
+        }
+
+        return appModel.terminalSession(for: sessionID)
+    }
+
+    private var composerSubmissionText: String {
+        let trimmed = composerText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ""
+        }
+
+        return composerSendsReturn ? trimmed + "\n" : trimmed
+    }
+
+    private var canSubmitComposer: Bool {
+        if case .loading = loadState {
+            return false
+        }
+
+        return payload != nil
+    }
+
+    private var composerHintText: String {
+        if UITextInputContext.current()?.isHardwareKeyboardInputExpected == true {
+            return "Hardware keyboard and system dictation both work here."
+        }
+
+        if UITextInputContext.current()?.isDictationInputExpected == true {
+            return "Use visionOS dictation or the virtual keyboard, then send to the terminal."
+        }
+
+        return "Use the system text field here for dictation or keyboard input."
+    }
+
     private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
         switch phase {
         case .active:
@@ -243,5 +372,19 @@ struct TerminalWindowView: View {
         @unknown default:
             break
         }
+    }
+
+    private func submitComposer(payloadID: String) {
+        let text = composerSubmissionText
+        guard !text.isEmpty else {
+            return
+        }
+
+        appModel.queueTerminalInput(id: payloadID, text: text)
+        composerText = ""
+        isComposerExpanded = false
+        isComposerFocused = false
+        focusRequestToken += 1
+        slzLog("terminal composer submitted \(payloadID)")
     }
 }

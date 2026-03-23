@@ -9163,6 +9163,7 @@ var socket = new WebSocket(wsUrlForHost(host));
 var activeSurface = null;
 var closedByClient = false;
 window.slzFocusTerminal = focusTerminal;
+window.slzSendTerminalInput = sendTerminalInput;
 titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
 setStatus("Connecting...");
 socket.addEventListener("open", () => {
@@ -9279,6 +9280,18 @@ function focusTerminal() {
   requestAnimationFrame(() => {
     terminal.focus();
   });
+}
+function sendTerminalInput(text) {
+  if (!activeSurface || !text) {
+    return;
+  }
+  const message = {
+    type: "terminal_input",
+    surfaceId: activeSurface.id,
+    data: text
+  };
+  send(message);
+  focusTerminal();
 }
 function setStatus(message, isError = false) {
   statusPill.textContent = message;

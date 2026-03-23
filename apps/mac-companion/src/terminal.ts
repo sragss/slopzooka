@@ -41,6 +41,7 @@ let activeSurface: SurfaceSummary | null = null;
 let closedByClient = false;
 
 window.slzFocusTerminal = focusTerminal;
+window.slzSendTerminalInput = sendTerminalInput;
 
 titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
 setStatus("Connecting...");
@@ -179,6 +180,21 @@ function focusTerminal(): void {
   });
 }
 
+function sendTerminalInput(text: string): void {
+  if (!activeSurface || !text) {
+    return;
+  }
+
+  const message: TerminalInputMessage = {
+    type: "terminal_input",
+    surfaceId: activeSurface.id,
+    data: text
+  };
+
+  send(message);
+  focusTerminal();
+}
+
 function setStatus(message: string, isError = false): void {
   statusPill.textContent = message;
   statusPill.classList.toggle("error", isError);
@@ -226,5 +242,6 @@ function mustQuery<T extends Element>(selector: string): T {
 declare global {
   interface Window {
     slzFocusTerminal?: () => void;
+    slzSendTerminalInput?: (text: string) => void;
   }
 }

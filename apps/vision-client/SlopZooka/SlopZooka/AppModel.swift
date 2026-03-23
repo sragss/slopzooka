@@ -7,8 +7,14 @@ struct TerminalSessionState: Identifiable {
     var isPresented: Bool
     var isFocused: Bool
     var loadState: TerminalLoadState
+    var pendingInput: TerminalInjectedInput?
     let createdAt: Date
     var lastFocusedAt: Date?
+}
+
+struct TerminalInjectedInput {
+    let token: Int
+    let text: String
 }
 
 @MainActor
@@ -31,6 +37,7 @@ final class AppModel: ObservableObject {
             isPresented: false,
             isFocused: false,
             loadState: .idle,
+            pendingInput: nil,
             createdAt: Date(),
             lastFocusedAt: nil
         )
@@ -109,6 +116,16 @@ final class AppModel: ObservableObject {
         }
 
         session.loadState = loadState
+        terminalSessions[id] = session
+    }
+
+    func queueTerminalInput(id: String, text: String) {
+        guard var session = terminalSessions[id] else {
+            return
+        }
+
+        let nextToken = (session.pendingInput?.token ?? 0) + 1
+        session.pendingInput = TerminalInjectedInput(token: nextToken, text: text)
         terminalSessions[id] = session
     }
 

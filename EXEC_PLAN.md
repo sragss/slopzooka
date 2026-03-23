@@ -1048,4 +1048,24 @@ Current execution slice:
 - [x] Add safe workspace lifecycle actions in the companion and client.
 - [x] Add a missing-workspace cleanup action instead of leaving stale entries around forever.
 - [x] Return cleaner workspace HTTP error codes for not-found and conflict cases.
+- [x] Add a bulletproof v0 terminal input path that supports both hardware keyboard and system dictation.
 - [ ] Validate the refined launcher flow on device and simulator with a few real workspaces.
+
+### Terminal Input Strategy
+
+For v0, terminal input should use two paths:
+
+- direct keyboard input into the focused terminal window
+- native compose input for dictated or typed text, then submit that text into the terminal session
+
+Why:
+
+- Apple documents Dictation on Apple Vision Pro anywhere the Dictation button appears in text input UI.
+- Our terminal surface is rendered in a `WKWebView` with `xterm.js`, which is not the safest place to bet system dictation behavior.
+- A native SwiftUI compose field gives us the system text stack, which is the lowest-risk place to support dictation.
+
+v0 rule:
+
+- keyboard-first terminal interaction remains supported directly in the terminal
+- dictation uses the native compose panel and submits text into the PTY
+- do not build custom speech recognition or Whisper for v0

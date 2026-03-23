@@ -5,6 +5,8 @@ struct CompanionWebView: UIViewRepresentable {
     let url: URL
     @Binding var loadState: TerminalLoadState
     let focusRequestToken: Int
+    let pendingInputToken: Int
+    let pendingInputText: String?
 
     func makeCoordinator() -> Coordinator {
         Coordinator(loadState: $loadState, fallbackURL: url)
@@ -35,6 +37,11 @@ struct CompanionWebView: UIViewRepresentable {
             context.coordinator.lastFocusRequestToken = focusRequestToken
             focusTerminal(in: webView)
         }
+        if context.coordinator.lastInputToken != pendingInputToken,
+           let pendingInputText {
+            context.coordinator.lastInputToken = pendingInputToken
+            sendInput(pendingInputText, to: webView)
+        }
         guard webView.url != url else {
             return
         }
@@ -59,10 +66,25 @@ struct CompanionWebView: UIViewRepresentable {
         webView.evaluateJavaScript(script)
     }
 
+    private func sendInput(_ text: String, to webView: WKWebView) {
+        guard let data = try? JSONSerialization.data(withJSONObject: [text]),
+              let encoded = String(data: data, encoding: .utf8) else {
+            return
+        }
+
+        let script = """
+        if (typeof window.slzSendTerminalInput === 'function') {
+            window.slzSendTerminalInput(\(encoded)[0]);
+        }
+        """
+        webView.evaluateJavaScript(script)
+    }
+
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadState: Binding<TerminalLoadState>
         var fallbackURL: URL
         var lastFocusRequestToken = 0
+        var lastInputToken = 0
 
         init(loadState: Binding<TerminalLoadState>, fallbackURL: URL) {
             self.loadState = loadState
