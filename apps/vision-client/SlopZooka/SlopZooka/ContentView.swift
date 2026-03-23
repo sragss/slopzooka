@@ -391,10 +391,12 @@ final class LauncherState: ObservableObject {
 
 struct ContentView: View {
     private let debugBuildStamp = "terminal-inline-v5 2026-03-22 22:45"
+    private let launcherWindowSize = CGSize(width: 620, height: 820)
+    private let terminalWindowSize = CGSize(width: 1280, height: 832)
 
     @StateObject private var state = LauncherState()
     @StateObject private var debugLog = AppDebugLog.shared
-    @State private var isUtilitiesExpanded = false
+    @State private var isTerminalUtilitiesExpanded = false
 
     var body: some View {
         Group {
@@ -406,6 +408,10 @@ struct ContentView: View {
                 }
             }
         }
+        .frame(
+            width: state.activeTerminalPayload == nil ? launcherWindowSize.width : terminalWindowSize.width,
+            height: state.activeTerminalPayload == nil ? launcherWindowSize.height : terminalWindowSize.height
+        )
         .padding(24)
         .task {
             state.loadSavedHost()
@@ -430,12 +436,47 @@ struct ContentView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
 
+                Text("Debug Build: \(debugBuildStamp)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
                 Text("Session State: \(state.activeTerminalPayload == nil ? "none" : "active")")
                     .font(.caption)
                     .foregroundStyle(state.activeTerminalPayload == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.green))
             }
 
-            utilitiesSection
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Companion Host")
+                    .font(.headline)
+
+                TextField("MacName.local:7777", text: $state.host)
+                    .textInputAutocapitalization(.never)
+                    .disableAutocorrection(true)
+
+                HStack(spacing: 12) {
+                    Button("Connect") {
+                        Task {
+                            await state.connectAndRefresh()
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+
+                    Button("Refresh Repos") {
+                        Task {
+                            await state.connectAndRefresh()
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(state.normalizedHost.isEmpty)
+
+                    Button("Debug Open Demo Session") {
+                        state.openDemoSession()
+                    }
+                    .buttonStyle(.bordered)
+                }
+
+                HealthStatusView(state: state.healthState)
+            }
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Tool")
@@ -530,19 +571,10 @@ struct ContentView: View {
                 .buttonStyle(.bordered)
             }
 
-            Text(payload.urlString)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .textSelection(.enabled)
-
-            Text("If this view is visible, the native state transition worked.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
             if let url = payload.url {
                 CompanionWebView(url: url, loadState: $state.terminalLoadState)
                     .id(payload.id)
-                    .frame(minHeight: 720)
+                    .frame(maxWidth: .infinity, minHeight: 0, maxHeight: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             } else {
                 ContentUnavailableView(
@@ -553,7 +585,7 @@ struct ContentView: View {
                 .frame(maxWidth: .infinity, minHeight: 360)
             }
 
-            debugLogView
+            terminalUtilitiesSection(payload: payload)
         }
         .padding(20)
         .onAppear {
@@ -583,54 +615,27 @@ struct ContentView: View {
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    private var utilitiesSection: some View {
-        DisclosureGroup(isExpanded: $isUtilitiesExpanded) {
+    private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
+        DisclosureGroup(isExpanded: $isTerminalUtilitiesExpanded) {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Debug Build: \(debugBuildStamp)")
-                    .font(.caption)
+                Text(payload.urlString)
+                    .font(.caption2)
                     .foregroundStyle(.tertiary)
+                    .textSelection(.enabled)
 
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("Companion Host")
-                        .font(.headline)
+                Text("If this view is visible, the native state transition worked.")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
 
-                    TextField("MacName.local:7777", text: $state.host)
-                        .textInputAutocapitalization(.never)
-                        .disableAutocorrection(true)
-
-                    HStack(spacing: 12) {
-                        Button("Connect") {
-                            Task {
-                                await state.connectAndRefresh()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-
-                        Button("Refresh Repos") {
-                            Task {
-                                await state.connectAndRefresh()
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(state.normalizedHost.isEmpty)
-
-                        Button("Debug Open Demo Session") {
-                            state.openDemoSession()
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
-
-                HealthStatusView(state: state.healthState)
                 debugLogView
             }
             .padding(.top, 8)
         } label: {
             HStack {
-                Text("Connection & Debug")
+                Text("Session Details")
                     .font(.headline)
                 Spacer()
-                Text(isUtilitiesExpanded ? "Hide" : "Show")
+                Text(isTerminalUtilitiesExpanded ? "Hide" : "Show")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }

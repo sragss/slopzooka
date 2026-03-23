@@ -15,5 +15,6 @@ struct SlopZookaApp: App {
         }
         .defaultSize(width: 620, height: 820)
         .windowStyle(.plain)
+        .windowResizability(.contentSize)
     }
 }
