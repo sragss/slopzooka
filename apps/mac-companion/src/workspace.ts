@@ -10,7 +10,11 @@ import type { RecentRepo } from "./github.js";
 import type { TuiProfile } from "../../../packages/protocol/src/index.js";
 
 const execFileAsync = promisify(execFile);
-const DOCUMENTS_CODE_ROOT = path.join(os.homedir(), "Documents", "code");
+const SLOPZOOKA_HOME = process.env.SLOPZOOKA_HOME?.trim() || path.join(os.homedir(), ".slopzooka");
+const WORKSPACES_ROOT = path.join(SLOPZOOKA_HOME, "workspaces");
+const REPOS_ROOT = path.join(WORKSPACES_ROOT, "repos");
+const WORKTREES_ROOT = path.join(WORKSPACES_ROOT, "worktrees");
+const WORKSPACE_INDEX_PATH = path.join(WORKSPACES_ROOT, "index.json");
 
 export type LaunchWorkspaceRequest = {
   nameWithOwner: string;
@@ -27,6 +31,30 @@ export type LaunchWorkspaceResult = {
   launchURL: string;
   wasCloned: boolean;
   clusterId: string;
+};
+
+export type WorkspacePaths = {
+  slopzookaHome: string;
+  workspacesRoot: string;
+  reposRoot: string;
+  worktreesRoot: string;
+  workspaceIndexPath: string;
+};
+
+export type WorkspaceRecord = {
+  clusterId: string;
+  repo: RecentRepo;
+  profile: TuiProfile | null;
+  localCheckoutPath: string;
+  worktreePath: string;
+  branchName: string;
+  baseRef: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type WorkspaceSummary = WorkspaceRecord & {
+  existsOnDisk: boolean;
 };
 
 export class WorkspaceService {
@@ -57,6 +85,18 @@ export class WorkspaceService {
       wasCloned: ensureResult.wasCloned
     });
 
+    await upsertWorkspaceRecord({
+      clusterId,
+      repo,
+      profile: input.profile ?? null,
+      localCheckoutPath,
+      worktreePath,
+      branchName,
+      baseRef,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    });
+
     return {
       repo,
       localCheckoutPath,
@@ -68,6 +108,98 @@ export class WorkspaceService {
       clusterId
     };
   }
+
+  async listWorkspaces(limit: number): Promise<WorkspaceSummary[]> {
+    const records = await readWorkspaceIndex();
+    const sorted = records.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const limited = sorted.slice(0, Math.max(1, Math.min(limit, 100)));
+
+    return Promise.all(
+      limited.map(async (record) => ({
+        ...record,
+        existsOnDisk: await pathExists(record.worktreePath)
+      }))
+    );
+  }
+
+  async reopenWorkspace(clusterId: string, profileOverride?: TuiProfile | null): Promise<LaunchWorkspaceResult> {
+    const records = await readWorkspaceIndex();
+    const record = records.find((candidate) => candidate.clusterId === clusterId);
+    if (!record) {
+      throw new Error(`Workspace not found: ${clusterId}`);
+    }
+
+    if (!(await pathExists(record.worktreePath))) {
+      throw new Error(`Workspace is missing on disk: ${record.worktreePath}`);
+    }
+
+    const nextProfile = profileOverride === undefined ? record.profile : profileOverride;
+    const updatedRecord: WorkspaceRecord = {
+      ...record,
+      profile: nextProfile ?? null,
+      updatedAt: new Date().toISOString()
+    };
+    await upsertWorkspaceRecord(updatedRecord);
+
+    this.logger.info("Workspace reopened", {
+      repo: record.repo.nameWithOwner,
+      clusterId,
+      worktreePath: record.worktreePath,
+      profile: nextProfile ?? "terminal"
+    });
+
+    return {
+      repo: record.repo,
+      localCheckoutPath: record.localCheckoutPath,
+      worktreePath: record.worktreePath,
+      branchName: record.branchName,
+      baseRef: record.baseRef,
+      launchURL: terminalUrl(this.controlOrigin, nextProfile ?? null, record.worktreePath),
+      wasCloned: false,
+      clusterId
+    };
+  }
+}
+
+export function workspacePaths(): WorkspacePaths {
+  return {
+    slopzookaHome: SLOPZOOKA_HOME,
+    workspacesRoot: WORKSPACES_ROOT,
+    reposRoot: REPOS_ROOT,
+    worktreesRoot: WORKTREES_ROOT,
+    workspaceIndexPath: WORKSPACE_INDEX_PATH
+  };
+}
+
+async function readWorkspaceIndex(): Promise<WorkspaceRecord[]> {
+  try {
+    const data = await fs.readFile(WORKSPACE_INDEX_PATH, "utf8");
+    const payload = JSON.parse(data) as unknown;
+    if (!Array.isArray(payload)) {
+      return [];
+    }
+
+    return payload.filter(isWorkspaceRecord);
+  } catch (error) {
+    const err = error as NodeJS.ErrnoException;
+    if (err.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+}
+
+async function upsertWorkspaceRecord(record: WorkspaceRecord): Promise<void> {
+  const existing = await readWorkspaceIndex();
+  const next = existing.filter((candidate) => candidate.clusterId !== record.clusterId);
+  next.push(record);
+  next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
+  await fs.mkdir(WORKSPACES_ROOT, { recursive: true });
+  const tempPath = `${WORKSPACE_INDEX_PATH}.tmp`;
+  await fs.writeFile(tempPath, JSON.stringify(next, null, 2) + "\n", "utf8");
+  await fs.rename(tempPath, WORKSPACE_INDEX_PATH);
 }
 
 async function ensureLocalCheckout(
@@ -167,10 +299,8 @@ async function refExists(localCheckoutPath: string, ref: string): Promise<boolea
 
 async function reserveWorktreePath(repo: RecentRepo, branchName: string): Promise<string> {
   const baseRoot = path.join(
-    DOCUMENTS_CODE_ROOT,
+    WORKTREES_ROOT,
     repo.owner.login,
-    ".slopzooka",
-    "worktrees",
     repo.name
   );
   await fs.mkdir(baseRoot, { recursive: true });
@@ -215,7 +345,7 @@ function makeBranchName(profile: TuiProfile | null): string {
 }
 
 function repoCheckoutPath(repo: RecentRepo): string {
-  return path.join(DOCUMENTS_CODE_ROOT, repo.owner.login, repo.name);
+  return path.join(REPOS_ROOT, repo.owner.login, repo.name);
 }
 
 function normalizeGitHubRemote(value: string): string | null {
@@ -250,4 +380,22 @@ async function pathExists(candidate: string): Promise<boolean> {
 
 function unique(values: Array<string | undefined>): string[] {
   return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+}
+
+function isWorkspaceRecord(value: unknown): value is WorkspaceRecord {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+
+  const candidate = value as Partial<WorkspaceRecord>;
+  return (
+    typeof candidate.clusterId === "string" &&
+    typeof candidate.localCheckoutPath === "string" &&
+    typeof candidate.worktreePath === "string" &&
+    typeof candidate.branchName === "string" &&
+    typeof candidate.baseRef === "string" &&
+    typeof candidate.createdAt === "string" &&
+    typeof candidate.updatedAt === "string" &&
+    typeof candidate.repo?.nameWithOwner === "string"
+  );
 }

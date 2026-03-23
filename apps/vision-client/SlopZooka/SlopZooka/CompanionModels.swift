@@ -1,6 +1,14 @@
 import Foundation
 
 struct CompanionHealthResponse: Decodable {
+    struct WorkspacePaths: Decodable {
+        let slopzookaHome: String
+        let workspacesRoot: String
+        let reposRoot: String
+        let worktreesRoot: String
+        let workspaceIndexPath: String
+    }
+
     let ok: Bool
     let name: String
     let version: String
@@ -9,6 +17,7 @@ struct CompanionHealthResponse: Decodable {
     let controlOrigin: String
     let cwd: String
     let logFilePath: String
+    let workspacePaths: WorkspacePaths?
 }
 
 struct RecentReposResponse: Decodable {
@@ -49,6 +58,29 @@ struct LaunchWorkspaceResponse: Decodable {
     let wasCloned: Bool
     let clusterId: String
     let repo: RecentRepoSummary
+}
+
+struct RecentWorkspacesResponse: Decodable {
+    let workspaces: [WorkspaceSummary]
+}
+
+struct ReopenWorkspaceRequest: Encodable {
+    let profile: String?
+}
+
+struct WorkspaceSummary: Decodable, Identifiable, Hashable {
+    let clusterId: String
+    let repo: RecentRepoSummary
+    let profile: String?
+    let localCheckoutPath: String
+    let worktreePath: String
+    let branchName: String
+    let baseRef: String
+    let createdAt: Date
+    let updatedAt: Date
+    let existsOnDisk: Bool
+
+    var id: String { clusterId }
 }
 
 struct APIErrorResponse: Decodable {

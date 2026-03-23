@@ -22,6 +22,10 @@ struct HealthStatusView: View {
                         .foregroundStyle(.green)
                     Text("Origin: \(response.controlOrigin)")
                     Text("Hostname: \(response.hostname)")
+                    if let workspacesRoot = response.workspacePaths?.workspacesRoot {
+                        Text("Workspaces: \(workspacesRoot)")
+                            .foregroundStyle(.secondary)
+                    }
                     Text("Logs: \(response.logFilePath)")
                         .foregroundStyle(.secondary)
                 }

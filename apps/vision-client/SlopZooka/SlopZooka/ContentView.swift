@@ -6,10 +6,13 @@ final class LauncherState: ObservableObject {
     @Published var host = ""
     @Published var healthState: HealthState = .idle
     @Published var recentRepos: [RecentRepoSummary] = []
+    @Published var recentWorkspaces: [WorkspaceSummary] = []
     @Published var repoState: RepoState = .idle
+    @Published var workspaceState: WorkspaceState = .idle
     @Published var selectedTool: LaunchTarget = .codex
     @Published var searchText = ""
     @Published var busyRepoID: String?
+    @Published var busyWorkspaceID: String?
     @Published var launchMessage: String?
     @Published var activeTerminalPayload: TerminalWindowPayload?
     @Published var terminalLoadState: TerminalLoadState = .idle
@@ -46,12 +49,16 @@ final class LauncherState: ObservableObject {
         let didConnect = await runHealthCheck()
         guard didConnect else {
             repoState = .idle
+            workspaceState = .idle
             recentRepos = []
+            recentWorkspaces = []
             slzLog("connectAndRefresh failed")
             return
         }
 
-        await loadRecentRepos()
+        async let reposTask: Void = loadRecentRepos()
+        async let workspacesTask: Void = loadWorkspaces()
+        _ = await (reposTask, workspacesTask)
     }
 
     func runHealthCheck() async -> Bool {
@@ -140,6 +147,49 @@ final class LauncherState: ObservableObject {
         }
     }
 
+    func loadWorkspaces() async {
+        guard !normalizedHost.isEmpty else {
+            workspaceState = .failure("Enter a companion host first.")
+            slzLog("loadWorkspaces blocked: empty host")
+            return
+        }
+
+        guard let url = companionURL(path: "/api/workspaces", queryItems: [URLQueryItem(name: "limit", value: "16")]) else {
+            workspaceState = .failure("Invalid host.")
+            slzLog("loadWorkspaces blocked: invalid host \(normalizedHost)")
+            return
+        }
+
+        workspaceState = .loading
+        slzLog("loadWorkspaces start \(url.absoluteString)")
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                workspaceState = .failure("No HTTP response.")
+                slzLog("loadWorkspaces failed: no HTTP response")
+                return
+            }
+
+            guard httpResponse.statusCode == 200 else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                workspaceState = .failure(message)
+                slzLog("loadWorkspaces failed status=\(httpResponse.statusCode) message=\(message)")
+                return
+            }
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let payload = try decoder.decode(RecentWorkspacesResponse.self, from: data)
+            recentWorkspaces = payload.workspaces
+            workspaceState = .loaded(count: payload.workspaces.count)
+            slzLog("loadWorkspaces success count=\(payload.workspaces.count)")
+        } catch {
+            workspaceState = .failure(error.localizedDescription)
+            slzLog("loadWorkspaces error \(error.localizedDescription)")
+        }
+    }
+
     func launch(_ repo: RecentRepoSummary) async {
         guard !normalizedHost.isEmpty else {
             healthState = .failure("Enter a companion host first.")
@@ -189,25 +239,65 @@ final class LauncherState: ObservableObject {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .iso8601
             let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
-            slzLog("launch response repo=\(payload.repo.nameWithOwner) branch=\(payload.branchName) url=\(payload.launchURL)")
-
-            guard let terminalURL = URL(string: payload.launchURL) else {
-                launchMessage = "Workspace launched, but terminal URL was invalid."
-                slzLog("launch failed: invalid terminal URL \(payload.launchURL)")
-                return
-            }
-
-            terminalLoadState = .loading(terminalURL.absoluteString)
-            launchMessage = "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)"
-            activeTerminalPayload = TerminalWindowPayload(
-                id: UUID().uuidString,
-                title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
-                urlString: terminalURL.absoluteString
-            )
-            slzLog("active terminal assigned \(activeTerminalPayload?.id ?? "nil")")
+            applyLaunchPayload(payload)
+            await loadWorkspaces()
         } catch {
             launchMessage = error.localizedDescription
             slzLog("launch error \(error.localizedDescription)")
+        }
+    }
+
+    func reopen(_ workspace: WorkspaceSummary) async {
+        guard !normalizedHost.isEmpty else {
+            healthState = .failure("Enter a companion host first.")
+            slzLog("reopen blocked: empty host")
+            return
+        }
+
+        guard let url = companionURL(path: "/api/workspaces/\(workspace.id)/reopen") else {
+            healthState = .failure("Invalid host.")
+            slzLog("reopen blocked: invalid host \(normalizedHost)")
+            return
+        }
+
+        busyWorkspaceID = workspace.id
+        launchMessage = nil
+        slzLog("reopen start workspace=\(workspace.id) repo=\(workspace.repo.nameWithOwner) tool=\(selectedTool.rawValue)")
+
+        defer {
+            busyWorkspaceID = nil
+        }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(
+                ReopenWorkspaceRequest(profile: selectedTool.queryValue)
+            )
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                launchMessage = "Workspace reopen failed: no HTTP response."
+                slzLog("reopen failed: no HTTP response")
+                return
+            }
+
+            guard (200...299).contains(httpResponse.statusCode) else {
+                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
+                launchMessage = message
+                slzLog("reopen failed status=\(httpResponse.statusCode) message=\(message)")
+                return
+            }
+
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
+            applyLaunchPayload(payload)
+            await loadWorkspaces()
+        } catch {
+            launchMessage = error.localizedDescription
+            slzLog("reopen error \(error.localizedDescription)")
         }
     }
 
@@ -235,6 +325,25 @@ final class LauncherState: ObservableObject {
         slzLog("closeTerminal")
         terminalLoadState = .idle
         activeTerminalPayload = nil
+    }
+
+    private func applyLaunchPayload(_ payload: LaunchWorkspaceResponse) {
+        slzLog("launch response repo=\(payload.repo.nameWithOwner) branch=\(payload.branchName) url=\(payload.launchURL)")
+
+        guard let terminalURL = URL(string: payload.launchURL) else {
+            launchMessage = "Workspace launched, but terminal URL was invalid."
+            slzLog("launch failed: invalid terminal URL \(payload.launchURL)")
+            return
+        }
+
+        terminalLoadState = .loading(terminalURL.absoluteString)
+        launchMessage = "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)"
+        activeTerminalPayload = TerminalWindowPayload(
+            id: payload.clusterId,
+            title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
+            urlString: terminalURL.absoluteString
+        )
+        slzLog("active terminal assigned \(activeTerminalPayload?.id ?? "nil")")
     }
 
     private func companionURL(path: String, queryItems: [URLQueryItem] = []) -> URL? {
@@ -285,6 +394,7 @@ struct ContentView: View {
 
     @StateObject private var state = LauncherState()
     @StateObject private var debugLog = AppDebugLog.shared
+    @State private var isUtilitiesExpanded = false
 
     var body: some View {
         Group {
@@ -320,47 +430,12 @@ struct ContentView: View {
                     .font(.body)
                     .foregroundStyle(.secondary)
 
-                Text("Debug Build: \(debugBuildStamp)")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-
                 Text("Session State: \(state.activeTerminalPayload == nil ? "none" : "active")")
                     .font(.caption)
                     .foregroundStyle(state.activeTerminalPayload == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.green))
             }
 
-            VStack(alignment: .leading, spacing: 12) {
-                Text("Companion Host")
-                    .font(.headline)
-
-                TextField("MacName.local:7777", text: $state.host)
-                    .textInputAutocapitalization(.never)
-                    .disableAutocorrection(true)
-
-                HStack(spacing: 12) {
-                    Button("Connect") {
-                        Task {
-                            await state.connectAndRefresh()
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-
-                    Button("Refresh Repos") {
-                        Task {
-                            await state.loadRecentRepos()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.normalizedHost.isEmpty)
-
-                    Button("Debug Open Demo Session") {
-                        state.openDemoSession()
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                HealthStatusView(state: state.healthState)
-            }
+            utilitiesSection
 
             VStack(alignment: .leading, spacing: 12) {
                 Text("Tool")
@@ -377,6 +452,25 @@ struct ContentView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
+
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text("Recent Workspaces")
+                        .font(.headline)
+
+                    Spacer()
+
+                    if case let .loaded(count) = state.workspaceState {
+                        Text("\(count) saved")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                workspaceContent
+            }
+            .padding(20)
+            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
 
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
@@ -411,8 +505,6 @@ struct ContentView: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-
-            debugLogView
         }
     }
 
@@ -491,6 +583,62 @@ struct ContentView: View {
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
+    private var utilitiesSection: some View {
+        DisclosureGroup(isExpanded: $isUtilitiesExpanded) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Debug Build: \(debugBuildStamp)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
+
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Companion Host")
+                        .font(.headline)
+
+                    TextField("MacName.local:7777", text: $state.host)
+                        .textInputAutocapitalization(.never)
+                        .disableAutocorrection(true)
+
+                    HStack(spacing: 12) {
+                        Button("Connect") {
+                            Task {
+                                await state.connectAndRefresh()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+
+                        Button("Refresh Repos") {
+                            Task {
+                                await state.connectAndRefresh()
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(state.normalizedHost.isEmpty)
+
+                        Button("Debug Open Demo Session") {
+                            state.openDemoSession()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+
+                HealthStatusView(state: state.healthState)
+                debugLogView
+            }
+            .padding(.top, 8)
+        } label: {
+            HStack {
+                Text("Connection & Debug")
+                    .font(.headline)
+                Spacer()
+                Text(isUtilitiesExpanded ? "Hide" : "Show")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(20)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 28, style: .continuous))
+    }
+
     private var loadStateText: String {
         switch state.terminalLoadState {
         case .idle:
@@ -512,6 +660,58 @@ struct ContentView: View {
             return AnyShapeStyle(.green)
         case .idle, .loading:
             return AnyShapeStyle(.secondary)
+        }
+    }
+
+    @ViewBuilder
+    private var workspaceContent: some View {
+        switch state.workspaceState {
+        case .idle:
+            ContentUnavailableView(
+                "No Workspaces Yet",
+                systemImage: "square.stack.3d.up.slash",
+                description: Text("Launch a repo once and it will show up here for quick reopen.")
+            )
+        case .loading:
+            VStack(spacing: 16) {
+                ProgressView()
+                Text("Loading saved workspaces...")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, minHeight: 180)
+        case let .failure(message):
+            ContentUnavailableView(
+                "Workspace Load Failed",
+                systemImage: "exclamationmark.triangle",
+                description: Text(message)
+            )
+        case .loaded:
+            if state.recentWorkspaces.isEmpty {
+                ContentUnavailableView(
+                    "No Saved Workspaces",
+                    systemImage: "square.stack.3d.up",
+                    description: Text("Launch a repo to create your first workspace.")
+                )
+            } else {
+                LazyVStack(spacing: 12) {
+                    ForEach(state.recentWorkspaces) { workspace in
+                        Button {
+                            Task {
+                                await state.reopen(workspace)
+                            }
+                        } label: {
+                            WorkspaceRowView(
+                                workspace: workspace,
+                                selectedTool: state.selectedTool,
+                                isBusy: state.busyWorkspaceID == workspace.id
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
+                    }
+                }
+            }
         }
     }
 
@@ -562,7 +762,7 @@ struct ContentView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(state.busyRepoID != nil)
+                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil)
                         }
                     }
                     .padding(.vertical, 4)
@@ -577,6 +777,13 @@ enum RepoState {
     case idle
     case loading
     case loaded(viewerLogin: String, count: Int)
+    case failure(String)
+}
+
+enum WorkspaceState {
+    case idle
+    case loading
+    case loaded(count: Int)
     case failure(String)
 }
 

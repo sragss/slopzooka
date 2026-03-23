@@ -10,7 +10,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 
 import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
-import { WorkspaceService, type LaunchWorkspaceRequest } from "./workspace.js";
+import { WorkspaceService, workspacePaths, type LaunchWorkspaceRequest } from "./workspace.js";
 import {
   isClientMessage,
   type ClientMessage,
@@ -51,6 +51,7 @@ app.get("/terminal", (_req, res) => {
 });
 
 app.get("/health", (_req, res) => {
+  const paths = workspacePaths();
   res.json({
     ok: true,
     name: "slopzooka-mac-companion",
@@ -59,7 +60,8 @@ app.get("/health", (_req, res) => {
     localHostName: localHostName(),
     controlOrigin: CONTROL_ORIGIN,
     cwd: DEFAULT_CWD,
-    logFilePath: logger.logFilePath
+    logFilePath: logger.logFilePath,
+    workspacePaths: paths
   });
 });
 
@@ -85,6 +87,24 @@ app.get("/api/repos/recent", async (req, res) => {
     });
     res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to load recent repositories."
+    });
+  }
+});
+
+app.get("/api/workspaces", async (req, res) => {
+  const limit = normalizeLimit(req.query.limit);
+
+  try {
+    const workspaces = await workspaceService.listWorkspaces(limit);
+    res.json({
+      workspaces
+    });
+  } catch (error) {
+    logger.error("Failed to load workspaces", {
+      error: error instanceof Error ? error.message : String(error)
+    });
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to load workspaces."
     });
   }
 });
@@ -122,6 +142,33 @@ app.post("/api/workspaces/launch", async (req, res) => {
     });
     res.status(500).json({
       error: error instanceof Error ? error.message : "Failed to launch workspace."
+    });
+  }
+});
+
+app.post("/api/workspaces/:clusterId/reopen", async (req, res) => {
+  const clusterId = req.params.clusterId?.trim();
+  const body = req.body as Partial<{ profile: TuiProfile | null }> | undefined;
+  const profile = normalizeProfile(body?.profile);
+
+  if (!clusterId) {
+    res.status(400).json({
+      error: "clusterId is required."
+    });
+    return;
+  }
+
+  try {
+    const result = await workspaceService.reopenWorkspace(clusterId, profile);
+    res.status(200).json(result);
+  } catch (error) {
+    logger.error("Failed to reopen workspace", {
+      clusterId,
+      profile: profile ?? "terminal",
+      error: error instanceof Error ? error.message : String(error)
+    });
+    res.status(500).json({
+      error: error instanceof Error ? error.message : "Failed to reopen workspace."
     });
   }
 });
@@ -196,7 +243,8 @@ server.listen(
     controlOrigin: CONTROL_ORIGIN,
     bindHost: HOST,
     defaultCwd: DEFAULT_CWD,
-    logFilePath: logger.logFilePath
+    logFilePath: logger.logFilePath,
+    workspacePaths: workspacePaths()
   });
   }
 );
