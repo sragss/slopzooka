@@ -24,6 +24,7 @@ final class LauncherState: ObservableObject {
     private var autoConnectInFlight = false
     private var lastAutoConnectHost: String?
     private var lastAutoConnectAttemptAt: Date?
+    private var queuedAutoConnectHosts: [String] = []
     private let autoConnectCooldown: TimeInterval = 6
     private let healthRequestTimeout: TimeInterval = 4
     private let dataRequestTimeout: TimeInterval = 15
@@ -126,8 +127,10 @@ final class LauncherState: ObservableObject {
             return
         }
 
+        enqueueAutoConnectHosts(normalizedCandidates)
+
         guard !autoConnectInFlight else {
-            slzLog("auto-connect skipped: already in flight")
+            slzLog("auto-connect queued: already in flight count=\(queuedAutoConnectHosts.count)")
             return
         }
 
@@ -136,26 +139,40 @@ final class LauncherState: ObservableObject {
             autoConnectInFlight = false
         }
 
-        for candidateHost in normalizedCandidates {
-            if let lastAutoConnectHost,
-               lastAutoConnectHost == candidateHost,
-               let lastAutoConnectAttemptAt,
-               Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
-                continue
+        while !queuedAutoConnectHosts.isEmpty {
+            let pendingHosts = queuedAutoConnectHosts
+            queuedAutoConnectHosts.removeAll()
+
+            for candidateHost in pendingHosts {
+                if let lastAutoConnectHost,
+                   lastAutoConnectHost == candidateHost,
+                   let lastAutoConnectAttemptAt,
+                   Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
+                    continue
+                }
+
+                lastAutoConnectHost = candidateHost
+                lastAutoConnectAttemptAt = Date()
+
+                if host != candidateHost {
+                    host = candidateHost
+                }
+
+                slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
+
+                let didConnect = await connectAndRefresh()
+                if didConnect {
+                    queuedAutoConnectHosts.removeAll()
+                    return
+                }
             }
+        }
+    }
 
-            lastAutoConnectHost = candidateHost
-            lastAutoConnectAttemptAt = Date()
-
-            if host != candidateHost {
-                host = candidateHost
-            }
-
-            slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
-
-            let didConnect = await connectAndRefresh()
-            if didConnect {
-                return
+    private func enqueueAutoConnectHosts(_ candidateHosts: [String]) {
+        for candidateHost in candidateHosts {
+            if !queuedAutoConnectHosts.contains(candidateHost) {
+                queuedAutoConnectHosts.append(candidateHost)
             }
         }
     }

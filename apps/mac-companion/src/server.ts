@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
@@ -469,12 +470,17 @@ class SurfaceManager {
   }
 
   injectInput(surfaceId: string, text: string, sendReturn: boolean): void {
+    const surface = this.requireSurface(surfaceId);
     const normalized = normalizeTerminalInput(text);
     if (!normalized) {
       return;
     }
 
-    this.writeInput(surfaceId, normalized);
+    const payload = surface.summary.kind === "tui"
+      ? asBracketedPaste(normalized)
+      : normalized.replace(/\n/g, "\r");
+
+    this.writeInput(surfaceId, payload);
     if (sendReturn) {
       this.writeInput(surfaceId, "\r");
     }
@@ -743,7 +749,11 @@ function normalizeSurfaceId(value: unknown): string | null {
 }
 
 function normalizeTerminalInput(value: string): string {
-  return value.replace(/\r\n|\r|\n/g, "\r");
+  return value.replace(/\r\n|\r/g, "\n");
+}
+
+function asBracketedPaste(value: string): string {
+  return `\u001b[200~${value}\u001b[201~`;
 }
 
 function normalizeProfile(value: unknown): TuiProfile | null {
@@ -755,7 +765,23 @@ function normalizeProfile(value: unknown): TuiProfile | null {
 }
 
 function localHostName(): string {
-  return process.env.SLOPZOOKA_LOCAL_HOSTNAME ?? os.hostname().replace(/\.local$/, "");
+  if (process.env.SLOPZOOKA_LOCAL_HOSTNAME) {
+    return process.env.SLOPZOOKA_LOCAL_HOSTNAME;
+  }
+
+  try {
+    const output = execFileSync("scutil", ["--get", "LocalHostName"], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "ignore"]
+    }).trim();
+    if (output) {
+      return output;
+    }
+  } catch {
+    // Fall through to os.hostname() below.
+  }
+
+  return os.hostname().replace(/\.local$/, "");
 }
 
 function send(ws: WebSocket, message: ServerMessage): void {
