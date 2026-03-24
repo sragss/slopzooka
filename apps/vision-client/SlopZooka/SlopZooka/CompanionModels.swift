@@ -153,6 +153,59 @@ struct TerminalWindowPayload: Codable, Hashable {
     }
 }
 
+struct PreviewCandidateSummary: Decodable, Hashable, Identifiable {
+    var id: Int { port }
+
+    let port: Int
+    let statusCode: Int
+    let title: String?
+    let frameworkHint: String?
+
+    var displayTitle: String {
+        if let title, !title.isEmpty {
+            return title
+        }
+
+        if let frameworkHint, !frameworkHint.isEmpty {
+            return "\(frameworkHint) • :\(port)"
+        }
+
+        return "Preview • :\(port)"
+    }
+}
+
+struct PreviewScanResponse: Decodable {
+    let workspaceId: String
+    let candidates: [PreviewCandidateSummary]
+    let suggestedPort: Int?
+}
+
+struct OpenPreviewRequest: Encodable {
+    let port: Int?
+}
+
+struct OpenPreviewResponse: Decodable {
+    let clusterId: String
+    let repoNameWithOwner: String
+    let title: String
+    let targetPort: Int
+    let exposedPort: Int
+    let frameworkHint: String?
+}
+
+struct PreviewWindowPayload: Codable, Hashable {
+    let id: String
+    let clusterId: String
+    let title: String
+    let urlString: String
+    let targetPort: Int
+    let exposedPort: Int
+
+    var url: URL? {
+        URL(string: urlString)
+    }
+}
+
 enum TerminalLoadState: Equatable {
     case idle
     case loading(String)

@@ -28,6 +28,14 @@ struct SlopZookaApp: App {
         .windowStyle(.plain)
         .windowResizability(.contentSize)
 
+        WindowGroup("Preview", id: "preview", for: String.self) { previewID in
+            BrowserWindowView(previewID: previewID.wrappedValue)
+                .environmentObject(appModel)
+        }
+        .defaultSize(width: 1200, height: 820)
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
+
         WindowGroup("Palm Spike", id: "palm-spike") {
             HandLauncherSpikeView()
         }

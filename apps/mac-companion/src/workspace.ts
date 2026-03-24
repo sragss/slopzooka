@@ -135,11 +135,7 @@ export class WorkspaceService {
   }
 
   async reopenWorkspace(clusterId: string, profileOverride?: TuiProfile | null): Promise<LaunchWorkspaceResult> {
-    const records = await readWorkspaceIndex();
-    const record = records.find((candidate) => candidate.clusterId === clusterId);
-    if (!record) {
-      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
-    }
+    const record = await this.requireWorkspace(clusterId);
 
     if (!(await pathExists(record.worktreePath))) {
       throw new WorkspaceServiceError(`Workspace is missing on disk: ${record.worktreePath}`, 409);
@@ -174,11 +170,7 @@ export class WorkspaceService {
   }
 
   async archiveWorkspace(clusterId: string): Promise<WorkspaceSummary> {
-    const records = await readWorkspaceIndex();
-    const record = records.find((candidate) => candidate.clusterId === clusterId);
-    if (!record) {
-      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
-    }
+    const record = await this.requireWorkspace(clusterId);
 
     const updatedRecord: WorkspaceRecord = {
       ...record,
@@ -230,6 +222,24 @@ export class WorkspaceService {
     }
 
     return { archivedCount };
+  }
+
+  async getWorkspace(clusterId: string): Promise<WorkspaceSummary> {
+    const record = await this.requireWorkspace(clusterId);
+    return {
+      ...record,
+      existsOnDisk: await pathExists(record.worktreePath)
+    };
+  }
+
+  private async requireWorkspace(clusterId: string): Promise<WorkspaceRecord> {
+    const records = await readWorkspaceIndex();
+    const record = records.find((candidate) => candidate.clusterId === clusterId);
+    if (!record) {
+      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
+    }
+
+    return record;
   }
 }
 

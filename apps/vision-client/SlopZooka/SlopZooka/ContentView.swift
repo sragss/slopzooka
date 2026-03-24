@@ -115,13 +115,7 @@ final class LauncherState: ObservableObject {
     }
 
     func maybeAutoConnect(candidateHosts: [String], reason: String) async {
-        let normalizedCandidates = Array(
-            Set(
-                candidateHosts
-                    .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-            )
-        )
+        let normalizedCandidates = orderedUniqueHosts(candidateHosts)
 
         guard !normalizedCandidates.isEmpty else {
             return
@@ -177,6 +171,37 @@ final class LauncherState: ObservableObject {
         }
     }
 
+    private func orderedUniqueHosts(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+
+        for value in values {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                continue
+            }
+
+            guard !seen.contains(trimmed) else {
+                continue
+            }
+
+            seen.insert(trimmed)
+            result.append(trimmed)
+        }
+
+        return result
+    }
+
+    private func canonicalHost(from payload: CompanionHealthResponse, requestURL: URL) -> String? {
+        let localHostName = payload.localHostName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !localHostName.isEmpty else {
+            return nil
+        }
+
+        let port = requestURL.port ?? 80
+        return "\(localHostName).local:\(port)"
+    }
+
     func connectAndRefresh() async -> Bool {
         slzLog("connectAndRefresh start host=\(normalizedHost)")
         let didConnect = await runHealthCheck()
@@ -218,7 +243,7 @@ final class LauncherState: ObservableObject {
             var request = URLRequest(url: url)
             request.timeoutInterval = healthRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: healthRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 healthState = .failure("No HTTP response.")
                 slzLog("health check failed: no HTTP response")
@@ -232,6 +257,11 @@ final class LauncherState: ObservableObject {
             }
 
             let payload = try JSONDecoder().decode(CompanionHealthResponse.self, from: data)
+            if let canonicalHost = canonicalHost(from: payload, requestURL: url),
+               host != canonicalHost {
+                slzLog("health check canonicalized host from \(normalizedHost) to \(canonicalHost)")
+                host = canonicalHost
+            }
             userDefaults.set(normalizedHost, forKey: "companionHost")
             healthState = .success(payload)
             slzLog("health check success controlOrigin=\(payload.controlOrigin)")
@@ -264,7 +294,7 @@ final class LauncherState: ObservableObject {
             var request = URLRequest(url: url)
             request.timeoutInterval = dataRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 repoState = .failure("No HTTP response.")
                 slzLog("loadRecentRepos failed: no HTTP response")
@@ -312,7 +342,7 @@ final class LauncherState: ObservableObject {
             var request = URLRequest(url: url)
             request.timeoutInterval = dataRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 workspaceState = .failure("No HTTP response.")
                 slzLog("loadWorkspaces failed: no HTTP response")
@@ -359,7 +389,7 @@ final class LauncherState: ObservableObject {
             var request = URLRequest(url: url)
             request.timeoutInterval = dataRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 ownerState = .failure("No HTTP response.")
                 return
@@ -425,7 +455,7 @@ final class LauncherState: ObservableObject {
                 )
             )
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 feedback = LaunchFeedback(message: "Workspace launch failed: no HTTP response.", style: .error)
                 slzLog("launch failed: no HTTP response")
@@ -484,7 +514,7 @@ final class LauncherState: ObservableObject {
                 )
             )
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: 61)
             guard let httpResponse = response as? HTTPURLResponse else {
                 feedback = LaunchFeedback(message: "Create repo failed: no HTTP response.", style: .error)
                 return false
@@ -543,7 +573,7 @@ final class LauncherState: ObservableObject {
                 ReopenWorkspaceRequest(profile: selectedTool.queryValue)
             )
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 feedback = LaunchFeedback(message: "Workspace reopen failed: no HTTP response.", style: .error)
                 slzLog("reopen failed: no HTTP response")
@@ -621,8 +651,10 @@ final class LauncherState: ObservableObject {
         var items = components.queryItems ?? []
         items.removeAll(where: { $0.name == "surfaceId" })
         items.append(URLQueryItem(name: "surfaceId", value: sessionID))
-        components.queryItems = items
-        return components.url?.absoluteString
+        return companionURL(
+            path: components.path.isEmpty ? "/terminal" : components.path,
+            queryItems: items
+        )?.absoluteString
     }
 
     private func terminalLaunchURLString(
@@ -665,7 +697,7 @@ final class LauncherState: ObservableObject {
             request.httpMethod = "POST"
             request.timeoutInterval = dataRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 feedback = LaunchFeedback(message: "Archive failed: no HTTP response.", style: .error)
                 slzLog("archive failed: no HTTP response")
@@ -720,7 +752,7 @@ final class LauncherState: ObservableObject {
             request.httpMethod = "POST"
             request.timeoutInterval = dataRequestTimeout
 
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
             guard let httpResponse = response as? HTTPURLResponse else {
                 feedback = LaunchFeedback(message: "Prune failed: no HTTP response.", style: .error)
                 slzLog("pruneMissingWorkspaces failed: no HTTP response")
@@ -807,6 +839,33 @@ final class LauncherState: ObservableObject {
             return urlError.localizedDescription
         }
     }
+
+    private func performRequest(
+        _ request: URLRequest,
+        timeout: TimeInterval
+    ) async throws -> (Data, URLResponse) {
+        try await withThrowingTaskGroup(of: (Data, URLResponse).self) { group in
+            group.addTask {
+                try await URLSession.shared.data(for: request)
+            }
+
+            group.addTask {
+                let duration = max(1, timeout)
+                try await Task.sleep(for: .milliseconds(Int(duration * 1000)))
+                throw URLError(.timedOut)
+            }
+
+            defer {
+                group.cancelAll()
+            }
+
+            guard let result = try await group.next() else {
+                throw URLError(.unknown)
+            }
+
+            return result
+        }
+    }
 }
 
 struct ContentView: View {
@@ -814,7 +873,6 @@ struct ContentView: View {
     private let launcherWindowSize = CGSize(width: 620, height: 760)
 
     @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismiss) private var dismiss
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
@@ -848,14 +906,13 @@ struct ContentView: View {
                 state.onTerminalLaunch = { payload in
                     appModel.registerTerminal(payload)
                     openWindow(id: "terminal", value: payload.id)
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .milliseconds(250))
-                        dismiss()
-                    }
                 }
                 state.loadSavedPreferences()
                 discovery.onCompanionResolved = { companion in
                     Task {
+                        if state.host != companion.host {
+                            state.host = companion.host
+                        }
                         await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
                     }
                 }
@@ -1079,6 +1136,8 @@ struct ContentView: View {
                     Button {
                         openWindow(id: "terminal", value: session.id)
                     } label: {
+                        let rowShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+
                         HStack(spacing: 12) {
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack(spacing: 8) {
@@ -1109,10 +1168,10 @@ struct ContentView: View {
                         }
                         .padding(14)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(.quaternary.opacity(0.24))
-                        )
+                        .background(rowShape.fill(.quaternary.opacity(0.24)))
+                        .clipShape(rowShape)
+                        .contentShape(rowShape)
+                        .contentShape(.hoverEffect, rowShape)
                     }
                     .buttonStyle(.plain)
                 }

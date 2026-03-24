@@ -13,8 +13,12 @@ struct TerminalWindowView: View {
     @State private var isUtilitiesExpanded = false
     @State private var isSessionDetailsExpanded = false
     @State private var isSpeechPanelExpanded = false
+    @State private var isPreviewPanelExpanded = false
     @State private var isSubmittingSpeech = false
+    @State private var isLoadingPreviewCandidates = false
     @State private var speechSubmitError: String?
+    @State private var previewCandidates: [PreviewCandidateSummary] = []
+    @State private var previewError: String?
     @State private var speechOrbPulse = false
     @State private var focusRequestToken = 0
 
@@ -100,6 +104,18 @@ struct TerminalWindowView: View {
                     Spacer(minLength: 0)
 
                     Button {
+                        Task {
+                            await handlePreviewButton(payload: payload)
+                        }
+                    } label: {
+                        Image(systemName: isLoadingPreviewCandidates ? "globe.badge.chevron.backward" : "globe")
+                            .font(.title3)
+                    }
+                    .buttonStyle(.plain)
+                    .padding(10)
+                    .background(.regularMaterial, in: Circle())
+
+                    Button {
                         if isSpeechPanelExpanded {
                             speechCapture.stopListening()
                             isSpeechPanelExpanded = false
@@ -154,6 +170,13 @@ struct TerminalWindowView: View {
 
                 if isSpeechPanelExpanded {
                     speechPanel(payloadID: payload.id)
+                        .frame(maxWidth: 420, alignment: .trailing)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                }
+
+                if isPreviewPanelExpanded {
+                    previewPanel(payload: payload)
                         .frame(maxWidth: 420, alignment: .trailing)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .transition(.opacity.combined(with: .move(edge: .top)))
@@ -291,6 +314,84 @@ struct TerminalWindowView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
+    private func previewPanel(payload: TerminalWindowPayload) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: "globe")
+                    .font(.title3)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Preview")
+                        .font(.subheadline.weight(.semibold))
+
+                    Text(previewSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+
+            if let previewError {
+                Text(previewError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+
+            if previewCandidates.isEmpty && !isLoadingPreviewCandidates && previewError == nil {
+                Text("No local dev servers found on the common preview ports.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(spacing: 8) {
+                    ForEach(previewCandidates) { candidate in
+                        Button {
+                            Task {
+                                await openPreview(payload: payload, preferredPort: candidate.port)
+                            }
+                        } label: {
+                            HStack(spacing: 10) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(candidate.displayTitle)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+
+                                    Text("localhost:\(candidate.port)")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 10)
+                            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+
+            HStack(spacing: 10) {
+                Button("Close") {
+                    isPreviewPanelExpanded = false
+                }
+                .buttonStyle(.bordered)
+
+                Button("Rescan") {
+                    Task {
+                        await loadPreviewCandidates(payload: payload)
+                    }
+                }
+                .buttonStyle(.bordered)
+                .disabled(isLoadingPreviewCandidates)
+            }
+        }
+        .padding(14)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
     private var debugLogView: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Debug Log")
@@ -380,6 +481,18 @@ struct TerminalWindowView: View {
         return "Tap Start and speak. Submit sends the transcript and Enter to the active PTY."
     }
 
+    private var previewSubtitle: String {
+        if isLoadingPreviewCandidates {
+            return "Scanning common localhost preview ports..."
+        }
+
+        if !previewCandidates.isEmpty {
+            return "Choose a local preview to open in a browser window."
+        }
+
+        return "Expose your Mac dev server to a Vision Pro browser window."
+    }
+
     private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
         switch phase {
         case .active:
@@ -434,6 +547,161 @@ struct TerminalWindowView: View {
             speechSubmitError = message
             slzLog("terminal speech submit failed \(payloadID): \(message)")
         }
+    }
+
+    private func handlePreviewButton(payload: TerminalWindowPayload) async {
+        if isPreviewPanelExpanded {
+            isPreviewPanelExpanded = false
+            return
+        }
+
+        await loadPreviewCandidates(payload: payload)
+
+        if previewCandidates.count == 1, let onlyCandidate = previewCandidates.first {
+            await openPreview(payload: payload, preferredPort: onlyCandidate.port)
+            return
+        }
+
+        isPreviewPanelExpanded = true
+    }
+
+    private func loadPreviewCandidates(payload: TerminalWindowPayload) async {
+        guard let previewScanURL = previewScanURL(for: payload) else {
+            previewError = "Preview scan route is unavailable."
+            return
+        }
+
+        isLoadingPreviewCandidates = true
+        previewError = nil
+
+        defer {
+            isLoadingPreviewCandidates = false
+        }
+
+        do {
+            var request = URLRequest(url: previewScanURL)
+            request.timeoutInterval = 8
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw TerminalSpeechSubmitError.invalidResponse
+            }
+
+            guard (200 ..< 300).contains(httpResponse.statusCode) else {
+                let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+                throw TerminalSpeechSubmitError.requestFailed(
+                    apiError?.error ?? "Preview scan failed with status \(httpResponse.statusCode)."
+                )
+            }
+
+            let payload = try JSONDecoder().decode(PreviewScanResponse.self, from: data)
+            previewCandidates = payload.candidates
+            slzLog("preview scan success \(payload.workspaceId) count=\(payload.candidates.count)")
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            previewCandidates = []
+            previewError = message
+            slzLog("preview scan failed \(payload.id): \(message)")
+        }
+    }
+
+    private func openPreview(payload: TerminalWindowPayload, preferredPort: Int?) async {
+        guard let openURL = previewOpenURL(for: payload) else {
+            previewError = "Preview open route is unavailable."
+            return
+        }
+
+        isLoadingPreviewCandidates = true
+        previewError = nil
+
+        defer {
+            isLoadingPreviewCandidates = false
+        }
+
+        do {
+            var request = URLRequest(url: openURL)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 12
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(OpenPreviewRequest(port: preferredPort))
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw TerminalSpeechSubmitError.invalidResponse
+            }
+
+            guard (200 ..< 300).contains(httpResponse.statusCode) else {
+                let apiError = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+                throw TerminalSpeechSubmitError.requestFailed(
+                    apiError?.error ?? "Open preview failed with status \(httpResponse.statusCode)."
+                )
+            }
+
+            let responsePayload = try JSONDecoder().decode(OpenPreviewResponse.self, from: data)
+            guard let previewWindowPayload = makePreviewWindowPayload(from: responsePayload, baseURL: payload.url) else {
+                throw TerminalSpeechSubmitError.requestFailed("Could not build preview URL.")
+            }
+
+            appModel.registerPreview(previewWindowPayload)
+            openWindow(id: "preview", value: previewWindowPayload.id)
+            isPreviewPanelExpanded = false
+            slzLog("preview opened \(responsePayload.clusterId) target=\(responsePayload.targetPort) exposed=\(responsePayload.exposedPort)")
+        } catch {
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            previewError = message
+            isPreviewPanelExpanded = true
+            slzLog("preview open failed \(payload.id): \(message)")
+        }
+    }
+
+    private func previewScanURL(for payload: TerminalWindowPayload) -> URL? {
+        guard let baseURL = payload.url,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.path = "/api/workspaces/\(payload.id)/previews"
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
+
+    private func previewOpenURL(for payload: TerminalWindowPayload) -> URL? {
+        guard let baseURL = payload.url,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.path = "/api/workspaces/\(payload.id)/previews/open"
+        components.query = nil
+        components.fragment = nil
+        return components.url
+    }
+
+    private func makePreviewWindowPayload(from response: OpenPreviewResponse, baseURL: URL?) -> PreviewWindowPayload? {
+        guard let baseURL,
+              var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        components.path = "/"
+        components.query = nil
+        components.fragment = nil
+        components.port = response.exposedPort
+
+        guard let urlString = components.url?.absoluteString else {
+            return nil
+        }
+
+        let id = "\(response.clusterId):preview:\(response.targetPort)"
+        return PreviewWindowPayload(
+            id: id,
+            clusterId: response.clusterId,
+            title: response.title,
+            urlString: urlString,
+            targetPort: response.targetPort,
+            exposedPort: response.exposedPort
+        )
     }
 
     private func surfaceInputURL(for payload: TerminalWindowPayload) -> URL? {

@@ -5,6 +5,8 @@ struct RepoRowView: View {
     let isBusy: Bool
     let isSelectedToolTerminal: Bool
 
+    private let rowShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
+
     private static let timestampFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
@@ -60,11 +62,10 @@ struct RepoRowView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(.quaternary.opacity(0.28))
-        )
-        .contentShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .background(rowShape.fill(.quaternary.opacity(0.28)))
+        .clipShape(rowShape)
+        .contentShape(rowShape)
+        .contentShape(.hoverEffect, rowShape)
     }
 
     @ViewBuilder

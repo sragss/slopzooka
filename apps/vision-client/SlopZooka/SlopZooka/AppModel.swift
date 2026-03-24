@@ -22,6 +22,7 @@ struct TerminalInjectedInput {
 final class AppModel: ObservableObject {
     @Published private var terminalPayloads: [String: TerminalWindowPayload] = [:]
     @Published private var terminalSessions: [String: TerminalSessionState] = [:]
+    @Published private var previewPayloads: [String: PreviewWindowPayload] = [:]
 
     func registerTerminal(_ payload: TerminalWindowPayload) {
         terminalPayloads[payload.id] = payload
@@ -133,5 +134,17 @@ final class AppModel: ObservableObject {
     func removeTerminal(id: String) {
         terminalPayloads.removeValue(forKey: id)
         terminalSessions.removeValue(forKey: id)
+    }
+
+    func registerPreview(_ payload: PreviewWindowPayload) {
+        previewPayloads[payload.id] = payload
+    }
+
+    func previewPayload(for id: String) -> PreviewWindowPayload? {
+        previewPayloads[id]
+    }
+
+    func removePreview(id: String) {
+        previewPayloads.removeValue(forKey: id)
     }
 }

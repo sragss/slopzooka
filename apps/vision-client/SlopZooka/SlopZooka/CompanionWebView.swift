@@ -27,6 +27,7 @@ struct CompanionWebView: UIViewRepresentable {
         Task { @MainActor in
             slzLog("webview makeUIView \(url.absoluteString)")
         }
+        context.coordinator.currentRequestedURLString = url.absoluteString
         webView.load(URLRequest(url: url))
         return webView
     }
@@ -43,10 +44,11 @@ struct CompanionWebView: UIViewRepresentable {
             context.coordinator.lastInputToken = pendingInputToken
             sendInput(pendingInputText, sendReturn: pendingInputSendReturn, to: webView)
         }
-        guard webView.url != url else {
+        guard context.coordinator.currentRequestedURLString != url.absoluteString else {
             return
         }
 
+        context.coordinator.currentRequestedURLString = url.absoluteString
         DispatchQueue.main.async {
             loadState = .loading(url.absoluteString)
         }
@@ -89,6 +91,7 @@ struct CompanionWebView: UIViewRepresentable {
         var fallbackURL: URL
         var lastFocusRequestToken = 0
         var lastInputToken = 0
+        var currentRequestedURLString: String?
 
         init(loadState: Binding<TerminalLoadState>, fallbackURL: URL) {
             self.loadState = loadState

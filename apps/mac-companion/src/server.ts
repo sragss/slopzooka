@@ -12,6 +12,7 @@ import { WebSocketServer, type WebSocket } from "ws";
 import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
 import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
+import { PreviewManager } from "./preview.js";
 import {
   WorkspaceService,
   WorkspaceServiceError,
@@ -36,25 +37,51 @@ import {
 
 const PORT = Number(process.env.SLOPZOOKA_PORT ?? "7777");
 const HOST = process.env.SLOPZOOKA_HOST ?? "::";
-const CONTROL_HOST = `${localHostName()}.local:${PORT}`;
+const LOCAL_HOST_NAME = localHostName();
+const CONTROL_HOST = `${LOCAL_HOST_NAME}.local:${PORT}`;
 const CONTROL_ORIGIN = `http://${CONTROL_HOST}`;
+const BONJOUR_SERVICE_NAME = advertisedServiceName();
 const DEFAULT_CWD = path.resolve(import.meta.dirname, "../../..");
 const CLUSTER_ID = "local";
 const TUI_COMMANDS = {
   codex: process.env.SLOPZOOKA_CODEX_COMMAND ?? "codex",
-  claude: process.env.SLOPZOOKA_CLAUDE_COMMAND ?? "claude",
+  claude: process.env.SLOPZOOKA_CLAUDE_COMMAND ?? "claude --dangerously-skip-permissions",
   opencode: process.env.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode"
 } as const;
 const logger = createLogger("SlopZooka", "mac-companion.log");
 const gitHubClient = new GitHubClient();
 const workspaceService = new WorkspaceService(logger, CONTROL_ORIGIN);
+const previewManager = new PreviewManager(logger);
 
 const app = express();
 app.use(express.json());
 app.use(express.static(path.join(import.meta.dirname, "..", "public")));
 
-app.get("/terminal", (_req, res) => {
+app.get("/terminal", (req, res) => {
+  logger.info("Terminal page requested", {
+    hostHeader: req.headers.host ?? null,
+    userAgent: req.headers["user-agent"] ?? null,
+    profile: typeof req.query.profile === "string" ? req.query.profile : null,
+    cwd: typeof req.query.cwd === "string" ? req.query.cwd : null,
+    surfaceId: typeof req.query.surfaceId === "string" ? req.query.surfaceId : null
+  });
   res.sendFile(path.join(import.meta.dirname, "..", "public", "terminal.html"));
+});
+
+app.get("/terminal.js", (req, _res, next) => {
+  logger.info("Terminal script requested", {
+    hostHeader: req.headers.host ?? null,
+    userAgent: req.headers["user-agent"] ?? null
+  });
+  next();
+});
+
+app.get("/terminal.css", (req, _res, next) => {
+  logger.info("Terminal stylesheet requested", {
+    hostHeader: req.headers.host ?? null,
+    userAgent: req.headers["user-agent"] ?? null
+  });
+  next();
 });
 
 app.get("/health", (_req, res) => {
@@ -64,7 +91,7 @@ app.get("/health", (_req, res) => {
     name: "slopzooka-mac-companion",
     version: "0.1.0",
     hostname: os.hostname(),
-    localHostName: localHostName(),
+    localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
@@ -281,6 +308,66 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
   }
 });
 
+app.get("/api/workspaces/:clusterId/previews", async (req, res) => {
+  const clusterId = req.params.clusterId?.trim();
+  if (!clusterId) {
+    res.status(400).json({
+      error: "clusterId is required."
+    });
+    return;
+  }
+
+  try {
+    const workspace = await workspaceService.getWorkspace(clusterId);
+    const candidates = await previewManager.scanCandidates();
+    res.status(200).json({
+      workspaceId: workspace.clusterId,
+      candidates,
+      suggestedPort: candidates[0]?.port ?? null
+    });
+  } catch (error) {
+    logger.error("Failed to scan previews", {
+      clusterId,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to scan previews.");
+  }
+});
+
+app.post("/api/workspaces/:clusterId/previews/open", async (req, res) => {
+  const clusterId = req.params.clusterId?.trim();
+  const body = req.body as Partial<{ port: number }> | undefined;
+  const requestedPort = typeof body?.port === "number" ? body.port : undefined;
+
+  if (!clusterId) {
+    res.status(400).json({
+      error: "clusterId is required."
+    });
+    return;
+  }
+
+  try {
+    const workspace = await workspaceService.getWorkspace(clusterId);
+    const preview = await previewManager.openPreview(clusterId, requestedPort);
+
+    res.status(201).json({
+      clusterId,
+      repoNameWithOwner: workspace.repo.nameWithOwner,
+      title: `${workspace.repo.nameWithOwner} • Preview`,
+      targetPort: preview.targetPort,
+      exposedPort: preview.exposedPort,
+      frameworkHint: preview.frameworkHint
+    });
+  } catch (error) {
+    logger.error("Failed to open preview", {
+      clusterId,
+      requestedPort: requestedPort ?? null,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    sendWorkspaceError(res, error, "Failed to open preview.");
+  }
+});
+
 app.post("/api/surfaces/:surfaceId/input", (req, res) => {
   const surfaceId = req.params.surfaceId?.trim();
   const body = req.body as Partial<{
@@ -320,6 +407,11 @@ const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true });
 
 server.on("upgrade", (request, socket, head) => {
+  logger.info("WebSocket upgrade requested", {
+    url: request.url ?? null,
+    hostHeader: request.headers.host ?? null
+  });
+
   if (request.url !== "/ws") {
     socket.destroy();
     return;
@@ -391,8 +483,7 @@ server.listen(
     });
     bonjourAdvertiser = startBonjourAdvertiser({
       logger,
-      name: localHostName(),
-      host: `${localHostName()}.local`,
+      name: BONJOUR_SERVICE_NAME,
       port: PORT
     });
   }
@@ -784,6 +875,14 @@ function localHostName(): string {
   return os.hostname().replace(/\.local$/, "");
 }
 
+function advertisedServiceName(): string {
+  if (process.env.SLOPZOOKA_BONJOUR_NAME) {
+    return process.env.SLOPZOOKA_BONJOUR_NAME;
+  }
+
+  return `SlopZooka-${LOCAL_HOST_NAME}-${PORT}-${process.pid}`;
+}
+
 function send(ws: WebSocket, message: ServerMessage): void {
   if (ws.readyState !== ws.OPEN) {
     return;
@@ -834,6 +933,7 @@ async function shutdown(signal: string): Promise<void> {
   });
 
   try {
+    await previewManager.stop();
     await bonjourAdvertiser?.stop();
   } catch (error) {
     logger.error("Bonjour shutdown failed", {

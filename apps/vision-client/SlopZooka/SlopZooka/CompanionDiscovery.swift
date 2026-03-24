@@ -47,18 +47,14 @@ final class CompanionDiscovery: NSObject, ObservableObject {
             return
         }
 
-        let hostName = normalizedHostName(service.hostName) ?? service.name
-        let candidateHosts = Array(
-            Set(
-                [
-                    "\(hostName):\(service.port)",
-                    "\(service.name).local:\(service.port)",
-                    "\(service.name):\(service.port)"
-                ]
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .filter { !$0.isEmpty }
-            )
-        )
+        guard let hostName = normalizedHostName(service.hostName) else {
+            slzLog("bonjour resolved service missing hostname name=\(service.name)")
+            return
+        }
+
+        let candidateHosts = orderedUniqueHosts([
+            "\(hostName):\(service.port)"
+        ])
         let host = candidateHosts.first ?? "\(hostName):\(service.port)"
         let item = DiscoveredCompanion(
             id: serviceKey(service),
@@ -105,6 +101,27 @@ final class CompanionDiscovery: NSObject, ObservableObject {
         }
 
         return trimmed
+    }
+
+    private func orderedUniqueHosts(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        var result: [String] = []
+
+        for value in values {
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !trimmed.isEmpty else {
+                continue
+            }
+
+            guard !seen.contains(trimmed) else {
+                continue
+            }
+
+            seen.insert(trimmed)
+            result.append(trimmed)
+        }
+
+        return result
     }
 }
 

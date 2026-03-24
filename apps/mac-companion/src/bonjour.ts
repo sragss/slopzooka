@@ -7,7 +7,6 @@ export const SLOPZOOKA_BONJOUR_TYPE = "slopzooka";
 type BonjourAdvertiserOptions = {
   logger: Logger;
   name: string;
-  host: string;
   port: number;
 };
 
@@ -21,7 +20,6 @@ export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): Bonjo
     name: options.name,
     type: SLOPZOOKA_BONJOUR_TYPE,
     protocol: "tcp",
-    host: options.host,
     port: options.port,
     txt: {
       name: "SlopZooka",
@@ -33,7 +31,6 @@ export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): Bonjo
     options.logger.info("Bonjour service advertised", {
       serviceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
       serviceName: options.name,
-      host: options.host,
       port: options.port
     });
   });

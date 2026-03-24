@@ -255,6 +255,7 @@ export class GitHubClient {
     const token = await this.resolveToken();
     const response = await fetch(GITHUB_GRAPHQL_URL, {
       method: "POST",
+      signal: AbortSignal.timeout(12_000),
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -287,22 +288,27 @@ export class GitHubClient {
   private async resolveToken(): Promise<string> {
     if (!this.tokenPromise) {
       this.tokenPromise = (async () => {
-        const envToken = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
-        if (envToken?.trim()) {
-          return envToken.trim();
+        try {
+          const envToken = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;
+          if (envToken?.trim()) {
+            return envToken.trim();
+          }
+
+          const { stdout } = await execFileAsync("gh", ["auth", "token"], {
+            timeout: 10_000,
+            maxBuffer: 1024 * 1024
+          });
+
+          const token = stdout.trim();
+          if (!token) {
+            throw new Error("GitHub CLI did not return a token.");
+          }
+
+          return token;
+        } catch (error) {
+          this.tokenPromise = null;
+          throw error;
         }
-
-        const { stdout } = await execFileAsync("gh", ["auth", "token"], {
-          timeout: 10_000,
-          maxBuffer: 1024 * 1024
-        });
-
-        const token = stdout.trim();
-        if (!token) {
-          throw new Error("GitHub CLI did not return a token.");
-        }
-
-        return token;
       })();
     }
 
