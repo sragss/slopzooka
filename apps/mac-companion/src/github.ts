@@ -89,7 +89,9 @@ type AvailableOwnersQueryResult = {
 export class GitHubClient {
   private tokenPromise: Promise<string> | null = null;
 
-  async listRecentRepos(limit: number): Promise<{ viewerLogin: string; repos: RecentRepo[] }> {
+  async listRecentRepos(
+    limit: number,
+  ): Promise<{ viewerLogin: string; repos: RecentRepo[] }> {
     const data = await this.graphql<RecentReposQueryResult>(
       `
         query RecentRepos($first: Int!) {
@@ -127,12 +129,12 @@ export class GitHubClient {
           }
         }
       `,
-      { first: Math.max(1, Math.min(limit, 100)) }
+      { first: Math.max(1, Math.min(limit, 100)) },
     );
 
     return {
       viewerLogin: data.viewer.login,
-      repos: data.viewer.repositories.nodes.map(mapRepo)
+      repos: data.viewer.repositories.nodes.map(mapRepo),
     };
   }
 
@@ -164,7 +166,7 @@ export class GitHubClient {
           }
         }
       `,
-      { owner, name }
+      { owner, name },
     );
 
     if (!data.repository) {
@@ -174,7 +176,10 @@ export class GitHubClient {
     return mapRepo(data.repository);
   }
 
-  async listAvailableOwners(): Promise<{ viewerLogin: string; owners: RepoOwner[] }> {
+  async listAvailableOwners(): Promise<{
+    viewerLogin: string;
+    owners: RepoOwner[];
+  }> {
     const data = await this.graphql<AvailableOwnersQueryResult>(
       `
         query AvailableOwners {
@@ -193,7 +198,7 @@ export class GitHubClient {
           }
         }
       `,
-      {}
+      {},
     );
 
     const owners: RepoOwner[] = [
@@ -201,7 +206,7 @@ export class GitHubClient {
         login: data.viewer.login,
         name: data.viewer.name ?? null,
         avatarUrl: data.viewer.avatarUrl,
-        kind: "user"
+        kind: "user",
       },
       ...data.viewer.organizations.nodes
         .filter((org) => org.viewerCanCreateRepositories !== false)
@@ -209,13 +214,13 @@ export class GitHubClient {
           login: org.login,
           name: org.name ?? null,
           avatarUrl: org.avatarUrl,
-          kind: "org" as const
-        }))
+          kind: "org" as const,
+        })),
     ];
 
     return {
       viewerLogin: data.viewer.login,
-      owners
+      owners,
     };
   }
 
@@ -227,16 +232,20 @@ export class GitHubClient {
   }): Promise<RecentRepo> {
     const nameWithOwner = `${input.owner}/${input.repoName}`;
     const availableOwners = await this.listAvailableOwners();
-    const isAllowedOwner = availableOwners.owners.some((owner) => owner.login === input.owner);
+    const isAllowedOwner = availableOwners.owners.some(
+      (owner) => owner.login === input.owner,
+    );
     if (!isAllowedOwner) {
-      throw new Error(`GitHub owner is not available for repo creation: ${input.owner}`);
+      throw new Error(
+        `GitHub owner is not available for repo creation: ${input.owner}`,
+      );
     }
 
     const args = [
       "repo",
       "create",
       nameWithOwner,
-      input.visibility === "public" ? "--public" : "--private"
+      input.visibility === "public" ? "--public" : "--private",
     ];
 
     if (input.addReadme !== false) {
@@ -245,13 +254,16 @@ export class GitHubClient {
 
     await execFileAsync("gh", args, {
       timeout: 120_000,
-      maxBuffer: 8 * 1024 * 1024
+      maxBuffer: 8 * 1024 * 1024,
     });
 
     return this.getRepo(nameWithOwner);
   }
 
-  private async graphql<T>(query: string, variables: Record<string, unknown>): Promise<T> {
+  private async graphql<T>(
+    query: string,
+    variables: Record<string, unknown>,
+  ): Promise<T> {
     const token = await this.resolveToken();
     const response = await fetch(GITHUB_GRAPHQL_URL, {
       method: "POST",
@@ -259,22 +271,26 @@ export class GitHubClient {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
-        "User-Agent": "slopzooka-mac-companion"
+        "User-Agent": "slopzooka-mac-companion",
       },
       body: JSON.stringify({
         query,
-        variables
-      })
+        variables,
+      }),
     });
 
     if (!response.ok) {
       const message = await response.text();
-      throw new Error(`GitHub API request failed with status ${response.status}: ${message}`);
+      throw new Error(
+        `GitHub API request failed with status ${response.status}: ${message}`,
+      );
     }
 
     const payload = (await response.json()) as GraphQLResponse<T>;
     if (payload.errors?.length) {
-      const messages = payload.errors.map((error) => error.message ?? "Unknown GitHub API error");
+      const messages = payload.errors.map(
+        (error) => error.message ?? "Unknown GitHub API error",
+      );
       throw new Error(messages.join("; "));
     }
 
@@ -296,7 +312,7 @@ export class GitHubClient {
 
           const { stdout } = await execFileAsync("gh", ["auth", "token"], {
             timeout: 10_000,
-            maxBuffer: 1024 * 1024
+            maxBuffer: 1024 * 1024,
           });
 
           const token = stdout.trim();
@@ -319,7 +335,7 @@ export class GitHubClient {
 function mapRepo(
   repo:
     | RecentReposQueryResult["viewer"]["repositories"]["nodes"][number]
-    | NonNullable<RepoByNameQueryResult["repository"]>
+    | NonNullable<RepoByNameQueryResult["repository"]>,
 ): RecentRepo {
   return {
     name: repo.name,
@@ -332,8 +348,8 @@ function mapRepo(
     owner: {
       login: repo.owner.login,
       name: repo.owner.name ?? null,
-      avatarUrl: repo.owner.avatarUrl
-    }
+      avatarUrl: repo.owner.avatarUrl,
+    },
   };
 }
 

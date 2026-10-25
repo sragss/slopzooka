@@ -5,130 +5,89 @@ struct CompanionWebView: UIViewRepresentable {
     let url: URL
     @Binding var loadState: TerminalLoadState
     let focusRequestToken: Int
-    let pendingInputToken: Int
-    let pendingInputText: String?
-    let pendingInputSendReturn: Bool
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(loadState: $loadState, fallbackURL: url)
-    }
-
+    func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
-        configuration.allowsInlineMediaPlayback = true
-
+        configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.add(context.coordinator, name: "terminalState")
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.allowsBackForwardNavigationGestures = false
-        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
-        DispatchQueue.main.async {
-            loadState = .loading(url.absoluteString)
-        }
-        Task { @MainActor in
-            slzLog("webview makeUIView \(url.absoluteString)")
-        }
-        context.coordinator.currentRequestedURLString = url.absoluteString
-        webView.load(URLRequest(url: url))
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
+        context.coordinator.load(url, in: webView)
         return webView
     }
-
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
-        context.coordinator.fallbackURL = url
-        if context.coordinator.lastFocusRequestToken != focusRequestToken {
-            context.coordinator.lastFocusRequestToken = focusRequestToken
-            focusTerminal(in: webView)
+        context.coordinator.load(url, in: webView)
+        if context.coordinator.focusToken != focusRequestToken {
+            context.coordinator.focusToken = focusRequestToken
+            webView.evaluateJavaScript("window.slzFocusTerminal?.()")
         }
-        if context.coordinator.lastInputToken != pendingInputToken,
-           let pendingInputText {
-            context.coordinator.lastInputToken = pendingInputToken
-            sendInput(pendingInputText, sendReturn: pendingInputSendReturn, to: webView)
+    }
+    static func dismantleUIView(_ webView: WKWebView, coordinator: TerminalSessionController) {
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalState")
+        webView.evaluateJavaScript("window.slzDetachTerminal?.()")
+        webView.navigationDelegate = nil
+        webView.stopLoading()
+        webView.loadHTMLString("", baseURL: nil)
+    }
+}
+
+/// Owns the terminal document bridge. A loaded page is not a connected session.
+@MainActor
+final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    var loadState: Binding<TerminalLoadState>
+    var focusToken = 0
+    private var requestedURL: URL?
+    init(loadState: Binding<TerminalLoadState>) { self.loadState = loadState }
+    func load(_ url: URL, in webView: WKWebView) {
+        guard requestedURL != url else { return }
+        requestedURL = url
+        DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
+        webView.load(CompanionAPI.authorized(URLRequest(url: url)))
+    }
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }
+        switch body["state"] {
+        case "running": loadState.wrappedValue = .loaded
+        case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
+        case "exited": loadState.wrappedValue = .ended(body["message"] ?? "Session ended")
+        default: loadState.wrappedValue = .loading(body["message"] ?? "Connecting")
         }
-        guard context.coordinator.currentRequestedURLString != url.absoluteString else {
+    }
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        loadState.wrappedValue = .failed(error.localizedDescription)
+    }
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        loadState.wrappedValue = .failed(error.localizedDescription)
+    }
+    func webView(
+        _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
+        decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+    ) {
+        if let response = navigationResponse.response as? HTTPURLResponse, response.statusCode == 401 {
+            loadState.wrappedValue = .failed("Pair with your Mac from the launcher, then reopen this terminal")
+            decisionHandler(.cancel)
+        } else {
+            decisionHandler(.allow)
+        }
+    }
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        guard let requestedURL else { return }
+        loadState.wrappedValue = .loading("Reconnecting")
+        webView.load(CompanionAPI.authorized(URLRequest(url: requestedURL)))
+    }
+    func webView(
+        _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let target = navigationAction.request.url, let requestedURL else {
+            decisionHandler(.cancel)
             return
         }
-
-        context.coordinator.currentRequestedURLString = url.absoluteString
-        DispatchQueue.main.async {
-            loadState = .loading(url.absoluteString)
-        }
-        Task { @MainActor in
-            slzLog("webview updateUIView \(url.absoluteString)")
-        }
-        webView.load(URLRequest(url: url))
-    }
-
-    private func focusTerminal(in webView: WKWebView) {
-        let script = """
-        if (typeof window.slzFocusTerminal === 'function') {
-            window.slzFocusTerminal();
-        } else if (document.body) {
-            document.body.focus();
-        }
-        """
-        webView.evaluateJavaScript(script)
-    }
-
-    private func sendInput(_ text: String, sendReturn: Bool, to webView: WKWebView) {
-        guard let data = try? JSONSerialization.data(withJSONObject: [text, sendReturn]),
-              let encoded = String(data: data, encoding: .utf8) else {
-            return
-        }
-
-        let script = """
-        const args = \(encoded);
-        window.__slzQueuedTerminalInputs = window.__slzQueuedTerminalInputs || [];
-        window.__slzQueuedTerminalInputs.push({ text: args[0], sendReturn: args[1] });
-        if (typeof window.slzEnqueueTerminalInput === 'function') {
-            window.slzEnqueueTerminalInput(args[0], args[1]);
-        }
-        """
-        webView.evaluateJavaScript(script)
-    }
-
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        var loadState: Binding<TerminalLoadState>
-        var fallbackURL: URL
-        var lastFocusRequestToken = 0
-        var lastInputToken = 0
-        var currentRequestedURLString: String?
-
-        init(loadState: Binding<TerminalLoadState>, fallbackURL: URL) {
-            self.loadState = loadState
-            self.fallbackURL = fallbackURL
-        }
-
-        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-            let currentURL = webView.url?.absoluteString ?? fallbackURL.absoluteString
-            loadState.wrappedValue = .loading(currentURL)
-            Task { @MainActor in
-                slzLog("webview start \(currentURL)")
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            loadState.wrappedValue = .loaded
-            Task { @MainActor in
-                slzLog("webview loaded \(webView.url?.absoluteString ?? fallbackURL.absoluteString)")
-            }
-        }
-
-        func webView(
-            _ webView: WKWebView,
-            didFailProvisionalNavigation navigation: WKNavigation!,
-            withError error: any Error
-        ) {
-            loadState.wrappedValue = .failed(error.localizedDescription)
-            Task { @MainActor in
-                slzLog("webview provisional fail \(error.localizedDescription)")
-            }
-        }
-
-        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
-            loadState.wrappedValue = .failed(error.localizedDescription)
-            Task { @MainActor in
-                slzLog("webview fail \(error.localizedDescription)")
-            }
-        }
+        decisionHandler(
+            target.host == requestedURL.host && target.port == requestedURL.port && target.path == "/terminal"
+                ? .allow : .cancel)
     }
 }

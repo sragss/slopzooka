@@ -1,0 +1,140 @@
+import SwiftUI
+
+struct FrontendPanel: View {
+    let baseURL: URL?
+    @State private var frontends: [FrontendSummary] = []
+    @State private var warning: String?
+    var body: some View {
+        FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL)
+            .task(id: baseURL) {
+                guard let baseURL else { return }
+                while !Task.isCancelled {
+                    do {
+                        let catalog = try await CompanionAPI.request(
+                            FrontendCatalog.self, base: baseURL, path: "/api/frontends")
+                        frontends = catalog.frontends
+                        warning = catalog.warning
+                    } catch { warning = error.localizedDescription }
+                    try? await Task.sleep(for: .seconds(3))
+                }
+            }
+    }
+}
+
+struct FrontendListView: View {
+    let frontends: [FrontendSummary]
+    let warning: String?
+    let baseURL: URL?
+    @EnvironmentObject private var appModel: AppModel
+    @Environment(\.openWindow) private var openWindow
+    @State private var error: String?
+    @State private var opening: String?
+    @State private var urlInput = ""
+    @State private var saving = false
+    @State private var updatedFrontends: [FrontendSummary]?
+    private var visibleFrontends: [FrontendSummary] { updatedFrontends ?? frontends }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("Frontends", systemImage: "globe").font(.headline)
+            if let warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
+            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            if visibleFrontends.isEmpty && warning == nil {
+                Text("Start a web app on your Mac, or add its URL below.").font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            ForEach(visibleFrontends) { frontend in
+                Button {
+                    Task { await open(frontend) }
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(frontend.displayTitle).lineLimit(1)
+                            if frontend.status == "starting" || frontend.status == "stopped" {
+                                Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        Spacer()
+                        if opening == frontend.id { ProgressView() } else { Image(systemName: "arrow.up.right.square") }
+                    }
+                }
+                .disabled(opening != nil || frontend.status == "stopped")
+                .contextMenu {
+                    if frontend.source == "manual" {
+                        Button("Remove URL", role: .destructive) { Task { await remove(frontend) } }
+                    }
+                }
+            }
+            HStack {
+                TextField("http://localhost:3000 or https://…", text: $urlInput)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .onSubmit { Task { await addURL() } }
+                Button("Add URL") { Task { await addURL() } }
+                    .disabled(
+                        saving || urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || baseURL == nil)
+            }
+        }
+        .onChange(of: frontends) { _, _ in updatedFrontends = nil }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+    }
+
+    private func addURL() async {
+        guard !saving, let baseURL else { return }
+        saving = true
+        error = nil
+        defer { saving = false }
+        do {
+            _ = try await CompanionAPI.request(
+                OpenFrontendResponse.self, base: baseURL, path: "/api/frontends",
+                method: "POST",
+                body: JSONSerialization.data(withJSONObject: [
+                    "url": urlInput.trimmingCharacters(in: .whitespacesAndNewlines)
+                ]))
+            urlInput = ""
+            updatedFrontends = try await CompanionAPI.request(
+                FrontendCatalog.self, base: baseURL, path: "/api/frontends"
+            ).frontends
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func remove(_ frontend: FrontendSummary) async {
+        guard let baseURL else { return }
+        do {
+            _ = try await CompanionAPI.request(
+                APIAcknowledgement.self, base: baseURL,
+                path: "/api/frontends/\(frontend.id)", method: "DELETE")
+            updatedFrontends = try await CompanionAPI.request(
+                FrontendCatalog.self, base: baseURL, path: "/api/frontends"
+            ).frontends
+        } catch { self.error = error.localizedDescription }
+    }
+
+    private func open(_ frontend: FrontendSummary) async {
+        guard let baseURL else { return }
+        opening = frontend.id
+        error = nil
+        defer { opening = nil }
+        do {
+            let result = try await CompanionAPI.request(
+                OpenFrontendResponse.self, base: baseURL, path: "/api/frontends/open", method: "POST",
+                body: JSONSerialization.data(withJSONObject: ["id": frontend.id]))
+            guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
+            if let port = result.exposedPort, let token = result.accessToken {
+                url.scheme = "http"
+                url.host = baseURL.host
+                url.port = port
+                url.path = "/__slz_access"
+                url.fragment = nil
+                url.queryItems = [URLQueryItem(name: "token", value: token)]
+            }
+            guard let resolvedURL = url.url else { throw URLError(.badURL) }
+            let id = "\(baseURL.host ?? "host"):\(baseURL.port ?? 80):\(frontend.id)"
+            appModel.registerPreview(
+                PreviewWindowPayload(id: id, title: frontend.displayTitle, urlString: resolvedURL.absoluteString))
+            openWindow(id: "preview", value: id)
+        } catch { self.error = error.localizedDescription }
+    }
+}

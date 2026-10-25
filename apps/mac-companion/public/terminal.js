@@ -9137,238 +9137,207 @@ var Dl = class extends D {
   }
 };
 
+// ../../packages/protocol/src/index.ts
+var PROTOCOL_VERSION = 1;
+
+// src/terminal-connection.ts
+var TerminalConnection = class {
+  constructor(terminal2, sessionId2, status2, fit2) {
+    this.terminal = terminal2;
+    this.sessionId = sessionId2;
+    this.status = status2;
+    this.fit = fit2;
+    terminal2.onData((data) => {
+      if (this.attached && this.writable && this.running)
+        this.send({ type: "input", sessionId: sessionId2, data });
+    });
+  }
+  socket;
+  renderTail = Promise.resolve();
+  cursor;
+  retry;
+  attempts = 0;
+  stopped = false;
+  writable = false;
+  running = false;
+  attached = false;
+  connect() {
+    if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
+      return;
+    this.status("Connecting\u2026", "connecting");
+    const url = new URL("/ws", location.href);
+    url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
+    const ws2 = new WebSocket(url);
+    this.socket = ws2;
+    ws2.onmessage = (event) => {
+      if (this.socket !== ws2) return;
+      try {
+        const message = JSON.parse(String(event.data));
+        this.renderTail = this.renderTail.then(() => this.receive(message, ws2)).catch(() => {
+          if (this.isCurrent(ws2))
+            this.status("Could not restore terminal", "failed");
+          ws2.close();
+        });
+      } catch {
+        this.status("Invalid response from companion", "failed");
+        ws2.close();
+      }
+    };
+    ws2.onclose = () => {
+      if (this.socket !== ws2 || this.stopped) return;
+      this.attached = false;
+      this.writable = false;
+      this.status("Disconnected \u2014 reconnecting\u2026", "connecting");
+      this.retry = setTimeout(
+        () => this.connect(),
+        Math.min(1e4, 300 * 2 ** this.attempts++) + Math.random() * 300
+      );
+    };
+    ws2.onerror = () => {
+      if (this.isCurrent(ws2))
+        this.status("Connection interrupted", "connecting");
+    };
+  }
+  resize() {
+    if (!this.attached || !this.writable || !this.running) return;
+    this.fit();
+    this.send({
+      type: "resize",
+      sessionId: this.sessionId,
+      cols: this.terminal.cols,
+      rows: this.terminal.rows
+    });
+  }
+  detach() {
+    this.stopped = true;
+    this.attached = false;
+    this.writable = false;
+    clearTimeout(this.retry);
+    this.send({ type: "detach", sessionId: this.sessionId });
+    this.socket?.close();
+  }
+  isCurrent(ws2) {
+    return !this.stopped && this.socket === ws2 && ws2.readyState === WebSocket.OPEN;
+  }
+  async receive(m, ws2) {
+    if (this.stopped) return;
+    switch (m.type) {
+      case "ownership":
+        if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
+        this.writable = m.writable;
+        this.status(
+          this.running ? "Connected" : "Session ended",
+          this.running ? "running" : "exited"
+        );
+        this.resize();
+        break;
+      case "hello":
+        if (!this.isCurrent(ws2)) return;
+        if (m.version !== PROTOCOL_VERSION) {
+          this.status("Companion protocol mismatch", "failed");
+          this.detach();
+          return;
+        }
+        if (this.socket === ws2 && ws2.readyState === WebSocket.OPEN)
+          this.send({
+            type: "attach",
+            sessionId: this.sessionId,
+            cursor: this.cursor
+          });
+        break;
+      case "attached":
+        if (m.session.id !== this.sessionId) return;
+        if (m.snapshot !== void 0) {
+          this.terminal.reset();
+          this.terminal.resize(m.session.cols, m.session.rows);
+          await this.write(m.snapshot);
+          this.ack(ws2, m.cursor);
+        }
+        if (!this.isCurrent(ws2)) return;
+        this.attempts = 0;
+        this.running = m.session.status === "running";
+        this.writable = m.writable;
+        this.attached = true;
+        this.status(
+          this.running ? m.writable ? "Connected" : "Connected \u2022 read only" : "Session ended",
+          this.running ? "running" : "exited"
+        );
+        this.resize();
+        break;
+      case "output":
+        if (m.sessionId !== this.sessionId) return;
+        await this.write(m.data);
+        this.ack(ws2, m.cursor);
+        break;
+      case "exited":
+        if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
+        this.running = false;
+        this.status(`Session ended (${m.exitCode ?? "terminated"})`, "exited");
+        break;
+      case "error":
+        if (!this.isCurrent(ws2)) return;
+        this.status(m.message, "failed");
+        if (m.code === "404") this.detach();
+        break;
+    }
+  }
+  write(data) {
+    return new Promise((resolve) => this.terminal.write(data, resolve));
+  }
+  ack(ws2, cursor) {
+    this.cursor = cursor;
+    if (this.isCurrent(ws2))
+      this.send({ type: "ack", sessionId: this.sessionId, cursor });
+  }
+  send(message) {
+    if (this.socket?.readyState === WebSocket.OPEN)
+      this.socket.send(JSON.stringify(message));
+  }
+};
+
 // src/terminal.ts
-var mount = mustQuery("#terminal");
-var titlePill = mustQuery("#title-pill");
-var statusPill = mustQuery("#status-pill");
+var mount = document.querySelector("#terminal");
+var title = document.querySelector("#title-pill");
+var status = document.querySelector("#status-pill");
 var terminal = new Dl({
   cursorBlink: true,
   fontSize: 16,
   lineHeight: 1.22,
-  theme: {
-    background: "#05070b",
-    foreground: "#e7edf7"
-  }
+  theme: { background: "#05070b", foreground: "#e7edf7" }
 });
-var fitAddon = new o();
-terminal.loadAddon(fitAddon);
+var fit = new o();
+terminal.loadAddon(fit);
 terminal.open(mount);
-fitAddon.fit();
+fit.fit();
 terminal.focus();
-var params = new URLSearchParams(window.location.search);
-var profile = parseProfile(params.get("profile"));
-var cwd = params.get("cwd")?.trim() || void 0;
-var requestedSurfaceId = params.get("surfaceId")?.trim() || void 0;
-var host = window.location.host;
-var socket = new WebSocket(wsUrlForHost(host));
-var activeSurface = null;
-var closedByClient = false;
-var pendingInjectedInputs = [];
-window.slzFocusTerminal = focusTerminal;
-window.slzSendTerminalInput = sendTerminalInput;
-window.slzEnqueueTerminalInput = enqueueTerminalInput;
-titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
-setStatus("Connecting...");
-flushWindowQueuedInputs();
-socket.addEventListener("open", () => {
-  send({ type: "hello", clientName: "terminal-page" });
+var sessionId = new URLSearchParams(location.search).get("sessionId");
+var connection = sessionId ? new TerminalConnection(
+  terminal,
+  sessionId,
+  (message, state) => {
+    status.textContent = message;
+    status.classList.toggle("error", state === "failed");
+    window.webkit?.messageHandlers.terminalState?.postMessage({
+      state,
+      message
+    });
+  },
+  () => fit.fit()
+) : void 0;
+title.textContent = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
+connection?.connect();
+var resizeFrame = 0;
+new ResizeObserver(() => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => connection?.resize());
+}).observe(mount);
+window.addEventListener("pagehide", () => connection?.detach());
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) location.reload();
 });
-socket.addEventListener("message", (event) => {
-  try {
-    const payload = JSON.parse(String(event.data));
-    handleServerMessage(payload);
-  } catch (error) {
-    setError(`Failed to parse server message: ${String(error)}`);
-  }
-});
-socket.addEventListener("close", () => {
-  if (!closedByClient) {
-    setError("Connection closed.");
-  }
-});
-socket.addEventListener("error", () => {
-  setError("WebSocket error.");
-});
-terminal.onData((data) => {
-  if (!activeSurface) {
-    return;
-  }
-  const message = {
-    type: "terminal_input",
-    surfaceId: activeSurface.id,
-    data
-  };
-  send(message);
-});
-window.addEventListener("resize", queueResize);
-window.addEventListener("pagehide", teardownSurface);
-window.addEventListener("focus", focusTerminal);
-window.addEventListener("pageshow", focusTerminal);
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    focusTerminal();
-  }
-});
-mount.addEventListener("pointerdown", () => {
-  focusTerminal();
-});
-function handleServerMessage(message) {
-  switch (message.type) {
-    case "hello_ack": {
-      const createMessage = {
-        type: "create_surface",
-        surfaceId: requestedSurfaceId,
-        kind: profile ? "tui" : "terminal",
-        profile: profile ?? void 0,
-        cwd,
-        cols: terminal.cols,
-        rows: terminal.rows
-      };
-      titlePill.innerHTML = `<strong>${displayName(profile)}</strong> on ${message.hostname}`;
-      setStatus("Launching...");
-      send(createMessage);
-      break;
-    }
-    case "cluster_snapshot":
-      break;
-    case "surface_created":
-      activeSurface = message.surface;
-      queueResize();
-      flushPendingInjectedInputs();
-      setStatus(`Connected \u2022 ${message.surface.cwd}`);
-      break;
-    case "terminal_output":
-      if (message.surfaceId === activeSurface?.id) {
-        terminal.write(message.data);
-      }
-      break;
-    case "surface_closed":
-      if (message.surfaceId === activeSurface?.id) {
-        setStatus(`Session ended (${message.reason})`, true);
-        activeSurface = null;
-      }
-      break;
-    case "error":
-      setError(message.message);
-      break;
-  }
-}
-function send(message) {
-  if (socket.readyState !== WebSocket.OPEN) {
-    return;
-  }
-  socket.send(JSON.stringify(message));
-}
-function queueResize() {
-  if (!activeSurface) {
-    return;
-  }
-  fitAddon.fit();
-  const message = {
-    type: "terminal_resize",
-    surfaceId: activeSurface.id,
-    cols: terminal.cols,
-    rows: terminal.rows
-  };
-  send(message);
-}
-function teardownSurface() {
-  if (!activeSurface) {
-    return;
-  }
-  closedByClient = true;
-  send({
-    type: "close_surface",
-    surfaceId: activeSurface.id
-  });
-}
-function focusTerminal() {
-  requestAnimationFrame(() => {
-    terminal.focus();
-  });
-}
-function sendTerminalInput(text, sendReturn = false) {
-  if (!text) {
-    return;
-  }
-  if (!activeSurface) {
-    pendingInjectedInputs.push({ text, sendReturn });
-    return;
-  }
-  terminal.input(text, true);
-  if (sendReturn) {
-    terminal.input("\r", true);
-  }
-  focusTerminal();
-}
-function enqueueTerminalInput(text, sendReturn = false) {
-  if (!text) {
-    return;
-  }
-  pendingInjectedInputs.push({ text, sendReturn });
-  flushPendingInjectedInputs();
-}
-function flushPendingInjectedInputs() {
-  if (!activeSurface || pendingInjectedInputs.length === 0) {
-    return;
-  }
-  while (pendingInjectedInputs.length > 0) {
-    const nextInput = pendingInjectedInputs.shift();
-    if (!nextInput) {
-      continue;
-    }
-    terminal.input(nextInput.text, true);
-    if (nextInput.sendReturn) {
-      terminal.input("\r", true);
-    }
-  }
-}
-function flushWindowQueuedInputs() {
-  const queued = window.__slzQueuedTerminalInputs;
-  if (!queued || queued.length === 0) {
-    return;
-  }
-  window.__slzQueuedTerminalInputs = [];
-  for (const item of queued) {
-    enqueueTerminalInput(item.text, item.sendReturn);
-  }
-}
-function setStatus(message, isError = false) {
-  statusPill.textContent = message;
-  statusPill.classList.toggle("error", isError);
-}
-function setError(message) {
-  setStatus(message, true);
-}
-function parseProfile(value) {
-  if (value === "codex" || value === "claude" || value === "opencode") {
-    return value;
-  }
-  return null;
-}
-function displayName(profile2) {
-  switch (profile2) {
-    case "codex":
-      return "Codex";
-    case "claude":
-      return "Claude Code";
-    case "opencode":
-      return "OpenCode";
-    case null:
-      return "Terminal";
-  }
-}
-function wsUrlForHost(currentHost) {
-  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${currentHost}/ws`;
-}
-function mustQuery(selector) {
-  const element = document.querySelector(selector);
-  if (!element) {
-    throw new Error(`Missing required element: ${selector}`);
-  }
-  return element;
-}
+window.slzFocusTerminal = () => terminal.focus();
+window.slzDetachTerminal = () => connection?.detach();
+mount.addEventListener("pointerdown", () => terminal.focus());
 /*! Bundled license information:
 
 @xterm/addon-fit/lib/addon-fit.mjs:

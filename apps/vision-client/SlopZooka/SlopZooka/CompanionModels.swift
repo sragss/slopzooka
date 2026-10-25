@@ -10,6 +10,9 @@ struct CompanionHealthResponse: Decodable {
     }
 
     let ok: Bool
+    let hostId: String
+    let paired: Bool
+    let protocolVersion: Int
     let name: String
     let version: String
     let hostname: String
@@ -83,9 +86,8 @@ struct LaunchWorkspaceResponse: Decodable {
     let worktreePath: String
     let branchName: String
     let baseRef: String
-    let launchURL: String
     let wasCloned: Bool
-    let clusterId: String
+    let workspaceId: String
     let repo: RecentRepoSummary
 }
 
@@ -113,7 +115,7 @@ struct ReopenWorkspaceRequest: Encodable {
 }
 
 struct WorkspaceSummary: Decodable, Identifiable, Hashable {
-    let clusterId: String
+    let workspaceId: String
     let repo: RecentRepoSummary
     let profile: String?
     let localCheckoutPath: String
@@ -125,7 +127,7 @@ struct WorkspaceSummary: Decodable, Identifiable, Hashable {
     let archivedAt: Date?
     let existsOnDisk: Bool
 
-    var id: String { clusterId }
+    var id: String { workspaceId }
 }
 
 struct LaunchFeedback: Equatable {
@@ -145,6 +147,7 @@ struct APIErrorResponse: Decodable {
 
 struct TerminalWindowPayload: Codable, Hashable {
     let id: String
+    let workspaceId: String
     let title: String
     let urlString: String
 
@@ -153,60 +156,34 @@ struct TerminalWindowPayload: Codable, Hashable {
     }
 }
 
-struct PreviewCandidateSummary: Decodable, Hashable, Identifiable {
-    var id: Int { port }
-
-    let port: Int
-    let statusCode: Int
+struct FrontendSummary: Decodable, Hashable, Identifiable {
+    let id: String
+    let hostname: String
+    let url: String
+    let transport: String
     let title: String?
-    let frameworkHint: String?
-
-    var displayTitle: String {
-        if let title, !title.isEmpty {
-            return title
-        }
-
-        if let frameworkHint, !frameworkHint.isEmpty {
-            return "\(frameworkHint) • :\(port)"
-        }
-
-        return "Preview • :\(port)"
-    }
+    let source: String?
+    let status: String?
+    var displayTitle: String { title ?? hostname }
 }
-
-struct PreviewScanResponse: Decodable {
-    let workspaceId: String
-    let candidates: [PreviewCandidateSummary]
-    let suggestedPort: Int?
+struct FrontendCatalog: Decodable {
+    let frontends: [FrontendSummary]
+    let warning: String?
 }
-
-struct OpenPreviewRequest: Encodable {
-    let port: Int?
+struct OpenFrontendResponse: Decodable {
+    let frontend: FrontendSummary
+    let exposedPort: Int?
+    let accessToken: String?
 }
-
-struct OpenPreviewResponse: Decodable {
-    let clusterId: String
-    let repoNameWithOwner: String
-    let title: String
-    let targetPort: Int
-    let exposedPort: Int
-    let frameworkHint: String?
-}
-
 struct PreviewWindowPayload: Codable, Hashable {
     let id: String
-    let clusterId: String
     let title: String
     let urlString: String
-    let targetPort: Int
-    let exposedPort: Int
-
-    var url: URL? {
-        URL(string: urlString)
-    }
+    var url: URL? { URL(string: urlString) }
 }
 
 enum TerminalLoadState: Equatable {
+    case ended(String)
     case idle
     case loading(String)
     case loaded

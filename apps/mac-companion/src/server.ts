@@ -1,39 +1,30 @@
-import crypto from "node:crypto";
+import { ServiceError } from "./errors.js";
 import { execFileSync } from "node:child_process";
-import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
 import express from "express";
-import pty, { type IPty } from "node-pty";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
 import { GitHubClient } from "./github.js";
 import { createLogger } from "./logger.js";
-import { PreviewManager } from "./preview.js";
+import { FrontendService } from "./frontends.js";
 import {
   WorkspaceService,
-  WorkspaceServiceError,
   workspacePaths,
-  type LaunchWorkspaceRequest
+  type LaunchWorkspaceRequest,
 } from "./workspace.js";
 import {
   isClientMessage,
-  type ClientMessage,
-  type ClusterSnapshotMessage,
-  type CreateSurfaceMessage,
-  type ErrorMessage,
-  type HelloAckMessage,
-  type ServerMessage,
-  type SurfaceClosedMessage,
-  type SurfaceCreatedMessage,
-  type SurfaceSummary,
-  type SurfaceKind,
-  type TerminalOutputMessage,
-  type TuiProfile
+  PROTOCOL_VERSION,
+  validId,
+  validProfile,
+  type TuiProfile,
 } from "../../../packages/protocol/src/index.js";
+import { SessionManager, send } from "./sessions.js";
+import { Pairing } from "./auth.js";
 
 const PORT = Number(process.env.SLOPZOOKA_PORT ?? "7777");
 const HOST = process.env.SLOPZOOKA_HOST ?? "::";
@@ -42,69 +33,98 @@ const CONTROL_HOST = `${LOCAL_HOST_NAME}.local:${PORT}`;
 const CONTROL_ORIGIN = `http://${CONTROL_HOST}`;
 const BONJOUR_SERVICE_NAME = advertisedServiceName();
 const DEFAULT_CWD = path.resolve(import.meta.dirname, "../../..");
-const CLUSTER_ID = "local";
-const TUI_COMMANDS = {
-  codex: process.env.SLOPZOOKA_CODEX_COMMAND ?? "codex",
-  claude: process.env.SLOPZOOKA_CLAUDE_COMMAND ?? "claude --dangerously-skip-permissions",
-  opencode: process.env.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode"
-} as const;
 const logger = createLogger("SlopZooka", "mac-companion.log");
 const gitHubClient = new GitHubClient();
-const workspaceService = new WorkspaceService(logger, CONTROL_ORIGIN);
-const previewManager = new PreviewManager(logger);
+const workspaceService = new WorkspaceService(logger);
+const frontendService = new FrontendService(logger);
+const sessionManager = new SessionManager();
+const pairing = new Pairing(workspacePaths().slopzookaHome);
+// Pairing codes are intentionally printed only to the local console, never the log file.
+console.log(`SlopZooka pairing code: ${pairing.code}`);
+
+const catalogTimer = setInterval(() => {
+  void frontendService.getCatalog();
+}, 2000);
+catalogTimer.unref();
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "128kb" }));
+app.use((req, res, next) => {
+  if (shuttingDown) {
+    res.status(503).json({ error: "Companion is shutting down" });
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  if (req.body?.profile !== undefined && !validProfile(req.body.profile)) {
+    res.status(400).json({ error: "Unknown terminal profile" });
+    return;
+  }
+  next();
+});
+pairing.install(app);
 app.use(express.static(path.join(import.meta.dirname, "..", "public")));
 
-app.get("/terminal", (req, res) => {
-  logger.info("Terminal page requested", {
-    hostHeader: req.headers.host ?? null,
-    userAgent: req.headers["user-agent"] ?? null,
-    profile: typeof req.query.profile === "string" ? req.query.profile : null,
-    cwd: typeof req.query.cwd === "string" ? req.query.cwd : null,
-    surfaceId: typeof req.query.surfaceId === "string" ? req.query.surfaceId : null
-  });
+app.get("/terminal", (_req, res) => {
   res.sendFile(path.join(import.meta.dirname, "..", "public", "terminal.html"));
-});
-
-app.get("/terminal.js", (req, _res, next) => {
-  logger.info("Terminal script requested", {
-    hostHeader: req.headers.host ?? null,
-    userAgent: req.headers["user-agent"] ?? null
-  });
-  next();
-});
-
-app.get("/terminal.css", (req, _res, next) => {
-  logger.info("Terminal stylesheet requested", {
-    hostHeader: req.headers.host ?? null,
-    userAgent: req.headers["user-agent"] ?? null
-  });
-  next();
 });
 
 app.get("/health", (_req, res) => {
   const paths = workspacePaths();
   res.json({
     ok: true,
+    hostId: pairing.hostId,
+    paired: pairing.authorized(_req),
+    protocolVersion: PROTOCOL_VERSION,
     name: "slopzooka-mac-companion",
-    version: "0.1.0",
+    version: "0.2.0",
     hostname: os.hostname(),
     localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
     logFilePath: logger.logFilePath,
-    workspacePaths: paths
+    workspacePaths: paths,
   });
 });
 
-app.get("/clusters", (_req, res) => {
-  res.json({
-    clusterId: CLUSTER_ID,
-    surfaces: Array.from(surfaceManager.surfaceSummaries())
-  });
+app.get("/api/sessions", (_req, res) =>
+  res.json({ sessions: sessionManager.summaries() }),
+);
+app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
+  try {
+    if (
+      !validId(req.params.workspaceId) ||
+      !validProfile(req.body?.profile ?? null) ||
+      !validId(req.body?.sessionId)
+    )
+      throw new ServiceError(
+        "Valid workspaceId, sessionId and profile required",
+        400,
+      );
+    const workspace = await workspaceService.getWorkspace(
+      req.params.workspaceId,
+    );
+    if (!workspace.existsOnDisk)
+      throw new ServiceError("Workspace directory is missing", 409);
+    const session = sessionManager.create(
+      workspace.workspaceId,
+      workspace.worktreePath,
+      req.body.profile ?? null,
+      req.body.sessionId,
+    );
+    res.status(201).json({ session });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not create session");
+  }
+});
+app.delete("/api/sessions/:sessionId", (req, res) => {
+  try {
+    sessionManager.terminate(req.params.sessionId);
+    res.json({ ok: true });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not terminate session");
+  }
 });
 
 app.get("/api/repos/recent", async (req, res) => {
@@ -114,14 +134,17 @@ app.get("/api/repos/recent", async (req, res) => {
     const result = await gitHubClient.listRecentRepos(limit);
     res.json({
       viewerLogin: result.viewerLogin,
-      repos: result.repos
+      repos: result.repos,
     });
   } catch (error) {
     logger.error("Failed to load recent repositories", {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to load recent repositories."
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load recent repositories.",
     });
   }
 });
@@ -132,26 +155,33 @@ app.get("/api/owners", async (_req, res) => {
     res.json(result);
   } catch (error) {
     logger.error("Failed to load available owners", {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     res.status(500).json({
-      error: error instanceof Error ? error.message : "Failed to load available owners."
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to load available owners.",
     });
   }
 });
 
 app.get("/api/workspaces", async (req, res) => {
   const limit = normalizeLimit(req.query.limit);
-  const includeArchived = req.query.includeArchived === "1" || req.query.includeArchived === "true";
+  const includeArchived =
+    req.query.includeArchived === "1" || req.query.includeArchived === "true";
 
   try {
-    const workspaces = await workspaceService.listWorkspaces(limit, includeArchived);
+    const workspaces = await workspaceService.listWorkspaces(
+      limit,
+      includeArchived,
+    );
     res.json({
-      workspaces
+      workspaces,
     });
   } catch (error) {
     logger.error("Failed to load workspaces", {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to load workspaces.");
   }
@@ -159,13 +189,17 @@ app.get("/api/workspaces", async (req, res) => {
 
 app.post("/api/workspaces/launch", async (req, res) => {
   const body = req.body as Partial<LaunchWorkspaceRequest> | undefined;
-  const nameWithOwner = body?.nameWithOwner?.trim();
+  const nameWithOwner =
+    typeof body?.nameWithOwner === "string" ? body.nameWithOwner.trim() : "";
   const profile = normalizeProfile(body?.profile);
-  const baseRef = body?.baseRef?.trim() || undefined;
+  const baseRef =
+    typeof body?.baseRef === "string"
+      ? body.baseRef.trim() || undefined
+      : undefined;
 
   if (!nameWithOwner) {
     res.status(400).json({
-      error: "nameWithOwner is required."
+      error: "nameWithOwner is required.",
     });
     return;
   }
@@ -176,9 +210,9 @@ app.post("/api/workspaces/launch", async (req, res) => {
       {
         nameWithOwner,
         profile,
-        baseRef
+        baseRef,
       },
-      repo
+      repo,
     );
 
     res.status(201).json(result);
@@ -186,35 +220,37 @@ app.post("/api/workspaces/launch", async (req, res) => {
     logger.error("Failed to launch workspace", {
       repo: nameWithOwner,
       profile: profile ?? "terminal",
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to launch workspace.");
   }
 });
 
 app.post("/api/repos/create-and-launch", async (req, res) => {
-  const body = req.body as Partial<{
-    owner: string;
-    repoName: string;
-    visibility: "private" | "public";
-    profile: TuiProfile | null;
-  }> | undefined;
+  const body = req.body as
+    | Partial<{
+        owner: string;
+        repoName: string;
+        visibility: "private" | "public";
+        profile: TuiProfile | null;
+      }>
+    | undefined;
 
-  const owner = body?.owner?.trim();
+  const owner = typeof body?.owner === "string" ? body.owner.trim() : "";
   const repoName = normalizeRepoName(body?.repoName);
   const visibility = body?.visibility === "public" ? "public" : "private";
   const profile = normalizeProfile(body?.profile);
 
   if (!owner) {
     res.status(400).json({
-      error: "owner is required."
+      error: "owner is required.",
     });
     return;
   }
 
   if (!repoName) {
     res.status(400).json({
-      error: "repoName is required."
+      error: "repoName is required.",
     });
     return;
   }
@@ -224,14 +260,14 @@ app.post("/api/repos/create-and-launch", async (req, res) => {
       owner,
       repoName,
       visibility,
-      addReadme: true
+      addReadme: true,
     });
     const result = await workspaceService.launchWorkspace(
       {
         nameWithOwner: repo.nameWithOwner,
-        profile
+        profile,
       },
-      repo
+      repo,
     );
 
     res.status(201).json(result);
@@ -241,56 +277,59 @@ app.post("/api/repos/create-and-launch", async (req, res) => {
       repoName,
       visibility,
       profile: profile ?? "terminal",
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to create and launch repository.");
   }
 });
 
-app.post("/api/workspaces/:clusterId/reopen", async (req, res) => {
-  const clusterId = req.params.clusterId?.trim();
+app.post("/api/workspaces/:workspaceId/reopen", async (req, res) => {
+  const workspaceId = req.params.workspaceId?.trim();
   const body = req.body as Partial<{ profile: TuiProfile | null }> | undefined;
   const profile = normalizeProfile(body?.profile);
 
-  if (!clusterId) {
+  if (!workspaceId) {
     res.status(400).json({
-      error: "clusterId is required."
+      error: "workspaceId is required.",
     });
     return;
   }
 
   try {
-    const result = await workspaceService.reopenWorkspace(clusterId, profile);
+    const result = await workspaceService.reopenWorkspace(
+      workspaceId,
+      body?.profile === undefined ? undefined : profile,
+    );
     res.status(200).json(result);
   } catch (error) {
     logger.error("Failed to reopen workspace", {
-      clusterId,
+      workspaceId,
       profile: profile ?? "terminal",
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to reopen workspace.");
   }
 });
 
-app.post("/api/workspaces/:clusterId/archive", async (req, res) => {
-  const clusterId = req.params.clusterId?.trim();
+app.post("/api/workspaces/:workspaceId/archive", async (req, res) => {
+  const workspaceId = req.params.workspaceId?.trim();
 
-  if (!clusterId) {
+  if (!workspaceId) {
     res.status(400).json({
-      error: "clusterId is required."
+      error: "workspaceId is required.",
     });
     return;
   }
 
   try {
-    const workspace = await workspaceService.archiveWorkspace(clusterId);
+    const workspace = await workspaceService.archiveWorkspace(workspaceId);
     res.status(200).json({
-      workspace
+      workspace,
     });
   } catch (error) {
     logger.error("Failed to archive workspace", {
-      clusterId,
-      error: error instanceof Error ? error.message : String(error)
+      workspaceId,
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to archive workspace.");
   }
@@ -302,168 +341,151 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
     res.status(200).json(result);
   } catch (error) {
     logger.error("Failed to prune missing workspaces", {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to prune missing workspaces.");
   }
 });
 
-app.get("/api/workspaces/:clusterId/previews", async (req, res) => {
-  const clusterId = req.params.clusterId?.trim();
-  if (!clusterId) {
-    res.status(400).json({
-      error: "clusterId is required."
-    });
-    return;
-  }
-
+app.get("/api/frontends", async (_req, res) =>
+  res.json(await frontendService.getCatalog()),
+);
+app.post("/api/frontends", async (req, res) => {
   try {
-    const workspace = await workspaceService.getWorkspace(clusterId);
-    const candidates = await previewManager.scanCandidates();
-    res.status(200).json({
-      workspaceId: workspace.clusterId,
-      candidates,
-      suggestedPort: candidates[0]?.port ?? null
-    });
+    if (typeof req.body?.url !== "string")
+      throw new ServiceError("Frontend URL required", 400);
+    res
+      .status(201)
+      .json({ frontend: await frontendService.addURL(req.body.url) });
   } catch (error) {
-    logger.error("Failed to scan previews", {
-      clusterId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    sendWorkspaceError(res, error, "Failed to scan previews.");
+    sendWorkspaceError(res, error, "Could not save frontend URL");
+  }
+});
+app.delete("/api/frontends/:id", async (req, res) => {
+  try {
+    await frontendService.removeURL(req.params.id);
+    res.json({ ok: true });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not remove frontend URL");
+  }
+});
+app.post("/api/frontends/open", async (req, res) => {
+  try {
+    if (typeof req.body?.id !== "string")
+      throw new ServiceError("Frontend id required", 400);
+    res.json(await frontendService.openFrontend(req.body.id));
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not open frontend");
   }
 });
 
-app.post("/api/workspaces/:clusterId/previews/open", async (req, res) => {
-  const clusterId = req.params.clusterId?.trim();
-  const body = req.body as Partial<{ port: number }> | undefined;
-  const requestedPort = typeof body?.port === "number" ? body.port : undefined;
-
-  if (!clusterId) {
-    res.status(400).json({
-      error: "clusterId is required."
-    });
-    return;
-  }
-
+app.post("/api/sessions/:sessionId/input", (req, res) => {
   try {
-    const workspace = await workspaceService.getWorkspace(clusterId);
-    const preview = await previewManager.openPreview(clusterId, requestedPort);
-
-    res.status(201).json({
-      clusterId,
-      repoNameWithOwner: workspace.repo.nameWithOwner,
-      title: `${workspace.repo.nameWithOwner} • Preview`,
-      targetPort: preview.targetPort,
-      exposedPort: preview.exposedPort,
-      frameworkHint: preview.frameworkHint
-    });
+    const { text, commandId, sendReturn } = req.body ?? {};
+    if (
+      !validId(commandId) ||
+      typeof text !== "string" ||
+      text.length === 0 ||
+      text.length > 65536 ||
+      typeof sendReturn !== "boolean"
+    )
+      throw new ServiceError(
+        "Valid commandId, text and sendReturn required",
+        400,
+      );
+    sessionManager.paste(req.params.sessionId, commandId, text, sendReturn);
+    res.json({ ok: true, commandId });
   } catch (error) {
-    logger.error("Failed to open preview", {
-      clusterId,
-      requestedPort: requestedPort ?? null,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    sendWorkspaceError(res, error, "Failed to open preview.");
+    sendWorkspaceError(res, error, "Could not submit input");
   }
 });
 
-app.post("/api/surfaces/:surfaceId/input", (req, res) => {
-  const surfaceId = req.params.surfaceId?.trim();
-  const body = req.body as Partial<{
-    text: string;
-    sendReturn: boolean;
-  }> | undefined;
-
-  if (!surfaceId) {
-    res.status(400).json({
-      error: "surfaceId is required."
+app.use(
+  (
+    error: Error & { status?: number },
+    _req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
+    res.status(error.status ?? 500).json({
+      error: error.status === 400 ? "Invalid JSON request" : error.message,
     });
-    return;
-  }
-
-  if (typeof body?.text !== "string" || body.text.length === 0) {
-    res.status(400).json({
-      error: "text is required."
-    });
-    return;
-  }
-
-  try {
-    surfaceManager.injectInput(surfaceId, body.text, body.sendReturn === true);
-    res.status(202).json({
-      ok: true
-    });
-  } catch (error) {
-    logger.error("Failed to inject surface input", {
-      surfaceId,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    sendWorkspaceError(res, error, "Failed to inject terminal input.");
-  }
-});
-
+  },
+);
 const server = http.createServer(app);
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({ noServer: true, maxPayload: 128 * 1024 });
 
 server.on("upgrade", (request, socket, head) => {
-  logger.info("WebSocket upgrade requested", {
-    url: request.url ?? null,
-    hostHeader: request.headers.host ?? null
-  });
-
-  if (request.url !== "/ws") {
+  if (
+    shuttingDown ||
+    request.url !== "/ws" ||
+    !pairing.sameOrigin(request) ||
+    !pairing.authorized(request)
+  ) {
+    socket.write("HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n");
     socket.destroy();
     return;
   }
-
-  wss.handleUpgrade(request, socket, head, (ws) => {
-    wss.emit("connection", ws, request);
-  });
+  wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws));
 });
-
+const alive = new Set<WebSocket>();
+const heartbeat = setInterval(() => {
+  for (const ws of wss.clients) {
+    if (!alive.delete(ws)) {
+      ws.terminate();
+      continue;
+    }
+    ws.ping();
+  }
+}, 15_000);
+heartbeat.unref();
 wss.on("connection", (ws) => {
-  const clientSurfaceIds = new Set<string>();
-  logger.info("WebSocket connected", {
-    activeSurfaceCount: Array.from(surfaceManager.surfaceSummaries()).length
+  alive.add(ws);
+  ws.on("pong", () => alive.add(ws));
+  send(ws, {
+    type: "hello",
+    version: PROTOCOL_VERSION,
+    hostId: pairing.hostId,
+    sessions: sessionManager.summaries(),
   });
-  send(
-    ws,
-    {
-      type: "hello_ack",
-      serverVersion: "0.1.0",
-      hostname: os.hostname(),
-      controlOrigin: CONTROL_ORIGIN
-    } satisfies HelloAckMessage
-  );
-
-  send(
-    ws,
-    {
-      type: "cluster_snapshot",
-      clusterId: CLUSTER_ID,
-      surfaces: []
-    } satisfies ClusterSnapshotMessage
-  );
-
   ws.on("message", (raw) => {
-    const message = parseMessage(raw.toString());
-    if (!message) {
-      logger.warn("Ignoring invalid client message");
-      sendError(ws, "Ignoring invalid client message.");
-      return;
+    try {
+      const m: unknown = JSON.parse(raw.toString());
+      if (!isClientMessage(m))
+        throw new ServiceError("Invalid protocol message", 400);
+      switch (m.type) {
+        case "hello":
+          break;
+        case "attach":
+          sessionManager.attach(ws, m.sessionId, m.cursor);
+          break;
+        case "detach":
+          sessionManager.detach(ws, m.sessionId);
+          break;
+        case "input":
+          sessionManager.input(ws, m.sessionId, m.data);
+          break;
+        case "resize":
+          sessionManager.resize(ws, m.sessionId, m.cols, m.rows);
+          break;
+        case "ack":
+          sessionManager.acknowledge(ws, m.sessionId, m.cursor);
+          break;
+      }
+    } catch (error) {
+      send(ws, {
+        type: "error",
+        message: error instanceof Error ? error.message : "Invalid request",
+        code: error instanceof ServiceError ? String(error.statusCode) : "400",
+      });
     }
-
-    handleClientMessage(ws, message, clientSurfaceIds);
   });
-
+  ws.on("error", (error) =>
+    logger.warn("Socket error", { error: error.message }),
+  );
   ws.on("close", () => {
-    logger.info("WebSocket closed", {
-      ownedSurfaceCount: clientSurfaceIds.size
-    });
-    for (const surfaceId of clientSurfaceIds) {
-      surfaceManager.closeSurface(surfaceId, "socket_closed");
-    }
+    alive.delete(ws);
+    sessionManager.detach(ws);
   });
 });
 
@@ -471,7 +493,7 @@ server.listen(
   {
     port: PORT,
     host: HOST,
-    ipv6Only: false
+    ipv6Only: false,
   },
   () => {
     logger.info("Companion listening", {
@@ -479,322 +501,34 @@ server.listen(
       bindHost: HOST,
       defaultCwd: DEFAULT_CWD,
       logFilePath: logger.logFilePath,
-      workspacePaths: workspacePaths()
+      workspacePaths: workspacePaths(),
     });
     bonjourAdvertiser = startBonjourAdvertiser({
       logger,
       name: BONJOUR_SERVICE_NAME,
-      port: PORT
+      port: PORT,
+      hostId: pairing.hostId,
     });
-  }
+  },
 );
 
-type SurfaceState = {
-  summary: SurfaceSummary;
-  pty: IPty;
-  socket: WebSocket;
-};
-
-class SurfaceManager {
-  private readonly surfaces = new Map<string, SurfaceState>();
-
-  createSurface(ws: WebSocket, message: CreateSurfaceMessage): SurfaceSummary {
-    const summary = createSurfaceSummary(message);
-    if (this.surfaces.has(summary.id)) {
-      throw new WorkspaceServiceError(`Surface already exists: ${summary.id}`, 409);
-    }
-    const term = spawnSurface(
-      summary.kind,
-      summary.profile,
-      summary.cwd,
-      summary.cols,
-      summary.rows
-    );
-
-    const state: SurfaceState = {
-      summary,
-      pty: term,
-      socket: ws
-    };
-
-    this.surfaces.set(summary.id, state);
-    logger.info("Surface created", {
-      clusterId: CLUSTER_ID,
-      surfaceId: summary.id,
-      kind: summary.kind,
-      profile: summary.profile ?? null,
-      cwd: summary.cwd,
-      cols: summary.cols,
-      rows: summary.rows
-    });
-
-    term.onData((data) => {
-      send(ws, {
-        type: "terminal_output",
-        surfaceId: summary.id,
-        data
-      } satisfies TerminalOutputMessage);
-    });
-
-    term.onExit(({ exitCode, signal }) => {
-      this.surfaces.delete(summary.id);
-      logger.info("Surface process exited", {
-        surfaceId: summary.id,
-        exitCode,
-        signal
-      });
-      send(ws, {
-        type: "surface_closed",
-        surfaceId: summary.id,
-        exitCode,
-        signal,
-        reason: "process_exit"
-      } satisfies SurfaceClosedMessage);
-    });
-
-    return summary;
-  }
-
-  writeInput(surfaceId: string, data: string): void {
-    const surface = this.requireSurface(surfaceId);
-    surface.pty.write(data);
-  }
-
-  injectInput(surfaceId: string, text: string, sendReturn: boolean): void {
-    const surface = this.requireSurface(surfaceId);
-    const normalized = normalizeTerminalInput(text);
-    if (!normalized) {
-      return;
-    }
-
-    const payload = surface.summary.kind === "tui"
-      ? asBracketedPaste(normalized)
-      : normalized.replace(/\n/g, "\r");
-
-    this.writeInput(surfaceId, payload);
-    if (sendReturn) {
-      this.writeInput(surfaceId, "\r");
-    }
-  }
-
-  resize(surfaceId: string, cols: number, rows: number): void {
-    const surface = this.requireSurface(surfaceId);
-    surface.summary.cols = cols;
-    surface.summary.rows = rows;
-    surface.pty.resize(cols, rows);
-  }
-
-  closeSurface(surfaceId: string, reason: SurfaceClosedMessage["reason"]): void {
-    const surface = this.surfaces.get(surfaceId);
-    if (!surface) {
-      return;
-    }
-
-    this.surfaces.delete(surfaceId);
-    surface.pty.kill();
-    logger.info("Surface closed", {
-      surfaceId,
-      reason
-    });
-
-    send(surface.socket, {
-      type: "surface_closed",
-      surfaceId,
-      exitCode: null,
-      reason
-    } satisfies SurfaceClosedMessage);
-  }
-
-  surfaceSummaries(): Iterable<SurfaceSummary> {
-    return Array.from(this.surfaces.values(), (surface) => surface.summary);
-  }
-
-  private requireSurface(surfaceId: string): SurfaceState {
-    const surface = this.surfaces.get(surfaceId);
-    if (!surface) {
-      throw new Error(`Unknown surface: ${surfaceId}`);
-    }
-    return surface;
-  }
-}
-
-const surfaceManager = new SurfaceManager();
 let bonjourAdvertiser: { stop: () => Promise<void> } | null = null;
-
-function handleClientMessage(
-  ws: WebSocket,
-  message: ClientMessage,
-  clientSurfaceIds: Set<string>
-): void {
-  try {
-    switch (message.type) {
-      case "hello":
-        logger.info("Client hello", {
-          clientName: message.clientName ?? "unknown"
-        });
-        return;
-      case "create_surface": {
-        const summary = surfaceManager.createSurface(ws, message);
-        clientSurfaceIds.add(summary.id);
-        send(ws, {
-          type: "surface_created",
-          clusterId: CLUSTER_ID,
-          surface: summary
-        } satisfies SurfaceCreatedMessage);
-        return;
-      }
-      case "terminal_input":
-        surfaceManager.writeInput(message.surfaceId, message.data);
-        return;
-      case "terminal_resize":
-        logger.info("Surface resized", {
-          surfaceId: message.surfaceId,
-          cols: message.cols,
-          rows: message.rows
-        });
-        surfaceManager.resize(message.surfaceId, message.cols, message.rows);
-        return;
-      case "close_surface":
-        surfaceManager.closeSurface(message.surfaceId, "client_closed");
-        clientSurfaceIds.delete(message.surfaceId);
-        return;
-    }
-  } catch (error) {
-    logger.error("Client message handling failed", {
-      messageType: message.type,
-      error: error instanceof Error ? error.message : String(error)
-    });
-    sendError(ws, error instanceof Error ? error.message : String(error));
-  }
-}
-
-function createSurfaceSummary(message: CreateSurfaceMessage): SurfaceSummary {
-  const cwd = resolveCwd(message.cwd);
-  return {
-    id: normalizeSurfaceId(message.surfaceId) ?? crypto.randomUUID(),
-    kind: message.kind,
-    profile: message.kind === "tui" ? message.profile : undefined,
-    title: surfaceTitle(message.kind, message.profile, cwd),
-    cwd,
-    cols: normalizeDimension(message.cols, 120),
-    rows: normalizeDimension(message.rows, 36)
-  };
-}
-
-function spawnSurface(
-  kind: SurfaceKind,
-  profile: SurfaceSummary["profile"],
-  cwd: string,
-  cols: number,
-  rows: number
-): IPty {
-  const shell = process.env.SHELL ?? "/bin/zsh";
-  const env = {
-    ...process.env,
-    TERM: "xterm-256color"
-  };
-
-  if (kind === "tui") {
-    const command = resolveTuiCommand(profile);
-    return pty.spawn(shell, ["-lc", command], {
-      cwd,
-      cols,
-      rows,
-      env,
-      name: "xterm-color"
-    });
-  }
-
-  return pty.spawn(shell, ["-l"], {
-    cwd,
-    cols,
-    rows,
-    env,
-    name: "xterm-color"
-  });
-}
-
-function surfaceTitle(kind: SurfaceKind, profile: CreateSurfaceMessage["profile"], cwd: string): string {
-  if (kind === "tui") {
-    return `${displayProfile(profile)}:${path.basename(cwd) || cwd}`;
-  }
-
-  return `${kind}:${path.basename(cwd) || cwd}`;
-}
-
-function displayProfile(profile: CreateSurfaceMessage["profile"]): string {
-  switch (profile) {
-    case "claude":
-      return "claude";
-    case "opencode":
-      return "opencode";
-    case "codex":
-    case undefined:
-      return "codex";
-  }
-}
-
-function resolveTuiCommand(profile: CreateSurfaceMessage["profile"]): string {
-  switch (profile) {
-    case "claude":
-      return TUI_COMMANDS.claude;
-    case "opencode":
-      return TUI_COMMANDS.opencode;
-    case "codex":
-    case undefined:
-      return TUI_COMMANDS.codex;
-  }
-}
-
-function parseMessage(raw: string): ClientMessage | null {
-  try {
-    const data = JSON.parse(raw) as unknown;
-    return isClientMessage(data) ? data : null;
-  } catch {
-    return null;
-  }
-}
-
-function resolveCwd(candidate?: string): string {
-  if (!candidate) {
-    return DEFAULT_CWD;
-  }
-
-  const resolved = path.resolve(candidate);
-  try {
-    if (fs.statSync(resolved).isDirectory()) {
-      return resolved;
-    }
-  } catch {
-    return DEFAULT_CWD;
-  }
-
-  return DEFAULT_CWD;
-}
 
 function sendWorkspaceError(
   res: express.Response,
   error: unknown,
-  fallbackMessage: string
+  fallbackMessage: string,
 ): void {
-  if (error instanceof WorkspaceServiceError) {
+  if (error instanceof ServiceError) {
     res.status(error.statusCode).json({
-      error: error.message
+      error: error.message,
     });
     return;
   }
 
   res.status(500).json({
-    error: error instanceof Error ? error.message : fallbackMessage
+    error: error instanceof Error ? error.message : fallbackMessage,
   });
-}
-
-function normalizeDimension(value: number | undefined, fallback: number): number {
-  if (typeof value !== "number" || Number.isNaN(value) || value < 10) {
-    return fallback;
-  }
-
-  return Math.floor(value);
 }
 
 function normalizeLimit(value: unknown): number {
@@ -826,27 +560,6 @@ function normalizeRepoName(value: unknown): string | null {
   return normalized || null;
 }
 
-function normalizeSurfaceId(value: unknown): string | null {
-  if (typeof value !== "string") {
-    return null;
-  }
-
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  return /^[A-Za-z0-9._/-]{1,120}$/.test(trimmed) ? trimmed : null;
-}
-
-function normalizeTerminalInput(value: string): string {
-  return value.replace(/\r\n|\r/g, "\n");
-}
-
-function asBracketedPaste(value: string): string {
-  return `\u001b[200~${value}\u001b[201~`;
-}
-
 function normalizeProfile(value: unknown): TuiProfile | null {
   if (value === "codex" || value === "claude" || value === "opencode") {
     return value;
@@ -863,7 +576,7 @@ function localHostName(): string {
   try {
     const output = execFileSync("scutil", ["--get", "LocalHostName"], {
       encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
+      stdio: ["ignore", "pipe", "ignore"],
     }).trim();
     if (output) {
       return output;
@@ -880,38 +593,16 @@ function advertisedServiceName(): string {
     return process.env.SLOPZOOKA_BONJOUR_NAME;
   }
 
-  return `SlopZooka-${LOCAL_HOST_NAME}-${PORT}-${process.pid}`;
-}
-
-function send(ws: WebSocket, message: ServerMessage): void {
-  if (ws.readyState !== ws.OPEN) {
-    return;
-  }
-
-  ws.send(JSON.stringify(message));
-}
-
-function sendError(ws: WebSocket, message: string): void {
-  logger.error("Sending error to client", {
-    errorMessage: message
-  });
-  send(ws, {
-    type: "error",
-    message
-  } satisfies ErrorMessage);
+  return `SlopZooka-${LOCAL_HOST_NAME}-${PORT}`;
 }
 
 process.on("uncaughtException", (error) => {
-  logger.error("Uncaught exception", {
-    error: error.message,
-    stack: error.stack
-  });
+  logger.error("Fatal error", { error: error.message });
+  void shutdown("fatal", 1);
 });
-
-process.on("unhandledRejection", (reason) => {
-  logger.error("Unhandled rejection", {
-    reason: reason instanceof Error ? reason.message : String(reason)
-  });
+process.on("unhandledRejection", (error) => {
+  logger.error("Unhandled rejection", { error: String(error) });
+  void shutdown("fatal", 1);
 });
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -922,29 +613,25 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 
 let shuttingDown = false;
 
-async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) {
-    return;
-  }
-
+async function shutdown(signal: string, exitCode = 0): Promise<void> {
+  if (shuttingDown) return;
   shuttingDown = true;
-  logger.info("Shutdown requested", {
-    signal
-  });
-
-  try {
-    await previewManager.stop();
-    await bonjourAdvertiser?.stop();
-  } catch (error) {
-    logger.error("Bonjour shutdown failed", {
-      error: error instanceof Error ? error.message : String(error)
-    });
-  }
-
-  server.close(() => {
-    logger.info("HTTP server closed", {
-      signal
-    });
-    process.exit(0);
-  });
+  logger.info("Shutdown requested", { signal });
+  const deadline = setTimeout(() => process.exit(exitCode || 1), 3000);
+  deadline.unref();
+  clearInterval(heartbeat);
+  clearInterval(catalogTimer);
+  for (const ws of wss.clients) ws.terminate();
+  // Stop admission immediately, then wait for owned processes and upgraded sockets.
+  const httpClosed = new Promise<void>((resolve) =>
+    server.close(() => resolve()),
+  );
+  await Promise.allSettled([
+    sessionManager.stop(),
+    frontendService.stop(),
+    bonjourAdvertiser?.stop(),
+  ]);
+  server.closeAllConnections();
+  await httpClosed;
+  process.exit(exitCode);
 }

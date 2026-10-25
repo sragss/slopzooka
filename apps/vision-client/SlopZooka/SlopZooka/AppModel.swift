@@ -1,5 +1,5 @@
-import Foundation
 import Combine
+import Foundation
 
 struct TerminalSessionState: Identifiable {
     let id: String
@@ -7,15 +7,8 @@ struct TerminalSessionState: Identifiable {
     var isPresented: Bool
     var isFocused: Bool
     var loadState: TerminalLoadState
-    var pendingInput: TerminalInjectedInput?
     let createdAt: Date
     var lastFocusedAt: Date?
-}
-
-struct TerminalInjectedInput {
-    let token: Int
-    let text: String
-    let sendReturn: Bool
 }
 
 @MainActor
@@ -39,7 +32,6 @@ final class AppModel: ObservableObject {
             isPresented: false,
             isFocused: false,
             loadState: .idle,
-            pendingInput: nil,
             createdAt: Date(),
             lastFocusedAt: nil
         )
@@ -121,14 +113,14 @@ final class AppModel: ObservableObject {
         terminalSessions[id] = session
     }
 
-    func queueTerminalInput(id: String, text: String, sendReturn: Bool = true) {
-        guard var session = terminalSessions[id] else {
-            return
+    func reconcileTerminals(_ payloads: [TerminalWindowPayload], host: String) {
+        let ids = Set(payloads.map(\.id))
+        for payload in payloads { registerTerminal(payload) }
+        let base = CompanionAPI.baseURL(host: host)
+        for (id, session) in terminalSessions
+        where session.payload.url?.host == base?.host && session.payload.url?.port == base?.port && !ids.contains(id) {
+            removeTerminal(id: id)
         }
-
-        let nextToken = (session.pendingInput?.token ?? 0) + 1
-        session.pendingInput = TerminalInjectedInput(token: nextToken, text: text, sendReturn: sendReturn)
-        terminalSessions[id] = session
     }
 
     func removeTerminal(id: String) {
