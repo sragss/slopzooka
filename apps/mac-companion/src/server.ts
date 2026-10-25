@@ -26,6 +26,7 @@ import {
 import { SessionManager, send } from "./sessions.js";
 import { Pairing } from "./auth.js";
 import { loadDesktopPath } from "./desktop.js";
+import { DashboardAddress } from "./dashboard-address.js";
 
 await loadDesktopPath();
 
@@ -39,9 +40,16 @@ const DEFAULT_CWD = path.resolve(import.meta.dirname, "../../..");
 const logger = createLogger("SlopZooka", "mac-companion.log");
 const gitHubClient = new GitHubClient();
 const workspaceService = new WorkspaceService(logger);
-const frontendService = new FrontendService(logger);
+
 const sessionManager = new SessionManager();
-const pairing = new Pairing(workspacePaths().slopzookaHome);
+const pairing: Pairing = new Pairing(
+  workspacePaths().slopzookaHome,
+  () => dashboardAddress.proxyOrigin,
+);
+const dashboardAddress = new DashboardAddress(PORT, pairing.hostId, logger);
+const frontendService = new FrontendService(logger, {
+  dashboardOrigin: () => dashboardAddress.proxyOrigin,
+});
 // Pairing codes are intentionally printed only to the local console, never the log file.
 console.log(`SlopZooka pairing code: ${pairing.code}`);
 
@@ -74,6 +82,10 @@ app.use((req, res, next) => {
 });
 pairing.install(app);
 app.use(express.static(path.join(import.meta.dirname, "..", "public")));
+
+app.get("/dashboard", async (_req, res) => {
+  res.redirect(302, await dashboardAddress.destination());
+});
 
 app.get("/terminal", (_req, res) => {
   res.sendFile(path.join(import.meta.dirname, "..", "public", "terminal.html"));
@@ -506,6 +518,7 @@ server.listen(
     ipv6Only: false,
   },
   () => {
+    dashboardAddress.start();
     publishDesktopStatus();
     logger.info("Companion listening", {
       controlOrigin: CONTROL_ORIGIN,
@@ -668,6 +681,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   await Promise.allSettled([
     sessionManager.stop(),
     frontendService.stop(),
+    dashboardAddress.stop(),
     bonjourAdvertiser?.stop(),
   ]);
   server.closeAllConnections();

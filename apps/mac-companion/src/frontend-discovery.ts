@@ -191,30 +191,44 @@ export async function projectName(cwd?: string): Promise<string | undefined> {
   return undefined;
 }
 
+async function optionalPortlessFile(
+  stateDir: string,
+  name: string,
+): Promise<string | undefined> {
+  try {
+    return (await fs.readFile(path.join(stateDir, name), "utf8")).trim();
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+    throw error;
+  }
+}
+
+export async function readPortlessProxy(
+  stateDir: string,
+): Promise<{ port: number; tls: boolean; lan?: string } | undefined> {
+  const rawPort = await optionalPortlessFile(stateDir, "proxy.port");
+  if (rawPort === undefined) return undefined;
+  const port = Number(rawPort);
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error("Invalid Portless proxy port");
+  const marker = await optionalPortlessFile(stateDir, "proxy.tls");
+  if (marker !== undefined && marker !== "0" && marker !== "1")
+    throw new Error("Invalid Portless TLS marker");
+  const lan = await optionalPortlessFile(stateDir, "proxy.lan");
+  if (lan === "") throw new Error("Invalid Portless LAN marker");
+  return { port, tls: marker === "1", lan };
+}
+
 export async function readPortless(
   stateDir: string,
 ): Promise<{ routes: FrontendRoute[]; ports: Set<number> }> {
-  const optional = async (name: string) => {
-    try {
-      return (await fs.readFile(path.join(stateDir, name), "utf8")).trim();
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-      throw error;
-    }
-  };
-  const contents = await optional("routes.json");
+  const contents = await optionalPortlessFile(stateDir, "routes.json");
   if (contents === undefined) return { routes: [], ports: new Set() };
   const raw: unknown = JSON.parse(contents);
   if (!Array.isArray(raw)) throw new Error("Unsupported Portless route schema");
-  const port = Number(await optional("proxy.port"));
-  if (!Number.isInteger(port) || port < 1 || port > 65535)
-    throw new Error("Invalid Portless proxy port");
-  const marker = await optional("proxy.tls");
-  if (marker !== undefined && marker !== "0" && marker !== "1")
-    throw new Error("Invalid Portless TLS marker");
-  const tls = marker === "1";
-  const lan = await optional("proxy.lan");
-  if (lan === "") throw new Error("Invalid Portless LAN marker");
+  const proxy = await readPortlessProxy(stateDir);
+  if (!proxy) throw new Error("Missing Portless proxy port");
+  const { port, tls, lan } = proxy;
   const routes: FrontendRoute[] = [];
   const ports = new Set([port]);
   const names = new Set<string>();

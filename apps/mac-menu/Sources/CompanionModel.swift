@@ -29,7 +29,7 @@ final class CompanionModel: ObservableObject {
     private var quitting = false
     var onStopped: (() -> Void)?
     private let port = ProcessInfo.processInfo.environment["SLOPZOOKA_PORT"] ?? "7777"
-    var dashboard: URL { URL(string: "http://localhost:\(port)/")! }
+    var dashboard: URL { URL(string: "http://localhost:\(port)/dashboard")! }
     var logDirectory: URL {
         if let path = ProcessInfo.processInfo.environment["SLOPZOOKA_LOG_DIR"] { return URL(fileURLWithPath: path) }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/SlopZooka")
