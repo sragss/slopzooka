@@ -7,7 +7,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const app = path.join(root, "build/mac-app/SlopZooka.app");
+const app =
+  process.env.SLOPZOOKA_TEST_APP ??
+  path.join(root, "build/mac-app/SlopZooka.app");
 const resources = path.join(app, "Contents/Resources");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-desktop-test-"));

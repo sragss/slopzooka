@@ -317,9 +317,10 @@ export class FrontendService {
           const probe = await probeHTTP(url, this.shutdown.signal);
           if (this.stopping) return;
           const ready = !!probe;
-          const project = await projectFor(listener);
           const previous = this.local.get(id);
           if (!ready && !previous) continue;
+          // Non-HTTP listeners need no filesystem inspection just to label them.
+          const project = await projectFor(listener);
           this.local.set(id, {
             lastSeen: now,
             route: {
