@@ -14,7 +14,6 @@ struct TerminalWindowView: View {
     @State private var confirmEndSession = false
     @State private var isSessionDetailsExpanded = false
     @State private var isSpeechPanelExpanded = false
-    @State private var isPreviewPanelExpanded = false
     @State private var isSubmittingSpeech = false
     @State private var speechSubmitError: String?
     @State private var speechOrbPulse = false
@@ -98,16 +97,7 @@ struct TerminalWindowView: View {
 
                     Spacer(minLength: 0)
 
-                    Button {
-                        isPreviewPanelExpanded.toggle()
-                    } label: {
-                        Image(systemName: "globe")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(10)
-                    .background(.regularMaterial, in: Circle())
-                    .help("Frontends").accessibilityLabel("Show frontends")
+                    WorkspaceFrontendButton(baseURL: payload.url, workspaceId: payload.workspaceId)
 
                     Button {
                         if isSpeechPanelExpanded {
@@ -157,13 +147,6 @@ struct TerminalWindowView: View {
 
                 if isSpeechPanelExpanded {
                     speechPanel(payloadID: payload.id)
-                        .frame(maxWidth: 420, alignment: .trailing)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
-                if isPreviewPanelExpanded {
-                    FrontendPanel(baseURL: payload.url)
                         .frame(maxWidth: 420, alignment: .trailing)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .transition(.opacity.combined(with: .move(edge: .top)))

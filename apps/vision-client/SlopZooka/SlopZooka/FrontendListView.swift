@@ -1,14 +1,28 @@
 import SwiftUI
 
-struct FrontendPanel: View {
+struct WorkspaceFrontendButton: View {
     let baseURL: URL?
+    let workspaceId: String
+    @State private var expanded = false
     @State private var frontends: [FrontendSummary] = []
     @State private var warning: String?
     var body: some View {
-        ScrollView {
-            FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL)
+        HStack(spacing: 0) {
+            if !frontends.isEmpty || warning != nil {
+                Button { expanded.toggle() } label: {
+                    Image(systemName: "globe").font(.title3)
+                }
+                .buttonStyle(.plain)
+                .padding(10)
+                .background(.regularMaterial, in: Circle())
+                .help("Workspace frontends").accessibilityLabel("Show workspace frontends")
+                .popover(isPresented: $expanded) {
+                    ScrollView {
+                        FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL, workspaceId: workspaceId)
+                    }.frame(width: 420).frame(maxHeight: 420)
+                }
+            }
         }
-        .frame(maxHeight: 420)
         .task(id: baseURL) {
             frontends = []
             warning = nil
@@ -18,7 +32,7 @@ struct FrontendPanel: View {
                     let catalog = try await CompanionAPI.request(
                         FrontendCatalog.self, base: baseURL, path: "/api/frontends")
                     guard !Task.isCancelled else { return }
-                    frontends = catalog.frontends
+                    frontends = catalog.frontends.filter { $0.workspaceId == workspaceId && $0.workspaceVisible != false && !$0.isService }
                     warning = catalog.warning
                 } catch {
                     guard !Task.isCancelled else { return }
@@ -34,6 +48,7 @@ struct FrontendListView: View {
     let frontends: [FrontendSummary]
     let warning: String?
     let baseURL: URL?
+    var workspaceId: String? = nil
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.openWindow) private var openWindow
     @State private var error: String?
@@ -43,19 +58,25 @@ struct FrontendListView: View {
     @State private var saving = false
     @State private var showAddURL = false
     @State private var updatedFrontends: [FrontendSummary]?
-    private var visibleFrontends: [FrontendSummary] { updatedFrontends ?? frontends }
+    private var visibleFrontends: [FrontendSummary] {
+        (updatedFrontends ?? frontends).filter { frontend in
+            workspaceId == nil || (frontend.workspaceId == workspaceId && frontend.workspaceVisible != false && !frontend.isService)
+        }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label("Frontends", systemImage: "globe").font(.headline)
                 Spacer()
-                Button {
-                    showAddURL.toggle()
-                } label: {
-                    Label(showAddURL ? "Cancel" : "Add URL", systemImage: showAddURL ? "xmark" : "plus")
+                if workspaceId == nil {
+                    Button {
+                        showAddURL.toggle()
+                    } label: {
+                        Label(showAddURL ? "Cancel" : "Add URL", systemImage: showAddURL ? "xmark" : "plus")
+                    }
+                    .disabled(saving || baseURL == nil)
                 }
-                .disabled(saving || baseURL == nil)
             }
             if let warning {
                 DisclosureGroup("Discovery notice") { Text(warning).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }

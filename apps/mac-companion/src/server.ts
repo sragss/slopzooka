@@ -49,6 +49,7 @@ const pairing: Pairing = new Pairing(
 const dashboardAddress = new DashboardAddress(PORT, pairing.hostId, logger);
 const frontendService = new FrontendService(logger, {
   dashboardOrigin: () => dashboardAddress.proxyOrigin,
+  workspaces: () => workspaceService.frontendWorkspaces(),
 });
 // Pairing codes are intentionally printed only to the local console, never the log file.
 console.log(`SlopZooka pairing code: ${pairing.code}`);

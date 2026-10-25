@@ -166,6 +166,10 @@ struct FrontendSummary: Decodable, Hashable, Identifiable {
     let status: String?
     let category: String?
     let project: String?
+    let workspaceId: String?
+    let frontendId: String?
+    let preferred: Bool?
+    let workspaceVisible: Bool?
     var displayTitle: String { title ?? hostname }
     var isService: Bool { category == "service" }
 }

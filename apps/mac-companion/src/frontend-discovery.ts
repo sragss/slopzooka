@@ -16,11 +16,16 @@ export type Frontend = {
   transport: "lan" | "gateway" | "direct";
   category?: "app" | "service";
   project?: string;
+  workspaceId?: string;
+  frontendId?: string;
+  preferred?: boolean;
+  workspaceVisible?: boolean;
 };
 export type FrontendRoute = {
   frontend: Frontend;
   target: string;
   caPath?: string;
+  listener?: LocalListener;
 };
 export type LocalListener = {
   pid: number;

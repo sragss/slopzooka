@@ -56,9 +56,27 @@ Start your app normally (`next dev`, Vite, Python, or another HTTP server). The 
 
 There is one list and one Open action for three sources:
 
-- **Local servers:** HTTP listeners appear after their first response, labeled with their working directory (or process name) and port. An existing app shows “Waiting for response” while its listener is unresponsive and “Stopped” for up to one minute after its listener disappears. Any HTTP response establishes availability, not application health. Discovery excludes the companion itself and known Portless proxy/backend ports, and deduplicates IPv4/IPv6 listeners owned by the same process. It checks at most 128 listeners, eight at a time, with an 800 ms probe deadline. No workspace ownership is inferred from a directory label.
+- **Local servers:** HTTP listeners appear after their first response, labeled with their working directory (or process name) and port. An existing app shows “Waiting for response” while its listener is unresponsive and “Stopped” for up to one minute after its listener disappears. Any HTTP response establishes availability, not application health. Discovery excludes the companion itself and known Portless proxy/backend ports, and deduplicates IPv4/IPv6 listeners owned by the same process. It checks at most 128 listeners, eight at a time, with an 800 ms probe deadline. Workspace ownership uses the canonical listener directory and exact worktree boundaries, independently of the display label.
 - **Portless:** Keep using your usual workflow. SlopZooka reads `routes.json` and the proxy's port/TLS/LAN state from `PORTLESS_STATE_DIR` or `~/.portless`. Named routes retain their identity across backend port changes. Registration is not a health check. The adapter never starts, stops, reconfigures, or writes Portless state.
 - **Saved URLs:** Use **Add URL** on the headset or host page for custom URLs, HTTPS servers, and deployed previews. Local addresses use the Mac gateway; remote URLs open directly on the headset, preserving their origin and path. Saved URLs persist in `SLOPZOOKA_HOME/frontends.json`; remove them with the headset's context menu or the host page's Remove button. Embedded credentials and non-HTTP(S) URLs are rejected. Local/remote classification happens when a URL is added; re-add it if its DNS destination changes between machines.
+
+**Workspace frontends (optional configuration):** Servers inside a managed worktree automatically appear beside that workspace and its terminals. This works with ordinary HTTP servers and Portless; no config or special launch command is required. Nested packages belong to their containing worktree, and simultaneous worktrees remain separate. The host dashboard offers an Open app button or a frontend picker; Vision Pro terminals show a workspace-only frontend popover. Apps without an identifiable workspace remain available in the global Frontends tab.
+
+For explicit names and a preferred frontend, commit `.slopzooka.json` at the worktree root:
+
+```json
+{
+  "version": 1,
+  "frontends": [
+    { "id": "web", "name": "Website", "directory": "apps/web", "default": true },
+    { "id": "admin", "name": "Admin", "directory": "apps/admin" }
+  ]
+}
+```
+
+The file is optional. Missing `frontends` means automatic discovery; `"frontends": []` explicitly disables workspace frontend controls. `directory` defaults to `"."`, `name` defaults to `id`, and at most one entry can be the default (sorted first). Directories must stay inside the worktree, including symlink targets. The most specific matching directory supplies the label. Extra discovered servers remain accessible globally. Ambiguous directory/endpoint matches retain their URLs and produce a diagnostic instead of silently selecting a winner. Configuration errors include the file path and original reason, while automatic discovery continues. Changes take effect on the next catalog refresh.
+
+Configuration describes browser surfaces, not running processes: it never launches a server or displays an invented startup state. Your agent or shell still runs the project's usual dev command. This initial schema intentionally contains only frontend hints; command orchestration and runtime registration are not part of it. Processes without a discoverable directory, remote previews, and containers may remain unassigned. Multiple surfaces sharing a directory or process can still be opened through the global catalog / Add URL; directory hints cannot distinguish their roles. No repository-name or port-number-only ownership guesses are made. Changing a route's workspace invalidates its existing preview gateway.
 
 All local routes share one authenticated HTTP/WebSocket gateway implementation. Loopback-only servers remain reachable from the headset. Portless gateways forward through the existing proxy with the named Host header and verify HTTPS using Portless's CA. Ordinary local HTTPS URLs use Node's trusted CAs; private CAs must be trusted by Node (for example through `NODE_EXTRA_CA_CERTS`). There is no certificate-verification bypass. Automatic listener discovery currently detects HTTP; add HTTPS URLs explicitly.
 

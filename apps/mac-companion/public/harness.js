@@ -134,10 +134,73 @@ async function openResult(resolve) {
     throw error;
   }
 }
+function openFrontend(frontend) {
+  return openResult(async () => {
+    const result = await api("/api/frontends/open", { id: frontend.id });
+    const url = new URL(result.frontend.url);
+    if (result.exposedPort) {
+      url.protocol = "http:";
+      url.hostname = location.hostname;
+      url.port = String(result.exposedPort);
+      url.pathname = "/__slz_access";
+      url.search = "";
+      url.hash = "";
+      url.searchParams.set("token", result.accessToken);
+    }
+    return url.href;
+  });
+}
+function workspaceFrontends(actions, workspaceId) {
+  const frontends = data.frontends.filter(
+    (f) => f.workspaceId === workspaceId && f.workspaceVisible !== false && f.category !== "service"
+  );
+  if (!frontends.length) return;
+  if (frontends.length === 1) {
+    const frontend = frontends[0];
+    action(
+      actions,
+      "Open app",
+      () => openFrontend(frontend),
+      false,
+      frontend.status === "stopped"
+    );
+    return;
+  }
+  const picker = document.createElement("select");
+  picker.className = "button";
+  picker.setAttribute("aria-label", "Open workspace frontend");
+  const placeholder = new Option(`Frontends (${frontends.length})`, "");
+  picker.append(placeholder);
+  for (const frontend of frontends) {
+    const option = new Option(
+      `${frontend.title}${frontend.preferred ? " (default)" : ""}${frontend.status === "stopped" ? " \u2014 Stopped" : ""}`,
+      frontend.id
+    );
+    option.disabled = frontend.status === "stopped";
+    picker.append(option);
+  }
+  picker.onchange = () => {
+    const frontend = frontends.find((f) => f.id === picker.value);
+    picker.value = "";
+    if (frontend)
+      void openFrontend(frontend).catch(
+        (error) => failure(
+          `${section}-error`,
+          error,
+          "Couldn\u2019t open frontend. See Details."
+        )
+      );
+  };
+  actions.append(picker);
+}
 function render(key, force = false) {
   const query = $("filter");
   const term = key === section ? query.value.trim().toLowerCase() : "";
-  const signature = JSON.stringify([data[key], term]);
+  const signature = JSON.stringify([
+    data[key],
+    term,
+    key !== "frontends" ? data.frontends : null
+  ]);
   if (!force && signatures.get(key) === signature) return;
   signatures.set(key, signature);
   const list = $(key);
@@ -159,6 +222,7 @@ function render(key, force = false) {
       link.target = "_blank";
       link.rel = "noopener";
       r.actions.append(link);
+      workspaceFrontends(r.actions, s.workspaceId);
       action(
         r.actions,
         s.status === "running" ? "End" : "Remove",
@@ -197,6 +261,7 @@ function render(key, force = false) {
         false,
         !w.existsOnDisk
       );
+      workspaceFrontends(r.actions, w.workspaceId);
       list.append(r.li);
     }
   const services = document.createElement("ul");
@@ -218,20 +283,7 @@ function render(key, force = false) {
       action(
         r.actions,
         "Open",
-        () => openResult(async () => {
-          const result = await api("/api/frontends/open", { id: f.id });
-          const url = new URL(result.frontend.url);
-          if (result.exposedPort) {
-            url.protocol = "http:";
-            url.hostname = location.hostname;
-            url.port = String(result.exposedPort);
-            url.pathname = "/__slz_access";
-            url.search = "";
-            url.hash = "";
-            url.searchParams.set("token", result.accessToken);
-          }
-          return url.href;
-        }),
+        () => openFrontend(f),
         false,
         f.status === "stopped"
       );
@@ -325,6 +377,8 @@ async function refresh() {
           `Couldn\u2019t update ${sections[key].toLowerCase()}. Showing the last available list; retrying automatically.`
         );
     });
+    render("sessions");
+    render("workspaces");
     const healthy = results.every((result) => result.status === "fulfilled");
     connection(healthy ? "Connected to Mac" : "Reconnecting\u2026", healthy);
   }

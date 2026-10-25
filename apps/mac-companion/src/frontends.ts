@@ -11,6 +11,10 @@ import type { Logger } from "./logger.js";
 import { ServiceError } from "./errors.js";
 import { frontendError } from "./frontend-error.js";
 import {
+  projectFrontends,
+  type FrontendWorkspace,
+} from "./project-frontends.js";
+import {
   localListeners,
   probeHTTP,
   projectName,
@@ -35,6 +39,7 @@ type Options = {
   home?: string;
   stateDir?: string;
   dashboardOrigin?: () => string | undefined;
+  workspaces?: () => Promise<FrontendWorkspace[]>;
 };
 type Bookmark = { url: string; target: string; local: boolean };
 
@@ -57,6 +62,7 @@ export class FrontendService {
   ) => Promise<LocalListener[]>;
   private readonly shutdown = new AbortController();
   private readonly dashboardOrigin: () => string | undefined;
+  private readonly workspaces: () => Promise<FrontendWorkspace[]>;
   constructor(
     private readonly logger: Logger,
     options: Options = {},
@@ -73,6 +79,7 @@ export class FrontendService {
     );
     this.listeners = options.listeners ?? localListeners;
     this.dashboardOrigin = options.dashboardOrigin ?? (() => undefined);
+    this.workspaces = options.workspaces ?? (async () => []);
   }
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     const next = this.operation.then(work);
@@ -259,10 +266,21 @@ export class FrontendService {
         projects.set(listener.cwd, projectName(listener.cwd));
       return projects.get(listener.cwd)!;
     };
-    for (const route of this.portless)
-      route.frontend.project = await projectFor(
-        allListeners.find((listener) => listener.port === route.frontend.port),
-      );
+    for (const route of this.portless) {
+      const candidates = [
+        ...new Map(
+          allListeners
+            .filter((listener) => listener.port === route.frontend.port)
+            .map((listener) => [
+              `${listener.pid}:${listener.cwd ?? ""}`,
+              listener,
+            ]),
+        ).values(),
+      ];
+      // Several processes can bind the same port on different addresses. Don't guess.
+      route.listener = candidates.length === 1 ? candidates[0] : undefined;
+      route.frontend.project = await projectFor(route.listener);
+    }
     const listeners = [
       ...new Map(
         allListeners.map((listener) => [
@@ -322,6 +340,7 @@ export class FrontendService {
                 transport: "gateway",
               },
               target: new URL(url).origin,
+              listener,
             },
           });
         }
@@ -342,6 +361,7 @@ export class FrontendService {
       route.caPath,
       new URL(route.frontend.url).origin,
       route.frontend.transport,
+      route.frontend.workspaceId,
     ]);
   }
   private async refresh(): Promise<Catalog> {
@@ -384,6 +404,7 @@ export class FrontendService {
             ...route,
             target: named.target,
             caPath: named.caPath,
+            listener: named.listener,
             frontend: {
               ...route.frontend,
               transport: named.frontend.transport,
@@ -394,7 +415,7 @@ export class FrontendService {
     });
     // Explicitly saved paths remain distinct; exact saved/named URLs appear once.
     const savedURLs = new Set(manual.map((route) => route.frontend.url));
-    const routes = [
+    let routes = [
       ...this.portless.filter((route) => !savedURLs.has(route.frontend.url)),
       ...manual,
     ];
@@ -409,6 +430,58 @@ export class FrontendService {
         .map((entry) => entry.route)
         .filter((route) => !origins.has(new URL(route.frontend.url).origin)),
     );
+    // Keep source observations untouched so removed/invalid hints cannot leave stale labels.
+    routes = routes.map((route) => ({
+      ...route,
+      frontend: { ...route.frontend },
+    }));
+    try {
+      const associate = await projectFrontends(
+        await this.workspaces(),
+        warnings,
+      );
+      for (const route of routes) {
+        // Saved loopback URLs inherit the exact listener's ownership as well.
+        const target = new URL(route.target);
+        const local = [...this.local.values()].find(
+          (entry) => entry.route.target === target.origin,
+        );
+        const listener =
+          route.listener ??
+          (route.frontend.source === "manual"
+            ? local?.route.listener
+            : undefined);
+        route.frontend = await associate(route.frontend, listener?.cwd);
+      }
+      const claims = new Map<string, Frontend[]>();
+      for (const { frontend } of routes) {
+        if (!frontend.workspaceId || !frontend.frontendId) continue;
+        const key = `${frontend.workspaceId}:${frontend.frontendId}`;
+        const entries = claims.get(key) ?? [];
+        entries.push(frontend);
+        claims.set(key, entries);
+      }
+      for (const entries of claims.values()) {
+        if (entries.length < 2) continue;
+        warnings.push(
+          `Multiple endpoints match frontend ${entries[0]!.frontendId}: ${entries.map((entry) => entry.url).join(", ")}`,
+        );
+        for (const entry of entries) {
+          entry.title = `${entry.title} · ${new URL(entry.url).host}`;
+          entry.preferred = false;
+        }
+      }
+    } catch (error) {
+      warnings.push(
+        `Workspace association unavailable: ${(error as Error).message}`,
+      );
+      for (const route of routes) {
+        delete route.frontend.workspaceId;
+        delete route.frontend.frontendId;
+        delete route.frontend.preferred;
+        delete route.frontend.workspaceVisible;
+      }
+    }
     this.routes = new Map(routes.map((route) => [route.frontend.id, route]));
     for (const [id, record] of this.proxies) {
       const route = this.routes.get(id);
@@ -425,6 +498,7 @@ export class FrontendService {
         .map((route) => route.frontend)
         .sort(
           (a, b) =>
+            Number(!!b.preferred) - Number(!!a.preferred) ||
             Number(a.category === "service") -
               Number(b.category === "service") ||
             a.title.localeCompare(b.title),
