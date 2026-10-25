@@ -156,6 +156,15 @@ test(
         }
       });
       assert.equal((await api("/api/sessions")).status, 401);
+      const favicon = await fetch(base + "/favicon.png");
+      assert.equal(favicon.status, 200, "favicon is available before pairing");
+      assert.match(favicon.headers.get("content-type") ?? "", /image\/png/);
+      assert.equal(
+        Buffer.from(await favicon.arrayBuffer())
+          .subarray(0, 8)
+          .toString("hex"),
+        "89504e470d0a1a0a",
+      );
       const dashboardStyle = await fetch(base + "/harness.css");
       assert.equal(
         dashboardStyle.status,
@@ -219,6 +228,20 @@ test(
           sessionId: "terminal-1",
           profile: null,
         });
+      // The server can create a session even when its response never reaches the client.
+      const abandoned = await fetch(
+        base + "/api/workspaces/workspace-1/sessions",
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+            Origin: base,
+          },
+          body: JSON.stringify({ sessionId: "terminal-1", profile: null }),
+        },
+      );
+      await abandoned.body?.cancel();
       const launches = await Promise.all([create(), create()]);
       assert.deepEqual(
         launches.map((r) => r.status),
@@ -290,10 +313,14 @@ test(
         ).status,
         409,
       );
+      // Shell echo includes the marker before printf executes. Wait for the actual
+      // alternate-screen escape sequence, allowing PTY output to split across frames.
       await until(() =>
-        first.messages.some(
-          (m) => m.type === "output" && m.data.includes("SCREEN-CHECKPOINT"),
-        ),
+        first.messages
+          .filter((m) => m.type === "output")
+          .map((m) => m.data)
+          .join("")
+          .includes("\x1b[?1049hSCREEN-CHECKPOINT"),
       );
       const pid = Number(await fs.readFile(path.join(worktree, "pid"), "utf8"));
       first.ws.close();
@@ -750,6 +777,26 @@ test(
       });
       assert.equal(response.status, 200);
       assert.equal(await response.text(), "trusted HTTPS");
+      const saved = await manager.addURL(`https://fixture.localhost:${port}/`);
+      assert.equal((await manager.getCatalog()).frontends.length, 1);
+      const savedOpen = await manager.openFrontend(saved.id);
+      const savedBase = `http://127.0.0.1:${savedOpen.exposedPort}`;
+      const savedAccess = await fetch(
+        `${savedBase}/__slz_access?token=${savedOpen.accessToken}`,
+        { redirect: "manual" },
+      );
+      const savedResponse = await fetch(savedBase, {
+        headers: {
+          Cookie: savedAccess.headers.get("set-cookie")!.split(";")[0]!,
+          Authorization: "Bearer application-credential",
+          Origin: savedBase,
+        },
+      });
+      assert.equal(
+        await savedResponse.text(),
+        "trusted HTTPS",
+        "deduplicating a saved Portless URL preserves its certificate authority",
+      );
     } finally {
       await manager.stop();
       await new Promise<void>((r) => upstream.close(() => r()));

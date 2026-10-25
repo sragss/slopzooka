@@ -37,7 +37,7 @@ enum CompanionAPI {
         guard (200..<300).contains(response.statusCode) else {
             let error = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
             throw CompanionError(
-                message: error?.error ?? "Request failed (\(response.statusCode))", statusCode: response.statusCode)
+                message: "\(method) \(path) — HTTP \(response.statusCode): \(error?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode))", statusCode: response.statusCode)
         }
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in

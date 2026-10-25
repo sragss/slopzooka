@@ -9,9 +9,11 @@ import type { Socket } from "node:net";
 import httpProxy from "http-proxy";
 import type { Logger } from "./logger.js";
 import { ServiceError } from "./errors.js";
+import { frontendError } from "./frontend-error.js";
 import {
   localListeners,
   probeHTTP,
+  projectName,
   readPortless,
   type Frontend,
   type FrontendRoute,
@@ -29,7 +31,7 @@ type ProxyRecord = {
   agent?: https.Agent;
 };
 type Options = {
-  listeners?: () => Promise<LocalListener[]>;
+  listeners?: (signal?: AbortSignal) => Promise<LocalListener[]>;
   home?: string;
   stateDir?: string;
 };
@@ -49,7 +51,10 @@ export class FrontendService {
   private stopping = false;
   private readonly stateDir: string;
   private readonly bookmarksPath: string;
-  private readonly listeners: () => Promise<LocalListener[]>;
+  private readonly listeners: (
+    signal?: AbortSignal,
+  ) => Promise<LocalListener[]>;
+  private readonly shutdown = new AbortController();
   constructor(
     private readonly logger: Logger,
     options: Options = {},
@@ -130,6 +135,7 @@ export class FrontendService {
         url: url.href,
         port: Number(url.port || (url.protocol === "https:" ? 443 : 80)),
         source: "manual",
+        category: "app",
         status: "registered",
         transport: bookmark.local ? "gateway" : "direct",
       },
@@ -237,7 +243,26 @@ export class FrontendService {
     });
   }
   private async discoverLocal(): Promise<void> {
-    const listeners = (await this.listeners()).filter(
+    const allListeners = await this.listeners(this.shutdown.signal);
+    const projects = new Map<string, Promise<string | undefined>>();
+    const projectFor = (listener?: LocalListener) => {
+      if (!listener?.cwd) return Promise.resolve(undefined);
+      if (!projects.has(listener.cwd))
+        projects.set(listener.cwd, projectName(listener.cwd));
+      return projects.get(listener.cwd)!;
+    };
+    for (const route of this.portless)
+      route.frontend.project = await projectFor(
+        allListeners.find((listener) => listener.port === route.frontend.port),
+      );
+    const listeners = [
+      ...new Map(
+        allListeners.map((listener) => [
+          `${listener.host}:${listener.port}`,
+          listener,
+        ]),
+      ).values(),
+    ].filter(
       (listener) =>
         listener.pid !== process.pid &&
         !this.portlessPorts.has(listener.port) &&
@@ -255,7 +280,7 @@ export class FrontendService {
     let index = 0;
     await Promise.all(
       Array.from({ length: Math.min(8, listeners.length) }, async () => {
-        while (index < listeners.length) {
+        while (!this.stopping && index < listeners.length) {
           const listener = listeners[index++]!;
           const host = listener.host.includes(":")
             ? `[${listener.host}]`
@@ -263,7 +288,10 @@ export class FrontendService {
           const url = `http://${host}:${listener.port}/`;
           const id = `local:${host}:${listener.port}`;
           found.add(id);
-          const ready = await probeHTTP(url);
+          const probe = await probeHTTP(url, this.shutdown.signal);
+          if (this.stopping) return;
+          const ready = !!probe;
+          const project = await projectFor(listener);
           const previous = this.local.get(id);
           if (!ready && !previous) continue;
           this.local.set(id, {
@@ -272,7 +300,13 @@ export class FrontendService {
               frontend: {
                 id,
                 hostname: `${host}:${listener.port}`,
-                title: `${listener.cwd ? path.basename(listener.cwd) || listener.command : listener.command} · ${listener.port}`,
+                title: `${project ?? listener.command} · ${listener.port}`,
+                project,
+                category: probe
+                  ? probe.browser && !!project
+                    ? "app"
+                    : "service"
+                  : previous?.route.frontend.category,
                 url,
                 port: listener.port,
                 source: "local",
@@ -327,7 +361,32 @@ export class FrontendService {
         (route) => route.frontend.source === "manual",
       );
     }
-    const routes = [...this.portless, ...manual];
+    // Saved Portless URLs still need its routing and certificate authority, including custom paths.
+    manual = manual.map((route) => {
+      const named = this.portless.find(
+        (candidate) =>
+          new URL(candidate.frontend.url).origin ===
+          new URL(route.frontend.url).origin,
+      );
+      return named
+        ? {
+            ...route,
+            target: named.target,
+            caPath: named.caPath,
+            frontend: {
+              ...route.frontend,
+              transport: named.frontend.transport,
+              project: named.frontend.project,
+            },
+          }
+        : route;
+    });
+    // Explicitly saved paths remain distinct; exact saved/named URLs appear once.
+    const savedURLs = new Set(manual.map((route) => route.frontend.url));
+    const routes = [
+      ...this.portless.filter((route) => !savedURLs.has(route.frontend.url)),
+      ...manual,
+    ];
     const origins = new Set(
       routes.flatMap((route) => [
         new URL(route.frontend.url).origin,
@@ -342,20 +401,24 @@ export class FrontendService {
     this.routes = new Map(routes.map((route) => [route.frontend.id, route]));
     for (const [id, record] of this.proxies) {
       const route = this.routes.get(id);
-      if (
-        !route ||
-        route.frontend.status === "stopped" ||
-        this.routeKey(route) !== record.routeKey
-      ) {
+      if (!route || this.routeKey(route) !== record.routeKey) {
         this.proxies.delete(id);
         await this.close(record);
       }
     }
+    const warning = warnings.join("\n") || null;
+    if (warning && warning !== this.catalog.warning && !this.stopping)
+      this.logger.warn("Frontend discovery incomplete", { warning });
     this.catalog = {
       frontends: routes
         .map((route) => route.frontend)
-        .sort((a, b) => a.title.localeCompare(b.title)),
-      warning: warnings.join("\n") || null,
+        .sort(
+          (a, b) =>
+            Number(a.category === "service") -
+              Number(b.category === "service") ||
+            a.title.localeCompare(b.title),
+        ),
+      warning,
     };
     return this.catalog;
   }
@@ -370,7 +433,10 @@ export class FrontendService {
       this.requireRunning();
       const frontend = catalog.frontends.find((f) => f.id === id);
       if (!frontend)
-        throw new ServiceError("Frontend is no longer registered", 404);
+        throw new ServiceError(
+          "This frontend is no longer available. Refresh the list or start the app on your Mac.",
+          404,
+        );
       if (frontend.status === "stopped")
         throw new ServiceError(
           "Start this app on your Mac, then try again",
@@ -444,11 +510,14 @@ export class FrontendService {
           .join(";");
     };
     proxy.on("error", (error, _req, res) => {
-      this.logger.warn("Frontend gateway error", { id, error: error.message });
+      const detail = `${(error as NodeJS.ErrnoException).code ?? "Gateway error"}: ${error.message}`;
+      this.logger.warn("Frontend gateway error", { id, target, error: detail });
       if ("writeHead" in res) {
-        if (!res.headersSent) res.writeHead(502);
-        res.end(
-          "The frontend is unavailable. Start it on your Mac, then reload.",
+        frontendError(
+          res,
+          502,
+          "Start the app on your Mac, then reload this page. If it is already running, check its terminal output.",
+          `${id}\nUpstream: ${target}\n${detail}`,
         );
       } else res.destroy();
     });
@@ -485,9 +554,14 @@ export class FrontendService {
         res.end("Open this frontend from SlopZooka to connect.");
         return;
       }
-      if (!this.catalog.frontends.some((f) => f.id === id)) {
-        res.writeHead(410);
-        res.end("Frontend stopped");
+      const current = this.routes.get(id)?.frontend;
+      if (!current || current.status === "stopped") {
+        frontendError(
+          res,
+          current ? 503 : 410,
+          "Start the app on your Mac, then reload. If its address changed, open it again from SlopZooka.",
+          `${id}\nUpstream: ${target}\n${current ? "Local listener stopped" : "Route removed"}`,
+        );
         return;
       }
       externalOrigins.set(req, `http://${req.headers.host}`);
@@ -519,29 +593,41 @@ export class FrontendService {
         headers: { host: new URL(routeOrigin).host },
       });
     });
-    await new Promise<void>((resolve, reject) => {
-      server.once("error", reject);
-      server.listen(
-        { port: 0, host: process.env.SLOPZOOKA_HOST ?? "::", ipv6Only: false },
-        () => {
-          server.off("error", reject);
-          resolve();
-        },
-      );
-    });
-    const address = server.address();
-    if (!address || typeof address === "string")
-      throw new Error("No gateway listener address");
-    return {
+    const record: ProxyRecord = {
       server,
       proxy,
       sockets,
-      exposedPort: address.port,
+      exposedPort: 0,
       token,
       agent,
       routeKey: this.routeKey(route),
     };
+    try {
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(
+          {
+            port: 0,
+            host: process.env.SLOPZOOKA_HOST ?? "::",
+            ipv6Only: false,
+          },
+          () => {
+            server.off("error", reject);
+            resolve();
+          },
+        );
+      });
+      const address = server.address();
+      if (!address || typeof address === "string")
+        throw new Error("No gateway listener address");
+      record.exposedPort = address.port;
+      return record;
+    } catch (error) {
+      await this.close(record);
+      throw error;
+    }
   }
+
   private async close(record: ProxyRecord): Promise<void> {
     for (const socket of record.sockets) socket.destroy();
     record.proxy.close();
@@ -550,6 +636,7 @@ export class FrontendService {
   }
   stop(): Promise<void> {
     this.stopping = true;
+    this.shutdown.abort();
     this.stopTask ??= this.enqueue(async () => {
       const records = [...this.proxies.values()];
       this.proxies.clear();

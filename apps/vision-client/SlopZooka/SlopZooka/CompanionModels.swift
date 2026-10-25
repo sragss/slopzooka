@@ -164,7 +164,10 @@ struct FrontendSummary: Decodable, Hashable, Identifiable {
     let title: String?
     let source: String?
     let status: String?
+    let category: String?
+    let project: String?
     var displayTitle: String { title ?? hostname }
+    var isService: Bool { category == "service" }
 }
 struct FrontendCatalog: Decodable {
     let frontends: [FrontendSummary]

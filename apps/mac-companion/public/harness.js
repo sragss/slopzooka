@@ -11,9 +11,26 @@ var refreshing = false;
 var busy = 0;
 var data = { sessions: [], workspaces: [], frontends: [] };
 var signatures = /* @__PURE__ */ new Map();
+var showServices = false;
 function message(id, text = "") {
+  delete $(id).dataset.detail;
   $(id).textContent = text;
   $(id).hidden = !text;
+}
+function failure(id, error, guidance) {
+  const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+  const element = $(id);
+  if (element.dataset.detail === detail) return;
+  element.dataset.detail = detail;
+  element.replaceChildren(document.createTextNode(guidance));
+  const details = document.createElement("details");
+  const summary = document.createElement("summary");
+  summary.textContent = "Details";
+  const pre = document.createElement("pre");
+  pre.textContent = detail;
+  details.append(summary, pre);
+  element.append(details);
+  element.hidden = false;
 }
 function connection(text, connected = false) {
   $("connection-label").textContent = text;
@@ -31,16 +48,36 @@ function gate(authorized) {
   }
 }
 async function api(path, body, method = body ? "POST" : "GET") {
-  const response = await fetch(path, {
-    method,
-    signal: AbortSignal.timeout(3e4),
-    headers: body ? { "Content-Type": "application/json" } : {},
-    body: body ? JSON.stringify(body) : void 0
-  });
+  let response;
+  try {
+    response = await fetch(path, {
+      method,
+      signal: AbortSignal.timeout(3e4),
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : void 0
+    });
+  } catch (error) {
+    throw new Error(
+      `${method} ${path}: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
   if (response.status === 401) gate(false);
-  const result = await response.json();
+  const text = await response.text();
+  let result;
+  try {
+    result = JSON.parse(text);
+  } catch (error) {
+    throw new Error(
+      `${method} ${path} \u2014 HTTP ${response.status}: Invalid JSON response. ${String(error)}
+${text.slice(0, 2048)}`,
+      { cause: error }
+    );
+  }
   if (!response.ok)
-    throw new Error(result.error ?? `Request failed (${response.status})`);
+    throw new Error(
+      `${method} ${path} \u2014 HTTP ${response.status}: ${result.error ?? response.statusText}`
+    );
   return result;
 }
 function row(title, detail) {
@@ -71,7 +108,11 @@ function action(parent, title, run, quiet = false, disabled = false) {
     try {
       await run();
     } catch (error) {
-      message("notice-message", error.message);
+      failure(
+        "notice-message",
+        error,
+        "Couldn\u2019t complete that action. Try again, or check Details."
+      );
       $("notice").hidden = false;
     } finally {
       busy--;
@@ -158,9 +199,12 @@ function render(key, force = false) {
       );
       list.append(r.li);
     }
+  const services = document.createElement("ul");
+  services.className = "rows";
   if (key === "frontends")
     for (const f of data.frontends) {
-      if (!matches(`${f.title ?? ""} ${f.hostname} ${f.url}`)) continue;
+      if (!matches(`${f.title ?? ""} ${f.hostname} ${f.url} ${f.project ?? ""}`))
+        continue;
       const statuses = {
         ready: "Ready",
         registered: "Available",
@@ -169,7 +213,7 @@ function render(key, force = false) {
       };
       const r = row(
         f.title ?? f.hostname,
-        `${f.title && f.title !== f.hostname ? f.hostname + " \xB7 " : ""}${statuses[f.status] ?? f.status}`
+        `${f.project && f.source !== "local" ? f.project + " \xB7 " : ""}${f.title && f.title !== f.hostname ? f.hostname + " \xB7 " : ""}${statuses[f.status] ?? f.status}`
       );
       action(
         r.actions,
@@ -204,7 +248,7 @@ function render(key, force = false) {
           },
           true
         );
-      list.append(r.li);
+      (f.category === "service" ? services : list).append(r.li);
     }
   if (!list.children.length) {
     const hints = {
@@ -221,6 +265,20 @@ function render(key, force = false) {
       document.createTextNode(term ? "Try a different search." : hints[key])
     );
     list.append(empty);
+  }
+  if (services.children.length) {
+    const group = document.createElement("li");
+    group.className = "other-services";
+    const details = document.createElement("details");
+    details.open = showServices || !!term;
+    details.ontoggle = () => {
+      showServices = details.open;
+    };
+    const summary = document.createElement("summary");
+    summary.textContent = `Other services (${services.children.length})`;
+    details.append(summary, services);
+    group.append(details);
+    list.append(group);
   }
 }
 function navigate() {
@@ -253,15 +311,18 @@ async function refresh() {
       const key = keys[i];
       if (result.status === "fulfilled") {
         Object.assign(data, { [key]: result.value[key] });
-        $(key + "-count").textContent = String(data[key].length);
+        $(key + "-count").textContent = String(
+          key === "frontends" ? data.frontends.filter((f) => f.category !== "service").length : data[key].length
+        );
         message(key + "-error");
         if (key === "frontends")
           message("frontend-warning", result.value.warning ?? "");
         render(key);
       } else
-        message(
+        failure(
           key + "-error",
-          `Couldn\u2019t update ${sections[key].toLowerCase()}. ${result.reason.message}`
+          result.reason,
+          `Couldn\u2019t update ${sections[key].toLowerCase()}. Showing the last available list; retrying automatically.`
         );
     });
     const healthy = results.every((result) => result.status === "fulfilled");
@@ -287,7 +348,11 @@ $("pair").onsubmit = async (event) => {
     gate(true);
     await refresh();
   } catch (error) {
-    message("pair-error", error.message);
+    failure(
+      "pair-error",
+      error,
+      "Couldn\u2019t pair. Check the code in the Mac menu and try again."
+    );
   } finally {
     button.disabled = false;
   }
@@ -310,7 +375,11 @@ $("add-frontend").onsubmit = async (event) => {
     input.value = "";
     dialog.close();
   } catch (error) {
-    message("add-error", error.message);
+    failure(
+      "add-error",
+      error,
+      "Couldn\u2019t save this URL. Check the address and try again."
+    );
   } finally {
     busy--;
     buttons.forEach((b) => b.disabled = false);
@@ -325,10 +394,14 @@ async function connect() {
     const health = await api("/health");
     gate(health.paired);
     if (paired) await refresh();
-  } catch {
+  } catch (error) {
     connection("Mac unavailable");
     $("loading").hidden = false;
-    $("loading").textContent = "Waiting for your Mac. Keep SlopZooka running in the menu bar.";
+    failure(
+      "loading",
+      error,
+      "Waiting for your Mac. Keep SlopZooka running in the menu bar; retrying automatically."
+    );
   }
 }
 void connect();

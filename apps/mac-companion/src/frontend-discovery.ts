@@ -14,6 +14,8 @@ export type Frontend = {
   source: "portless" | "local" | "manual";
   status: "registered" | "ready" | "starting" | "stopped";
   transport: "lan" | "gateway" | "direct";
+  category?: "app" | "service";
+  project?: string;
 };
 export type FrontendRoute = {
   frontend: Frontend;
@@ -62,7 +64,9 @@ export function parseListeners(output: string): LocalListener[] {
   }
   return [...listeners.values()];
 }
-export async function localListeners(): Promise<LocalListener[]> {
+export async function localListeners(
+  signal?: AbortSignal,
+): Promise<LocalListener[]> {
   try {
     const { stdout } = await exec(
       "/usr/sbin/lsof",
@@ -75,7 +79,7 @@ export async function localListeners(): Promise<LocalListener[]> {
         "-sTCP:LISTEN",
         "-Fpcnt",
       ],
-      { timeout: 3000, maxBuffer: 1024 * 1024 },
+      { timeout: 3000, maxBuffer: 1024 * 1024, signal },
     );
     const listeners = parseListeners(stdout);
     const pids = [...new Set(listeners.map((listener) => listener.pid))].slice(
@@ -87,7 +91,7 @@ export async function localListeners(): Promise<LocalListener[]> {
         const { stdout: directories } = await exec(
           "/usr/sbin/lsof",
           ["-a", "-p", pids.join(","), "-d", "cwd", "-Fn"],
-          { timeout: 1500, maxBuffer: 1024 * 1024 },
+          { timeout: 1500, maxBuffer: 1024 * 1024, signal },
         );
         let pid = 0;
         const cwd = new Map<number, string>();
@@ -107,21 +111,30 @@ export async function localListeners(): Promise<LocalListener[]> {
     if (result.code === 1 && !result.stderr?.trim())
       return parseListeners(result.stdout ?? "");
     throw new Error(
-      "Could not discover local servers. You can still add a URL.",
+      `Could not discover local servers. You can still add a URL.\n${error instanceof Error ? error.message : String(error)}`,
     );
   }
 }
 
-/** HEAD only, no redirects/body buffering. Any HTTP response proves a web server is present. */
-export function probeHTTP(url: string): Promise<boolean> {
+/** Inspect headers only: discovery never follows redirects or downloads app bodies. */
+export function probeHTTP(
+  url: string,
+  signal?: AbortSignal,
+): Promise<{ browser: boolean } | undefined> {
   return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve(undefined);
+      return;
+    }
     let settled = false;
-    const finish = (ok: boolean) => {
+    const abort = () => finish(undefined);
+    const finish = (result: { browser: boolean } | undefined) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
       request.destroy();
-      resolve(ok);
+      resolve(result);
     };
     const request = (url.startsWith("https:") ? https : http).request(
       url,
@@ -131,14 +144,51 @@ export function probeHTTP(url: string): Promise<boolean> {
         headers: { "User-Agent": "SlopZooka-Discovery" },
       },
       (response) => {
+        const type = response.headers["content-type"] ?? "";
+        // Redirects can lead to sign-in or an app base path. Unknown/JSON endpoints
+        // remain reachable under Other services rather than disappearing entirely.
+        const browser =
+          /^(text\/html|application\/xhtml\+xml)(;|$)/i.test(type) ||
+          (response.statusCode! >= 300 &&
+            response.statusCode! < 400 &&
+            !!response.headers.location);
         response.destroy();
-        finish(true);
+        finish({ browser });
       },
     );
-    const timer = setTimeout(() => finish(false), 800);
-    request.on("error", () => finish(false));
+    const timer = setTimeout(() => finish(undefined), 800);
+    signal?.addEventListener("abort", abort, { once: true });
+    request.on("error", () => finish(undefined));
     request.end();
   });
+}
+
+/** Nearest package/repository supplies a name; a process's home directory is not a project. */
+export async function projectName(cwd?: string): Promise<string | undefined> {
+  if (!cwd) return undefined;
+  let directory = path.resolve(cwd);
+  for (let depth = 0; depth < 8; depth++) {
+    try {
+      const pkg = JSON.parse(
+        await fs.readFile(path.join(directory, "package.json"), "utf8"),
+      );
+      return typeof pkg.name === "string" && pkg.name.trim()
+        ? pkg.name
+        : path.basename(directory);
+    } catch {
+      /* Non-JavaScript projects can still have a repository root. */
+    }
+    try {
+      await fs.stat(path.join(directory, ".git"));
+      return path.basename(directory);
+    } catch {
+      /* Try the parent, including worktree .git files. */
+    }
+    const parent = path.dirname(directory);
+    if (parent === directory) break;
+    directory = parent;
+  }
+  return undefined;
 }
 
 export async function readPortless(
@@ -202,6 +252,7 @@ export async function readPortless(
         port: route.port,
         url: url.href,
         source: "portless",
+        category: "app",
         status: "registered",
         transport:
           lan !== undefined && route.hostname.endsWith(".local")

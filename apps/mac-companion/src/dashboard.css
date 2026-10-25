@@ -426,3 +426,31 @@ dialog p.error {
     gap: 10px;
   }
 }
+
+.other-services {
+  padding-top: 18px;
+  color: var(--muted);
+}
+.other-services summary {
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+.other-services .rows {
+  color: var(--text);
+}
+.notice > div {
+  flex: 1;
+  min-width: 0;
+}
+.error details,
+.notice details,
+.loading details {
+  margin-top: 6px;
+  color: var(--muted);
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 11px;
+  user-select: text;
+}

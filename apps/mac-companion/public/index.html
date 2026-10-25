@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
     <title>SlopZooka</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="stylesheet" href="/harness.css" />
   </head>
   <body>
@@ -77,7 +78,7 @@
                 maxlength="12"
               /><button class="primary" type="submit">Connect</button>
             </div>
-            <p id="pair-error" class="error" role="alert" hidden></p>
+            <div id="pair-error" class="error" role="alert" hidden></div>
           </form>
           <p class="fine-print">This browser stays paired on this Mac.</p>
         </div>
@@ -113,8 +114,8 @@
           />
         </div>
         <div id="notice" class="notice" role="alert" hidden>
-          <span id="notice-message"></span
-          ><button
+          <div id="notice-message"></div>
+          <button
             id="dismiss-notice"
             class="icon-button"
             aria-label="Dismiss message"
@@ -123,20 +124,22 @@
           </button>
         </div>
         <section id="sessions-panel" aria-label="Terminals">
-          <p id="sessions-error" class="error" role="status" hidden></p>
+          <div id="sessions-error" class="error" role="status" hidden></div>
           <ul id="sessions" class="rows"></ul>
         </section>
         <section id="workspaces-panel" aria-label="Workspaces" hidden>
-          <p id="workspaces-error" class="error" role="status" hidden></p>
+          <div id="workspaces-error" class="error" role="status" hidden></div>
           <ul id="workspaces" class="rows"></ul>
         </section>
         <section id="frontends-panel" aria-label="Frontends" hidden>
-          <p id="frontends-error" class="error" role="status" hidden></p>
+          <div id="frontends-error" class="error" role="status" hidden></div>
           <p id="frontend-warning" class="section-note" hidden></p>
           <ul id="frontends" class="rows"></ul>
         </section>
       </div>
-      <p id="loading" class="loading" role="status">Connecting to your Mac…</p>
+      <div id="loading" class="loading" role="status">
+        Connecting to your Mac…
+      </div>
     </main>
 
     <dialog id="add-dialog" aria-labelledby="add-title">
@@ -153,7 +156,7 @@
           spellcheck="false"
           required
         />
-        <p id="add-error" class="error" role="alert" hidden></p>
+        <div id="add-error" class="error" role="alert" hidden></div>
         <div class="dialog-actions">
           <button id="cancel-add" type="button">Cancel</button
           ><button class="primary" type="submit">Add URL</button>

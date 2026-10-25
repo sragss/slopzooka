@@ -9147,7 +9147,7 @@ var TerminalConnection = class {
     this.sessionId = sessionId2;
     this.status = status2;
     this.fit = fit2;
-    terminal2.onData((data) => {
+    this.inputSubscription = terminal2.onData((data) => {
       if (this.attached && this.writable && this.running)
         this.send({ type: "input", sessionId: sessionId2, data });
     });
@@ -9156,6 +9156,8 @@ var TerminalConnection = class {
   renderTail = Promise.resolve();
   cursor;
   retry;
+  handshake;
+  inputSubscription;
   attempts = 0;
   stopped = false;
   writable = false;
@@ -9164,11 +9166,17 @@ var TerminalConnection = class {
   connect() {
     if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
       return;
-    this.status("Connecting\u2026", "connecting");
+    this.clearTimers();
+    this.attached = false;
+    this.writable = false;
+    this.status("Connecting to your Mac\u2026", "connecting");
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws2 = new WebSocket(url);
     this.socket = ws2;
+    this.handshake = setTimeout(() => {
+      if (this.socket === ws2 && !this.attached) ws2.close();
+    }, 1e4);
     ws2.onmessage = (event) => {
       if (this.socket !== ws2) return;
       try {
@@ -9185,9 +9193,13 @@ var TerminalConnection = class {
     };
     ws2.onclose = () => {
       if (this.socket !== ws2 || this.stopped) return;
+      this.clearTimers();
       this.attached = false;
       this.writable = false;
-      this.status("Disconnected \u2014 reconnecting\u2026", "connecting");
+      this.status(
+        "Reconnecting to your Mac\u2026 Keep SlopZooka running.",
+        "connecting"
+      );
       this.retry = setTimeout(
         () => this.connect(),
         Math.min(1e4, 300 * 2 ** this.attempts++) + Math.random() * 300
@@ -9208,11 +9220,25 @@ var TerminalConnection = class {
       rows: this.terminal.rows
     });
   }
+  reconnect() {
+    if (this.stopped) return;
+    this.socket?.close();
+    this.socket = void 0;
+    this.connect();
+  }
+  clearTimers() {
+    clearTimeout(this.retry);
+    clearTimeout(this.handshake);
+    this.retry = void 0;
+    this.handshake = void 0;
+  }
   detach() {
+    if (this.stopped) return;
     this.stopped = true;
     this.attached = false;
     this.writable = false;
-    clearTimeout(this.retry);
+    this.clearTimers();
+    this.inputSubscription.dispose();
     this.send({ type: "detach", sessionId: this.sessionId });
     this.socket?.close();
   }
@@ -9234,7 +9260,10 @@ var TerminalConnection = class {
       case "hello":
         if (!this.isCurrent(ws2)) return;
         if (m.version !== PROTOCOL_VERSION) {
-          this.status("Companion protocol mismatch", "failed");
+          this.status(
+            `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
+            "failed"
+          );
           this.detach();
           return;
         }
@@ -9254,6 +9283,8 @@ var TerminalConnection = class {
           this.ack(ws2, m.cursor);
         }
         if (!this.isCurrent(ws2)) return;
+        clearTimeout(this.handshake);
+        this.handshake = void 0;
         this.attempts = 0;
         this.running = m.session.status === "running";
         this.writable = m.writable;
@@ -9276,7 +9307,10 @@ var TerminalConnection = class {
         break;
       case "error":
         if (!this.isCurrent(ws2)) return;
-        this.status(m.message, "failed");
+        this.status(
+          m.code === "404" ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})` : `${m.message} (${m.code})`,
+          "failed"
+        );
         if (m.code === "404") this.detach();
         break;
     }
@@ -9327,16 +9361,25 @@ var connection = sessionId ? new TerminalConnection(
 title.textContent = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
 connection?.connect();
 var resizeFrame = 0;
-new ResizeObserver(() => {
+var resizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => connection?.resize());
-}).observe(mount);
-window.addEventListener("pagehide", () => connection?.detach());
+});
+resizeObserver.observe(mount);
+var reconnect = () => connection?.reconnect();
+window.addEventListener("online", reconnect);
+function detach() {
+  resizeObserver.disconnect();
+  cancelAnimationFrame(resizeFrame);
+  window.removeEventListener("online", reconnect);
+  connection?.detach();
+}
+window.addEventListener("pagehide", detach);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = () => terminal.focus();
-window.slzDetachTerminal = () => connection?.detach();
+window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => terminal.focus());
 /*! Bundled license information:
 

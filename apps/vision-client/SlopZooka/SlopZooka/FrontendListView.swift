@@ -10,14 +10,20 @@ struct FrontendPanel: View {
         }
         .frame(maxHeight: 420)
         .task(id: baseURL) {
+            frontends = []
+            warning = nil
             guard let baseURL else { return }
             while !Task.isCancelled {
                 do {
                     let catalog = try await CompanionAPI.request(
                         FrontendCatalog.self, base: baseURL, path: "/api/frontends")
+                    guard !Task.isCancelled else { return }
                     frontends = catalog.frontends
                     warning = catalog.warning
-                } catch { warning = error.localizedDescription }
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    warning = error.localizedDescription
+                }
                 try? await Task.sleep(for: .seconds(3))
             }
         }
@@ -31,6 +37,7 @@ struct FrontendListView: View {
     @EnvironmentObject private var appModel: AppModel
     @Environment(\.openWindow) private var openWindow
     @State private var error: String?
+    @State private var failureAction = "complete this action"
     @State private var opening: String?
     @State private var urlInput = ""
     @State private var saving = false
@@ -51,39 +58,27 @@ struct FrontendListView: View {
                 .disabled(saving || baseURL == nil)
             }
             if let warning {
-                DisclosureGroup("Discovery notice") { Text(warning).font(.caption).foregroundStyle(.secondary) }
+                DisclosureGroup("Discovery notice") { Text(warning).font(.caption).foregroundStyle(.secondary).textSelection(.enabled) }
                     .font(.caption).foregroundStyle(.orange)
             }
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
-            if visibleFrontends.isEmpty && warning == nil {
+            if let error {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Couldn’t \(failureAction). Try again, or check Details.").foregroundStyle(.red)
+                    DisclosureGroup("Details") { Text(error).textSelection(.enabled) }
+                }.font(.caption)
+            }
+            if visibleFrontends.allSatisfy({ $0.isService }) && warning == nil {
                 Text("Ask your agent to start a web app on your Mac, or add a URL.").font(.caption)
                     .foregroundStyle(.secondary)
             }
-            ForEach(visibleFrontends) { frontend in
-                Button {
-                    Task { await open(frontend) }
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(frontend.displayTitle).lineLimit(1)
-                            if frontend.status == "starting" || frontend.status == "stopped" {
-                                Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
-                                    .font(.caption).foregroundStyle(.orange)
-                            } else {
-                                Text(frontend.transport == "direct" ? "Web" : "On your Mac")
-                                    .font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
-                        Spacer()
-                        if opening == frontend.id { ProgressView() } else { Image(systemName: "arrow.up.right.square") }
-                    }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .disabled(opening != nil || frontend.status == "stopped")
-                .contextMenu {
-                    if frontend.source == "manual" {
-                        Button("Remove URL", role: .destructive) { Task { await remove(frontend) } }
-                    }
-                }
+            ForEach(visibleFrontends.filter { !$0.isService }) { frontend in
+                frontendRow(frontend)
+            }
+            let services = visibleFrontends.filter { $0.isService }
+            if !services.isEmpty {
+                DisclosureGroup("Other services (\(services.count))") {
+                    ForEach(services) { frontend in frontendRow(frontend) }
+                }.font(.subheadline)
             }
             if showAddURL {
                 HStack {
@@ -98,15 +93,45 @@ struct FrontendListView: View {
             }
         }
         .onChange(of: frontends) { _, _ in updatedFrontends = nil }
+        .onChange(of: baseURL) { _, _ in updatedFrontends = nil; error = nil }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+    }
+
+    @ViewBuilder
+    private func frontendRow(_ frontend: FrontendSummary) -> some View {
+        Button {
+            Task { await open(frontend) }
+        } label: {
+            HStack {
+                VStack(alignment: .leading) {
+                    Text(frontend.displayTitle).lineLimit(1)
+                    if frontend.status == "starting" || frontend.status == "stopped" {
+                        Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
+                            .font(.caption).foregroundStyle(.orange)
+                    } else {
+                        Text(frontend.source == "local" ? frontend.hostname : (frontend.project ?? (frontend.transport == "direct" ? "Web" : "On your Mac")))
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+                Spacer()
+                if opening == frontend.id { ProgressView() } else { Image(systemName: "arrow.up.right.square") }
+            }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .disabled(opening != nil || frontend.status == "stopped")
+        .contextMenu {
+            if frontend.source == "manual" {
+                Button("Remove URL", role: .destructive) { Task { await remove(frontend) } }
+            }
+        }
     }
 
     private func addURL() async {
         guard !saving, let baseURL else { return }
         saving = true
         error = nil
+        failureAction = "save this URL"
         defer { saving = false }
         do {
             _ = try await CompanionAPI.request(
@@ -125,6 +150,8 @@ struct FrontendListView: View {
 
     private func remove(_ frontend: FrontendSummary) async {
         guard let baseURL else { return }
+        error = nil
+        failureAction = "remove this URL"
         do {
             _ = try await CompanionAPI.request(
                 APIAcknowledgement.self, base: baseURL,
@@ -139,6 +166,7 @@ struct FrontendListView: View {
         guard let baseURL else { return }
         opening = frontend.id
         error = nil
+        failureAction = "open this frontend"
         defer { opening = nil }
         do {
             let result = try await CompanionAPI.request(
