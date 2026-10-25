@@ -23,9 +23,9 @@ The build uses an available Apple Development / Developer ID certificate so its 
 
 ## Vision Pro and development
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. Enter the pairing code shown in the Mac app once; the headset saves its credential in Keychain. Manual host/IP entry remains available under More. A verified IP is never rewritten into an untested hostname.
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback. The display dismisses after 45 seconds or successful pairing, and repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 
-The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use **Mac connection** for pairing or a manual address. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
+The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use **Mac** for a single connection status and optional technical details. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
 For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/dashboard` for the desktop dashboard and pair with the same code.
 
@@ -142,3 +142,5 @@ xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
 Integration tests use temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSocket fixtures. They do not modify your Portless registry, workspaces, or GitHub repositories. Tests cover authentication, malformed messages, reconnect/replay/checkpoints, output floods, multiple viewers, command deduplication, descendant cleanup, simultaneous workspace mutations, branch selection, and frontend listener lifecycle. Discovery tests include restart recovery with stable preview credentials, cancellation during shutdown, browser/service classification, project naming, a real macOS child server, non-HTTP exclusion, incremental SSE, WebSockets, Portless failure isolation, and saved-URL persistence. The TLS fixture requires `openssl`.
 
 Before relying on a headset release, exercise these on physical Vision Pro: pair; open an agent and a shell in one workspace; close/reopen a window; sleep/wake the headset during output; dictate once while interrupting the connection; and open Next.js/Vite apps with HMR, auth, and cross-service requests. LAN certificate trust and framework origin policies require real-device verification.
+
+`pnpm test:vision-state` runs the launcher state regression checks on macOS: dismissing repository creation immediately unlocks controls, stale responses cannot launch terminals or reset newer operations, and pairing submits only once. Closing creation stops waiting; it does not undo a repository already created on GitHub.

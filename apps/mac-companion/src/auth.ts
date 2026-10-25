@@ -35,6 +35,8 @@ export class Pairing {
   }
   private readonly tokens: Set<string>;
   private attempts = { count: 0, until: 0 };
+  displayUntil = 0;
+  private nextDisplay = 0;
   private readonly file: string;
   constructor(
     home: string,
@@ -88,6 +90,19 @@ export class Pairing {
     );
   }
   install(app: Express): void {
+    // Explicit pairing-screen request. Health checks never put a code on screen.
+    // Only private desktop IPC carries the code; this response cannot reveal it.
+    app.post("/api/pair/display", (req, res) => {
+      if (!this.sameOrigin(req)) {
+        res.status(403).json({ error: "Origin rejected" });
+        return;
+      }
+      if (!this.authorized(req) && this.now() >= this.nextDisplay) {
+        this.displayUntil = this.now() + 45_000;
+        this.nextDisplay = this.now() + 60_000;
+      }
+      res.json({ ok: true });
+    });
     app.post("/api/pair", (req, res) => {
       if (!this.sameOrigin(req)) {
         res.status(403).json({ error: "Origin rejected" });
@@ -117,6 +132,7 @@ export class Pairing {
       if (this.tokens.size > 32)
         this.tokens.delete(this.tokens.values().next().value!);
       this.persist();
+      this.displayUntil = 0;
       this.cookie(req, res, token);
       res.json({ token, hostId: this.hostId });
     });

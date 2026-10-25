@@ -22,6 +22,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var statusItem: NSStatusItem?
     private let popover = NSPopover()
     private var statusObservation: AnyCancellable?
+    private var codeObservation: AnyCancellable?
+    private let codeWindow = ConnectionCodeWindow()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         // Construct and lay out once, before the first click. Keep the same SwiftUI tree alive.
@@ -48,6 +50,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .sink { [weak self] state, ready in
                 self?.statusItem?.button?.alphaValue = ready ? 1 : 0.45
                 self?.statusItem?.button?.toolTip = "SlopZooka · \(state)"
+            }
+        codeObservation = model.$pairingDisplayUntil.combineLatest(model.$ready)
+            .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
+            .sink { [weak self] until, ready in
+                guard let self else { return }
+                self.codeWindow.update(until: ready ? until : 0, model: self.model)
             }
         model.start()
     }

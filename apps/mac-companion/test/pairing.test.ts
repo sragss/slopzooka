@@ -36,8 +36,34 @@ test("six-digit codes expire; rate limiting is host-wide and existing credential
       headers: { "Content-Type": "application/json", "X-Forwarded-For": ip },
       body: JSON.stringify({ code }),
     });
+  const display = () => fetch(`${base}/api/pair/display`, { method: "POST" });
+  assert.equal(pairing.displayUntil, 0);
+  assert.deepEqual(await (await display()).json(), { ok: true });
+  const until = pairing.displayUntil;
+  assert.equal(until, now + 45_000);
+  now += 1_000;
+  await display();
+  assert.equal(
+    pairing.displayUntil,
+    until,
+    "repeated requests do not keep the code onscreen",
+  );
+  assert.equal(
+    (
+      await fetch(`${base}/api/pair/display`, {
+        method: "POST",
+        headers: { Origin: "http://untrusted.example" },
+      })
+    ).status,
+    403,
+  );
   const response = await pair(original);
   assert.equal(response.status, 200);
+  assert.equal(
+    pairing.displayUntil,
+    0,
+    "successful pairing hides the Mac display",
+  );
   const { token } = (await response.json()) as { token: string };
   for (let i = 0; i < 9; i++)
     assert.equal((await pair("invalid", `10.0.0.${i + 2}`)).status, 401);
@@ -46,6 +72,11 @@ test("six-digit codes expire; rate limiting is host-wide and existing credential
   assert.equal(limited.headers.get("retry-after"), "60");
   now += 61_000;
   assert.equal((await pair(original)).status, 200);
+  await fetch(`${base}/api/pair/display`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  assert.equal(pairing.displayUntil, 0, "paired clients do not display a code");
   now += 5 * 60_000;
   assert.notEqual(pairing.code, original);
   assert.match(pairing.code, /^[0-9]{6}$/);

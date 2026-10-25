@@ -655,6 +655,7 @@ function publishDesktopStatus(): void {
     "SLZ_DESKTOP " +
       JSON.stringify({
         code: pairing.code,
+        pairingDisplayUntil: pairing.displayUntil,
         sessions: sessionManager
           .summaries()
           .filter((session) => session.status === "running").length,

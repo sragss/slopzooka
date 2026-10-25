@@ -267,3 +267,35 @@ enum LaunchTarget: String, CaseIterable, Identifiable, Codable, Hashable {
         }
     }
 }
+
+enum RepoState {
+    case idle
+    case loading
+    case loaded(viewerLogin: String, count: Int)
+    case failure(String)
+}
+
+enum WorkspaceState {
+    case idle
+    case loading
+    case loaded(count: Int)
+    case failure(String)
+}
+
+struct CompanionError: LocalizedError {
+    let message: String
+    var statusCode: Int? = nil
+    var errorDescription: String? { message }
+}
+
+struct HostSession: Decodable, Identifiable {
+    let id: String
+    let workspaceId: String
+    let profile: String?
+    let title: String
+    let cwd: String
+    let status: String
+}
+struct HostSessionsResponse: Decodable { let sessions: [HostSession] }
+struct CreatedSessionResponse: Decodable { let session: HostSession }
+struct APIAcknowledgement: Decodable { let ok: Bool }

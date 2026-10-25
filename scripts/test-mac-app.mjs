@@ -109,6 +109,22 @@ try {
     200,
     "bundled static assets load outside the checkout",
   );
+  const display = await fetch(base + "/api/pair/display", { method: "POST" });
+  assert.deepEqual(
+    await display.json(),
+    { ok: true },
+    "display request never returns the code",
+  );
+  await until(() =>
+    output
+      .split("\n")
+      .filter((line) => line.startsWith("SLZ_DESKTOP "))
+      .some(
+        (line) =>
+          JSON.parse(line.slice("SLZ_DESKTOP ".length)).pairingDisplayUntil >
+          Date.now(),
+      ),
+  );
   const paired = await (
     await fetch(base + "/api/pair", {
       method: "POST",
