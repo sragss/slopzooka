@@ -7,6 +7,8 @@ final class LauncherState: ObservableObject {
     @Published var host = ""
     @Published var pairingCode = ""
     @Published var needsPairing = false
+    @Published var isPairing = false
+    @Published var pairingError: String?
     @Published var healthState: HealthState = .idle
     @Published var recentRepos: [RecentRepoSummary] = []
     @Published var recentWorkspaces: [WorkspaceSummary] = []
@@ -78,6 +80,8 @@ final class LauncherState: ObservableObject {
             healthState = .failure("Enter a valid companion host")
             return false
         }
+        needsPairing = false
+        pairingError = nil
         healthState = .checking
         do {
             let health = try await CompanionAPI.request(
@@ -106,12 +110,18 @@ final class LauncherState: ObservableObject {
     }
 
     func pair() async {
-        guard let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        guard !isPairing, needsPairing, pairingCode.count == 6,
+            pairingCode.allSatisfy({ $0 >= "0" && $0 <= "9" }),
+            let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        isPairing = true
+        pairingError = nil
+        defer { isPairing = false }
         do {
             try await CompanionAPI.pair(base: base, code: pairingCode.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
             pairingCode = ""
             await connectAndRefresh()
-        } catch { show(error) }
+        } catch { pairingError = error.localizedDescription }
     }
 
     func refreshHostCatalog() async {

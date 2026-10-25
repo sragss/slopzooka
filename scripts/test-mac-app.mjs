@@ -100,7 +100,7 @@ try {
     output.split("\n").find((line) => line.startsWith("SLZ_DESKTOP ")),
   );
   const status = JSON.parse(frame.slice("SLZ_DESKTOP ".length));
-  assert.match(status.code, /^[a-f0-9]{12}$/);
+  assert.match(status.code, /^[0-9]{6}$/);
   assert.equal(status.sessions, 0);
   assert.equal(
     (await fetch(base + "/")).status,

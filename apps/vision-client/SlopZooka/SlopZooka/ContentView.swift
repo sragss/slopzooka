@@ -89,6 +89,9 @@ struct ContentView: View {
         .onChange(of: state.host) { old, new in
             if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
         }
+        .onChange(of: isReady) { _, ready in
+            if ready { isConnectionPresented = false }
+        }
         .onChange(of: state.selectedTool) { _, _ in
             state.persistSelectedTool()
         }
@@ -110,12 +113,11 @@ struct ContentView: View {
         HStack {
             Text("SlopZooka").font(.title2.weight(.semibold))
             Spacer()
-            Button {
-                isConnectionPresented = true
-            } label: {
-                Label(state.needsPairing ? "Pair Mac" : "Mac connection", systemImage: "desktopcomputer")
-                    .font(.subheadline)
-            }.buttonStyle(.bordered)
+            if isReady {
+                Button { isConnectionPresented = true } label: {
+                    Label("Mac", systemImage: "desktopcomputer").font(.subheadline)
+                }.buttonStyle(.bordered)
+            }
         }
     }
 
@@ -195,40 +197,68 @@ struct ContentView: View {
         }
     }
 
+    private var selectedMacName: String {
+        discovery.companions.first(where: { $0.candidateHosts.contains(state.normalizedHost) })?.name
+            ?? state.connection.endpoint?.host() ?? "your Mac"
+    }
+
     private var connectionContent: some View {
         VStack(alignment: .leading, spacing: 18) {
             if state.needsPairing {
-                Text("Pair with your Mac").font(.title3.weight(.semibold))
-                Text("Open the SlopZooka menu on your Mac and choose Pair Vision Pro.")
+                Text("Connect to \(selectedMacName)").font(.title3.weight(.semibold))
+                Text("On your Mac, click the bazooka in the menu bar, then Show Connection Code. Enter the six digits here.")
                     .font(.subheadline).foregroundStyle(.secondary)
                 HStack {
-                    TextField("Pairing code", text: $state.pairingCode)
+                    TextField("6-digit code", text: $state.pairingCode)
+                        .keyboardType(.numberPad).textContentType(.oneTimeCode)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .onChange(of: state.pairingCode) { _, value in
+                            state.pairingCode = String(value.filter { $0 >= "0" && $0 <= "9" }.prefix(6))
+                        }
                         .onSubmit { Task { await state.pair() } }
-                    Button("Pair") { Task { await state.pair() } }.buttonStyle(.borderedProminent)
-                        .disabled(state.pairingCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(state.isPairing)
+                    Button(state.isPairing ? "Connecting…" : "Connect") { Task { await state.pair() } }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(state.pairingCode.count != 6 || state.isPairing)
+                }
+                if let error = state.pairingError {
+                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
                 }
             } else if !isReady {
                 Text("Connect your Mac").font(.title3.weight(.semibold))
-                Text("Open SlopZooka on your Mac. Nearby companions appear automatically.")
+                Text("Open SlopZooka on your Mac. It will appear here automatically.")
                     .font(.subheadline).foregroundStyle(.secondary)
                 discoveryStatusView
+                HealthStatusView(state: state.healthState)
+            } else {
+                Label("Connected to \(selectedMacName)", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                DisclosureGroup("Connection details") { HealthStatusView(state: state.healthState) }
             }
-            HealthStatusView(state: state.healthState)
-            Divider()
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Mac address").font(.subheadline.weight(.medium))
-                HStack {
-                    TextField("MacName.local:7777", text: $connectionHost)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button(isReady ? "Reconnect" : "Connect") {
-                        state.host = connectionHost
-                        Task { await state.connectAndRefresh() }
-                    }.disabled(
-                        state.isMutatingWorkspace
-                            || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
+            DisclosureGroup(isReady ? "Change Mac" : "Can’t find your Mac?") {
+                VStack(alignment: .leading, spacing: 12) {
+                    ForEach(discovery.companions) { companion in
+                        Button(companion.name) {
+                            connectionHost = companion.host
+                            state.host = companion.host
+                            state.pairingCode = ""
+                            state.pairingError = nil
+                            Task { await state.connectAndRefresh() }
+                        }.disabled(state.isPairing)
+                    }
+                    Text("Manual address").font(.caption).foregroundStyle(.secondary)
+                    HStack {
+                        TextField("MacName.local:7777", text: $connectionHost)
+                            .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        Button("Find Mac") {
+                            state.host = connectionHost
+                            state.pairingCode = ""
+                            state.pairingError = nil
+                            Task { await state.connectAndRefresh() }
+                        }.disabled(state.isPairing || state.isMutatingWorkspace || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                }.padding(.top, 8)
+            }.font(.subheadline)
         }
         .onAppear { connectionHost = state.host }
     }
@@ -243,9 +273,8 @@ struct ContentView: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
         case .found(let count):
-            let hostText = discovery.preferredHost ?? "nearby companion"
             Label(
-                "Discovered \(count) companion\(count == 1 ? "" : "s"). Auto-connecting to \(hostText).",
+                "Found \(count) Mac\(count == 1 ? "" : "s"). Checking connection…",
                 systemImage: "network"
             )
             .font(.footnote)

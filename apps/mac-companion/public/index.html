@@ -62,7 +62,7 @@
           <h1 id="pairing-title">Connect this browser</h1>
           <p>
             Open the SlopZooka menu on your Mac and choose
-            <strong>Pair Vision Pro</strong> to find your pairing code.
+            <strong>Show Connection Code</strong> to find your pairing code.
           </p>
           <form id="pair">
             <label for="code">Pairing code</label>
@@ -70,12 +70,15 @@
               <input
                 id="code"
                 name="code"
-                placeholder="12-character code"
+                placeholder="6-digit code"
                 autocomplete="off"
                 autocapitalize="none"
                 spellcheck="false"
                 required
-                maxlength="12"
+                maxlength="6"
+                minlength="6"
+                inputmode="numeric"
+                pattern="[0-9]{6}"
               /><button class="primary" type="submit">Connect</button>
             </div>
             <div id="pair-error" class="error" role="alert" hidden></div>
