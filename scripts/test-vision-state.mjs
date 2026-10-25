@@ -7,9 +7,13 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-vision-state-"));
 const binary = path.join(temporary, "checks");
-const sources = ["LauncherState", "HostConnection", "CompanionModels"].map(
-  (name) =>
-    path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
+const sources = [
+  "LauncherState",
+  "HostConnection",
+  "CompanionModels",
+  "TerminalNavigation",
+].map((name) =>
+  path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
 );
 try {
   execFileSync(

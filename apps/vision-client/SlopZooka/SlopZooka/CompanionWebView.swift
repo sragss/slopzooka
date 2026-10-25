@@ -13,6 +13,8 @@ struct CompanionWebView: UIViewRepresentable {
         configuration.userContentController.add(context.coordinator, name: "terminalState")
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = UIColor(red: 0.02, green: 0.03, blue: 0.04, alpha: 1)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         context.coordinator.load(url, in: webView)
         return webView
@@ -66,8 +68,11 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
         decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
     ) {
-        if let response = navigationResponse.response as? HTTPURLResponse, response.statusCode == 401 {
-            loadState.wrappedValue = .failed("Pair with your Mac from the launcher, then reopen this terminal")
+        if navigationResponse.isForMainFrame,
+            let response = navigationResponse.response as? HTTPURLResponse, response.statusCode >= 400 {
+            loadState.wrappedValue = .failed(response.statusCode == 401
+                ? "Pair with your Mac from the launcher, then reopen this terminal"
+                : "Terminal page returned HTTP \(response.statusCode). Reopen the terminal or check the Mac logs.")
             decisionHandler(.cancel)
         } else {
             decisionHandler(.allow)
@@ -86,8 +91,10 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
             decisionHandler(.cancel)
             return
         }
-        decisionHandler(
-            target.host == requestedURL.host && target.port == requestedURL.port && target.path == "/terminal"
-                ? .allow : .cancel)
+        let allowed = TerminalNavigation.allows(target, document: requestedURL)
+        if !allowed && navigationAction.targetFrame?.isMainFrame != false {
+            loadState.wrappedValue = .failed("Terminal navigation was blocked: \(target.scheme ?? "unknown")://\(target.host ?? "unknown")\(target.path)")
+        }
+        decisionHandler(allowed ? .allow : .cancel)
     }
 }

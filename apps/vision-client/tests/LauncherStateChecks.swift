@@ -32,6 +32,12 @@ enum CompanionAPI {
 struct LauncherStateChecks {
     @MainActor
     static func main() async {
+        let terminal = URL(string: "http://Mac:7777/terminal?sessionId=fixture")!
+        precondition(TerminalNavigation.allows(URL(string: "http://mac:7777/terminal?sessionId=fixture")!, document: terminal))
+        precondition(TerminalNavigation.allows(URL(string: "http://mac/terminal")!, document: URL(string: "http://Mac:80/terminal")!))
+        for rejected in ["http://other:7777/terminal", "https://mac:7777/terminal", "http://mac:7778/terminal", "http://mac:7777/dashboard", "http://user:pass@mac:7777/terminal"] {
+            precondition(!TerminalNavigation.allows(URL(string: rejected)!, document: terminal))
+        }
         let state = LauncherState()
         state.host = "fixture.invalid"
         let first = Task { await state.createRepoAndLaunch(owner: "test", repoName: "one", isPrivate: true) }
