@@ -9,6 +9,7 @@ const publicPaths = new Set([
   "/",
   "/index.html",
   "/harness.js",
+  "/harness.css",
   "/terminal.js",
   "/terminal.css",
 ]);
