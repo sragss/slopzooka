@@ -34,6 +34,7 @@ type Options = {
   listeners?: (signal?: AbortSignal) => Promise<LocalListener[]>;
   home?: string;
   stateDir?: string;
+  dashboardOrigin?: () => string | undefined;
 };
 type Bookmark = { url: string; target: string; local: boolean };
 
@@ -55,6 +56,7 @@ export class FrontendService {
     signal?: AbortSignal,
   ) => Promise<LocalListener[]>;
   private readonly shutdown = new AbortController();
+  private readonly dashboardOrigin: () => string | undefined;
   constructor(
     private readonly logger: Logger,
     options: Options = {},
@@ -70,6 +72,7 @@ export class FrontendService {
       "frontends.json",
     );
     this.listeners = options.listeners ?? localListeners;
+    this.dashboardOrigin = options.dashboardOrigin ?? (() => undefined);
   }
   private enqueue<T>(work: () => Promise<T>): Promise<T> {
     const next = this.operation.then(work);
@@ -162,6 +165,11 @@ export class FrontendService {
       if (!url)
         throw new ServiceError(
           "Enter an http:// or https:// URL without embedded credentials",
+          400,
+        );
+      if (url.origin === this.dashboardOrigin())
+        throw new ServiceError(
+          "Use an app URL, not the SlopZooka dashboard URL",
           400,
         );
       const host = url.hostname.replace(/^\[|\]$/g, "");
@@ -340,7 +348,10 @@ export class FrontendService {
     const warnings: string[] = [];
     try {
       const result = await readPortless(this.stateDir);
-      this.portless = result.routes;
+      this.portless = result.routes.filter(
+        (route) =>
+          route.frontend.port !== Number(process.env.SLOPZOOKA_PORT ?? 7777),
+      );
       this.portlessPorts = result.ports;
     } catch (error) {
       warnings.push(

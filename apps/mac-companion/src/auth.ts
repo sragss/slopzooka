@@ -8,6 +8,7 @@ const publicPaths = new Set([
   "/health",
   "/",
   "/index.html",
+  "/dashboard",
   "/favicon.png",
   "/harness.js",
   "/harness.css",
@@ -24,7 +25,10 @@ export class Pairing {
     { count: number; until: number }
   >();
   private readonly file: string;
-  constructor(home: string) {
+  constructor(
+    home: string,
+    private readonly proxyOrigin: () => string | undefined = () => undefined,
+  ) {
     fs.mkdirSync(home, { recursive: true, mode: 0o700 });
     this.file = path.join(home, "pairing.json");
     let saved: { hostId: string; tokens: string[] };
@@ -48,10 +52,28 @@ export class Pairing {
     if (!origin) return true; // Native clients authenticate with a bearer token.
     try {
       const url = new URL(origin);
-      return url.host === req.headers.host && url.protocol === "http:";
+      return (
+        url.host === req.headers.host &&
+        (this.secureProxy(req)
+          ? url.origin === this.proxyOrigin()
+          : url.protocol === "http:")
+      );
     } catch {
       return false;
     }
+  }
+  private secureProxy(req: IncomingMessage): boolean {
+    const origin = this.proxyOrigin();
+    const address = req.socket.remoteAddress;
+    return (
+      !!origin &&
+      origin.startsWith("https:") &&
+      new URL(origin).host === req.headers.host &&
+      (address === "127.0.0.1" ||
+        address === "::1" ||
+        address === "::ffff:127.0.0.1") &&
+      req.headers["x-forwarded-proto"] === "https"
+    );
   }
   install(app: Express): void {
     app.post("/api/pair", (req, res) => {
@@ -87,7 +109,7 @@ export class Pairing {
       if (this.tokens.size > 32)
         this.tokens.delete(this.tokens.values().next().value!);
       this.persist();
-      this.cookie(res, token);
+      this.cookie(req, res, token);
       res.json({ token, hostId: this.hostId });
     });
     app.use((req, res, next) => {
@@ -108,7 +130,7 @@ export class Pairing {
           .json({ error: "Pair this device with the companion first" });
         return;
       }
-      if (req.path === "/terminal") this.cookie(res, this.credential(req));
+      if (req.path === "/terminal") this.cookie(req, res, this.credential(req));
       next();
     });
   }
@@ -126,9 +148,14 @@ export class Pairing {
   private digest(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
   }
-  private cookie(res: import("express").Response, token: string): void {
+  private cookie(
+    req: IncomingMessage,
+    res: import("express").Response,
+    token: string,
+  ): void {
     res.cookie("slz_session", token, {
       httpOnly: true,
+      secure: this.secureProxy(req),
       sameSite: "strict",
       path: "/",
       maxAge: 365 * 24 * 60 * 60 * 1000,

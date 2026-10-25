@@ -40,7 +40,26 @@ struct CompanionPanel: View {
                 }
                 .buttonStyle(.borderedProminent).controlSize(.large)
 
-                DisclosureGroup("Pair Vision Pro", isExpanded: $pairingExpanded) {
+                Button {
+                    pairingExpanded.toggle()
+                } label: {
+                    HStack {
+                        Text("Pair Vision Pro")
+                        Spacer()
+                        Image(systemName: pairingExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
+                    .padding(.vertical, 4)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .font(.callout)
+                .accessibilityValue(pairingExpanded ? "Expanded" : "Collapsed")
+
+                if pairingExpanded {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Enter this code in SlopZooka on your headset.")
                             .font(.caption).foregroundStyle(.secondary)
@@ -55,8 +74,8 @@ struct CompanionPanel: View {
                             }
                             .buttonStyle(.borderless)
                         }
-                    }.padding(.top, 8)
-                }.font(.callout)
+                    }.font(.callout)
+                }
             } else {
                 Text(model.detail).font(.callout).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)

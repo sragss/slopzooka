@@ -27,9 +27,13 @@ Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the hea
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use **Mac connection** for pairing or a manual address. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
-For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/` for the desktop dashboard and pair with the same code.
+For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/dashboard` for the desktop dashboard and pair with the same code.
 
 `pnpm dev:companion` intentionally does **not** restart on source changes. An opt-in `pnpm --filter @slz/mac-companion dev:watch` is available; each restart ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
+
+**Named dashboard:** When an installed Portless proxy is configured, the companion automatically registers `slopzooka.localhost` through `portless alias`. **Open Dashboard** checks that the named route reaches this companion, then redirects there; if Portless is absent, stopped, misconfigured, or the name belongs to another port, it opens the regular localhost dashboard. The companion keeps running on its own port and Bonjour continues to advertise the Mac’s LAN address for Vision Pro. `.localhost` is for browsers on the Mac.
+
+The named URL follows the existing proxy: `https://slopzooka.localhost` on HTTPS port 443, or e.g. `https://slopzooka.localhost:1355` on a custom port. SlopZooka does not restart the shared proxy, change its port, install Portless, or alter certificate trust. The static alias remains available across companion restarts. If Safari cannot resolve a `.localhost` name, use Portless’s `hosts sync` setup or the direct localhost URL. Set `SLOPZOOKA_PORTLESS=0` to disable the dashboard alias. Pair the browser once at the new hostname; its cookies are separate from localhost.
 
 Portless is optional. The registry adapter is tested against the Portless 0.14 schema; use the Node version required by your installed Portless when running Portless itself.
 
@@ -75,6 +79,7 @@ Discovery sources fail independently: invalid Portless state produces a warning 
 | Variable | Purpose |
 | --- | --- |
 | `SLOPZOOKA_PORT` | Companion port, default `7777` |
+| `SLOPZOOKA_PORTLESS` | Set `0` to disable automatic dashboard alias registration and redirection |
 | `SLOPZOOKA_HOST` | Bind address, default dual-stack `::` |
 | `SLOPZOOKA_HOME` | Workspace index, clones, worktrees, and pairing store; default `~/.slopzooka` |
 | `SLOPZOOKA_LOG_DIR` | Override companion log directory |
@@ -85,7 +90,7 @@ Agent commands use their normal permission behavior. Previous implicit Claude pe
 
 Shutdown closes admission before waiting for managed processes and frontend sockets; delayed launches cannot create new sessions during teardown.
 
-Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints require authentication; browser requests and WebSocket upgrades also enforce the companion origin. Pairing codes rotate on host restart, while paired credentials persist. The local control transport is HTTP; pairing is an access boundary, not transport encryption. Do not publish the control port to the internet.
+Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints require authentication; browser requests and WebSocket upgrades also enforce the companion origin. Pairing codes rotate on host restart, while paired credentials persist. The named dashboard supports Portless HTTPS with Secure cookies and exact-origin validation limited to the registered hostname through a loopback proxy. Direct LAN control transport remains HTTP; pairing is an access boundary, not transport encryption. Do not publish the control port to the internet.
 
 Workspace mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Existing indexes with `clusterId` are read and migrated to `workspaceId` on the next mutation. An explicit nonexistent branch now fails instead of silently selecting a different branch. Defaults follow the repository's default branch.
 
@@ -96,6 +101,7 @@ Workspace mutations are serialized within the companion and the index is replace
 
 - `src/server.ts`: HTTP routes, authenticated WebSocket transport, discovery, and shutdown.
 - `src/sessions.ts`: PTY ownership, screen state, attachment, replay, resize ownership, and input deduplication.
+- `src/dashboard-address.ts`: optional Portless dashboard alias, verified redirects, and localhost fallback.
 - `src/frontend-discovery.ts`: read-only Portless adapter, macOS listener inventory, and bounded HTTP probes.
 - `src/frontends.ts`: unified catalog, saved URLs, and frontend gateway lifecycle.
 - `src/workspace.ts`: git worktrees and workspace persistence.
