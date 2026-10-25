@@ -16,6 +16,7 @@ struct ContentView: View {
     @State private var createRepoTask: Task<Void, Never>?
     @State private var showManualAddress = false
     @FocusState private var pairingCodeFocused: Bool
+    @FocusState private var projectSearchFocused: Bool
     @State private var connectionHost = ""
 
     var body: some View {
@@ -180,6 +181,7 @@ struct ContentView: View {
                 .disabled(state.isMutatingWorkspace)
             }
             TextField("Search projects or branches", text: $state.searchText)
+                .focused($projectSearchFocused)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
             VStack(alignment: .leading, spacing: 12) {
                 sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
@@ -370,6 +372,7 @@ struct ContentView: View {
                     ForEach(matchingWorkspaces) { workspace in
                         HStack(spacing: 8) {
                             Button {
+                                projectSearchFocused = false
                                 Task {
                                     await state.reopen(workspace)
                                 }
@@ -425,6 +428,7 @@ struct ContentView: View {
                 LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
                         Button {
+                            projectSearchFocused = false
                             Task {
                                 await state.launch(repo)
                             }
