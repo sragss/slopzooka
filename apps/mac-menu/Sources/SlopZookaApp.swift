@@ -1,17 +1,17 @@
 import AppKit
+import Combine
 import ServiceManagement
 import SwiftUI
 
 @main
-struct SlopZookaCompanionApp: App {
-    @NSApplicationDelegateAdaptor(AppDelegate.self) private var delegate
-    var body: some Scene {
-        MenuBarExtra {
-            CompanionPanel(model: delegate.model)
-        } label: {
-            MenuIcon(model: delegate.model)
-        }
-        .menuBarExtraStyle(.window)
+struct SlopZookaCompanionApp {
+    @MainActor
+    static func main() {
+        let application = NSApplication.shared
+        let delegate = AppDelegate()
+        application.setActivationPolicy(.accessory)
+        application.delegate = delegate
+        withExtendedLifetime(delegate) { application.run() }
     }
 }
 
@@ -19,7 +19,50 @@ struct SlopZookaCompanionApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = CompanionModel()
     private var terminating = false
-    func applicationDidFinishLaunching(_ notification: Notification) { model.start() }
+    private var statusItem: NSStatusItem?
+    private let popover = NSPopover()
+    private var statusObservation: AnyCancellable?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Construct and lay out once, before the first click. Keep the same SwiftUI tree alive.
+        let hosting = NSHostingController(rootView: CompanionPanel(model: model))
+        hosting.sizingOptions = [.preferredContentSize]
+        popover.contentViewController = hosting
+        popover.behavior = .transient
+        popover.animates = false
+        _ = hosting.view
+        hosting.view.layoutSubtreeIfNeeded()
+
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        statusItem = item
+        if let button = item.button {
+            button.image = CompanionIcon.image(size: 22)
+            button.target = self
+            button.action = #selector(togglePopover)
+            // Show at press time, without waiting for release or system menu tracking.
+            button.sendAction(on: [.leftMouseDown, .rightMouseDown])
+            button.setAccessibilityLabel("SlopZooka")
+        }
+        statusObservation = model.$state.combineLatest(model.$ready)
+            .removeDuplicates { $0.0 == $1.0 && $0.1 == $1.1 }
+            .sink { [weak self] state, ready in
+                self?.statusItem?.button?.alphaValue = ready ? 1 : 0.45
+                self?.statusItem?.button?.toolTip = "SlopZooka · \(state)"
+            }
+        model.start()
+    }
+
+    @objc private func togglePopover() {
+        guard let button = statusItem?.button else { return }
+        if popover.isShown {
+            popover.performClose(nil)
+        } else {
+            // No process, network, image generation, or view construction in the click path.
+            popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+            popover.contentViewController?.view.window?.makeKey()
+        }
+    }
+
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating else { return .terminateLater }
         if model.sessions > 0 {
@@ -40,22 +83,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-private struct MenuIcon: View {
-    @ObservedObject var model: CompanionModel
-    var body: some View {
-        Image(nsImage: CompanionIcon.image(size: 22))
-            .opacity(model.ready ? 1 : 0.45)
-            .accessibilityLabel("SlopZooka: \(model.state)")
-            .help("SlopZooka · \(model.state)")
-    }
-}
-
 struct CompanionPanel: View {
     @ObservedObject var model: CompanionModel
+    private static let icon = CompanionIcon.image(size: 44, application: true)
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             HStack(spacing: 12) {
-                Image(nsImage: CompanionIcon.image(size: 44, application: true))
+                Image(nsImage: Self.icon)
                 VStack(alignment: .leading, spacing: 4) {
                     Text("SlopZooka").font(.headline)
                     HStack(spacing: 5) {
