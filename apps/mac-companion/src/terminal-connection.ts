@@ -10,6 +10,8 @@ export class TerminalConnection {
   private renderTail: Promise<void> = Promise.resolve();
   private cursor?: number;
   private retry?: ReturnType<typeof setTimeout>;
+  private handshake?: ReturnType<typeof setTimeout>;
+  private readonly inputSubscription: { dispose(): void };
   private attempts = 0;
   private stopped = false;
   private writable = false;
@@ -24,7 +26,7 @@ export class TerminalConnection {
     ) => void,
     private readonly fit: () => void,
   ) {
-    terminal.onData((data) => {
+    this.inputSubscription = terminal.onData((data) => {
       if (this.attached && this.writable && this.running)
         this.send({ type: "input", sessionId, data });
     });
@@ -35,11 +37,17 @@ export class TerminalConnection {
       (this.socket && this.socket.readyState < WebSocket.CLOSING)
     )
       return;
-    this.status("Connecting…", "connecting");
+    this.clearTimers();
+    this.attached = false;
+    this.writable = false;
+    this.status("Connecting to your Mac…", "connecting");
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(url);
     this.socket = ws;
+    this.handshake = setTimeout(() => {
+      if (this.socket === ws && !this.attached) ws.close();
+    }, 10_000);
     ws.onmessage = (event) => {
       if (this.socket !== ws) return;
       try {
@@ -59,9 +67,13 @@ export class TerminalConnection {
     };
     ws.onclose = () => {
       if (this.socket !== ws || this.stopped) return;
+      this.clearTimers();
       this.attached = false;
       this.writable = false;
-      this.status("Disconnected — reconnecting…", "connecting");
+      this.status(
+        "Reconnecting to your Mac… Keep SlopZooka running.",
+        "connecting",
+      );
       this.retry = setTimeout(
         () => this.connect(),
         Math.min(10000, 300 * 2 ** this.attempts++) + Math.random() * 300,
@@ -82,11 +94,26 @@ export class TerminalConnection {
       rows: this.terminal.rows,
     });
   }
+  reconnect(): void {
+    if (this.stopped) return;
+    this.socket?.close();
+    // Retire the old socket immediately; a delayed close cannot schedule a second retry.
+    this.socket = undefined;
+    this.connect();
+  }
+  private clearTimers(): void {
+    clearTimeout(this.retry);
+    clearTimeout(this.handshake);
+    this.retry = undefined;
+    this.handshake = undefined;
+  }
   detach(): void {
+    if (this.stopped) return;
     this.stopped = true;
     this.attached = false;
     this.writable = false;
-    clearTimeout(this.retry);
+    this.clearTimers();
+    this.inputSubscription.dispose();
     this.send({ type: "detach", sessionId: this.sessionId });
     this.socket?.close();
   }
@@ -110,7 +137,10 @@ export class TerminalConnection {
       case "hello":
         if (!this.isCurrent(ws)) return;
         if (m.version !== PROTOCOL_VERSION) {
-          this.status("Companion protocol mismatch", "failed");
+          this.status(
+            `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
+            "failed",
+          );
           this.detach();
           return;
         }
@@ -130,6 +160,8 @@ export class TerminalConnection {
           this.ack(ws, m.cursor);
         }
         if (!this.isCurrent(ws)) return;
+        clearTimeout(this.handshake);
+        this.handshake = undefined;
         this.attempts = 0;
         this.running = m.session.status === "running";
         this.writable = m.writable;
@@ -156,7 +188,12 @@ export class TerminalConnection {
         break;
       case "error":
         if (!this.isCurrent(ws)) return;
-        this.status(m.message, "failed");
+        this.status(
+          m.code === "404"
+            ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})`
+            : `${m.message} (${m.code})`,
+          "failed",
+        );
         if (m.code === "404") this.detach();
         break;
     }

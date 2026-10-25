@@ -49,7 +49,8 @@ let frontendCount = 0;
 const catalogTimer = setInterval(() => {
   void frontendService.getCatalog().then((catalog) => {
     frontendCount = catalog.frontends.filter(
-      (frontend) => frontend.status !== "stopped",
+      (frontend) =>
+        frontend.status !== "stopped" && frontend.category !== "service",
     ).length;
   });
   publishDesktopStatus();

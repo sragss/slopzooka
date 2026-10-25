@@ -38,16 +38,25 @@ title.textContent = sessionId
   : "Missing session";
 connection?.connect();
 let resizeFrame = 0;
-new ResizeObserver(() => {
+const resizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => connection?.resize());
-}).observe(mount);
-window.addEventListener("pagehide", () => connection?.detach());
+});
+resizeObserver.observe(mount);
+const reconnect = () => connection?.reconnect();
+window.addEventListener("online", reconnect);
+function detach() {
+  resizeObserver.disconnect();
+  cancelAnimationFrame(resizeFrame);
+  window.removeEventListener("online", reconnect);
+  connection?.detach();
+}
+window.addEventListener("pagehide", detach);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = () => terminal.focus();
-window.slzDetachTerminal = () => connection?.detach();
+window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => terminal.focus());
 declare global {
   interface Window {

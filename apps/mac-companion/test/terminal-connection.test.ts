@@ -41,7 +41,9 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
   const term = {
     cols: 80,
     rows: 24,
-    onData() {},
+    onData() {
+      return { dispose() {} };
+    },
     resize() {
       operations.push("resize");
     },
@@ -139,6 +141,123 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     );
   } finally {
     connection.detach();
+    globalThis.WebSocket = originalSocket;
+    if (originalLocation)
+      Object.defineProperty(globalThis, "location", originalLocation);
+    else delete (globalThis as any).location;
+  }
+});
+
+test("stalled attachments retry once, explicit reconnect retires old timers, and detach releases input", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const originalSocket = globalThis.WebSocket;
+  const originalLocation = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "location",
+  );
+  const sockets: FakeSocket[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    static CLOSING = 2;
+    readyState = 1;
+    onmessage?: (event: { data: string }) => void;
+    onclose?: () => void;
+    sent: any[] = [];
+    constructor() {
+      sockets.push(this);
+    }
+    send(raw: string) {
+      this.sent.push(JSON.parse(raw));
+    }
+    close() {
+      this.readyState = 3;
+      this.onclose?.();
+    }
+    receive(message: unknown) {
+      this.onmessage?.({ data: JSON.stringify(message) });
+    }
+  }
+  globalThis.WebSocket = FakeSocket as any;
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { href: "http://host/terminal", protocol: "http:" },
+  });
+  let disposals = 0;
+  const status: string[] = [];
+  const terminal = {
+    cols: 80,
+    rows: 24,
+    onData() {
+      return {
+        dispose() {
+          disposals++;
+        },
+      };
+    },
+    reset() {},
+    resize() {},
+    write(_data: string, done: () => void) {
+      done();
+    },
+  };
+  const connection = new TerminalConnection(
+    terminal as any,
+    "s1",
+    (message) => status.push(message),
+    () => {},
+  );
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+  try {
+    connection.connect();
+    t.mock.timers.tick(10_000);
+    assert.equal(
+      sockets[0]!.readyState,
+      3,
+      "a silent open socket cannot strand the terminal forever",
+    );
+    t.mock.timers.tick(1000);
+    assert.equal(sockets.length, 2);
+    connection.reconnect();
+    assert.equal(sockets.length, 3);
+    const current = sockets[2]!;
+    current.receive({ type: "hello", version: 1 });
+    current.receive({
+      type: "attached",
+      session: { id: "s1", cols: 80, rows: 24, status: "running" },
+      writable: true,
+      cursor: 0,
+      snapshot: "",
+    });
+    await flush();
+    t.mock.timers.tick(30_000);
+    assert.equal(
+      sockets.length,
+      3,
+      "retired retry and attachment timers cannot interrupt a healthy connection",
+    );
+    assert.equal(current.readyState, 1);
+    current.receive({
+      type: "error",
+      code: "404",
+      message: "Unknown session: s1",
+    });
+    await flush();
+    assert.match(status.at(-1)!, /Open a new terminal/);
+    assert.match(status.at(-1)!, /404: Unknown session: s1/);
+    connection.detach();
+    connection.reconnect();
+    t.mock.timers.tick(30_000);
+    assert.equal(
+      sockets.length,
+      3,
+      "removed sessions do not reconnect forever",
+    );
+    assert.equal(disposals, 1);
+  } finally {
+    connection.detach();
+    t.mock.timers.reset();
     globalThis.WebSocket = originalSocket;
     if (originalLocation)
       Object.defineProperty(globalThis, "location", originalLocation);

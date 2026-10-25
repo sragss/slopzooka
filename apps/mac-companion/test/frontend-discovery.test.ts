@@ -153,11 +153,18 @@ test(
         "stopped",
       );
       await assert.rejects(manager.openFrontend(frontend.id), /Start this app/);
-      await assert.rejects(fetch(base));
+      const unavailable = await fetch(base, { headers: { Cookie: cookie } });
+      assert.equal(unavailable.status, 503);
+      assert.match(await unavailable.text(), /Local listener stopped/);
       listeners = [
         { pid: process.pid + 1, command: "Fixture", host: "127.0.0.1", port },
       ];
       assert.equal((await manager.getCatalog()).frontends[0]!.status, "ready");
+      assert.equal(
+        (await manager.openFrontend(frontend.id)).exposedPort,
+        opened.exposedPort,
+        "short restarts keep the existing preview address",
+      );
 
       const saved = await manager.addURL(
         `http://localhost:${port}/nested?hello=world#section`,
@@ -290,6 +297,223 @@ test(
       await manager?.stop();
       child.kill();
       await once(child, "exit");
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  },
+);
+
+test("discovery groups browser apps, retains services, associates projects, and deduplicates named routes", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-catalog-"));
+  const stateDir = path.join(home, "portless");
+  const project = path.join(home, "project");
+  const childDir = path.join(project, "src");
+  await fs.mkdir(childDir, { recursive: true });
+  await fs.writeFile(
+    path.join(project, "package.json"),
+    JSON.stringify({ name: "storefront" }),
+  );
+  let contentType = "text/html; charset=utf-8";
+  const app = http.createServer((_req, res) => {
+    res.setHeader("Content-Type", contentType);
+    res.end();
+  });
+  const backend = http.createServer((_req, res) => {
+    res.setHeader("Content-Type", "application/json");
+    res.end("{}");
+  });
+  const appPort = await listen(app),
+    apiPort = await listen(backend);
+  const listeners: LocalListener[] = [
+    {
+      pid: process.pid + 1,
+      command: "node",
+      cwd: childDir,
+      host: "127.0.0.1",
+      port: appPort,
+    },
+    {
+      pid: process.pid + 2,
+      command: "node",
+      cwd: project,
+      host: "127.0.0.1",
+      port: apiPort,
+    },
+  ];
+  const manager = new FrontendService(logger, {
+    home,
+    stateDir,
+    listeners: async () => [...listeners, listeners[0]!],
+  });
+  try {
+    const catalog = await manager.getCatalog();
+    assert.equal(catalog.frontends.length, 2);
+    assert.deepEqual(
+      catalog.frontends.map((f) => f.category),
+      ["app", "service"],
+    );
+    assert.ok(catalog.frontends.every((f) => f.project === "storefront"));
+    delete listeners[0]!.cwd;
+    assert.ok(
+      (await manager.getCatalog()).frontends.every(
+        (f) => f.category === "service",
+      ),
+      "HTML without a detected project stays under Other services",
+    );
+    listeners[0]!.cwd = childDir;
+    contentType = "application/json";
+    assert.ok(
+      (await manager.getCatalog()).frontends.every(
+        (f) => f.category === "service",
+      ),
+      "classification follows current headers",
+    );
+    await fs.mkdir(stateDir);
+    await fs.writeFile(path.join(stateDir, "proxy.port"), "1355");
+    await fs.writeFile(
+      path.join(stateDir, "routes.json"),
+      JSON.stringify([
+        { hostname: "store.localhost", port: appPort, pid: process.pid },
+      ]),
+    );
+    const named = (await manager.getCatalog()).frontends;
+    assert.equal(named.length, 2, "Portless replaces its backend listener");
+    assert.equal(named[0]?.project, "storefront");
+    assert.equal(
+      named[0]?.category,
+      "app",
+      "explicit named apps remain primary even with API roots",
+    );
+    const saved = await manager.addURL("http://store.localhost:1355/");
+    assert.equal(
+      (await manager.getCatalog()).frontends.filter((f) => f.url === saved.url)
+        .length,
+      1,
+    );
+    await manager.removeURL(saved.id);
+    assert.ok(
+      (await manager.getCatalog()).frontends.some(
+        (f) => f.id === "store.localhost",
+      ),
+    );
+  } finally {
+    await manager.stop();
+    await close(app);
+    await close(backend);
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});
+
+test(
+  "a real dev-server restart preserves preview URL and credentials, with diagnostic failure pages",
+  { timeout: 10000 },
+  async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-restart-"));
+    let server = http.createServer((_req, res) => {
+      res.setHeader("Content-Type", "text/html");
+      res.end("before");
+    });
+    const port = await listen(server);
+    let listening = true;
+    const manager = new FrontendService(logger, {
+      home,
+      stateDir: path.join(home, "absent"),
+      listeners: async () =>
+        listening
+          ? [
+              {
+                pid: process.pid + 1,
+                command: "Fixture",
+                host: "127.0.0.1",
+                port,
+              },
+            ]
+          : [],
+    });
+    try {
+      const frontend = (await manager.getCatalog()).frontends[0]!;
+      const opened = await manager.openFrontend(frontend.id);
+      const base = `http://127.0.0.1:${opened.exposedPort}`;
+      const auth = await fetch(
+        `${base}/__slz_access?token=${opened.accessToken}`,
+        { redirect: "manual" },
+      );
+      const headers = {
+        Cookie: auth.headers.get("set-cookie")!.split(";")[0]!,
+      };
+      assert.equal(await (await fetch(base, { headers })).text(), "before");
+      await close(server);
+      // Before discovery notices, upstream connection errors still retain the real diagnostic.
+      const failure = await fetch(base, { headers });
+      assert.equal(failure.status, 502);
+      assert.match(failure.headers.get("content-type")!, /text\/html/);
+      const body = await failure.text();
+      assert.match(body, /ECONNREFUSED/);
+      assert.match(body, /<summary>Details<\/summary>/);
+      listening = false;
+      assert.equal(
+        (await manager.getCatalog()).frontends[0]?.status,
+        "stopped",
+      );
+      assert.equal((await fetch(base, { headers })).status, 503);
+      server = http.createServer((_req, res) => {
+        res.setHeader("Content-Type", "text/html");
+        res.end("after");
+      });
+      server.listen(port, "127.0.0.1");
+      await once(server, "listening");
+      listening = true;
+      await manager.getCatalog();
+      const reopened = await manager.openFrontend(frontend.id);
+      assert.equal(reopened.exposedPort, opened.exposedPort);
+      assert.equal(reopened.accessToken, opened.accessToken);
+      assert.equal(await (await fetch(base, { headers })).text(), "after");
+    } finally {
+      await manager.stop();
+      await close(server);
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  },
+);
+
+test(
+  "shutdown cancels in-flight discovery and rejects queued opens without leaving gateways",
+  { timeout: 5000 },
+  async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-stop-"));
+    let started!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      started = resolve;
+    });
+    let aborted = false;
+    const manager = new FrontendService(logger, {
+      home,
+      stateDir: home,
+      listeners: (signal) =>
+        new Promise((resolve) => {
+          signal!.addEventListener(
+            "abort",
+            () => {
+              aborted = true;
+              resolve([]);
+            },
+            { once: true },
+          );
+          started();
+        }),
+    });
+    try {
+      const catalog = manager.getCatalog();
+      await pending;
+      const opening = manager.openFrontend("missing");
+      const rejected = assert.rejects(opening, /shutting down/);
+      await Promise.all([manager.stop(), manager.stop(), catalog, rejected]);
+      assert.ok(aborted);
+      await assert.rejects(
+        manager.addURL("http://localhost:3000"),
+        /shutting down/,
+      );
+    } finally {
+      await manager.stop();
       await fs.rm(home, { recursive: true, force: true });
     }
   },
