@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import Darwin
 import ServiceManagement
 
 @MainActor
@@ -212,5 +213,11 @@ final class CompanionModel: ObservableObject {
         ready = false
         try? input?.fileHandleForWriting.close()
         if child.isRunning { child.terminate() }
+        // A wedged event loop cannot handle SIGTERM; never leave Quit waiting indefinitely.
+        Task { [weak self, weak child] in
+            try? await Task.sleep(for: .seconds(5))
+            guard let self, let child, self.child === child, child.isRunning else { return }
+            Darwin.kill(child.processIdentifier, SIGKILL)
+        }
     }
 }
