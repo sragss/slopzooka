@@ -8,13 +8,13 @@ struct HealthStatusView: View {
         VStack(alignment: .leading, spacing: 8) {
             switch state {
             case .idle:
-                Label("No health check yet.", systemImage: "circle.dashed")
+                Label("Not connected", systemImage: "circle.dashed")
                     .foregroundStyle(.secondary)
 
             case .checking:
                 HStack(spacing: 10) {
                     ProgressView()
-                    Text("Checking companion...")
+                    Text("Connecting to Mac…")
                 }
 
             case .success(let response):
