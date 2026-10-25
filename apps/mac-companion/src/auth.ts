@@ -8,6 +8,7 @@ const publicPaths = new Set([
   "/health",
   "/",
   "/index.html",
+  "/favicon.png",
   "/harness.js",
   "/harness.css",
   "/terminal.js",

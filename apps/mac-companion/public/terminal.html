@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>SlopZooka Terminal</title>
+    <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="stylesheet" href="/terminal.css" />
     <style>
       :root {
@@ -28,7 +29,8 @@
         overflow: hidden;
         background: radial-gradient(circle at top, #121824, var(--bg) 55%);
         color: var(--text);
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
       }
 
       #terminal {
@@ -72,10 +74,11 @@
   <body>
     <div id="terminal"></div>
     <div class="overlay">
-      <div id="title-pill" class="pill"><strong>SlopZooka</strong> Preparing terminal...</div>
+      <div id="title-pill" class="pill">
+        <strong>SlopZooka</strong> Preparing terminal...
+      </div>
       <div id="status-pill" class="pill">Connecting...</div>
     </div>
     <script type="module" src="/terminal.js"></script>
   </body>
 </html>
-

@@ -156,6 +156,15 @@ test(
         }
       });
       assert.equal((await api("/api/sessions")).status, 401);
+      const favicon = await fetch(base + "/favicon.png");
+      assert.equal(favicon.status, 200, "favicon is available before pairing");
+      assert.match(favicon.headers.get("content-type") ?? "", /image\/png/);
+      assert.equal(
+        Buffer.from(await favicon.arrayBuffer())
+          .subarray(0, 8)
+          .toString("hex"),
+        "89504e470d0a1a0a",
+      );
       const dashboardStyle = await fetch(base + "/harness.css");
       assert.equal(
         dashboardStyle.status,
