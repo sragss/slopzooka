@@ -21,3 +21,5 @@ jobs:
       - run: pnpm test
       - run: pnpm build:harness
       - run: git diff --exit-code -- apps/mac-companion/public
+      - run: pnpm build:mac-app
+      - run: pnpm test:mac-app

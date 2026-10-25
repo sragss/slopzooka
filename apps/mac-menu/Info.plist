@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+    <key>CFBundleIdentifier</key><string>com.slopzooka.companion</string>
+    <key>CFBundleName</key><string>SlopZooka</string>
+    <key>CFBundleDisplayName</key><string>SlopZooka</string>
+    <key>CFBundleExecutable</key><string>SlopZooka</string>
+    <key>CFBundleIconFile</key><string>AppIcon</string>
+    <key>CFBundlePackageType</key><string>APPL</string>
+    <key>CFBundleShortVersionString</key><string>0.3.0</string>
+    <key>CFBundleVersion</key><string>3</string>
+    <key>LSMinimumSystemVersion</key><string>13.0</string>
+    <key>LSUIElement</key><true/>
+    <key>NSHighResolutionCapable</key><true/>
+    <key>NSLocalNetworkUsageDescription</key><string>Connect Vision Pro to this Mac and its local development servers.</string>
+    <key>NSBonjourServices</key><array><string>_slopzooka._tcp</string></array>
+</dict></plist>

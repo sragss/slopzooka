@@ -25,6 +25,9 @@ import {
 } from "../../../packages/protocol/src/index.js";
 import { SessionManager, send } from "./sessions.js";
 import { Pairing } from "./auth.js";
+import { loadDesktopPath } from "./desktop.js";
+
+await loadDesktopPath();
 
 const PORT = Number(process.env.SLOPZOOKA_PORT ?? "7777");
 const HOST = process.env.SLOPZOOKA_HOST ?? "::";
@@ -42,8 +45,14 @@ const pairing = new Pairing(workspacePaths().slopzookaHome);
 // Pairing codes are intentionally printed only to the local console, never the log file.
 console.log(`SlopZooka pairing code: ${pairing.code}`);
 
+let frontendCount = 0;
 const catalogTimer = setInterval(() => {
-  void frontendService.getCatalog();
+  void frontendService.getCatalog().then((catalog) => {
+    frontendCount = catalog.frontends.filter(
+      (frontend) => frontend.status !== "stopped",
+    ).length;
+  });
+  publishDesktopStatus();
 }, 2000);
 catalogTimer.unref();
 
@@ -496,6 +505,7 @@ server.listen(
     ipv6Only: false,
   },
   () => {
+    publishDesktopStatus();
     logger.info("Companion listening", {
       controlOrigin: CONTROL_ORIGIN,
       bindHost: HOST,
@@ -612,6 +622,34 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) {
 }
 
 let shuttingDown = false;
+
+// Private parent/child pipe, never an unauthenticated HTTP endpoint or log file.
+function publishDesktopStatus(): void {
+  if (
+    process.env.SLOPZOOKA_DESKTOP !== "1" ||
+    !server.listening ||
+    shuttingDown
+  )
+    return;
+  console.log(
+    "SLZ_DESKTOP " +
+      JSON.stringify({
+        code: pairing.code,
+        sessions: sessionManager
+          .summaries()
+          .filter((session) => session.status === "running").length,
+        viewers: wss.clients.size,
+        frontends: frontendCount,
+      }),
+  );
+}
+if (process.env.SLOPZOOKA_DESKTOP === "1") {
+  // An app crash closes this pipe too: do not orphan a hidden companion.
+  process.stdin.resume();
+  process.stdin.once("end", () => {
+    void shutdown("desktop-disconnected");
+  });
+}
 
 async function shutdown(signal: string, exitCode = 0): Promise<void> {
   if (shuttingDown) return;

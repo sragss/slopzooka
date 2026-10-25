@@ -2,20 +2,32 @@
 
 Spatial coding for Apple Vision Pro. Your Mac owns terminal processes and workspaces; the headset opens windows onto them. Frontends appear from local web servers, your existing Portless registry, or saved URLs.
 
-## Run
+## Mac menu-bar app
 
-Requires macOS, Node.js 22+, pnpm, and Xcode with the visionOS SDK. Portless is optional. The registry adapter is tested against the Portless 0.14 schema; use the Node version required by your installed Portless when running Portless itself.
+Build once on macOS with Node.js 22+, pnpm, and Xcode:
 
 ```sh
 pnpm install
-pnpm dev:companion
+pnpm build:mac-app
 ```
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` and run the app. Bonjour discovers the companion. Enter the pairing code printed in the Mac terminal once; the headset saves its credential in Keychain. Manual host/IP entry remains available under More. A verified IP is never rewritten into an untested hostname.
+Move `build/mac-app/SlopZooka.app` to Applications and open it. It lives in the menu bar, with a pairing code, terminal/frontend counts, **Open Dashboard**, **View Logs**, and **Start at Login**. It does not occupy the Dock. Login startup is opt-in through macOS's login-item service; if macOS requires approval, the app links to Login Items settings.
 
-For a desktop test client, open `http://localhost:7777/` and pair using the same code. The host page lists workspaces, terminal sessions, and frontends.
+The app bundles Node, production dependencies (including native PTY support), and the compiled companion. Running it does not require the repo, pnpm, or an installed Node. Your project tools (`git`, `gh`, Codex, etc.) still need to be installed. The app loads your login-shell PATH with a bounded timeout so tools managed by nvm/mise/pnpm remain available when launched from Finder.
 
-`pnpm dev:companion` intentionally does **not** restart on source changes. An opt-in `pnpm --filter @slz/mac-companion dev:watch` is available for developing the companion; each restart ends its sessions. Restart after changing the host or rebuild web assets after changing the browser client.
+Closing the menu leaves sessions running. **Quit** confirms before ending active terminal sessions, then shuts down the owned companion. The private parent/child pipe also shuts down the host if the UI crashes. A companion crash triggers bounded restart attempts; terminal sessions cannot survive a host crash. A pre-existing companion on the same port is left alone: stop the Terminal-launched host before switching to the app. Pairing credentials remain in the same `~/.slopzooka` store.
+
+The build is signed ad hoc for local use and targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization. `pnpm test:mac-app` verifies the signed bundle, packaged static assets and PTY, private status channel, native-app startup, and child teardown after a simulated UI crash using an isolated home and port. It does not enable login startup or modify your live companion.
+
+## Vision Pro and development
+
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. Enter the pairing code shown in the Mac app once; the headset saves its credential in Keychain. Manual host/IP entry remains available under More. A verified IP is never rewritten into an untested hostname.
+
+For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/` for the desktop dashboard and pair with the same code.
+
+`pnpm dev:companion` intentionally does **not** restart on source changes. An opt-in `pnpm --filter @slz/mac-companion dev:watch` is available; each restart ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
+
+Portless is optional. The registry adapter is tested against the Portless 0.14 schema; use the Node version required by your installed Portless when running Portless itself.
 
 ## Terminal lifecycle
 
@@ -70,6 +82,9 @@ Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints 
 Workspace mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Existing indexes with `clusterId` are read and migrated to `workspaceId` on the next mutation. An explicit nonexistent branch now fails instead of silently selecting a different branch. Defaults follow the repository's default branch.
 
 ## Code boundaries
+
+- `apps/mac-menu`: native SwiftUI menu-bar UI, child-process supervision, login item, and vector icon.
+- `scripts/build-mac-app.mjs`: self-contained, locally signed macOS application bundle.
 
 - `src/server.ts`: HTTP routes, authenticated WebSocket transport, discovery, and shutdown.
 - `src/sessions.ts`: PTY ownership, screen state, attachment, replay, resize ownership, and input deduplication.
