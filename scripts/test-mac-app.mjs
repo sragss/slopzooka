@@ -73,6 +73,28 @@ async function until(fn, timeout = 12000) {
   throw new Error(`Timed out. ${stderr}`);
 }
 let appProcess;
+let stalledPID;
+const alive = (pid) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    if (error.code === "ESRCH") return false;
+    throw error;
+  }
+};
+async function stop(process) {
+  if (!process || process.exitCode !== null || process.signalCode !== null)
+    return;
+  const exited = once(process, "exit");
+  process.kill("SIGTERM");
+  const deadline = setTimeout(() => process.kill("SIGKILL"), 5000);
+  try {
+    await exited;
+  } finally {
+    clearTimeout(deadline);
+  }
+}
 try {
   const frame = await until(() =>
     output.split("\n").find((line) => line.startsWith("SLZ_DESKTOP ")),
@@ -139,12 +161,39 @@ try {
       return true;
     }
   });
+  // Block Node's event loop before startup and make SIGTERM ineffective.
+  // This used to leave the menu permanently stuck in Starting after its deadline.
+  const stalled = path.join(home, "stalled.cjs");
+  await fs.writeFile(
+    stalled,
+    'process.on("SIGTERM", () => {}); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0);',
+  );
+  appProcess = spawn(path.join(app, "Contents/MacOS/SlopZooka"), [], {
+    cwd: home,
+    env: { ...environment, NODE_OPTIONS: `--require=${stalled}` },
+    stdio: "ignore",
+  });
+  stalledPID = await until(() => {
+    const records = execFileSync("ps", ["-axo", "pid=,ppid="], {
+      encoding: "utf8",
+    });
+    return records
+      .split("\n")
+      .map((line) => line.trim().split(/\s+/).map(Number))
+      .find(([, parent]) => parent === appProcess.pid)?.[0];
+  });
+  await until(() => !alive(stalledPID), 25000);
+  assert.equal(
+    appProcess.exitCode,
+    null,
+    "UI remains available to retry after terminating the stalled host",
+  );
   console.log(
-    "PASS: signed bundle, static assets, native PTY, private status IPC, native app startup, and parent-crash shutdown",
+    "PASS: signed bundle, static assets, native PTY, private IPC, native startup, parent-crash shutdown, and stalled-startup escalation",
   );
 } finally {
-  if (child.exitCode === null) child.kill("SIGTERM");
-  if (appProcess?.exitCode === null && appProcess?.signalCode === null)
-    appProcess.kill("SIGTERM");
+  if (stalledPID && alive(stalledPID)) process.kill(stalledPID, "SIGKILL");
+  await stop(child);
+  await stop(appProcess);
   await fs.rm(home, { recursive: true, force: true });
 }

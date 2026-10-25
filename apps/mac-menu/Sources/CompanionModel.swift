@@ -21,6 +21,9 @@ final class CompanionModel: ObservableObject {
     private var buffer = Data()
     private var retry: Task<Void, Never>?
     private var startupDeadline: Task<Void, Never>?
+    private var stopDeadline: Task<Void, Never>?
+    private var lastStatus: Status?
+    private var startupFailure: String?
     private var failures = 0
     private var startedAt = Date()
     private var quitting = false
@@ -40,6 +43,8 @@ final class CompanionModel: ObservableObject {
         ready = false
         code = ""
         buffer.removeAll()
+        lastStatus = nil
+        startupFailure = nil
         guard let resources = Bundle.main.resourceURL else {
             fail("App resources are missing. Rebuild the app.")
             return
@@ -99,8 +104,9 @@ final class CompanionModel: ObservableObject {
             startupDeadline = Task { [weak self, weak process] in
                 try? await Task.sleep(for: .seconds(15))
                 guard !Task.isCancelled, let self, self.child === process, !self.ready else { return }
-                self.detail = "The companion did not start. Check logs, then retry."
-                process?.terminate()
+                self.startupFailure = "The companion did not respond during startup. Check logs, then retry."
+                self.detail = "Stopping an unresponsive companion…"
+                if let process { self.terminateOwnedProcess(process) }
             }
         } catch {
             output?.fileHandleForReading.readabilityHandler = nil
@@ -113,7 +119,7 @@ final class CompanionModel: ObservableObject {
         }
     }
 
-    private struct Status: Decodable {
+    private struct Status: Decodable, Equatable {
         let code: String
         let sessions: Int
         let viewers: Int
@@ -128,6 +134,8 @@ final class CompanionModel: ObservableObject {
             guard line.starts(with: prefix),
                 let status = try? JSONDecoder().decode(Status.self, from: line.dropFirst(prefix.count))
             else { continue }
+            guard !quitting, startupFailure == nil, status != lastStatus else { continue }
+            lastStatus = status
             startupDeadline?.cancel()
             ready = true
             state = "Running"
@@ -146,6 +154,7 @@ final class CompanionModel: ObservableObject {
     private func ended(_ process: Process) {
         guard child === process else { return }
         startupDeadline?.cancel()
+        stopDeadline?.cancel()
         let wasReady = ready
         child = nil
         output?.fileHandleForReading.readabilityHandler = nil
@@ -160,6 +169,10 @@ final class CompanionModel: ObservableObject {
         frontends = 0
         if quitting {
             onStopped?()
+            return
+        }
+        if let startupFailure {
+            fail(startupFailure)
             return
         }
         if Date().timeIntervalSince(startedAt) > 60 { failures = 0 }
@@ -211,12 +224,17 @@ final class CompanionModel: ObservableObject {
         }
         state = "Stopping"
         ready = false
+        terminateOwnedProcess(child)
+    }
+
+    private func terminateOwnedProcess(_ child: Process) {
+        stopDeadline?.cancel()
         try? input?.fileHandleForWriting.close()
         if child.isRunning { child.terminate() }
         // A wedged event loop cannot handle SIGTERM; never leave Quit waiting indefinitely.
-        Task { [weak self, weak child] in
+        stopDeadline = Task { [weak self, weak child] in
             try? await Task.sleep(for: .seconds(5))
-            guard let self, let child, self.child === child, child.isRunning else { return }
+            guard !Task.isCancelled, let self, let child, self.child === child, child.isRunning else { return }
             Darwin.kill(child.processIdentifier, SIGKILL)
         }
     }

@@ -11,13 +11,15 @@ pnpm install
 pnpm build:mac-app
 ```
 
+Builds stage and verify a complete signed bundle before replacing the last good build. A failed compile leaves the previous app intact. Quit an app running directly from `build/mac-app` before rebuilding; the build refuses to overwrite a live app.
+
 Move `build/mac-app/SlopZooka.app` to Applications and open it. It lives in the menu bar, with a pairing code, terminal/frontend counts, **Open Dashboard**, **View Logs**, and **Start at Login**. It does not occupy the Dock. Login startup is opt-in through macOS's login-item service; if macOS requires approval, the app links to Login Items settings.
 
 The app bundles Node, production dependencies (including native PTY support), and the compiled companion. Running it does not require the repo, pnpm, or an installed Node. Your project tools (`git`, `gh`, Codex, etc.) still need to be installed. The app loads your login-shell PATH with a bounded timeout so tools managed by nvm/mise/pnpm remain available when launched from Finder.
 
-Closing the menu leaves sessions running. **Quit** confirms before ending active terminal sessions, then shuts down the owned companion. The private parent/child pipe also shuts down the host if the UI crashes. A companion crash triggers bounded restart attempts; terminal sessions cannot survive a host crash. A pre-existing companion on the same port is left alone: stop the Terminal-launched host before switching to the app. Pairing credentials remain in the same `~/.slopzooka` store.
+Closing the menu leaves sessions running. **Quit** confirms before ending active terminal sessions, then shuts down the owned companion. The private parent/child pipe also shuts down the host if the UI crashes. A companion crash triggers bounded restart attempts; terminal sessions cannot survive a host crash. A host that never finishes startup is stopped after 15 seconds, with force termination five seconds later if it ignores shutdown; the UI remains available to retry. A pre-existing companion on the same port is left alone: stop the Terminal-launched host before switching to the app. Pairing credentials remain in the same `~/.slopzooka` store.
 
-The build is signed ad hoc for local use and targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization. `pnpm test:mac-app` verifies the signed bundle, packaged static assets and PTY, private status channel, native-app startup, and child teardown after a simulated UI crash using an isolated home and port. It does not enable login startup or modify your live companion.
+The build is signed ad hoc for local use and targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization. `pnpm test:mac-app` verifies the signed bundle, packaged static assets and PTY, private status channel, native-app startup, child teardown after a simulated UI crash, and force termination of a hung startup using an isolated home and port. It does not enable login startup or modify your live companion.
 
 ## Vision Pro and development
 
