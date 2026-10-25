@@ -20,7 +20,7 @@ export function createLogger(appName: string, fileName: string): Logger {
   const logFilePath = path.join(logDir, fileName);
   const stream = fs.createWriteStream(logFilePath, {
     flags: "a",
-    encoding: "utf8"
+    encoding: "utf8",
   });
 
   const logger: Logger = {
@@ -34,24 +34,32 @@ export function createLogger(appName: string, fileName: string): Logger {
     },
     error(message, fields) {
       write("error", message, fields);
-    }
+    },
   };
 
   return logger;
 
-  function write(level: LogLevel, message: string, fields: LogFields = {}): void {
+  function write(
+    level: LogLevel,
+    message: string,
+    fields: LogFields = {},
+  ): void {
     const entry = {
       ts: new Date().toISOString(),
       level,
       message,
-      ...fields
+      ...fields,
     };
 
     const line = `${JSON.stringify(entry)}\n`;
     stream.write(line);
 
     const consoleMethod =
-      level === "error" ? console.error : level === "warn" ? console.warn : console.log;
+      level === "error"
+        ? console.error
+        : level === "warn"
+          ? console.warn
+          : console.log;
     consoleMethod(`[slopzooka] ${message}`, fields);
   }
 }
@@ -64,4 +72,3 @@ function resolveLogDir(appName: string): string {
 
   return path.join(os.homedir(), "Library", "Logs", appName);
 }
-

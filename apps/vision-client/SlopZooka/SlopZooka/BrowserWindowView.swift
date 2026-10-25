@@ -15,7 +15,7 @@ struct BrowserWindowView: View {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
                         PreviewWebView(url: url, loadState: $loadState, reloadToken: reloadToken)
-                            .id("\(payload.id)-\(reloadToken)")
+                            .id(payload.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     } else {
@@ -91,8 +91,8 @@ struct BrowserWindowView: View {
             return nil
         case .loading:
             return "Loading Preview"
-        case .failed:
-            return "Preview Failed"
+        case .failed(let message):
+            return message
         }
     }
 
@@ -119,12 +119,14 @@ private struct PreviewWebView: UIViewRepresentable {
     let reloadToken: Int
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(loadState: $loadState, fallbackURL: url)
+        Coordinator(loadState: $loadState, fallbackURL: url, reloadToken: reloadToken)
     }
 
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.allowsInlineMediaPlayback = true
+        // Each frontend gets its own cookie store, including gateways on different ports of one host.
+        configuration.websiteDataStore = .nonPersistent()
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.allowsBackForwardNavigationGestures = true
@@ -139,16 +141,29 @@ private struct PreviewWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
-        context.coordinator.fallbackURL = url
+        if context.coordinator.fallbackURL != url {
+            context.coordinator.fallbackURL = url
+            webView.load(URLRequest(url: url))
+        } else if context.coordinator.reloadToken != reloadToken {
+            // Reload the existing document and preserve its isolated cookies and navigation history.
+            if webView.url == nil {
+                webView.load(URLRequest(url: url))
+            } else {
+                webView.reload()
+            }
+        }
+        context.coordinator.reloadToken = reloadToken
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         var loadState: Binding<BrowserLoadState>
         var fallbackURL: URL
+        var reloadToken: Int
 
-        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL) {
+        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL, reloadToken: Int) {
             self.loadState = loadState
             self.fallbackURL = fallbackURL
+            self.reloadToken = reloadToken
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {

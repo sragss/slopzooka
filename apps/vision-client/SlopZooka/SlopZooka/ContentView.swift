@@ -1,872 +1,4 @@
 import SwiftUI
-import Combine
-
-@MainActor
-final class LauncherState: ObservableObject {
-    @Published var host = ""
-    @Published var healthState: HealthState = .idle
-    @Published var recentRepos: [RecentRepoSummary] = []
-    @Published var recentWorkspaces: [WorkspaceSummary] = []
-    @Published var availableOwners: [RepoOwnerSummary] = []
-    @Published var repoState: RepoState = .idle
-    @Published var workspaceState: WorkspaceState = .idle
-    @Published var ownerState: OwnerState = .idle
-    @Published var selectedTool: LaunchTarget = .codex
-    @Published var searchText = ""
-    @Published var busyRepoID: String?
-    @Published var busyWorkspaceID: String?
-    @Published var isCreatingRepo = false
-    @Published var mutatingWorkspaceID: String?
-    @Published var isPruningMissingWorkspaces = false
-    @Published var feedback: LaunchFeedback?
-
-    private let userDefaults = UserDefaults.standard
-    private var autoConnectInFlight = false
-    private var lastAutoConnectHost: String?
-    private var lastAutoConnectAttemptAt: Date?
-    private var queuedAutoConnectHosts: [String] = []
-    private let autoConnectCooldown: TimeInterval = 6
-    private let healthRequestTimeout: TimeInterval = 4
-    private let dataRequestTimeout: TimeInterval = 15
-    var onTerminalLaunch: ((TerminalWindowPayload) -> Void)?
-
-    var isMutatingWorkspace: Bool {
-        mutatingWorkspaceID != nil || isPruningMissingWorkspaces || isCreatingRepo
-    }
-
-    var normalizedHost: String {
-        host.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    var filteredRepos: [RecentRepoSummary] {
-        let trimmedQuery = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmedQuery.isEmpty else {
-            return recentRepos
-        }
-
-        return recentRepos.filter { repo in
-            repo.nameWithOwner.localizedCaseInsensitiveContains(trimmedQuery) ||
-            repo.owner.login.localizedCaseInsensitiveContains(trimmedQuery)
-        }
-    }
-
-    func loadSavedPreferences() {
-        loadSavedHost()
-
-        if let savedTool = userDefaults.string(forKey: "selectedTool"),
-           let launchTarget = LaunchTarget(rawValue: savedTool) {
-            selectedTool = launchTarget
-            slzLog("loaded saved tool \(savedTool)")
-        } else {
-            slzLog("no saved tool found")
-        }
-    }
-
-    func persistSelectedTool() {
-        userDefaults.set(selectedTool.rawValue, forKey: "selectedTool")
-    }
-
-    func loadSavedHost() {
-        if let savedHost = userDefaults.string(forKey: "companionHost"), !savedHost.isEmpty {
-            host = savedHost
-            slzLog("loaded saved host \(savedHost)")
-        } else {
-            slzLog("no saved host found")
-        }
-    }
-
-    func maybeAutoConnect(candidateHost: String, reason: String) async {
-        let candidateHost = candidateHost.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !candidateHost.isEmpty else {
-            return
-        }
-
-        guard !autoConnectInFlight else {
-            slzLog("auto-connect skipped: already in flight")
-            return
-        }
-
-        if case .success = healthState, normalizedHost == candidateHost {
-            return
-        }
-
-        if let lastAutoConnectHost,
-           lastAutoConnectHost == candidateHost,
-           let lastAutoConnectAttemptAt,
-           Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
-            return
-        }
-
-        autoConnectInFlight = true
-        lastAutoConnectHost = candidateHost
-        lastAutoConnectAttemptAt = Date()
-
-        if host != candidateHost {
-            host = candidateHost
-        }
-
-        slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
-
-        defer {
-            autoConnectInFlight = false
-        }
-
-        _ = await connectAndRefresh()
-    }
-
-    func maybeAutoConnect(candidateHosts: [String], reason: String) async {
-        let normalizedCandidates = orderedUniqueHosts(candidateHosts)
-
-        guard !normalizedCandidates.isEmpty else {
-            return
-        }
-
-        enqueueAutoConnectHosts(normalizedCandidates)
-
-        guard !autoConnectInFlight else {
-            slzLog("auto-connect queued: already in flight count=\(queuedAutoConnectHosts.count)")
-            return
-        }
-
-        autoConnectInFlight = true
-        defer {
-            autoConnectInFlight = false
-        }
-
-        while !queuedAutoConnectHosts.isEmpty {
-            let pendingHosts = queuedAutoConnectHosts
-            queuedAutoConnectHosts.removeAll()
-
-            for candidateHost in pendingHosts {
-                if let lastAutoConnectHost,
-                   lastAutoConnectHost == candidateHost,
-                   let lastAutoConnectAttemptAt,
-                   Date().timeIntervalSince(lastAutoConnectAttemptAt) < autoConnectCooldown {
-                    continue
-                }
-
-                lastAutoConnectHost = candidateHost
-                lastAutoConnectAttemptAt = Date()
-
-                if host != candidateHost {
-                    host = candidateHost
-                }
-
-                slzLog("auto-connect start reason=\(reason) host=\(candidateHost)")
-
-                let didConnect = await connectAndRefresh()
-                if didConnect {
-                    queuedAutoConnectHosts.removeAll()
-                    return
-                }
-            }
-        }
-    }
-
-    private func enqueueAutoConnectHosts(_ candidateHosts: [String]) {
-        for candidateHost in candidateHosts {
-            if !queuedAutoConnectHosts.contains(candidateHost) {
-                queuedAutoConnectHosts.append(candidateHost)
-            }
-        }
-    }
-
-    private func orderedUniqueHosts(_ values: [String]) -> [String] {
-        var seen = Set<String>()
-        var result: [String] = []
-
-        for value in values {
-            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !trimmed.isEmpty else {
-                continue
-            }
-
-            guard !seen.contains(trimmed) else {
-                continue
-            }
-
-            seen.insert(trimmed)
-            result.append(trimmed)
-        }
-
-        return result
-    }
-
-    private func canonicalHost(from payload: CompanionHealthResponse, requestURL: URL) -> String? {
-        let localHostName = payload.localHostName.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !localHostName.isEmpty else {
-            return nil
-        }
-
-        let port = requestURL.port ?? 80
-        return "\(localHostName).local:\(port)"
-    }
-
-    func connectAndRefresh() async -> Bool {
-        slzLog("connectAndRefresh start host=\(normalizedHost)")
-        let didConnect = await runHealthCheck()
-        guard didConnect else {
-            repoState = .idle
-            workspaceState = .idle
-            ownerState = .idle
-            recentRepos = []
-            recentWorkspaces = []
-            availableOwners = []
-            slzLog("connectAndRefresh failed")
-            return false
-        }
-
-        async let reposTask: Void = loadRecentRepos()
-        async let workspacesTask: Void = loadWorkspaces()
-        async let ownersTask: Void = loadOwners()
-        _ = await (reposTask, workspacesTask, ownersTask)
-        return true
-    }
-
-    func runHealthCheck() async -> Bool {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a host first.")
-            slzLog("health check blocked: empty host")
-            return false
-        }
-
-        guard let url = companionURL(path: "/health") else {
-            healthState = .failure("Invalid host.")
-            slzLog("health check blocked: invalid host \(normalizedHost)")
-            return false
-        }
-
-        healthState = .checking
-        slzLog("health check start \(url.absoluteString)")
-
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = healthRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: healthRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                healthState = .failure("No HTTP response.")
-                slzLog("health check failed: no HTTP response")
-                return false
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                healthState = .failure("Health check failed with status \(httpResponse.statusCode).")
-                slzLog("health check failed status=\(httpResponse.statusCode)")
-                return false
-            }
-
-            let payload = try JSONDecoder().decode(CompanionHealthResponse.self, from: data)
-            if let canonicalHost = canonicalHost(from: payload, requestURL: url),
-               host != canonicalHost {
-                slzLog("health check canonicalized host from \(normalizedHost) to \(canonicalHost)")
-                host = canonicalHost
-            }
-            userDefaults.set(normalizedHost, forKey: "companionHost")
-            healthState = .success(payload)
-            slzLog("health check success controlOrigin=\(payload.controlOrigin)")
-            return true
-        } catch {
-            let message = transportMessage(from: error)
-            healthState = .failure(message)
-            slzLog("health check error \(message)")
-            return false
-        }
-    }
-
-    func loadRecentRepos() async {
-        guard !normalizedHost.isEmpty else {
-            repoState = .failure("Enter a companion host first.")
-            slzLog("loadRecentRepos blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/repos/recent", queryItems: [URLQueryItem(name: "limit", value: "40")]) else {
-            repoState = .failure("Invalid host.")
-            slzLog("loadRecentRepos blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        repoState = .loading
-        slzLog("loadRecentRepos start \(url.absoluteString)")
-
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = dataRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                repoState = .failure("No HTTP response.")
-                slzLog("loadRecentRepos failed: no HTTP response")
-                return
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                repoState = .failure(message)
-                slzLog("loadRecentRepos failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(RecentReposResponse.self, from: data)
-            userDefaults.set(normalizedHost, forKey: "companionHost")
-            recentRepos = payload.repos
-            repoState = .loaded(viewerLogin: payload.viewerLogin, count: payload.repos.count)
-            slzLog("loadRecentRepos success count=\(payload.repos.count)")
-        } catch {
-            let message = transportMessage(from: error)
-            repoState = .failure(message)
-            slzLog("loadRecentRepos error \(message)")
-        }
-    }
-
-    func loadWorkspaces() async {
-        guard !normalizedHost.isEmpty else {
-            workspaceState = .failure("Enter a companion host first.")
-            slzLog("loadWorkspaces blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/workspaces", queryItems: [URLQueryItem(name: "limit", value: "16")]) else {
-            workspaceState = .failure("Invalid host.")
-            slzLog("loadWorkspaces blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        workspaceState = .loading
-        slzLog("loadWorkspaces start \(url.absoluteString)")
-
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = dataRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                workspaceState = .failure("No HTTP response.")
-                slzLog("loadWorkspaces failed: no HTTP response")
-                return
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                workspaceState = .failure(message)
-                slzLog("loadWorkspaces failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(RecentWorkspacesResponse.self, from: data)
-            recentWorkspaces = payload.workspaces
-            workspaceState = .loaded(count: payload.workspaces.count)
-            slzLog("loadWorkspaces success count=\(payload.workspaces.count)")
-        } catch {
-            let message = transportMessage(from: error)
-            workspaceState = .failure(message)
-            slzLog("loadWorkspaces error \(message)")
-        }
-    }
-
-    func loadOwners() async {
-        guard !normalizedHost.isEmpty else {
-            ownerState = .failure("Enter a companion host first.")
-            slzLog("loadOwners blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/owners") else {
-            ownerState = .failure("Invalid host.")
-            slzLog("loadOwners blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        ownerState = .loading
-        slzLog("loadOwners start \(url.absoluteString)")
-
-        do {
-            var request = URLRequest(url: url)
-            request.timeoutInterval = dataRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                ownerState = .failure("No HTTP response.")
-                return
-            }
-
-            guard httpResponse.statusCode == 200 else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                ownerState = .failure(message)
-                slzLog("loadOwners failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let payload = try JSONDecoder().decode(AvailableOwnersResponse.self, from: data)
-            availableOwners = payload.owners
-            ownerState = .loaded(count: payload.owners.count)
-            slzLog("loadOwners success count=\(payload.owners.count)")
-        } catch {
-            let message = transportMessage(from: error)
-            ownerState = .failure(message)
-            slzLog("loadOwners error \(message)")
-        }
-    }
-
-    func preferredOwnerLogin() -> String? {
-        if let savedOwner = userDefaults.string(forKey: "newRepoOwnerLogin"),
-           availableOwners.contains(where: { $0.login == savedOwner }) {
-            return savedOwner
-        }
-
-        return availableOwners.first?.login
-    }
-
-    func launch(_ repo: RecentRepoSummary) async {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a companion host first.")
-            slzLog("launch blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/workspaces/launch") else {
-            healthState = .failure("Invalid host.")
-            slzLog("launch blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        busyRepoID = repo.id
-        feedback = nil
-        slzLog("launch start repo=\(repo.nameWithOwner) tool=\(selectedTool.rawValue)")
-
-        defer {
-            busyRepoID = nil
-        }
-
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = dataRequestTimeout
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(
-                LaunchWorkspaceRequest(
-                    nameWithOwner: repo.nameWithOwner,
-                    profile: selectedTool.queryValue
-                )
-            )
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                feedback = LaunchFeedback(message: "Workspace launch failed: no HTTP response.", style: .error)
-                slzLog("launch failed: no HTTP response")
-                return
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                feedback = LaunchFeedback(message: message, style: .error)
-                slzLog("launch failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
-            applyLaunchPayload(payload)
-            await loadWorkspaces()
-        } catch {
-            let message = transportMessage(from: error)
-            feedback = LaunchFeedback(message: message, style: .error)
-            slzLog("launch error \(message)")
-        }
-    }
-
-    func createRepoAndLaunch(owner: String, repoName: String, isPrivate: Bool) async -> Bool {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a companion host first.")
-            return false
-        }
-
-        guard let url = companionURL(path: "/api/repos/create-and-launch") else {
-            healthState = .failure("Invalid host.")
-            return false
-        }
-
-        isCreatingRepo = true
-        feedback = nil
-        slzLog("createRepoAndLaunch start owner=\(owner) repo=\(repoName) visibility=\(isPrivate ? "private" : "public")")
-
-        defer {
-            isCreatingRepo = false
-        }
-
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = 60
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(
-                CreateRepoAndLaunchRequest(
-                    owner: owner,
-                    repoName: repoName,
-                    visibility: isPrivate ? "private" : "public",
-                    profile: selectedTool.queryValue
-                )
-            )
-
-            let (data, response) = try await performRequest(request, timeout: 61)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                feedback = LaunchFeedback(message: "Create repo failed: no HTTP response.", style: .error)
-                return false
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                feedback = LaunchFeedback(message: message, style: .error)
-                slzLog("createRepoAndLaunch failed status=\(httpResponse.statusCode) message=\(message)")
-                return false
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
-            userDefaults.set(owner, forKey: "newRepoOwnerLogin")
-            applyLaunchPayload(payload)
-            await loadRecentRepos()
-            await loadWorkspaces()
-            return true
-        } catch {
-            let message = transportMessage(from: error)
-            feedback = LaunchFeedback(message: message, style: .error)
-            slzLog("createRepoAndLaunch error \(message)")
-            return false
-        }
-    }
-
-    func reopen(_ workspace: WorkspaceSummary) async {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a companion host first.")
-            slzLog("reopen blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/workspaces/\(workspace.id)/reopen") else {
-            healthState = .failure("Invalid host.")
-            slzLog("reopen blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        busyWorkspaceID = workspace.id
-        feedback = nil
-        slzLog("reopen start workspace=\(workspace.id) repo=\(workspace.repo.nameWithOwner) tool=\(selectedTool.rawValue)")
-
-        defer {
-            busyWorkspaceID = nil
-        }
-
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = dataRequestTimeout
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.httpBody = try JSONEncoder().encode(
-                ReopenWorkspaceRequest(profile: selectedTool.queryValue)
-            )
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                feedback = LaunchFeedback(message: "Workspace reopen failed: no HTTP response.", style: .error)
-                slzLog("reopen failed: no HTTP response")
-                return
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                feedback = LaunchFeedback(message: message, style: .error)
-                slzLog("reopen failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(LaunchWorkspaceResponse.self, from: data)
-            applyLaunchPayload(payload)
-            await loadWorkspaces()
-        } catch {
-            let message = transportMessage(from: error)
-            feedback = LaunchFeedback(message: message, style: .error)
-            slzLog("reopen error \(message)")
-        }
-    }
-
-    func openDemoSession() {
-        let sessionID = UUID().uuidString
-        let urlString = terminalLaunchURLString(
-            basePath: "/terminal",
-            sessionID: sessionID,
-            profileQueryValue: selectedTool.queryValue ?? "shell"
-        ) ?? "https://example.com"
-
-        feedback = LaunchFeedback(message: "Opening demo session.", style: .neutral)
-        let payload = TerminalWindowPayload(
-            id: sessionID,
-            title: "Demo Session",
-            urlString: urlString
-        )
-        onTerminalLaunch?(payload)
-        slzLog("openDemoSession \(urlString)")
-    }
-
-    private func applyLaunchPayload(_ payload: LaunchWorkspaceResponse) {
-        slzLog("launch response repo=\(payload.repo.nameWithOwner) branch=\(payload.branchName) url=\(payload.launchURL)")
-
-        guard let terminalURL = URL(string: payload.launchURL) else {
-            feedback = LaunchFeedback(message: "Workspace launched, but terminal URL was invalid.", style: .error)
-            slzLog("launch failed: invalid terminal URL \(payload.launchURL)")
-            return
-        }
-
-        feedback = LaunchFeedback(
-            message: "\(payload.repo.nameWithOwner) • \(payload.baseRef) → \(payload.branchName)",
-            style: .success
-        )
-        let sessionID = payload.clusterId
-        let terminalPayload = TerminalWindowPayload(
-            id: sessionID,
-            title: "\(selectedTool.title) • \(payload.repo.nameWithOwner)",
-            urlString: terminalLaunchURLString(
-                from: terminalURL,
-                sessionID: sessionID
-            ) ?? terminalURL.absoluteString
-        )
-        onTerminalLaunch?(terminalPayload)
-        slzLog("active terminal assigned \(terminalPayload.id)")
-    }
-
-    private func terminalLaunchURLString(from url: URL, sessionID: String) -> String? {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-
-        var items = components.queryItems ?? []
-        items.removeAll(where: { $0.name == "surfaceId" })
-        items.append(URLQueryItem(name: "surfaceId", value: sessionID))
-        return companionURL(
-            path: components.path.isEmpty ? "/terminal" : components.path,
-            queryItems: items
-        )?.absoluteString
-    }
-
-    private func terminalLaunchURLString(
-        basePath: String,
-        sessionID: String,
-        profileQueryValue: String
-    ) -> String? {
-        guard let baseURL = companionURL(path: basePath, queryItems: [
-            URLQueryItem(name: "profile", value: profileQueryValue)
-        ]) else {
-            return nil
-        }
-
-        return terminalLaunchURLString(from: baseURL, sessionID: sessionID)
-    }
-
-    func archive(_ workspace: WorkspaceSummary) async {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a companion host first.")
-            slzLog("archive blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/workspaces/\(workspace.id)/archive") else {
-            healthState = .failure("Invalid host.")
-            slzLog("archive blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        mutatingWorkspaceID = workspace.id
-        feedback = nil
-        slzLog("archive start workspace=\(workspace.id) repo=\(workspace.repo.nameWithOwner)")
-
-        defer {
-            mutatingWorkspaceID = nil
-        }
-
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = dataRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                feedback = LaunchFeedback(message: "Archive failed: no HTTP response.", style: .error)
-                slzLog("archive failed: no HTTP response")
-                return
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                feedback = LaunchFeedback(message: message, style: .error)
-                slzLog("archive failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let decoder = JSONDecoder()
-            decoder.dateDecodingStrategy = .iso8601
-            let payload = try decoder.decode(ArchiveWorkspaceResponse.self, from: data)
-            recentWorkspaces.removeAll { $0.id == payload.workspace.id }
-            workspaceState = .loaded(count: max(0, recentWorkspaces.count))
-            feedback = LaunchFeedback(message: "Archived \(payload.workspace.repo.nameWithOwner).", style: .success)
-            slzLog("archive success workspace=\(payload.workspace.id)")
-            await loadWorkspaces()
-        } catch {
-            let message = transportMessage(from: error)
-            feedback = LaunchFeedback(message: message, style: .error)
-            slzLog("archive error \(message)")
-        }
-    }
-
-    func pruneMissingWorkspaces() async {
-        guard !normalizedHost.isEmpty else {
-            healthState = .failure("Enter a companion host first.")
-            slzLog("pruneMissingWorkspaces blocked: empty host")
-            return
-        }
-
-        guard let url = companionURL(path: "/api/workspaces/prune-missing") else {
-            healthState = .failure("Invalid host.")
-            slzLog("pruneMissingWorkspaces blocked: invalid host \(normalizedHost)")
-            return
-        }
-
-        isPruningMissingWorkspaces = true
-        feedback = nil
-        slzLog("pruneMissingWorkspaces start")
-
-        defer {
-            isPruningMissingWorkspaces = false
-        }
-
-        do {
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.timeoutInterval = dataRequestTimeout
-
-            let (data, response) = try await performRequest(request, timeout: dataRequestTimeout + 1)
-            guard let httpResponse = response as? HTTPURLResponse else {
-                feedback = LaunchFeedback(message: "Prune failed: no HTTP response.", style: .error)
-                slzLog("pruneMissingWorkspaces failed: no HTTP response")
-                return
-            }
-
-            guard (200...299).contains(httpResponse.statusCode) else {
-                let message = decodeAPIError(data: data, statusCode: httpResponse.statusCode)
-                feedback = LaunchFeedback(message: message, style: .error)
-                slzLog("pruneMissingWorkspaces failed status=\(httpResponse.statusCode) message=\(message)")
-                return
-            }
-
-            let payload = try JSONDecoder().decode(PruneMissingWorkspacesResponse.self, from: data)
-            if payload.archivedCount == 0 {
-                feedback = LaunchFeedback(message: "No missing workspaces to hide.", style: .neutral)
-            } else {
-                feedback = LaunchFeedback(message: "Hidden \(payload.archivedCount) missing workspace\(payload.archivedCount == 1 ? "" : "s").", style: .success)
-            }
-            slzLog("pruneMissingWorkspaces success archivedCount=\(payload.archivedCount)")
-            await loadWorkspaces()
-        } catch {
-            let message = transportMessage(from: error)
-            feedback = LaunchFeedback(message: message, style: .error)
-            slzLog("pruneMissingWorkspaces error \(message)")
-        }
-    }
-
-    private func companionURL(path: String, queryItems: [URLQueryItem] = []) -> URL? {
-        guard !normalizedHost.isEmpty else {
-            return nil
-        }
-
-        var components = URLComponents()
-        components.scheme = "http"
-        components.path = path
-        components.queryItems = queryItems.isEmpty ? nil : queryItems
-
-        if let (host, port) = splitHostAndPort(normalizedHost) {
-            components.host = host
-            components.port = port
-        } else {
-            components.host = normalizedHost
-        }
-
-        return components.url
-    }
-
-    private func splitHostAndPort(_ value: String) -> (String, Int)? {
-        let parts = value.split(separator: ":", maxSplits: 1)
-        guard parts.count == 2, let port = Int(parts[1]) else {
-            return nil
-        }
-
-        return (String(parts[0]), port)
-    }
-
-    private func decodeAPIError(data: Data, statusCode: Int) -> String {
-        if let payload = try? JSONDecoder().decode(APIErrorResponse.self, from: data) {
-            return payload.error
-        }
-
-        let body = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let body, !body.isEmpty {
-            return "Request failed (\(statusCode)): \(body)"
-        }
-
-        return "Request failed with status \(statusCode)."
-    }
-
-    private func transportMessage(from error: Error) -> String {
-        guard let urlError = error as? URLError else {
-            return error.localizedDescription
-        }
-
-        switch urlError.code {
-        case .timedOut:
-            return "Request timed out. Check that the companion is running and reachable."
-        case .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed:
-            return "Could not reach the companion host."
-        case .notConnectedToInternet, .networkConnectionLost:
-            return "Network connection dropped while talking to the companion."
-        default:
-            return urlError.localizedDescription
-        }
-    }
-
-    private func performRequest(
-        _ request: URLRequest,
-        timeout: TimeInterval
-    ) async throws -> (Data, URLResponse) {
-        try await withThrowingTaskGroup(of: (Data, URLResponse).self) { group in
-            group.addTask {
-                try await URLSession.shared.data(for: request)
-            }
-
-            group.addTask {
-                let duration = max(1, timeout)
-                try await Task.sleep(for: .milliseconds(Int(duration * 1000)))
-                throw URLError(.timedOut)
-            }
-
-            defer {
-                group.cancelAll()
-            }
-
-            guard let result = try await group.next() else {
-                throw URLError(.unknown)
-            }
-
-            return result
-        }
-    }
-}
 
 struct ContentView: View {
     private let debugBuildStamp = "quick-launch-v1 2026-03-22 23:45"
@@ -887,50 +19,56 @@ struct ContentView: View {
         }
         .scrollIndicators(.hidden)
         .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
-            .sheet(isPresented: $isNewRepoPresented) {
-                NewRepoSheetView(
-                    owners: state.availableOwners,
-                    suggestedOwnerLogin: state.preferredOwnerLogin(),
-                    selectedTool: state.selectedTool,
-                    isSubmitting: state.isCreatingRepo
-                ) { owner, repoName, isPrivate in
-                    Task {
-                        let didCreate = await state.createRepoAndLaunch(owner: owner, repoName: repoName, isPrivate: isPrivate)
-                        if didCreate {
-                            isNewRepoPresented = false
-                        }
+        .sheet(isPresented: $isNewRepoPresented) {
+            NewRepoSheetView(
+                owners: state.availableOwners,
+                suggestedOwnerLogin: state.preferredOwnerLogin(),
+                selectedTool: state.selectedTool,
+                isSubmitting: state.isCreatingRepo
+            ) { owner, repoName, isPrivate in
+                Task {
+                    let didCreate = await state.createRepoAndLaunch(
+                        owner: owner, repoName: repoName, isPrivate: isPrivate)
+                    if didCreate {
+                        isNewRepoPresented = false
                     }
                 }
             }
-            .task {
-                state.onTerminalLaunch = { payload in
-                    appModel.registerTerminal(payload)
-                    openWindow(id: "terminal", value: payload.id)
+        }
+        .task {
+            state.onTerminalLaunch = { payload in
+                appModel.registerTerminal(payload)
+                openWindow(id: "terminal", value: payload.id)
+            }
+            state.onSessionSnapshot = { payloads in
+                appModel.reconcileTerminals(payloads, host: state.normalizedHost)
+            }
+            state.loadSavedPreferences()
+            discovery.onCompanionResolved = { companion in
+                Task {
+                    guard state.connection.shouldTry(companion.host) else { return }
+                    await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
                 }
-                state.loadSavedPreferences()
-                discovery.onCompanionResolved = { companion in
-                    Task {
-                        if state.host != companion.host {
-                            state.host = companion.host
-                        }
-                        await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
-                    }
-                }
-                discovery.start()
-                if !state.normalizedHost.isEmpty {
-                    await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
-                }
-                slzLog("ContentView task completed")
             }
-            .onAppear {
-                slzLog("ContentView appeared")
+            discovery.start()
+            if !state.normalizedHost.isEmpty {
+                await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
             }
-            .onDisappear {
-                discovery.stop()
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(3))
+                if Task.isCancelled { break }
+                await state.refreshHostCatalog()
             }
-            .onChange(of: state.selectedTool) { _, _ in
-                state.persistSelectedTool()
-            }
+        }
+        .onAppear {
+            slzLog("ContentView appeared")
+        }
+        .onDisappear {
+            discovery.stop()
+        }
+        .onChange(of: state.selectedTool) { _, _ in
+            state.persistSelectedTool()
+        }
     }
 
     private var launcherMode: some View {
@@ -948,6 +86,23 @@ struct ContentView: View {
 
                 Spacer(minLength: 0)
             }
+
+            if state.needsPairing {
+                VStack(alignment: .leading) {
+                    Text("Pair with your Mac").font(.headline)
+                    Text("Enter the code printed by the companion on your Mac.").font(.caption)
+                    HStack {
+                        SecureField("Pairing code", text: $state.pairingCode)
+                        Button("Pair") { Task { await state.pair() } }
+                    }
+                }
+                .padding(16)
+                .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+            }
+
+            FrontendListView(
+                frontends: state.frontends, warning: state.frontendWarning,
+                baseURL: CompanionAPI.baseURL(host: state.normalizedHost))
 
             if let feedback = state.feedback {
                 feedbackBanner(feedback)
@@ -994,7 +149,7 @@ struct ContentView: View {
 
                     Spacer()
 
-                    if case let .loaded(count) = state.workspaceState {
+                    if case .loaded(let count) = state.workspaceState {
                         Text("\(count)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -1019,7 +174,7 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .disabled(state.isMutatingWorkspace || state.availableOwners.isEmpty)
 
-                    if case let .loaded(viewerLogin, count) = state.repoState {
+                    if case .loaded(let viewerLogin, let count) = state.repoState {
                         Text("\(count) from \(viewerLogin)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -1056,12 +211,6 @@ struct ContentView: View {
                             }
                         }
                         .buttonStyle(.borderedProminent)
-                        .disabled(state.isMutatingWorkspace)
-
-                        Button("Demo") {
-                            state.openDemoSession()
-                        }
-                        .buttonStyle(.bordered)
                         .disabled(state.isMutatingWorkspace)
 
                         Button("Palm Spike") {
@@ -1114,12 +263,15 @@ struct ContentView: View {
             Label("Searching for a nearby Mac companion…", systemImage: "dot.radiowaves.left.and.right")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-        case let .found(count):
+        case .found(let count):
             let hostText = discovery.preferredHost ?? "nearby companion"
-            Label("Discovered \(count) companion\(count == 1 ? "" : "s"). Auto-connecting to \(hostText).", systemImage: "network")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        case let .failed(message):
+            Label(
+                "Discovered \(count) companion\(count == 1 ? "" : "s"). Auto-connecting to \(hostText).",
+                systemImage: "network"
+            )
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        case .failed(let message):
             Label(message, systemImage: "exclamationmark.triangle")
                 .font(.footnote)
                 .foregroundStyle(.orange)
@@ -1132,7 +284,7 @@ struct ContentView: View {
             compactEmptyView("No open terminal sessions.")
         } else {
             VStack(spacing: 10) {
-                ForEach(Array(appModel.openTerminalSessions.prefix(4))) { session in
+                ForEach(appModel.openTerminalSessions) { session in
                     Button {
                         openWindow(id: "terminal", value: session.id)
                     } label: {
@@ -1184,7 +336,7 @@ struct ContentView: View {
         switch state.workspaceState {
         case .idle, .loading:
             compactLoadingView(title: "Loading workspaces...")
-        case let .failure(message):
+        case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
             if state.recentWorkspaces.isEmpty {
@@ -1205,10 +357,14 @@ struct ContentView: View {
                                 )
                             }
                             .buttonStyle(.plain)
-                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                            .disabled(
+                                state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
 
                             Menu {
-                                Button(workspace.existsOnDisk ? "Archive Workspace" : "Hide Missing Workspace", role: .destructive) {
+                                Button(
+                                    workspace.existsOnDisk ? "Archive Workspace" : "Hide Missing Workspace",
+                                    role: .destructive
+                                ) {
                                     Task {
                                         await state.archive(workspace)
                                     }
@@ -1220,7 +376,8 @@ struct ContentView: View {
                                     .padding(6)
                                     .background(.quaternary.opacity(0.35), in: Circle())
                             }
-                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                            .disabled(
+                                state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
                     }
                 }
@@ -1233,10 +390,12 @@ struct ContentView: View {
         switch state.repoState {
         case .idle, .loading:
             compactLoadingView(title: "Loading repositories...")
-        case let .failure(message):
+        case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
-            let quickRepos = Array((state.searchText.isEmpty ? state.recentRepos : state.filteredRepos).prefix(state.searchText.isEmpty ? 6 : 10))
+            let quickRepos = Array(
+                (state.searchText.isEmpty ? state.recentRepos : state.filteredRepos).prefix(
+                    state.searchText.isEmpty ? 6 : 10))
 
             if quickRepos.isEmpty {
                 compactEmptyView(state.searchText.isEmpty ? "No recent repositories yet." : "No matching repositories.")
@@ -1327,6 +486,8 @@ struct ContentView: View {
 
     private func sessionStateSummary(_ session: TerminalSessionState) -> String {
         switch session.loadState {
+        case .ended:
+            return "Session ended"
         case .failed:
             return session.isPresented ? "Visible • failed" : "Hidden • failed"
         case .loading:
@@ -1352,15 +513,4 @@ enum WorkspaceState {
     case loading
     case loaded(count: Int)
     case failure(String)
-}
-
-enum OwnerState {
-    case idle
-    case loading
-    case loaded(count: Int)
-    case failure(String)
-}
-
-#Preview(windowStyle: .automatic) {
-    ContentView()
 }

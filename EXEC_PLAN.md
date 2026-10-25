@@ -1,3 +1,5 @@
+> Historical design plan. The current implementation, protocol, setup, and verification steps are documented in `README.md`; this plan contains superseded surface/cluster and preview-scanning terminology.
+
 # EXEC_PLAN
 
 ## Purpose

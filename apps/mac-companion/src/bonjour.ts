@@ -8,13 +8,16 @@ type BonjourAdvertiserOptions = {
   logger: Logger;
   name: string;
   port: number;
+  hostId: string;
 };
 
 export type BonjourAdvertiser = {
   stop: () => Promise<void>;
 };
 
-export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): BonjourAdvertiser {
+export function startBonjourAdvertiser(
+  options: BonjourAdvertiserOptions,
+): BonjourAdvertiser {
   const bonjour = new Bonjour();
   const service = bonjour.publish({
     name: options.name,
@@ -23,21 +26,22 @@ export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): Bonjo
     port: options.port,
     txt: {
       name: "SlopZooka",
-      version: "0.1.0"
-    }
+      version: "0.2.0",
+      hostId: options.hostId,
+    },
   });
 
   service.on("up", () => {
     options.logger.info("Bonjour service advertised", {
       serviceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
       serviceName: options.name,
-      port: options.port
+      port: options.port,
     });
   });
 
   service.on("error", (error) => {
     options.logger.error("Bonjour service error", {
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   });
 
@@ -48,7 +52,7 @@ export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): Bonjo
         if (!stopService) {
           bonjour.destroy();
           options.logger.info("Bonjour service stopped", {
-            serviceName: options.name
+            serviceName: options.name,
           });
           resolve();
           return;
@@ -57,10 +61,10 @@ export function startBonjourAdvertiser(options: BonjourAdvertiserOptions): Bonjo
         stopService(() => {
           bonjour.destroy();
           options.logger.info("Bonjour service stopped", {
-            serviceName: options.name
+            serviceName: options.name,
           });
           resolve();
         });
-      })
+      }),
   };
 }

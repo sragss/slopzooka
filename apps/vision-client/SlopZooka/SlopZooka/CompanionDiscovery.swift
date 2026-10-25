@@ -1,5 +1,6 @@
-import Foundation
 import Combine
+import Darwin
+import Foundation
 
 @MainActor
 final class CompanionDiscovery: NSObject, ObservableObject {
@@ -52,9 +53,19 @@ final class CompanionDiscovery: NSObject, ObservableObject {
             return
         }
 
-        let candidateHosts = orderedUniqueHosts([
-            "\(hostName):\(service.port)"
-        ])
+        let addresses = (service.addresses ?? []).compactMap { data -> String? in
+            data.withUnsafeBytes { bytes in
+                guard let address = bytes.baseAddress?.assumingMemoryBound(to: sockaddr.self) else { return nil }
+                var buffer = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                guard
+                    getnameinfo(
+                        address, socklen_t(data.count), &buffer, socklen_t(buffer.count), nil, 0, NI_NUMERICHOST) == 0
+                else { return nil }
+                let ip = String(cString: buffer)
+                return ip.contains(":") ? "[\(ip)]:\(service.port)" : "\(ip):\(service.port)"
+            }
+        }
+        let candidateHosts = orderedUniqueHosts(["\(hostName):\(service.port)"] + addresses)
         let host = candidateHosts.first ?? "\(hostName):\(service.port)"
         let item = DiscoveredCompanion(
             id: serviceKey(service),
@@ -130,7 +141,7 @@ extension CompanionDiscovery: NetServiceBrowserDelegate {
         slzLog("bonjour search active")
     }
 
-    func netServiceBrowser(_ browser: NetServiceBrowser, didNotSearch errorDict: [String : NSNumber]) {
+    func netServiceBrowser(_ browser: NetServiceBrowser, didNotSearch errorDict: [String: NSNumber]) {
         let message = "Bonjour search failed: \(errorDict)"
         state = .failed(message)
         slzLog(message)
@@ -153,7 +164,7 @@ extension CompanionDiscovery: NetServiceDelegate {
         upsertResolvedService(sender)
     }
 
-    func netService(_ sender: NetService, didNotResolve errorDict: [String : NSNumber]) {
+    func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
         resolvedServices.removeValue(forKey: serviceKey(sender))
         let message = "Bonjour resolve failed for \(sender.name): \(errorDict)"
         slzLog(message)

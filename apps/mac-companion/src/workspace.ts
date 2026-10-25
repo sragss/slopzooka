@@ -1,3 +1,4 @@
+import { ServiceError } from "./errors.js";
 import { execFile } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
@@ -10,7 +11,8 @@ import type { RecentRepo } from "./github.js";
 import type { TuiProfile } from "../../../packages/protocol/src/index.js";
 
 const execFileAsync = promisify(execFile);
-const SLOPZOOKA_HOME = process.env.SLOPZOOKA_HOME?.trim() || path.join(os.homedir(), ".slopzooka");
+const SLOPZOOKA_HOME =
+  process.env.SLOPZOOKA_HOME?.trim() || path.join(os.homedir(), ".slopzooka");
 const WORKSPACES_ROOT = path.join(SLOPZOOKA_HOME, "workspaces");
 const REPOS_ROOT = path.join(WORKSPACES_ROOT, "repos");
 const WORKTREES_ROOT = path.join(WORKSPACES_ROOT, "worktrees");
@@ -28,9 +30,8 @@ export type LaunchWorkspaceResult = {
   worktreePath: string;
   branchName: string;
   baseRef: string;
-  launchURL: string;
   wasCloned: boolean;
-  clusterId: string;
+  workspaceId: string;
 };
 
 export type WorkspacePaths = {
@@ -42,7 +43,7 @@ export type WorkspacePaths = {
 };
 
 export type WorkspaceRecord = {
-  clusterId: string;
+  workspaceId: string;
   repo: RecentRepo;
   profile: TuiProfile | null;
   localCheckoutPath: string;
@@ -58,33 +59,54 @@ export type WorkspaceSummary = WorkspaceRecord & {
   existsOnDisk: boolean;
 };
 
-export class WorkspaceServiceError extends Error {
-  constructor(
-    message: string,
-    readonly statusCode: number
-  ) {
-    super(message);
-    this.name = "WorkspaceServiceError";
-  }
+// One writer owns git and index mutations. Reads remain independent and see atomic snapshots.
+let mutationTail: Promise<unknown> = Promise.resolve();
+function mutate<T>(operation: () => Promise<T>): Promise<T> {
+  const result = mutationTail.then(operation, operation);
+  mutationTail = result.catch(() => undefined);
+  return result;
 }
 
 export class WorkspaceService {
-  constructor(
-    private readonly logger: Logger,
-    private readonly controlOrigin: string
-  ) {}
+  constructor(private readonly logger: Logger) {}
 
-  async launchWorkspace(input: LaunchWorkspaceRequest, repo: RecentRepo): Promise<LaunchWorkspaceResult> {
+  launchWorkspace(
+    input: LaunchWorkspaceRequest,
+    repo: RecentRepo,
+  ): Promise<LaunchWorkspaceResult> {
+    return mutate(() => this.launch(input, repo));
+  }
+  private async launch(
+    input: LaunchWorkspaceRequest,
+    repo: RecentRepo,
+  ): Promise<LaunchWorkspaceResult> {
     const localCheckoutPath = repoCheckoutPath(repo);
-    const ensureResult = await ensureLocalCheckout(localCheckoutPath, repo, this.logger);
+    const ensureResult = await ensureLocalCheckout(
+      localCheckoutPath,
+      repo,
+      this.logger,
+    );
     await git(["-C", localCheckoutPath, "fetch", "origin", "--prune"]);
 
-    const baseRef = await resolveBaseRef(localCheckoutPath, repo, input.baseRef);
+    const baseRef = await resolveBaseRef(
+      localCheckoutPath,
+      repo,
+      input.baseRef,
+    );
     const branchName = makeBranchName(input.profile);
-    const clusterId = crypto.randomUUID();
+    const workspaceId = crypto.randomUUID();
     const worktreePath = await reserveWorktreePath(repo, branchName);
 
-    await git(["-C", localCheckoutPath, "worktree", "add", "-b", branchName, worktreePath, baseRef]);
+    await git([
+      "-C",
+      localCheckoutPath,
+      "worktree",
+      "add",
+      "-b",
+      branchName,
+      worktreePath,
+      baseRef,
+    ]);
 
     this.logger.info("Workspace launched", {
       repo: repo.nameWithOwner,
@@ -93,11 +115,11 @@ export class WorkspaceService {
       branchName,
       baseRef,
       profile: input.profile ?? "terminal",
-      wasCloned: ensureResult.wasCloned
+      wasCloned: ensureResult.wasCloned,
     });
 
     await upsertWorkspaceRecord({
-      clusterId,
+      workspaceId,
       repo,
       profile: input.profile ?? null,
       localCheckoutPath,
@@ -105,7 +127,7 @@ export class WorkspaceService {
       branchName,
       baseRef,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     });
 
     return {
@@ -114,47 +136,66 @@ export class WorkspaceService {
       worktreePath,
       branchName,
       baseRef,
-      launchURL: terminalUrl(this.controlOrigin, input.profile, worktreePath),
       wasCloned: ensureResult.wasCloned,
-      clusterId
+      workspaceId,
     };
   }
 
-  async listWorkspaces(limit: number, includeArchived = false): Promise<WorkspaceSummary[]> {
+  async listWorkspaces(
+    limit: number,
+    includeArchived = false,
+  ): Promise<WorkspaceSummary[]> {
     const records = await readWorkspaceIndex();
-    const filtered = includeArchived ? records : records.filter((record) => !record.archivedAt);
-    const sorted = filtered.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const filtered = includeArchived
+      ? records
+      : records.filter((record) => !record.archivedAt);
+    const sorted = filtered.sort((a, b) =>
+      b.updatedAt.localeCompare(a.updatedAt),
+    );
     const limited = sorted.slice(0, Math.max(1, Math.min(limit, 100)));
 
     return Promise.all(
       limited.map(async (record) => ({
         ...record,
-        existsOnDisk: await pathExists(record.worktreePath)
-      }))
+        existsOnDisk: await pathExists(record.worktreePath),
+      })),
     );
   }
 
-  async reopenWorkspace(clusterId: string, profileOverride?: TuiProfile | null): Promise<LaunchWorkspaceResult> {
-    const record = await this.requireWorkspace(clusterId);
+  reopenWorkspace(
+    workspaceId: string,
+    profileOverride?: TuiProfile | null,
+  ): Promise<LaunchWorkspaceResult> {
+    return mutate(() => this.reopen(workspaceId, profileOverride));
+  }
+  private async reopen(
+    workspaceId: string,
+    profileOverride?: TuiProfile | null,
+  ): Promise<LaunchWorkspaceResult> {
+    const record = await this.requireWorkspace(workspaceId);
 
     if (!(await pathExists(record.worktreePath))) {
-      throw new WorkspaceServiceError(`Workspace is missing on disk: ${record.worktreePath}`, 409);
+      throw new ServiceError(
+        `Workspace is missing on disk: ${record.worktreePath}`,
+        409,
+      );
     }
 
-    const nextProfile = profileOverride === undefined ? record.profile : profileOverride;
+    const nextProfile =
+      profileOverride === undefined ? record.profile : profileOverride;
     const updatedRecord: WorkspaceRecord = {
       ...record,
       profile: nextProfile ?? null,
       updatedAt: new Date().toISOString(),
-      archivedAt: null
+      archivedAt: null,
     };
     await upsertWorkspaceRecord(updatedRecord);
 
     this.logger.info("Workspace reopened", {
       repo: record.repo.nameWithOwner,
-      clusterId,
+      workspaceId,
       worktreePath: record.worktreePath,
-      profile: nextProfile ?? "terminal"
+      profile: nextProfile ?? "terminal",
     });
 
     return {
@@ -163,35 +204,40 @@ export class WorkspaceService {
       worktreePath: record.worktreePath,
       branchName: record.branchName,
       baseRef: record.baseRef,
-      launchURL: terminalUrl(this.controlOrigin, nextProfile ?? null, record.worktreePath),
       wasCloned: false,
-      clusterId
+      workspaceId,
     };
   }
 
-  async archiveWorkspace(clusterId: string): Promise<WorkspaceSummary> {
-    const record = await this.requireWorkspace(clusterId);
+  archiveWorkspace(workspaceId: string): Promise<WorkspaceSummary> {
+    return mutate(() => this.archive(workspaceId));
+  }
+  private async archive(workspaceId: string): Promise<WorkspaceSummary> {
+    const record = await this.requireWorkspace(workspaceId);
 
     const updatedRecord: WorkspaceRecord = {
       ...record,
       archivedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     };
     await upsertWorkspaceRecord(updatedRecord);
 
     this.logger.info("Workspace archived", {
-      clusterId,
+      workspaceId,
       repo: record.repo.nameWithOwner,
-      worktreePath: record.worktreePath
+      worktreePath: record.worktreePath,
     });
 
     return {
       ...updatedRecord,
-      existsOnDisk: await pathExists(updatedRecord.worktreePath)
+      existsOnDisk: await pathExists(updatedRecord.worktreePath),
     };
   }
 
-  async pruneMissingWorkspaces(): Promise<{ archivedCount: number }> {
+  pruneMissingWorkspaces(): Promise<{ archivedCount: number }> {
+    return mutate(() => this.pruneMissing());
+  }
+  private async pruneMissing(): Promise<{ archivedCount: number }> {
     const records = await readWorkspaceIndex();
     let archivedCount = 0;
     let mutated = false;
@@ -206,7 +252,7 @@ export class WorkspaceService {
         nextRecords.push({
           ...record,
           archivedAt: now,
-          updatedAt: now
+          updatedAt: now,
         });
         continue;
       }
@@ -217,26 +263,30 @@ export class WorkspaceService {
     if (mutated) {
       await writeWorkspaceIndex(nextRecords);
       this.logger.info("Pruned missing workspaces", {
-        archivedCount
+        archivedCount,
       });
     }
 
     return { archivedCount };
   }
 
-  async getWorkspace(clusterId: string): Promise<WorkspaceSummary> {
-    const record = await this.requireWorkspace(clusterId);
+  async getWorkspace(workspaceId: string): Promise<WorkspaceSummary> {
+    const record = await this.requireWorkspace(workspaceId);
     return {
       ...record,
-      existsOnDisk: await pathExists(record.worktreePath)
+      existsOnDisk: await pathExists(record.worktreePath),
     };
   }
 
-  private async requireWorkspace(clusterId: string): Promise<WorkspaceRecord> {
+  private async requireWorkspace(
+    workspaceId: string,
+  ): Promise<WorkspaceRecord> {
     const records = await readWorkspaceIndex();
-    const record = records.find((candidate) => candidate.clusterId === clusterId);
+    const record = records.find(
+      (candidate) => candidate.workspaceId === workspaceId,
+    );
     if (!record) {
-      throw new WorkspaceServiceError(`Workspace not found: ${clusterId}`, 404);
+      throw new ServiceError(`Workspace not found: ${workspaceId}`, 404);
     }
 
     return record;
@@ -249,7 +299,7 @@ export function workspacePaths(): WorkspacePaths {
     workspacesRoot: WORKSPACES_ROOT,
     reposRoot: REPOS_ROOT,
     worktreesRoot: WORKTREES_ROOT,
-    workspaceIndexPath: WORKSPACE_INDEX_PATH
+    workspaceIndexPath: WORKSPACE_INDEX_PATH,
   };
 }
 
@@ -257,11 +307,18 @@ async function readWorkspaceIndex(): Promise<WorkspaceRecord[]> {
   try {
     const data = await fs.readFile(WORKSPACE_INDEX_PATH, "utf8");
     const payload = JSON.parse(data) as unknown;
-    if (!Array.isArray(payload)) {
-      return [];
-    }
+    if (!Array.isArray(payload)) throw new Error("Invalid workspace index");
 
-    return payload.filter(isWorkspaceRecord);
+    const records = payload.map((value) => {
+      if (!value || typeof value !== "object") return value;
+      const { clusterId, ...record } = value;
+      return { ...record, workspaceId: record.workspaceId ?? clusterId };
+    });
+    if (!records.every(isWorkspaceRecord))
+      throw new Error(
+        "Workspace index contains invalid records; restore it from backup before writing",
+      );
+    return records;
   } catch (error) {
     const err = error as NodeJS.ErrnoException;
     if (err.code === "ENOENT") {
@@ -274,7 +331,9 @@ async function readWorkspaceIndex(): Promise<WorkspaceRecord[]> {
 
 async function upsertWorkspaceRecord(record: WorkspaceRecord): Promise<void> {
   const existing = await readWorkspaceIndex();
-  const next = existing.filter((candidate) => candidate.clusterId !== record.clusterId);
+  const next = existing.filter(
+    (candidate) => candidate.workspaceId !== record.workspaceId,
+  );
   next.push(record);
   next.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
 
@@ -283,7 +342,7 @@ async function upsertWorkspaceRecord(record: WorkspaceRecord): Promise<void> {
 
 async function writeWorkspaceIndex(records: WorkspaceRecord[]): Promise<void> {
   await fs.mkdir(WORKSPACES_ROOT, { recursive: true });
-  const tempPath = `${WORKSPACE_INDEX_PATH}.tmp`;
+  const tempPath = `${WORKSPACE_INDEX_PATH}.${crypto.randomUUID()}.tmp`;
   await fs.writeFile(tempPath, JSON.stringify(records, null, 2) + "\n", "utf8");
   await fs.rename(tempPath, WORKSPACE_INDEX_PATH);
 }
@@ -291,14 +350,14 @@ async function writeWorkspaceIndex(records: WorkspaceRecord[]): Promise<void> {
 async function ensureLocalCheckout(
   localCheckoutPath: string,
   repo: RecentRepo,
-  logger: Logger
+  logger: Logger,
 ): Promise<{ wasCloned: boolean }> {
   const exists = await pathExists(localCheckoutPath);
   if (!exists) {
     await fs.mkdir(path.dirname(localCheckoutPath), { recursive: true });
     logger.info("Cloning repository", {
       repo: repo.nameWithOwner,
-      localCheckoutPath
+      localCheckoutPath,
     });
     await git(["clone", repo.sshUrl, localCheckoutPath]);
     return { wasCloned: true };
@@ -308,36 +367,59 @@ async function ensureLocalCheckout(
   return { wasCloned: false };
 }
 
-async function assertRepoMatches(localCheckoutPath: string, repo: RecentRepo): Promise<void> {
+async function assertRepoMatches(
+  localCheckoutPath: string,
+  repo: RecentRepo,
+): Promise<void> {
   try {
     await git(["-C", localCheckoutPath, "rev-parse", "--show-toplevel"]);
   } catch {
-    throw new WorkspaceServiceError(`Target path exists but is not a git repository: ${localCheckoutPath}`, 409);
+    throw new ServiceError(
+      `Target path exists but is not a git repository: ${localCheckoutPath}`,
+      409,
+    );
   }
 
-  const { stdout } = await git(["-C", localCheckoutPath, "remote", "get-url", "origin"]);
+  const { stdout } = await git([
+    "-C",
+    localCheckoutPath,
+    "config",
+    "--get",
+    "remote.origin.url",
+  ]);
   const actual = normalizeGitHubRemote(stdout.trim());
   const expected = normalizeGitHubRemote(repo.sshUrl);
 
   if (!actual || !expected || actual !== expected) {
-    throw new WorkspaceServiceError(
+    throw new ServiceError(
       `Target path already exists for a different repository: ${localCheckoutPath} (expected ${repo.nameWithOwner})`,
-      409
+      409,
     );
   }
 }
 
-async function resolveBaseRef(
+export async function resolveBaseRef(
   localCheckoutPath: string,
   repo: RecentRepo,
-  requestedBaseRef?: string
+  requestedBaseRef?: string,
 ): Promise<string> {
+  if (requestedBaseRef?.trim()) {
+    const ref = requestedBaseRef.trim();
+    for (const [full, short] of [
+      [`refs/remotes/origin/${ref}`, `origin/${ref}`],
+      [`refs/heads/${ref}`, ref],
+    ] as const) {
+      if (await refExists(localCheckoutPath, full)) return short;
+    }
+    throw new ServiceError(`Requested branch does not exist: ${ref}`, 422);
+  }
+  const originHead = await symbolicOriginHead(localCheckoutPath);
   const orderedCandidates = unique([
-    requestedBaseRef?.trim(),
-    "master",
     repo.defaultBranch ?? undefined,
-    "main"
+    "main",
+    "master",
   ]);
+  if (!repo.defaultBranch && originHead) return originHead;
 
   for (const candidate of orderedCandidates) {
     const remoteRef = `refs/remotes/origin/${candidate}`;
@@ -351,22 +433,26 @@ async function resolveBaseRef(
     }
   }
 
-  const originHead = await symbolicOriginHead(localCheckoutPath);
   if (originHead) {
     return originHead;
   }
 
-  throw new WorkspaceServiceError(`Unable to resolve a base branch for ${repo.nameWithOwner}.`, 422);
+  throw new ServiceError(
+    `Unable to resolve a base branch for ${repo.nameWithOwner}.`,
+    422,
+  );
 }
 
-async function symbolicOriginHead(localCheckoutPath: string): Promise<string | null> {
+async function symbolicOriginHead(
+  localCheckoutPath: string,
+): Promise<string | null> {
   try {
     const { stdout } = await git([
       "-C",
       localCheckoutPath,
       "symbolic-ref",
       "--short",
-      "refs/remotes/origin/HEAD"
+      "refs/remotes/origin/HEAD",
     ]);
     const value = stdout.trim();
     return value || null;
@@ -375,21 +461,30 @@ async function symbolicOriginHead(localCheckoutPath: string): Promise<string | n
   }
 }
 
-async function refExists(localCheckoutPath: string, ref: string): Promise<boolean> {
+async function refExists(
+  localCheckoutPath: string,
+  ref: string,
+): Promise<boolean> {
   try {
-    await git(["-C", localCheckoutPath, "show-ref", "--verify", "--quiet", ref]);
+    await git([
+      "-C",
+      localCheckoutPath,
+      "show-ref",
+      "--verify",
+      "--quiet",
+      ref,
+    ]);
     return true;
   } catch {
     return false;
   }
 }
 
-async function reserveWorktreePath(repo: RecentRepo, branchName: string): Promise<string> {
-  const baseRoot = path.join(
-    WORKTREES_ROOT,
-    repo.owner.login,
-    repo.name
-  );
+async function reserveWorktreePath(
+  repo: RecentRepo,
+  branchName: string,
+): Promise<string> {
+  const baseRoot = path.join(WORKTREES_ROOT, repo.owner.login, repo.name);
   await fs.mkdir(baseRoot, { recursive: true });
 
   for (let attempt = 0; attempt < 8; attempt += 1) {
@@ -400,23 +495,19 @@ async function reserveWorktreePath(repo: RecentRepo, branchName: string): Promis
     }
   }
 
-  throw new WorkspaceServiceError(`Unable to reserve a unique worktree path for ${repo.nameWithOwner}.`, 409);
+  throw new ServiceError(
+    `Unable to reserve a unique worktree path for ${repo.nameWithOwner}.`,
+    409,
+  );
 }
 
-async function git(args: string[]): Promise<{ stdout: string; stderr: string }> {
+async function git(
+  args: string[],
+): Promise<{ stdout: string; stderr: string }> {
   return execFileAsync("git", args, {
     timeout: 120_000,
-    maxBuffer: 16 * 1024 * 1024
+    maxBuffer: 16 * 1024 * 1024,
   });
-}
-
-function terminalUrl(controlOrigin: string, profile: TuiProfile | null, cwd: string): string {
-  const url = new URL("/terminal", controlOrigin);
-  url.searchParams.set("cwd", cwd);
-  if (profile) {
-    url.searchParams.set("profile", profile);
-  }
-  return url.toString();
 }
 
 function makeBranchName(profile: TuiProfile | null): string {
@@ -453,7 +544,10 @@ function normalizeGitHubRemote(value: string): string | null {
 }
 
 function slugify(value: string): string {
-  return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 async function pathExists(candidate: string): Promise<boolean> {
@@ -466,7 +560,9 @@ async function pathExists(candidate: string): Promise<boolean> {
 }
 
 function unique(values: Array<string | undefined>): string[] {
-  return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
+  return Array.from(
+    new Set(values.filter((value): value is string => Boolean(value))),
+  );
 }
 
 function isWorkspaceRecord(value: unknown): value is WorkspaceRecord {
@@ -476,7 +572,7 @@ function isWorkspaceRecord(value: unknown): value is WorkspaceRecord {
 
   const candidate = value as Partial<WorkspaceRecord>;
   return (
-    typeof candidate.clusterId === "string" &&
+    typeof candidate.workspaceId === "string" &&
     typeof candidate.localCheckoutPath === "string" &&
     typeof candidate.worktreePath === "string" &&
     typeof candidate.branchName === "string" &&

@@ -1,296 +1,62 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
+import { TerminalConnection } from "./terminal-connection.js";
 
-import type {
-  ClientMessage,
-  CreateSurfaceMessage,
-  ServerMessage,
-  SurfaceSummary,
-  TerminalInputMessage,
-  TerminalResizeMessage,
-  TuiProfile
-} from "../../../packages/protocol/src/index.js";
-
-const mount = mustQuery<HTMLElement>("#terminal");
-const titlePill = mustQuery<HTMLElement>("#title-pill");
-const statusPill = mustQuery<HTMLElement>("#status-pill");
-
+const mount = document.querySelector<HTMLElement>("#terminal")!;
+const title = document.querySelector<HTMLElement>("#title-pill")!;
+const status = document.querySelector<HTMLElement>("#status-pill")!;
 const terminal = new Terminal({
   cursorBlink: true,
   fontSize: 16,
   lineHeight: 1.22,
-  theme: {
-    background: "#05070b",
-    foreground: "#e7edf7"
-  }
+  theme: { background: "#05070b", foreground: "#e7edf7" },
 });
-const fitAddon = new FitAddon();
-terminal.loadAddon(fitAddon);
+const fit = new FitAddon();
+terminal.loadAddon(fit);
 terminal.open(mount);
-fitAddon.fit();
+fit.fit();
 terminal.focus();
-
-const params = new URLSearchParams(window.location.search);
-const profile = parseProfile(params.get("profile"));
-const cwd = params.get("cwd")?.trim() || undefined;
-const requestedSurfaceId = params.get("surfaceId")?.trim() || undefined;
-const host = window.location.host;
-const socket = new WebSocket(wsUrlForHost(host));
-
-let activeSurface: SurfaceSummary | null = null;
-let closedByClient = false;
-const pendingInjectedInputs: Array<{ text: string; sendReturn: boolean }> = [];
-
-window.slzFocusTerminal = focusTerminal;
-window.slzSendTerminalInput = sendTerminalInput;
-window.slzEnqueueTerminalInput = enqueueTerminalInput;
-
-titlePill.innerHTML = `<strong>${displayName(profile)}</strong> waiting for companion...`;
-setStatus("Connecting...");
-flushWindowQueuedInputs();
-
-socket.addEventListener("open", () => {
-  send({ type: "hello", clientName: "terminal-page" });
+const sessionId = new URLSearchParams(location.search).get("sessionId");
+const connection = sessionId
+  ? new TerminalConnection(
+      terminal,
+      sessionId,
+      (message, state) => {
+        status.textContent = message;
+        status.classList.toggle("error", state === "failed");
+        window.webkit?.messageHandlers.terminalState?.postMessage({
+          state,
+          message,
+        });
+      },
+      () => fit.fit(),
+    )
+  : undefined;
+title.textContent = sessionId
+  ? `Terminal • ${sessionId.slice(0, 8)}`
+  : "Missing session";
+connection?.connect();
+let resizeFrame = 0;
+new ResizeObserver(() => {
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => connection?.resize());
+}).observe(mount);
+window.addEventListener("pagehide", () => connection?.detach());
+window.addEventListener("pageshow", (event) => {
+  if (event.persisted) location.reload();
 });
-
-socket.addEventListener("message", (event) => {
-  try {
-    const payload = JSON.parse(String(event.data)) as ServerMessage;
-    handleServerMessage(payload);
-  } catch (error) {
-    setError(`Failed to parse server message: ${String(error)}`);
-  }
-});
-
-socket.addEventListener("close", () => {
-  if (!closedByClient) {
-    setError("Connection closed.");
-  }
-});
-
-socket.addEventListener("error", () => {
-  setError("WebSocket error.");
-});
-
-terminal.onData((data) => {
-  if (!activeSurface) {
-    return;
-  }
-
-  const message: TerminalInputMessage = {
-    type: "terminal_input",
-    surfaceId: activeSurface.id,
-    data
-  };
-
-  send(message);
-});
-
-window.addEventListener("resize", queueResize);
-window.addEventListener("pagehide", teardownSurface);
-window.addEventListener("focus", focusTerminal);
-window.addEventListener("pageshow", focusTerminal);
-document.addEventListener("visibilitychange", () => {
-  if (!document.hidden) {
-    focusTerminal();
-  }
-});
-mount.addEventListener("pointerdown", () => {
-  focusTerminal();
-});
-
-function handleServerMessage(message: ServerMessage): void {
-  switch (message.type) {
-    case "hello_ack": {
-      const createMessage: CreateSurfaceMessage = {
-        type: "create_surface",
-        surfaceId: requestedSurfaceId,
-        kind: profile ? "tui" : "terminal",
-        profile: profile ?? undefined,
-        cwd,
-        cols: terminal.cols,
-        rows: terminal.rows
-      };
-
-      titlePill.innerHTML = `<strong>${displayName(profile)}</strong> on ${message.hostname}`;
-      setStatus("Launching...");
-      send(createMessage);
-      break;
-    }
-    case "cluster_snapshot":
-      break;
-    case "surface_created":
-      activeSurface = message.surface;
-      queueResize();
-      flushPendingInjectedInputs();
-      setStatus(`Connected • ${message.surface.cwd}`);
-      break;
-    case "terminal_output":
-      if (message.surfaceId === activeSurface?.id) {
-        terminal.write(message.data);
-      }
-      break;
-    case "surface_closed":
-      if (message.surfaceId === activeSurface?.id) {
-        setStatus(`Session ended (${message.reason})`, true);
-        activeSurface = null;
-      }
-      break;
-    case "error":
-      setError(message.message);
-      break;
-  }
-}
-
-function send(message: ClientMessage): void {
-  if (socket.readyState !== WebSocket.OPEN) {
-    return;
-  }
-
-  socket.send(JSON.stringify(message));
-}
-
-function queueResize(): void {
-  if (!activeSurface) {
-    return;
-  }
-
-  fitAddon.fit();
-
-  const message: TerminalResizeMessage = {
-    type: "terminal_resize",
-    surfaceId: activeSurface.id,
-    cols: terminal.cols,
-    rows: terminal.rows
-  };
-
-  send(message);
-}
-
-function teardownSurface(): void {
-  if (!activeSurface) {
-    return;
-  }
-
-  closedByClient = true;
-  send({
-    type: "close_surface",
-    surfaceId: activeSurface.id
-  });
-}
-
-function focusTerminal(): void {
-  requestAnimationFrame(() => {
-    terminal.focus();
-  });
-}
-
-function sendTerminalInput(text: string, sendReturn = false): void {
-  if (!text) {
-    return;
-  }
-
-  if (!activeSurface) {
-    pendingInjectedInputs.push({ text, sendReturn });
-    return;
-  }
-
-  terminal.input(text, true);
-  if (sendReturn) {
-    terminal.input("\r", true);
-  }
-  focusTerminal();
-}
-
-function enqueueTerminalInput(text: string, sendReturn = false): void {
-  if (!text) {
-    return;
-  }
-
-  pendingInjectedInputs.push({ text, sendReturn });
-  flushPendingInjectedInputs();
-}
-
-function flushPendingInjectedInputs(): void {
-  if (!activeSurface || pendingInjectedInputs.length === 0) {
-    return;
-  }
-
-  while (pendingInjectedInputs.length > 0) {
-    const nextInput = pendingInjectedInputs.shift();
-    if (!nextInput) {
-      continue;
-    }
-
-    terminal.input(nextInput.text, true);
-    if (nextInput.sendReturn) {
-      terminal.input("\r", true);
-    }
-  }
-}
-
-function flushWindowQueuedInputs(): void {
-  const queued = window.__slzQueuedTerminalInputs;
-  if (!queued || queued.length === 0) {
-    return;
-  }
-
-  window.__slzQueuedTerminalInputs = [];
-  for (const item of queued) {
-    enqueueTerminalInput(item.text, item.sendReturn);
-  }
-}
-
-function setStatus(message: string, isError = false): void {
-  statusPill.textContent = message;
-  statusPill.classList.toggle("error", isError);
-}
-
-function setError(message: string): void {
-  setStatus(message, true);
-}
-
-function parseProfile(value: string | null): TuiProfile | null {
-  if (value === "codex" || value === "claude" || value === "opencode") {
-    return value;
-  }
-
-  return null;
-}
-
-function displayName(profile: TuiProfile | null): string {
-  switch (profile) {
-    case "codex":
-      return "Codex";
-    case "claude":
-      return "Claude Code";
-    case "opencode":
-      return "OpenCode";
-    case null:
-      return "Terminal";
-  }
-}
-
-function wsUrlForHost(currentHost: string): string {
-  const scheme = window.location.protocol === "https:" ? "wss" : "ws";
-  return `${scheme}://${currentHost}/ws`;
-}
-
-function mustQuery<T extends Element>(selector: string): T {
-  const element = document.querySelector<T>(selector);
-  if (!element) {
-    throw new Error(`Missing required element: ${selector}`);
-  }
-
-  return element;
-}
-
+window.slzFocusTerminal = () => terminal.focus();
+window.slzDetachTerminal = () => connection?.detach();
+mount.addEventListener("pointerdown", () => terminal.focus());
 declare global {
   interface Window {
-    __slzQueuedTerminalInputs?: Array<{ text: string; sendReturn: boolean }>;
-    slzEnqueueTerminalInput?: (text: string, sendReturn?: boolean) => void;
     slzFocusTerminal?: () => void;
-    slzSendTerminalInput?: (text: string, sendReturn?: boolean) => void;
+    slzDetachTerminal?: () => void;
+    webkit?: {
+      messageHandlers: {
+        terminalState?: { postMessage: (value: unknown) => void };
+      };
+    };
   }
 }

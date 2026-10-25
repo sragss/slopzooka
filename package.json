@@ -6,6 +6,14 @@
     "postinstall": "node scripts/fix-node-pty-perms.mjs",
     "dev:companion": "pnpm --filter @slz/mac-companion dev",
     "build:harness": "pnpm --filter @slz/mac-companion build:harness",
-    "typecheck": "pnpm --filter @slz/mac-companion typecheck"
+    "typecheck": "pnpm --filter @slz/mac-companion typecheck",
+    "test": "pnpm --filter @slz/mac-companion test",
+    "format": "prettier --write \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
+    "format:check": "prettier --check \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
+    "build:mac-app": "node scripts/build-mac-app.mjs",
+    "test:mac-app": "node scripts/test-mac-app.mjs"
+  },
+  "devDependencies": {
+    "prettier": "3.6.2"
   }
 }
