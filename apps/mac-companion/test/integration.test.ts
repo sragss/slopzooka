@@ -313,10 +313,14 @@ test(
         ).status,
         409,
       );
+      // Shell echo includes the marker before printf executes. Wait for the actual
+      // alternate-screen escape sequence, allowing PTY output to split across frames.
       await until(() =>
-        first.messages.some(
-          (m) => m.type === "output" && m.data.includes("SCREEN-CHECKPOINT"),
-        ),
+        first.messages
+          .filter((m) => m.type === "output")
+          .map((m) => m.data)
+          .join("")
+          .includes("\x1b[?1049hSCREEN-CHECKPOINT"),
       );
       const pid = Number(await fs.readFile(path.join(worktree, "pid"), "utf8"));
       first.ws.close();
