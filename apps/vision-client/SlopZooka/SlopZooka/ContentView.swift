@@ -1,24 +1,44 @@
 import SwiftUI
 
 struct ContentView: View {
-    private let debugBuildStamp = "quick-launch-v1 2026-03-22 23:45"
     private let launcherWindowSize = CGSize(width: 620, height: 760)
 
     @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var appModel: AppModel
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
-    @State private var isMoreExpanded = false
+    @AppStorage("launcherSection") private var section: LauncherSection = .projects
+    @State private var isConnectionPresented = false
+    @State private var connectionHost = ""
     @State private var isNewRepoPresented = false
 
     var body: some View {
-        ScrollView {
-            launcherMode
-                .frame(maxWidth: .infinity, alignment: .topLeading)
-                .padding(20)
+        VStack(spacing: 16) {
+            launcherHeader
+            if isReady {
+                Picker("Browse", selection: $section) {
+                    ForEach(LauncherSection.allCases) { section in
+                        Text(section.rawValue).tag(section)
+                    }
+                }.pickerStyle(.segmented)
+            }
+            ScrollView {
+                launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
+            }.scrollIndicators(.hidden)
         }
-        .scrollIndicators(.hidden)
+        .padding(24)
         .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
+        .sheet(isPresented: $isConnectionPresented) {
+            NavigationStack {
+                ScrollView { connectionContent.padding(24) }
+                    .navigationTitle("Mac connection")
+                    .toolbar {
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Done") { isConnectionPresented = false }
+                        }
+                    }
+            }.frame(width: 520, height: 500)
+        }
         .sheet(isPresented: $isNewRepoPresented) {
             NewRepoSheetView(
                 owners: state.availableOwners,
@@ -66,192 +86,151 @@ struct ContentView: View {
         .onDisappear {
             discovery.stop()
         }
+        .onChange(of: state.host) { old, new in
+            if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
+        }
         .onChange(of: state.selectedTool) { _, _ in
             state.persistSelectedTool()
         }
     }
 
+    private enum LauncherSection: String, CaseIterable, Identifiable {
+        case sessions = "Terminals"
+        case projects = "Projects"
+        case frontends = "Frontends"
+        var id: String { rawValue }
+    }
+
+    private var isReady: Bool {
+        if case .success = state.healthState { return !state.needsPairing }
+        return false
+    }
+
+    private var launcherHeader: some View {
+        HStack {
+            Text("SlopZooka").font(.title2.weight(.semibold))
+            Spacer()
+            Button {
+                isConnectionPresented = true
+            } label: {
+                Label(state.needsPairing ? "Pair Mac" : "Mac connection", systemImage: "desktopcomputer")
+                    .font(.subheadline)
+            }.buttonStyle(.bordered)
+        }
+    }
+
     private var launcherMode: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .top, spacing: 12) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Quick Launch")
-                        .font(.title2)
-                        .fontWeight(.semibold)
-
-                    Text("Pick a tool and tap a repo.")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer(minLength: 0)
-            }
-
-            if state.needsPairing {
-                VStack(alignment: .leading) {
-                    Text("Pair with your Mac").font(.headline)
-                    Text("Enter the code printed by the companion on your Mac.").font(.caption)
-                    HStack {
-                        SecureField("Pairing code", text: $state.pairingCode)
-                        Button("Pair") { Task { await state.pair() } }
+        VStack(alignment: .leading, spacing: 20) {
+            if let feedback = state.feedback { feedbackBanner(feedback) }
+            if !isReady {
+                connectionContent
+            } else {
+                switch section {
+                case .sessions:
+                    VStack(alignment: .leading, spacing: 12) {
+                        sectionHeading("Your terminals", count: appModel.openTerminalSessions.count)
+                        Text("Reopen a session without interrupting what’s running.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        quickOpenSessionsContent
+                        if appModel.openTerminalSessions.isEmpty {
+                            Button("Open a Project") { section = .projects }.buttonStyle(.borderedProminent)
+                        }
                     }
+                case .projects:
+                    projectsContent
+                case .frontends:
+                    FrontendListView(
+                        frontends: state.frontends, warning: state.frontendWarning,
+                        baseURL: CompanionAPI.baseURL(host: state.normalizedHost))
                 }
-                .padding(16)
-                .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
             }
+        }
+    }
 
-            FrontendListView(
-                frontends: state.frontends, warning: state.frontendWarning,
-                baseURL: CompanionAPI.baseURL(host: state.normalizedHost))
-
-            if let feedback = state.feedback {
-                feedbackBanner(feedback)
-            }
-
-            VStack(alignment: .leading, spacing: 10) {
-                Picker("Tool", selection: $state.selectedTool) {
-                    ForEach(LaunchTarget.allCases) { target in
-                        Text(target.title).tag(target)
+    private var projectsContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                Picker("Open with", selection: $state.selectedTool) {
+                    ForEach(LaunchTarget.allCases) { target in Text(target.title).tag(target) }
+                }.pickerStyle(.menu)
+                Spacer()
+                Menu {
+                    Button("New Repository…") { isNewRepoPresented = true }
+                        .disabled(state.availableOwners.isEmpty)
+                    Button(state.isPruningMissingWorkspaces ? "Hiding Missing…" : "Hide Missing Workspaces") {
+                        Task { await state.pruneMissingWorkspaces() }
                     }
+                } label: {
+                    Label("Add or manage", systemImage: "plus")
                 }
-                .pickerStyle(.segmented)
-
-                Text(state.selectedTool.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
+                .disabled(state.isMutatingWorkspace)
             }
-            .padding(16)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Open Sessions")
-                        .font(.headline)
-
-                    Spacer()
-
-                    if !appModel.openTerminalSessions.isEmpty {
-                        Text("\(appModel.openTerminalSessions.count)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
-                quickOpenSessionsContent
-            }
-            .padding(16)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text("Recent Workspaces")
-                        .font(.headline)
-
-                    Spacer()
-
-                    if case .loaded(let count) = state.workspaceState {
-                        Text("\(count)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-
+            TextField("Search projects or branches", text: $state.searchText)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
                 quickWorkspaceContent
             }
-            .padding(16)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 10) {
-                HStack {
-                    Text(state.searchText.isEmpty ? "Recent Repositories" : "Search Results")
-                        .font(.headline)
-
-                    Spacer()
-
-                    Button("New Repo") {
-                        isNewRepoPresented = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(state.isMutatingWorkspace || state.availableOwners.isEmpty)
-
-                    if case .loaded(let viewerLogin, let count) = state.repoState {
-                        Text("\(count) from \(viewerLogin)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-                }
-
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+                sectionHeading("Start from a repository", count: state.filteredRepos.count)
                 quickRepoContent
             }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .topLeading)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-
-            DisclosureGroup(isExpanded: $isMoreExpanded) {
-                VStack(alignment: .leading, spacing: 12) {
-                    TextField("Search owner or repo", text: $state.searchText)
-                        .textInputAutocapitalization(.never)
-                        .disableAutocorrection(true)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Companion Host")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        TextField("MacName.local:7777", text: $state.host)
-                            .textInputAutocapitalization(.never)
-                            .disableAutocorrection(true)
-                    }
-
-                    HStack(spacing: 10) {
-                        Button("Reconnect") {
-                            Task {
-                                await state.connectAndRefresh()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(state.isMutatingWorkspace)
-
-                        Button("Palm Spike") {
-                            openWindow(id: "palm-spike")
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(state.isMutatingWorkspace)
-                    }
-
-                    HStack(spacing: 10) {
-                        Button(state.isPruningMissingWorkspaces ? "Hiding Missing..." : "Hide Missing") {
-                            Task {
-                                await state.pruneMissingWorkspaces()
-                            }
-                        }
-                        .buttonStyle(.bordered)
-                        .disabled(state.isMutatingWorkspace)
-
-                        if state.feedback != nil {
-                            Button("Clear Status") {
-                                state.feedback = nil
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    }
-
-                    discoveryStatusView
-                    HealthStatusView(state: state.healthState)
-
-                    Text("Build: \(debugBuildStamp)")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.top, 8)
-            } label: {
-                Label("More", systemImage: "ellipsis.circle")
-                    .font(.subheadline.weight(.semibold))
-            }
-            .padding(16)
-            .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         }
+    }
+
+    private var matchingWorkspaces: [WorkspaceSummary] {
+        let query = state.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return state.recentWorkspaces.filter {
+            query.isEmpty || $0.repo.nameWithOwner.localizedCaseInsensitiveContains(query)
+                || $0.branchName.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    private func sectionHeading(_ title: String, count: Int) -> some View {
+        HStack {
+            Text(title).font(.headline)
+            Spacer()
+            if count > 0 { Text(count, format: .number).font(.caption).foregroundStyle(.secondary) }
+        }
+    }
+
+    private var connectionContent: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if state.needsPairing {
+                Text("Pair with your Mac").font(.title3.weight(.semibold))
+                Text("Open the SlopZooka menu on your Mac and choose Pair Vision Pro.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                HStack {
+                    TextField("Pairing code", text: $state.pairingCode)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .onSubmit { Task { await state.pair() } }
+                    Button("Pair") { Task { await state.pair() } }.buttonStyle(.borderedProminent)
+                        .disabled(state.pairingCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            } else if !isReady {
+                Text("Connect your Mac").font(.title3.weight(.semibold))
+                Text("Open SlopZooka on your Mac. Nearby companions appear automatically.")
+                    .font(.subheadline).foregroundStyle(.secondary)
+                discoveryStatusView
+            }
+            HealthStatusView(state: state.healthState)
+            Divider()
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Mac address").font(.subheadline.weight(.medium))
+                HStack {
+                    TextField("MacName.local:7777", text: $connectionHost)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    Button(isReady ? "Reconnect" : "Connect") {
+                        state.host = connectionHost
+                        Task { await state.connectAndRefresh() }
+                    }.disabled(
+                        state.isMutatingWorkspace
+                            || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+        .onAppear { connectionHost = state.host }
     }
 
     @ViewBuilder
@@ -283,7 +262,7 @@ struct ContentView: View {
         if appModel.openTerminalSessions.isEmpty {
             compactEmptyView("No open terminal sessions.")
         } else {
-            VStack(spacing: 10) {
+            LazyVStack(spacing: 10) {
                 ForEach(appModel.openTerminalSessions) { session in
                     Button {
                         openWindow(id: "terminal", value: session.id)
@@ -339,11 +318,12 @@ struct ContentView: View {
         case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
-            if state.recentWorkspaces.isEmpty {
-                compactEmptyView("No saved workspaces yet.")
+            if matchingWorkspaces.isEmpty {
+                compactEmptyView(
+                    state.searchText.isEmpty ? "Your opened projects will appear here." : "No matching workspaces.")
             } else {
-                VStack(spacing: 10) {
-                    ForEach(Array(state.recentWorkspaces.prefix(4))) { workspace in
+                LazyVStack(spacing: 10) {
+                    ForEach(matchingWorkspaces) { workspace in
                         HStack(spacing: 8) {
                             Button {
                                 Task {
@@ -393,14 +373,12 @@ struct ContentView: View {
         case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
-            let quickRepos = Array(
-                (state.searchText.isEmpty ? state.recentRepos : state.filteredRepos).prefix(
-                    state.searchText.isEmpty ? 6 : 10))
+            let quickRepos = state.filteredRepos
 
             if quickRepos.isEmpty {
                 compactEmptyView(state.searchText.isEmpty ? "No recent repositories yet." : "No matching repositories.")
             } else {
-                VStack(spacing: 10) {
+                LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
                         Button {
                             Task {
@@ -431,6 +409,12 @@ struct ContentView: View {
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(2)
+            Button {
+                state.feedback = nil
+            } label: {
+                Image(systemName: "xmark")
+            }
+            .buttonStyle(.plain).accessibilityLabel("Dismiss status")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
@@ -489,14 +473,14 @@ struct ContentView: View {
         case .ended:
             return "Session ended"
         case .failed:
-            return session.isPresented ? "Visible • failed" : "Hidden • failed"
+            return session.isPresented ? "Connection needs attention" : "Reopen to reconnect"
         case .loading:
-            return session.isPresented ? "Visible • loading" : "Hidden • loading"
+            return session.isPresented ? "Connecting…" : "Reopen to connect"
         case .idle, .loaded:
             if session.isFocused {
-                return "Focused"
+                return "Receiving input"
             }
-            return session.isPresented ? "Visible" : "Hidden"
+            return session.isPresented ? "Window open" : "Ready to reopen"
         }
     }
 }

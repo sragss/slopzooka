@@ -7,26 +7,19 @@ struct RepoRowView: View {
 
     private let rowShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
-    private static let timestampFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter
-    }()
-
     var body: some View {
-        HStack(spacing: 14) {
+        HStack(spacing: 12) {
             avatar
 
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
                     Text(repo.name)
                         .font(.headline)
 
                     if repo.isPrivate {
-                        Label("Private", systemImage: "lock.fill")
+                        Image(systemName: "lock.fill")
                             .font(.caption)
-                            .labelStyle(.titleAndIcon)
+                            .accessibilityLabel("Private repository")
                             .foregroundStyle(.secondary)
                     }
                 }
@@ -35,37 +28,24 @@ struct RepoRowView: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Text("\(repo.owner.name ?? repo.owner.login) • updated \(Self.timestampFormatter.string(from: repo.pushedAt))")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
             }
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 6) {
-                Text(isSelectedToolTerminal ? "Open Shell" : "Launch")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                if let branch = repo.defaultBranch {
-                    Text(branch)
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-
-                if isBusy {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                }
+            if isBusy {
+                ProgressView()
+            } else {
+                Image(systemName: "arrow.up.forward").font(.caption).foregroundStyle(.secondary)
             }
+
         }
-        .padding(16)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(rowShape.fill(.quaternary.opacity(0.28)))
         .clipShape(rowShape)
         .contentShape(rowShape)
         .contentShape(.hoverEffect, rowShape)
+        .accessibilityLabel("\(isSelectedToolTerminal ? "Open shell in" : "Open") \(repo.nameWithOwner)")
     }
 
     @ViewBuilder
@@ -83,12 +63,12 @@ struct RepoRowView: View {
                             .scaleEffect(0.75)
                     }
             }
-            .frame(width: 52, height: 52)
+            .frame(width: 36, height: 36)
             .clipShape(Circle())
         } else {
             Circle()
                 .fill(.quaternary)
-                .frame(width: 52, height: 52)
+                .frame(width: 36, height: 36)
         }
     }
 }

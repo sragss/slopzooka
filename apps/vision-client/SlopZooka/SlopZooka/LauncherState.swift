@@ -234,7 +234,8 @@ final class LauncherState: ObservableObject {
         components.queryItems = [URLQueryItem(name: "sessionId", value: session.id)]
         guard let url = components.url else { return nil }
         return TerminalWindowPayload(
-            id: session.id, workspaceId: session.workspaceId, title: "\(session.title) • \(session.cwd)",
+            id: session.id, workspaceId: session.workspaceId,
+            title: "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)",
             urlString: url.absoluteString)
     }
 

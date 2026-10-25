@@ -156,6 +156,16 @@ test(
         }
       });
       assert.equal((await api("/api/sessions")).status, 401);
+      const dashboardStyle = await fetch(base + "/harness.css");
+      assert.equal(
+        dashboardStyle.status,
+        200,
+        "pairing page styles are public",
+      );
+      assert.match(
+        dashboardStyle.headers.get("content-type") ?? "",
+        /text\/css/,
+      );
       assert.equal(
         (await api("/api/sessions/missing.js", undefined, "DELETE")).status,
         401,

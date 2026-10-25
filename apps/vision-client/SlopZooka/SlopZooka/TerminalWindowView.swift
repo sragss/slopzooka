@@ -11,6 +11,7 @@ struct TerminalWindowView: View {
     @StateObject private var speechCapture = SpeechCaptureController()
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
+    @State private var confirmEndSession = false
     @State private var isSessionDetailsExpanded = false
     @State private var isSpeechPanelExpanded = false
     @State private var isPreviewPanelExpanded = false
@@ -106,6 +107,7 @@ struct TerminalWindowView: View {
                     .buttonStyle(.plain)
                     .padding(10)
                     .background(.regularMaterial, in: Circle())
+                    .help("Frontends").accessibilityLabel("Show frontends")
 
                     Button {
                         if isSpeechPanelExpanded {
@@ -125,32 +127,22 @@ struct TerminalWindowView: View {
                     .buttonStyle(.plain)
                     .padding(10)
                     .background(.regularMaterial, in: Circle())
+                    .help("Dictation").accessibilityLabel("Dictate to terminal")
 
-                    Button {
-                        openWindow(id: "launcher")
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .font(.title3)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(10)
-                    .background(.regularMaterial, in: Circle())
-
-                    Button {
-                        isUtilitiesExpanded.toggle()
-                        if !isUtilitiesExpanded {
-                            isSessionDetailsExpanded = false
+                    Menu {
+                        Button("New Shell", systemImage: "terminal") { Task { await newShell(payload: payload) } }
+                        Button("Open Launcher", systemImage: "square.grid.2x2") { openWindow(id: "launcher") }
+                        Button("Session Details", systemImage: "info.circle") {
+                            isUtilitiesExpanded.toggle()
+                            isSessionDetailsExpanded = isUtilitiesExpanded
                         }
+                        Divider()
+                        Button("End Session…", role: .destructive) { confirmEndSession = true }
                     } label: {
-                        Image(
-                            systemName: isUtilitiesExpanded
-                                ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle"
-                        )
-                        .font(.title3)
+                        Image(systemName: "ellipsis").font(.title3)
+                            .padding(10).background(.regularMaterial, in: Circle())
                     }
-                    .buttonStyle(.plain)
-                    .padding(10)
-                    .background(.regularMaterial, in: Circle())
+                    .accessibilityLabel("Session actions")
 
                     Button {
                         closeWindow(payloadID: payload.id)
@@ -185,6 +177,11 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
+        .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
+            Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
+        } message: {
+            Text("This stops the terminal and its attached dev servers. Close the window to keep them running.")
+        }
         .onAppear {
             slzLog("terminal scene appeared \(payload.id)")
             appModel.markTerminalPresented(id: payload.id, isPresented: true)
@@ -210,10 +207,6 @@ struct TerminalWindowView: View {
                     .foregroundStyle(.red)
             }
 
-            HStack {
-                Button("New Shell") { Task { await newShell(payload: payload) } }
-                Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
-            }
             DisclosureGroup(isExpanded: $isSessionDetailsExpanded) {
                 VStack(alignment: .leading, spacing: 12) {
                     labeledDetailRow(label: "Session", value: payload.title)

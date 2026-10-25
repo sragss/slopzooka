@@ -7,12 +7,6 @@ struct WorkspaceRowView: View {
 
     private let rowShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
 
-    private static let timestampFormatter: RelativeDateTimeFormatter = {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter
-    }()
-
     var body: some View {
         HStack(spacing: 12) {
             avatar
@@ -29,13 +23,8 @@ struct WorkspaceRowView: View {
                         .padding(.vertical, 3)
                         .background(.quaternary.opacity(0.6), in: Capsule())
 
-                    Text("updated \(relativeUpdatedAt)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-
                     if !workspace.existsOnDisk {
-                        Text("missing")
+                        Text("Missing on Mac")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.orange)
                             .lineLimit(1)
@@ -57,11 +46,9 @@ struct WorkspaceRowView: View {
         .clipShape(rowShape)
         .contentShape(rowShape)
         .contentShape(.hoverEffect, rowShape)
+        .accessibilityLabel("Open \(workspace.repo.nameWithOwner), \(workspace.branchName), with \(selectedTool.title)")
     }
 
-    private var relativeUpdatedAt: String {
-        Self.timestampFormatter.localizedString(for: workspace.updatedAt, relativeTo: Date())
-    }
     @ViewBuilder
     private var avatar: some View {
         if let url = URL(string: workspace.repo.owner.avatarUrl) {

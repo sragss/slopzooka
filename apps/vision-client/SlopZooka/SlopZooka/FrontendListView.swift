@@ -5,19 +5,22 @@ struct FrontendPanel: View {
     @State private var frontends: [FrontendSummary] = []
     @State private var warning: String?
     var body: some View {
-        FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL)
-            .task(id: baseURL) {
-                guard let baseURL else { return }
-                while !Task.isCancelled {
-                    do {
-                        let catalog = try await CompanionAPI.request(
-                            FrontendCatalog.self, base: baseURL, path: "/api/frontends")
-                        frontends = catalog.frontends
-                        warning = catalog.warning
-                    } catch { warning = error.localizedDescription }
-                    try? await Task.sleep(for: .seconds(3))
-                }
+        ScrollView {
+            FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL)
+        }
+        .frame(maxHeight: 420)
+        .task(id: baseURL) {
+            guard let baseURL else { return }
+            while !Task.isCancelled {
+                do {
+                    let catalog = try await CompanionAPI.request(
+                        FrontendCatalog.self, base: baseURL, path: "/api/frontends")
+                    frontends = catalog.frontends
+                    warning = catalog.warning
+                } catch { warning = error.localizedDescription }
+                try? await Task.sleep(for: .seconds(3))
             }
+        }
     }
 }
 
@@ -31,16 +34,29 @@ struct FrontendListView: View {
     @State private var opening: String?
     @State private var urlInput = ""
     @State private var saving = false
+    @State private var showAddURL = false
     @State private var updatedFrontends: [FrontendSummary]?
     private var visibleFrontends: [FrontendSummary] { updatedFrontends ?? frontends }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Label("Frontends", systemImage: "globe").font(.headline)
-            if let warning { Text(warning).font(.caption).foregroundStyle(.secondary) }
+            HStack {
+                Label("Frontends", systemImage: "globe").font(.headline)
+                Spacer()
+                Button {
+                    showAddURL.toggle()
+                } label: {
+                    Label(showAddURL ? "Cancel" : "Add URL", systemImage: showAddURL ? "xmark" : "plus")
+                }
+                .disabled(saving || baseURL == nil)
+            }
+            if let warning {
+                DisclosureGroup("Discovery notice") { Text(warning).font(.caption).foregroundStyle(.secondary) }
+                    .font(.caption).foregroundStyle(.orange)
+            }
             if let error { Text(error).font(.caption).foregroundStyle(.red) }
             if visibleFrontends.isEmpty && warning == nil {
-                Text("Start a web app on your Mac, or add its URL below.").font(.caption)
+                Text("Ask your agent to start a web app on your Mac, or add a URL.").font(.caption)
                     .foregroundStyle(.secondary)
             }
             ForEach(visibleFrontends) { frontend in
@@ -52,12 +68,15 @@ struct FrontendListView: View {
                             Text(frontend.displayTitle).lineLimit(1)
                             if frontend.status == "starting" || frontend.status == "stopped" {
                                 Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
+                                    .font(.caption).foregroundStyle(.orange)
+                            } else {
+                                Text(frontend.transport == "direct" ? "Web" : "On your Mac")
                                     .font(.caption).foregroundStyle(.secondary)
                             }
                         }
                         Spacer()
                         if opening == frontend.id { ProgressView() } else { Image(systemName: "arrow.up.right.square") }
-                    }
+                    }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .disabled(opening != nil || frontend.status == "stopped")
                 .contextMenu {
@@ -66,13 +85,16 @@ struct FrontendListView: View {
                     }
                 }
             }
-            HStack {
-                TextField("http://localhost:3000 or https://…", text: $urlInput)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .onSubmit { Task { await addURL() } }
-                Button("Add URL") { Task { await addURL() } }
-                    .disabled(
-                        saving || urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || baseURL == nil)
+            if showAddURL {
+                HStack {
+                    TextField("http://localhost:3000 or https://…", text: $urlInput)
+                        .textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .onSubmit { Task { await addURL() } }
+                    Button("Add URL") { Task { await addURL() } }
+                        .disabled(
+                            saving || urlInput.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || baseURL == nil
+                        )
+                }
             }
         }
         .onChange(of: frontends) { _, _ in updatedFrontends = nil }
@@ -94,6 +116,7 @@ struct FrontendListView: View {
                     "url": urlInput.trimmingCharacters(in: .whitespacesAndNewlines)
                 ]))
             urlInput = ""
+            showAddURL = false
             updatedFrontends = try await CompanionAPI.request(
                 FrontendCatalog.self, base: baseURL, path: "/api/frontends"
             ).frontends

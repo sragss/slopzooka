@@ -16,10 +16,10 @@ struct NewRepoSheetView: View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("New Repo")
+                    Text("New repository")
                         .font(.title2.weight(.semibold))
 
-                    Text("Create a GitHub repo, clone it locally, and launch \(selectedTool.title).")
+                    Text("Create a GitHub repository and open \(selectedTool.title).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -47,13 +47,15 @@ struct NewRepoSheetView: View {
                         .disableAutocorrection(true)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Normalized Slug")
+                        Text("Repository")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
 
-                        Text(normalizedRepoName.isEmpty ? "repo-name-preview" : normalizedRepoName)
-                            .font(.footnote.monospaced())
-                            .foregroundStyle(normalizedRepoName.isEmpty ? .tertiary : .primary)
+                        Text(
+                            "\(selectedOwnerLogin)/\(normalizedRepoName.isEmpty ? "repository-name" : normalizedRepoName)"
+                        )
+                        .font(.footnote.monospaced())
+                        .foregroundStyle(normalizedRepoName.isEmpty ? .tertiary : .primary)
                     }
                     .padding(12)
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
