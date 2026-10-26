@@ -446,14 +446,7 @@ struct ContentView: View {
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
-                        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 18)
-                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-                                .allowsHitTesting(false)
-                        }
-                        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 18))
-                        .hoverEffect(.highlight)
+                        .modifier(LauncherRowSurface())
                     }
                 }
             }
@@ -475,20 +468,24 @@ struct ContentView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
-                        Button {
-                            projectSearchFocused = false
-                            Task {
-                                await state.launch(repo)
+                        HStack(spacing: 0) {
+                            Button {
+                                projectSearchFocused = false
+                                Task {
+                                    await state.launch(repo)
+                                }
+                            } label: {
+                                RepoRowView(
+                                    repo: repo,
+                                    isBusy: state.busyRepoID == repo.id,
+                                    isSelectedToolTerminal: state.selectedTool == .terminal
+                                )
                             }
-                        } label: {
-                            RepoRowView(
-                                repo: repo,
-                                isBusy: state.busyRepoID == repo.id,
-                                isSelectedToolTerminal: state.selectedTool == .terminal
-                            )
+                            .buttonStyle(.plain)
+                            .hoverEffectDisabled()
+                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                        .modifier(LauncherRowSurface())
                     }
                 }
             }
