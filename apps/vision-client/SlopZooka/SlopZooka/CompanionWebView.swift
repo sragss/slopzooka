@@ -10,6 +10,8 @@ struct CompanionWebView: UIViewRepresentable {
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.addUserScript(WKUserScript(
+            source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
@@ -24,7 +26,7 @@ struct CompanionWebView: UIViewRepresentable {
         context.coordinator.load(url, in: webView)
         if context.coordinator.focusToken != focusRequestToken {
             context.coordinator.focusToken = focusRequestToken
-            webView.evaluateJavaScript("window.slzFocusTerminal?.()")
+            context.coordinator.requestFocus(in: webView)
         }
     }
     static func dismantleUIView(_ webView: WKWebView, coordinator: TerminalSessionController) {
@@ -42,17 +44,32 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     var loadState: Binding<TerminalLoadState>
     var focusToken = 0
     private var requestedURL: URL?
+    private weak var webView: WKWebView?
+    private var terminalReady = false
+    private var pendingFocus = false
+    func requestFocus(in webView: WKWebView) {
+        pendingFocus = true
+        guard terminalReady else { return }
+        pendingFocus = false
+        webView.becomeFirstResponder()
+        webView.evaluateJavaScript("window.slzFocusTerminal?.()")
+    }
     init(loadState: Binding<TerminalLoadState>) { self.loadState = loadState }
     func load(_ url: URL, in webView: WKWebView) {
         guard requestedURL != url else { return }
         requestedURL = url
+        self.webView = webView
+        terminalReady = false
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
         webView.load(CompanionAPI.authorized(URLRequest(url: url)))
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }
         switch body["state"] {
-        case "running": loadState.wrappedValue = .loaded
+        case "running":
+            terminalReady = true
+            loadState.wrappedValue = .loaded
+            if pendingFocus, let webView { requestFocus(in: webView) }
         case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
         case "exited": loadState.wrappedValue = .ended(body["message"] ?? "Session ended")
         default: loadState.wrappedValue = .loading(body["message"] ?? "Connecting")
@@ -80,6 +97,8 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         guard let requestedURL else { return }
+        terminalReady = false
+        pendingFocus = true
         loadState.wrappedValue = .loading("Reconnecting")
         webView.load(CompanionAPI.authorized(URLRequest(url: requestedURL)))
     }

@@ -12,7 +12,8 @@
     "format:check": "prettier --check \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
     "build:mac-app": "node scripts/build-mac-app.mjs",
     "test:mac-app": "node scripts/test-mac-app.mjs",
-    "test:vision-state": "node scripts/test-vision-state.mjs"
+    "test:vision-state": "node scripts/test-vision-state.mjs",
+    "test:terminal-keyboard": "node scripts/test-terminal-keyboard.mjs"
   },
   "devDependencies": {
     "prettier": "3.6.2"
