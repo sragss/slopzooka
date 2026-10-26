@@ -31,11 +31,8 @@ struct ContentView: View {
                                 .foregroundStyle(section == item ? .primary : .secondary)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 12)
-                                .background(section == item ? Color.white.opacity(0.14) : .clear,
-                                            in: RoundedRectangle(cornerRadius: 12))
-                                .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 12))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(LauncherTabStyle(isSelected: section == item))
                         .accessibilityAddTraits(section == item ? .isSelected : [])
                     }
                 }
@@ -197,18 +194,24 @@ struct ContentView: View {
                     .textFieldStyle(.plain)
                     .focused($projectSearchFocused)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
-                Button { projectSearchFocused = true } label: {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundStyle(.secondary)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Search projects or branches")
+                    .hoverEffectDisabled()
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .accessibilityHidden(true)
             }
             .padding(.leading, 18)
             .padding(.trailing, 6)
             .padding(.vertical, 6)
-            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+            .onTapGesture { projectSearchFocused = true }
+            .background {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.white)
+                    .hoverEffect { effect, isActive, _ in
+                        effect.opacity(isActive ? 0.16 : 0.08)
+                    }
+            }
             .overlay {
                 RoundedRectangle(cornerRadius: 16)
                     .strokeBorder(.white.opacity(projectSearchFocused ? 0.4 : 0.16), lineWidth: 1)
@@ -573,5 +576,22 @@ struct ContentView: View {
             }
             return session.isPresented ? "Window open" : "Ready to reopen"
         }
+    }
+}
+
+/// Owns both selected and gaze feedback, avoiding the system button's second hover shape.
+private struct LauncherTabStyle: ButtonStyle {
+    let isSelected: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.white)
+                    .hoverEffect { effect, isActive, _ in
+                        effect.opacity(configuration.isPressed ? 0.28 : (isActive ? 0.22 : (isSelected ? 0.14 : 0)))
+                    }
+            }
     }
 }
