@@ -5,16 +5,15 @@ struct RepoRowView: View {
     let isBusy: Bool
     let isSelectedToolTerminal: Bool
 
-    private let rowShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-
     var body: some View {
         HStack(spacing: 12) {
             avatar
 
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
-                    Text(repo.name)
-                        .font(.headline)
+                    Text(repo.nameWithOwner)
+                        .font(.subheadline.weight(.semibold))
+                        .lineLimit(1)
 
                     if repo.isPrivate {
                         Image(systemName: "lock.fill")
@@ -24,9 +23,12 @@ struct RepoRowView: View {
                     }
                 }
 
-                Text(repo.nameWithOwner)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text(repo.defaultBranch ?? "Repository")
+                    .font(.caption)
+                    .lineLimit(1)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(.quaternary.opacity(0.6), in: Capsule())
 
             }
 
@@ -34,6 +36,7 @@ struct RepoRowView: View {
 
             if isBusy {
                 ProgressView()
+                    .scaleEffect(0.8)
             } else {
                 Image(systemName: "arrow.up.forward").font(.caption).foregroundStyle(.secondary)
             }
@@ -41,10 +44,7 @@ struct RepoRowView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(rowShape.fill(.quaternary.opacity(0.28)))
-        .clipShape(rowShape)
-        .contentShape(rowShape)
-        .contentShape(.hoverEffect, rowShape)
+        .contentShape(Rectangle())
         .accessibilityLabel("\(isSelectedToolTerminal ? "Open shell in" : "Open") \(repo.nameWithOwner)")
     }
 
@@ -63,12 +63,12 @@ struct RepoRowView: View {
                             .scaleEffect(0.75)
                     }
             }
-            .frame(width: 36, height: 36)
+            .frame(width: 40, height: 40)
             .clipShape(Circle())
         } else {
             Circle()
                 .fill(.quaternary)
-                .frame(width: 36, height: 36)
+                .frame(width: 40, height: 40)
         }
     }
 }

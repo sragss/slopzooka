@@ -30,9 +30,11 @@ struct ContentView: View {
                                 .font(.subheadline.weight(section == item ? .semibold : .regular))
                                 .foregroundStyle(section == item ? .primary : .secondary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, 6)
                         }
-                        .buttonStyle(LauncherTabStyle(isSelected: section == item))
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle(radius: 12))
+                        .tint(.white.opacity(section == item ? 0.18 : 0.04))
                         .accessibilityAddTraits(section == item ? .isSelected : [])
                     }
                 }
@@ -444,14 +446,7 @@ struct ContentView: View {
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
-                        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 18)
-                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
-                                .allowsHitTesting(false)
-                        }
-                        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 18))
-                        .hoverEffect(.highlight)
+                        .modifier(LauncherRowSurface())
                     }
                 }
             }
@@ -473,20 +468,24 @@ struct ContentView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
-                        Button {
-                            projectSearchFocused = false
-                            Task {
-                                await state.launch(repo)
+                        HStack(spacing: 0) {
+                            Button {
+                                projectSearchFocused = false
+                                Task {
+                                    await state.launch(repo)
+                                }
+                            } label: {
+                                RepoRowView(
+                                    repo: repo,
+                                    isBusy: state.busyRepoID == repo.id,
+                                    isSelectedToolTerminal: state.selectedTool == .terminal
+                                )
                             }
-                        } label: {
-                            RepoRowView(
-                                repo: repo,
-                                isBusy: state.busyRepoID == repo.id,
-                                isSelectedToolTerminal: state.selectedTool == .terminal
-                            )
+                            .buttonStyle(.plain)
+                            .hoverEffectDisabled()
+                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                        .modifier(LauncherRowSurface())
                     }
                 }
             }
@@ -576,22 +575,5 @@ struct ContentView: View {
             }
             return session.isPresented ? "Window open" : "Ready to reopen"
         }
-    }
-}
-
-/// Owns both selected and gaze feedback, avoiding the system button's second hover shape.
-private struct LauncherTabStyle: ButtonStyle {
-    let isSelected: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .background {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.white)
-                    .hoverEffect { effect, isActive, _ in
-                        effect.opacity(configuration.isPressed ? 0.28 : (isActive ? 0.22 : (isSelected ? 0.14 : 0)))
-                    }
-            }
     }
 }
