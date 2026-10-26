@@ -137,8 +137,12 @@ struct TerminalWindowView: View {
                         Button("End Session…", role: .destructive) { confirmEndSession = true }
                     } label: {
                         Image(systemName: "ellipsis").font(.title3)
-                            .padding(10).background(.regularMaterial, in: Circle())
+                            .frame(width: 44, height: 44)
+                            .background(.regularMaterial, in: Circle())
+                            .contentShape(.hoverEffect, Circle())
                     }
+                    .buttonStyle(.plain)
+                    .buttonBorderShape(.circle)
                     .accessibilityLabel("Session actions")
 
                     Button {
