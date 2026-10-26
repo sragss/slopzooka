@@ -30,9 +30,11 @@ struct ContentView: View {
                                 .font(.subheadline.weight(section == item ? .semibold : .regular))
                                 .foregroundStyle(section == item ? .primary : .secondary)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
+                                .padding(.vertical, 6)
                         }
-                        .buttonStyle(LauncherTabStyle(isSelected: section == item))
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle(radius: 12))
+                        .tint(.white.opacity(section == item ? 0.18 : 0.04))
                         .accessibilityAddTraits(section == item ? .isSelected : [])
                     }
                 }
@@ -576,22 +578,5 @@ struct ContentView: View {
             }
             return session.isPresented ? "Window open" : "Ready to reopen"
         }
-    }
-}
-
-/// Owns both selected and gaze feedback, avoiding the system button's second hover shape.
-private struct LauncherTabStyle: ButtonStyle {
-    let isSelected: Bool
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .contentShape(RoundedRectangle(cornerRadius: 12))
-            .background {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.white)
-                    .hoverEffect { effect, isActive, _ in
-                        effect.opacity(configuration.isPressed ? 0.28 : (isActive ? 0.22 : (isSelected ? 0.14 : 0)))
-                    }
-            }
     }
 }
