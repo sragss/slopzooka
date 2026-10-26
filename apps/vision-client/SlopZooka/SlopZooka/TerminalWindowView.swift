@@ -19,6 +19,7 @@ struct TerminalWindowView: View {
     @State private var speechOrbPulse = false
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
+    @State private var terminalZoomSteps = -2
     @State private var speechCommandID = UUID().uuidString
 
     var body: some View {
@@ -74,7 +75,8 @@ struct TerminalWindowView: View {
                     url: url,
                     loadState: $loadState,
                     focusRequestToken: focusRequestToken,
-                    interruptRequestToken: interruptRequestToken
+                    interruptRequestToken: interruptRequestToken,
+                    zoom: Double(10 + terminalZoomSteps) / 10
                 )
                 .id(payload.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -127,6 +129,14 @@ struct TerminalWindowView: View {
                     .disabled(!canSubmitSpeech || isSubmittingSpeech)
 
                     Menu {
+                        Section("Zoom (\(100 + terminalZoomSteps * 10)%)") {
+                            Button("Zoom In", systemImage: "plus.magnifyingglass") { terminalZoomSteps += 1 }
+                                .disabled(terminalZoomSteps >= 10)
+                            Button("Zoom Out", systemImage: "minus.magnifyingglass") { terminalZoomSteps -= 1 }
+                                .disabled(terminalZoomSteps <= -5)
+                            Button("Reset Zoom (80%)") { terminalZoomSteps = -2 }
+                                .disabled(terminalZoomSteps == -2)
+                        }
                         Button("New Shell", systemImage: "terminal") { Task { await newShell(payload: payload) } }
                         Button("Open Launcher", systemImage: "square.grid.2x2") { openWindow(id: "launcher") }
                         Button("Session Details", systemImage: "info.circle") {

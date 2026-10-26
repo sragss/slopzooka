@@ -6,6 +6,7 @@ struct CompanionWebView: UIViewRepresentable {
     @Binding var loadState: TerminalLoadState
     let focusRequestToken: Int
     let interruptRequestToken: Int
+    let zoom: Double
 
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
@@ -15,6 +16,7 @@ struct CompanionWebView: UIViewRepresentable {
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.pageZoom = CGFloat(zoom)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.02, green: 0.03, blue: 0.04, alpha: 1)
@@ -25,6 +27,8 @@ struct CompanionWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
         context.coordinator.load(url, in: webView)
+        // Page zoom changes the CSS viewport; the terminal's ResizeObserver refits the PTY grid.
+        if webView.pageZoom != CGFloat(zoom) { webView.pageZoom = CGFloat(zoom) }
         if context.coordinator.interruptToken != interruptRequestToken {
             context.coordinator.interruptToken = interruptRequestToken
             webView.evaluateJavaScript("window.slzInterruptTerminal?.()")
