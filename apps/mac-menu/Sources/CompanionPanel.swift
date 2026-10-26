@@ -44,7 +44,7 @@ struct CompanionPanel: View {
                     pairingExpanded.toggle()
                 } label: {
                     HStack {
-                        Text("Pair Vision Pro")
+                        Text("Show Connection Code")
                         Spacer()
                         Image(systemName: pairingExpanded ? "chevron.down" : "chevron.right")
                             .font(.caption.weight(.semibold))
@@ -61,10 +61,10 @@ struct CompanionPanel: View {
 
                 if pairingExpanded {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Enter this code in SlopZooka on your headset.")
+                        Text("Enter these six digits on your headset to connect.")
                             .font(.caption).foregroundStyle(.secondary)
                         HStack {
-                            Text(model.code).font(.system(size: 19, weight: .medium, design: .monospaced))
+                            Text(model.code).font(.system(size: 28, weight: .medium, design: .monospaced))
                                 .textSelection(.enabled)
                             Spacer(minLength: 8)
                             Button {
@@ -74,6 +74,7 @@ struct CompanionPanel: View {
                             }
                             .buttonStyle(.borderless)
                         }
+                        Text("Code changes every 5 minutes.").font(.caption).foregroundStyle(.secondary)
                     }.font(.callout)
                 }
             } else {

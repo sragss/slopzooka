@@ -11,6 +11,29 @@ if (Number(process.versions.node.split(".")[0]) < 22)
   throw new Error("Node.js 22+ is required.");
 const run = (command, args) =>
   execFileSync(command, args, { stdio: "inherit" });
+// Ad-hoc signatures identify a specific binary hash, invalidating privacy grants on updates.
+// Prefer a certificate-backed identity; allow an explicit override for CI or a specific team.
+let signingIdentity = process.env.SLOPZOOKA_SIGN_IDENTITY;
+if (!signingIdentity) {
+  const identities = execFileSync(
+    "security",
+    ["find-identity", "-v", "-p", "codesigning"],
+    { encoding: "utf8" },
+  );
+  signingIdentity = [
+    ...identities.matchAll(
+      /\b([A-F0-9]{40}) "((?:Apple Development|Developer ID Application|Mac Developer):[^"\n]+)"/g,
+    ),
+  ][0]?.[1];
+}
+if (!signingIdentity) {
+  throw new Error(
+    "No Mac signing identity found. Add an Apple development account in Xcode, or explicitly use SLOPZOOKA_SIGN_IDENTITY=- for an ad-hoc test build (privacy permissions may reset on every update).",
+  );
+}
+console.log(
+  `Signing companion with ${signingIdentity === "-" ? "ad-hoc identity (permissions may reset)" : signingIdentity}`,
+);
 const destination = path.join(root, "build/mac-app");
 function requireStopped() {
   const bundle = path.join(destination, "SlopZooka.app");
@@ -112,7 +135,7 @@ try {
     "-o",
     path.join(resources, "AppIcon.icns"),
   ]);
-  run("codesign", ["--force", "--deep", "--sign", "-", app]);
+  run("codesign", ["--force", "--deep", "--sign", signingIdentity, app]);
   run("codesign", ["--verify", "--deep", "--strict", app]);
   // Publish only a complete, signed bundle; failures preserve the previous build.
   requireStopped();

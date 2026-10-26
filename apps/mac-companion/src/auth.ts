@@ -18,16 +18,30 @@ const publicPaths = new Set([
 
 export class Pairing {
   readonly hostId: string;
-  readonly code = crypto.randomBytes(6).toString("hex");
+  private currentCode = "";
+  private codeExpires = 0;
+  get code(): string {
+    if (this.now() >= this.codeExpires) {
+      const previous = this.currentCode;
+      do {
+        this.currentCode = crypto
+          .randomInt(1_000_000)
+          .toString()
+          .padStart(6, "0");
+      } while (this.currentCode === previous);
+      this.codeExpires = this.now() + 5 * 60_000;
+    }
+    return this.currentCode;
+  }
   private readonly tokens: Set<string>;
-  private readonly attempts = new Map<
-    string,
-    { count: number; until: number }
-  >();
+  private attempts = { count: 0, until: 0 };
+  displayUntil = 0;
+  private nextDisplay = 0;
   private readonly file: string;
   constructor(
     home: string,
     private readonly proxyOrigin: () => string | undefined = () => undefined,
+    private readonly now: () => number = Date.now,
   ) {
     fs.mkdirSync(home, { recursive: true, mode: 0o700 });
     this.file = path.join(home, "pairing.json");
@@ -76,27 +90,36 @@ export class Pairing {
     );
   }
   install(app: Express): void {
+    // Explicit pairing-screen request. Health checks never put a code on screen.
+    // Only private desktop IPC carries the code; this response cannot reveal it.
+    app.post("/api/pair/display", (req, res) => {
+      if (!this.sameOrigin(req)) {
+        res.status(403).json({ error: "Origin rejected" });
+        return;
+      }
+      if (!this.authorized(req) && this.now() >= this.nextDisplay) {
+        this.displayUntil = this.now() + 45_000;
+        this.nextDisplay = this.now() + 60_000;
+      }
+      res.json({ ok: true });
+    });
     app.post("/api/pair", (req, res) => {
       if (!this.sameOrigin(req)) {
         res.status(403).json({ error: "Origin rejected" });
         return;
       }
-      const ip = req.ip ?? "unknown",
-        now = Date.now();
-      const attempt = this.attempts.get(ip) ?? {
-        count: 0,
-        until: now + 60_000,
-      };
-      if (now > attempt.until) {
-        attempt.count = 0;
-        attempt.until = now + 60_000;
-      }
-      if (++attempt.count > 10) {
+      const now = this.now();
+      if (now >= this.attempts.until)
+        this.attempts = { count: 0, until: now + 60_000 };
+      // A host-wide budget prevents bypassing the six-digit code limit via new addresses.
+      if (++this.attempts.count > 10) {
+        res.setHeader(
+          "Retry-After",
+          Math.ceil((this.attempts.until - now) / 1000),
+        );
         res.status(429).json({ error: "Wait a minute before pairing again" });
         return;
       }
-      if (this.attempts.size > 1000) this.attempts.clear();
-      this.attempts.set(ip, attempt);
       if (typeof req.body?.code !== "string" || req.body.code !== this.code) {
         res
           .status(401)
@@ -109,6 +132,7 @@ export class Pairing {
       if (this.tokens.size > 32)
         this.tokens.delete(this.tokens.values().next().value!);
       this.persist();
+      this.displayUntil = 0;
       this.cookie(req, res, token);
       res.json({ token, hostId: this.hostId });
     });

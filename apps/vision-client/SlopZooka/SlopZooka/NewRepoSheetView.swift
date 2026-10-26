@@ -5,6 +5,7 @@ struct NewRepoSheetView: View {
     let suggestedOwnerLogin: String?
     let selectedTool: LaunchTarget
     let isSubmitting: Bool
+    let error: String?
     let onSubmit: (String, String, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -63,10 +64,19 @@ struct NewRepoSheetView: View {
 
                 Toggle("Private Repository", isOn: $isPrivate)
 
+                if let error {
+                    Text("Couldn’t create the repository.").foregroundStyle(.orange)
+                    DisclosureGroup("Details") { Text(error).font(.caption).textSelection(.enabled) }
+                }
+                if isSubmitting {
+                    ProgressView("Creating repository on your Mac…")
+                    Text("Closing this window stops waiting; a repository already created on GitHub is kept.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Spacer()
 
                 HStack(spacing: 10) {
-                    Button("Cancel") {
+                    Button(isSubmitting ? "Stop Waiting" : "Cancel") {
                         dismiss()
                     }
                     .buttonStyle(.bordered)

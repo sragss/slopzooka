@@ -49,12 +49,18 @@ const pairing: Pairing = new Pairing(
 const dashboardAddress = new DashboardAddress(PORT, pairing.hostId, logger);
 const frontendService = new FrontendService(logger, {
   dashboardOrigin: () => dashboardAddress.proxyOrigin,
+  workspaces: () => workspaceService.frontendWorkspaces(),
 });
 // Pairing codes are intentionally printed only to the local console, never the log file.
-console.log(`SlopZooka pairing code: ${pairing.code}`);
+let displayedPairingCode = pairing.code;
+console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
 
 let frontendCount = 0;
 const catalogTimer = setInterval(() => {
+  if (pairing.code !== displayedPairingCode) {
+    displayedPairingCode = pairing.code;
+    console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
+  }
   void frontendService.getCatalog().then((catalog) => {
     frontendCount = catalog.frontends.filter(
       (frontend) =>
@@ -649,6 +655,7 @@ function publishDesktopStatus(): void {
     "SLZ_DESKTOP " +
       JSON.stringify({
         code: pairing.code,
+        pairingDisplayUntil: pairing.displayUntil,
         sessions: sessionManager
           .summaries()
           .filter((session) => session.status === "running").length,

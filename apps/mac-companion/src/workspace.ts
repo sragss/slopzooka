@@ -141,6 +141,10 @@ export class WorkspaceService {
     };
   }
 
+  async frontendWorkspaces(): Promise<WorkspaceRecord[]> {
+    return (await readWorkspaceIndex()).filter((record) => !record.archivedAt);
+  }
+
   async listWorkspaces(
     limit: number,
     includeArchived = false,

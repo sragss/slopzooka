@@ -5,8 +5,6 @@ struct WorkspaceRowView: View {
     let selectedTool: LaunchTarget
     let isBusy: Bool
 
-    private let rowShape = RoundedRectangle(cornerRadius: 22, style: .continuous)
-
     var body: some View {
         HStack(spacing: 12) {
             avatar
@@ -42,10 +40,7 @@ struct WorkspaceRowView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(rowShape.fill(.quaternary.opacity(0.28)))
-        .clipShape(rowShape)
-        .contentShape(rowShape)
-        .contentShape(.hoverEffect, rowShape)
+        .contentShape(Rectangle())
         .accessibilityLabel("Open \(workspace.repo.nameWithOwner), \(workspace.branchName), with \(selectedTool.title)")
     }
 

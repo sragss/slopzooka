@@ -8,6 +8,7 @@ final class CompanionModel: ObservableObject {
     @Published var state = "Starting"
     @Published var detail = "Getting your Mac ready"
     @Published var code = ""
+    @Published var pairingDisplayUntil: TimeInterval = 0
     @Published var sessions = 0
     @Published var viewers = 0
     @Published var frontends = 0
@@ -121,6 +122,7 @@ final class CompanionModel: ObservableObject {
 
     private struct Status: Decodable, Equatable {
         let code: String
+        let pairingDisplayUntil: Double?
         let sessions: Int
         let viewers: Int
         let frontends: Int
@@ -144,6 +146,7 @@ final class CompanionModel: ObservableObject {
                 ? "\(status.viewers) connected terminal viewer\(status.viewers == 1 ? "" : "s")"
                 : "Ready for Vision Pro"
             code = status.code
+            pairingDisplayUntil = (status.pairingDisplayUntil ?? 0) / 1000
             sessions = status.sessions
             viewers = status.viewers
             frontends = status.frontends
@@ -165,6 +168,7 @@ final class CompanionModel: ObservableObject {
         ready = false
         code = ""
         sessions = 0
+        pairingDisplayUntil = 0
         viewers = 0
         frontends = 0
         if quitting {

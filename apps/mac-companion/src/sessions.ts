@@ -93,9 +93,14 @@ export class SessionManager {
       claude: process.env.SLOPZOOKA_CLAUDE_COMMAND ?? "claude",
       opencode: process.env.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode",
     };
+    const shell = process.env.SHELL ?? "/bin/zsh";
+    // Keep a shell after the agent exits (including updater exits and launch failures).
+    // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
     const term = pty.spawn(
-      process.env.SHELL ?? "/bin/zsh",
-      profile ? ["-lc", commands[profile]] : ["-l"],
+      shell,
+      profile
+        ? ["-c", '"$0" -lc "$1"; exec "$0" -l', shell, commands[profile]]
+        : ["-l"],
       {
         cwd,
         cols: summary.cols,

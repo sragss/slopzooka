@@ -7,7 +7,9 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const app = path.join(root, "build/mac-app/SlopZooka.app");
+const app =
+  process.env.SLOPZOOKA_TEST_APP ??
+  path.join(root, "build/mac-app/SlopZooka.app");
 const resources = path.join(app, "Contents/Resources");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-desktop-test-"));
@@ -100,12 +102,28 @@ try {
     output.split("\n").find((line) => line.startsWith("SLZ_DESKTOP ")),
   );
   const status = JSON.parse(frame.slice("SLZ_DESKTOP ".length));
-  assert.match(status.code, /^[a-f0-9]{12}$/);
+  assert.match(status.code, /^[0-9]{6}$/);
   assert.equal(status.sessions, 0);
   assert.equal(
     (await fetch(base + "/")).status,
     200,
     "bundled static assets load outside the checkout",
+  );
+  const display = await fetch(base + "/api/pair/display", { method: "POST" });
+  assert.deepEqual(
+    await display.json(),
+    { ok: true },
+    "display request never returns the code",
+  );
+  await until(() =>
+    output
+      .split("\n")
+      .filter((line) => line.startsWith("SLZ_DESKTOP "))
+      .some(
+        (line) =>
+          JSON.parse(line.slice("SLZ_DESKTOP ".length)).pairingDisplayUntil >
+          Date.now(),
+      ),
   );
   const paired = await (
     await fetch(base + "/api/pair", {

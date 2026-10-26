@@ -8,19 +8,35 @@ struct ContentView: View {
     @StateObject private var state = LauncherState()
     @StateObject private var discovery = CompanionDiscovery()
     @AppStorage("launcherSection") private var section: LauncherSection = .projects
-    @State private var isConnectionPresented = false
+    private enum Sheet: String, Identifiable {
+        case connection, newRepo
+        var id: String { rawValue }
+    }
+    @State private var activeSheet: Sheet?
+    @State private var createRepoTask: Task<Void, Never>?
+    @State private var showManualAddress = false
+    @FocusState private var pairingCodeFocused: Bool
+    @FocusState private var projectSearchFocused: Bool
     @State private var connectionHost = ""
-    @State private var isNewRepoPresented = false
 
     var body: some View {
         VStack(spacing: 16) {
             launcherHeader
             if isReady {
-                Picker("Browse", selection: $section) {
-                    ForEach(LauncherSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
+                HStack(spacing: 4) {
+                    ForEach(LauncherSection.allCases) { item in
+                        Button { section = item } label: {
+                            Text(item.rawValue)
+                                .font(.subheadline.weight(section == item ? .semibold : .regular))
+                                .foregroundStyle(section == item ? .primary : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(LauncherTabStyle(isSelected: section == item))
+                        .accessibilityAddTraits(section == item ? .isSelected : [])
                     }
-                }.pickerStyle(.segmented)
+                }
+                .accessibilityLabel("Browse")
             }
             ScrollView {
                 launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
@@ -28,29 +44,35 @@ struct ContentView: View {
         }
         .padding(24)
         .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
-        .sheet(isPresented: $isConnectionPresented) {
-            NavigationStack {
-                ScrollView { connectionContent.padding(24) }
-                    .navigationTitle("Mac connection")
-                    .toolbar {
-                        ToolbarItem(placement: .confirmationAction) {
-                            Button("Done") { isConnectionPresented = false }
+        .sheet(item: $activeSheet, onDismiss: {
+            createRepoTask?.cancel()
+            createRepoTask = nil
+            state.cancelRepoCreation()
+        }) { sheet in
+            switch sheet {
+            case .connection:
+                NavigationStack {
+                    ScrollView { connectionContent.padding(24) }
+                        .navigationTitle("Your Mac")
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("Done") { activeSheet = nil }
+                            }
                         }
-                    }
-            }.frame(width: 520, height: 500)
-        }
-        .sheet(isPresented: $isNewRepoPresented) {
-            NewRepoSheetView(
-                owners: state.availableOwners,
-                suggestedOwnerLogin: state.preferredOwnerLogin(),
-                selectedTool: state.selectedTool,
-                isSubmitting: state.isCreatingRepo
-            ) { owner, repoName, isPrivate in
-                Task {
-                    let didCreate = await state.createRepoAndLaunch(
-                        owner: owner, repoName: repoName, isPrivate: isPrivate)
-                    if didCreate {
-                        isNewRepoPresented = false
+                }.frame(width: 520, height: 440)
+            case .newRepo:
+                NewRepoSheetView(
+                    owners: state.availableOwners,
+                    suggestedOwnerLogin: state.preferredOwnerLogin(),
+                    selectedTool: state.selectedTool,
+                    isSubmitting: state.isCreatingRepo,
+                    error: state.repoCreationError
+                ) { owner, repoName, isPrivate in
+                    createRepoTask = Task {
+                        let didCreate = await state.createRepoAndLaunch(
+                            owner: owner, repoName: repoName, isPrivate: isPrivate)
+                        guard !Task.isCancelled else { return }
+                        if didCreate { activeSheet = nil }
                     }
                 }
             }
@@ -89,6 +111,9 @@ struct ContentView: View {
         .onChange(of: state.host) { old, new in
             if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
         }
+        .onChange(of: isReady) { _, ready in
+            if ready && activeSheet == .connection { activeSheet = nil }
+        }
         .onChange(of: state.selectedTool) { _, _ in
             state.persistSelectedTool()
         }
@@ -110,12 +135,11 @@ struct ContentView: View {
         HStack {
             Text("SlopZooka").font(.title2.weight(.semibold))
             Spacer()
-            Button {
-                isConnectionPresented = true
-            } label: {
-                Label(state.needsPairing ? "Pair Mac" : "Mac connection", systemImage: "desktopcomputer")
-                    .font(.subheadline)
-            }.buttonStyle(.bordered)
+            if isReady {
+                Button { activeSheet = .connection } label: {
+                    Label("Mac", systemImage: "desktopcomputer").font(.subheadline)
+                }.buttonStyle(.bordered)
+            }
         }
     }
 
@@ -123,7 +147,7 @@ struct ContentView: View {
         VStack(alignment: .leading, spacing: 20) {
             if let feedback = state.feedback { feedbackBanner(feedback) }
             if !isReady {
-                connectionContent
+                if activeSheet != .connection { connectionContent }
             } else {
                 switch section {
                 case .sessions:
@@ -155,7 +179,7 @@ struct ContentView: View {
                 }.pickerStyle(.menu)
                 Spacer()
                 Menu {
-                    Button("New Repository…") { isNewRepoPresented = true }
+                    Button("New Repository…") { state.repoCreationError = nil; activeSheet = .newRepo }
                         .disabled(state.availableOwners.isEmpty)
                     Button(state.isPruningMissingWorkspaces ? "Hiding Missing…" : "Hide Missing Workspaces") {
                         Task { await state.pruneMissingWorkspaces() }
@@ -165,8 +189,34 @@ struct ContentView: View {
                 }
                 .disabled(state.isMutatingWorkspace)
             }
-            TextField("Search projects or branches", text: $state.searchText)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
+            HStack(spacing: 12) {
+                TextField("Search projects or branches", text: $state.searchText)
+                    .textFieldStyle(.plain)
+                    .focused($projectSearchFocused)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .hoverEffectDisabled()
+                Image(systemName: "magnifyingglass")
+                    .foregroundStyle(.secondary)
+                    .frame(width: 44, height: 44)
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 18)
+            .padding(.trailing, 6)
+            .padding(.vertical, 6)
+            .contentShape(RoundedRectangle(cornerRadius: 16))
+            .onTapGesture { projectSearchFocused = true }
+            .background {
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(.white)
+                    .hoverEffect { effect, isActive, _ in
+                        effect.opacity(isActive ? 0.16 : 0.08)
+                    }
+            }
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(projectSearchFocused ? 0.4 : 0.16), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
             VStack(alignment: .leading, spacing: 12) {
                 sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
                 quickWorkspaceContent
@@ -195,66 +245,96 @@ struct ContentView: View {
         }
     }
 
+    private var selectedMacName: String {
+        discovery.companions.first(where: { $0.candidateHosts.contains(state.normalizedHost) })?.name
+            ?? state.connection.endpoint?.host() ?? "your Mac"
+    }
+
     private var connectionContent: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        VStack(alignment: .leading, spacing: 20) {
             if state.needsPairing {
-                Text("Pair with your Mac").font(.title3.weight(.semibold))
-                Text("Open the SlopZooka menu on your Mac and choose Pair Vision Pro.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                HStack {
-                    TextField("Pairing code", text: $state.pairingCode)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .onSubmit { Task { await state.pair() } }
-                    Button("Pair") { Task { await state.pair() } }.buttonStyle(.borderedProminent)
-                        .disabled(state.pairingCode.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Text("Connect to \(selectedMacName)").font(.title3.weight(.semibold))
+                Text("Enter the six-digit code displayed on your Mac.")
+                    .foregroundStyle(.secondary)
+                TextField("6-digit code", text: $state.pairingCode)
+                    .font(.system(size: 32, weight: .medium, design: .monospaced))
+                    .keyboardType(.numberPad).textContentType(.oneTimeCode)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                    .focused($pairingCodeFocused)
+                    .disabled(state.isPairing)
+                    .onChange(of: state.pairingCode) { _, value in
+                        let digits = String(value.filter { $0 >= "0" && $0 <= "9" }.prefix(6))
+                        if value != digits { state.pairingCode = digits; return }
+                        if digits.count == 6 { Task { await state.pair() } }
+                    }
+                    .task(id: state.normalizedHost) {
+                        await Task.yield()
+                        pairingCodeFocused = true
+                        await state.showConnectionCode()
+                    }
+                    .onChange(of: state.isPairing) { _, pairing in
+                        if !pairing { pairingCodeFocused = true }
+                    }
+                if state.isPairing { ProgressView("Connecting…") }
+                if let error = state.pairingError {
+                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
                 }
-            } else if !isReady {
-                Text("Connect your Mac").font(.title3.weight(.semibold))
-                Text("Open SlopZooka on your Mac. Nearby companions appear automatically.")
-                    .font(.subheadline).foregroundStyle(.secondary)
-                discoveryStatusView
+                Text("You can also find it in the Mac’s bazooka menu → Show Connection Code.")
+                    .font(.caption).foregroundStyle(.secondary)
+            } else if isReady {
+                Label(selectedMacName, systemImage: "desktopcomputer").font(.title3.weight(.semibold))
+                Text("Connected").foregroundStyle(.secondary)
+            } else {
+                Text("Find your Mac").font(.title3.weight(.semibold))
+                Text("Open SlopZooka on your Mac and use the same Wi-Fi network.")
+                    .foregroundStyle(.secondary)
+                if case .failure(let message) = state.healthState {
+                    Text("Couldn’t reach your Mac.").foregroundStyle(.orange)
+                    DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
+                    Button("Try Again") { Task { await state.connectAndRefresh() } }
+                } else if case .failed(let message) = discovery.state {
+                    Text("Mac discovery is unavailable.").foregroundStyle(.orange)
+                    DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
+                } else {
+                    ProgressView("Looking for your Mac…")
+                }
             }
-            HealthStatusView(state: state.healthState)
-            Divider()
-            VStack(alignment: .leading, spacing: 10) {
-                Text("Mac address").font(.subheadline.weight(.medium))
+            if discovery.companions.count > 1 {
+                Menu("Choose another Mac") {
+                    ForEach(discovery.companions) { companion in
+                        Button(companion.name) { selectMac(companion.host) }
+                    }
+                }.disabled(state.isPairing || state.isMutatingWorkspace)
+            }
+            if isReady, case .success(let health) = state.healthState {
+                DisclosureGroup("Technical details") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Address: \(health.controlOrigin)")
+                        Text("Logs: \(health.logFilePath)")
+                    }.font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
+                }
+            }
+            Button(showManualAddress ? "Hide manual address" : "Enter address manually") {
+                showManualAddress.toggle()
+            }.font(.subheadline)
+            if showManualAddress {
                 HStack {
                     TextField("MacName.local:7777", text: $connectionHost)
                         .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button(isReady ? "Reconnect" : "Connect") {
-                        state.host = connectionHost
-                        Task { await state.connectAndRefresh() }
-                    }.disabled(
-                        state.isMutatingWorkspace
-                            || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("Find Mac") { selectMac(connectionHost) }
+                        .disabled(state.isPairing || state.isMutatingWorkspace || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
         }
         .onAppear { connectionHost = state.host }
     }
 
-    @ViewBuilder
-    private var discoveryStatusView: some View {
-        switch discovery.state {
-        case .idle:
-            EmptyView()
-        case .searching:
-            Label("Searching for a nearby Mac companion…", systemImage: "dot.radiowaves.left.and.right")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-        case .found(let count):
-            let hostText = discovery.preferredHost ?? "nearby companion"
-            Label(
-                "Discovered \(count) companion\(count == 1 ? "" : "s"). Auto-connecting to \(hostText).",
-                systemImage: "network"
-            )
-            .font(.footnote)
-            .foregroundStyle(.secondary)
-        case .failed(let message):
-            Label(message, systemImage: "exclamationmark.triangle")
-                .font(.footnote)
-                .foregroundStyle(.orange)
-        }
+    private func selectMac(_ host: String) {
+        connectionHost = host
+        state.host = host
+        state.pairingCode = ""
+        state.pairingError = nil
+        Task { await state.connectAndRefresh() }
     }
 
     @ViewBuilder
@@ -324,8 +404,9 @@ struct ContentView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(matchingWorkspaces) { workspace in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 0) {
                             Button {
+                                projectSearchFocused = false
                                 Task {
                                     await state.reopen(workspace)
                                 }
@@ -337,6 +418,7 @@ struct ContentView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .hoverEffectDisabled()
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
 
@@ -350,15 +432,26 @@ struct ContentView: View {
                                     }
                                 }
                             } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .font(.body)
+                                Image(systemName: "ellipsis")
+                                    .font(.body.weight(.semibold))
                                     .foregroundStyle(.secondary)
-                                    .padding(6)
-                                    .background(.quaternary.opacity(0.35), in: Circle())
+                                    .frame(width: 48, height: 48)
+                                    .contentShape(Circle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Options for \(workspace.repo.nameWithOwner), \(workspace.branchName)")
+                            .padding(.trailing, 8)
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
+                        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18)
+                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                                .allowsHitTesting(false)
+                        }
+                        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 18))
+                        .hoverEffect(.highlight)
                     }
                 }
             }
@@ -381,6 +474,7 @@ struct ContentView: View {
                 LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
                         Button {
+                            projectSearchFocused = false
                             Task {
                                 await state.launch(repo)
                             }
@@ -485,16 +579,19 @@ struct ContentView: View {
     }
 }
 
-enum RepoState {
-    case idle
-    case loading
-    case loaded(viewerLogin: String, count: Int)
-    case failure(String)
-}
+/// Owns both selected and gaze feedback, avoiding the system button's second hover shape.
+private struct LauncherTabStyle: ButtonStyle {
+    let isSelected: Bool
 
-enum WorkspaceState {
-    case idle
-    case loading
-    case loaded(count: Int)
-    case failure(String)
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape(RoundedRectangle(cornerRadius: 12))
+            .background {
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(.white)
+                    .hoverEffect { effect, isActive, _ in
+                        effect.opacity(configuration.isPressed ? 0.28 : (isActive ? 0.22 : (isSelected ? 0.14 : 0)))
+                    }
+            }
+    }
 }

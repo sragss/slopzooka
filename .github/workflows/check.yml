@@ -22,4 +22,6 @@ jobs:
       - run: pnpm build:harness
       - run: git diff --exit-code -- apps/mac-companion/public
       - run: pnpm build:mac-app
+        env:
+          SLOPZOOKA_SIGN_IDENTITY: "-"
       - run: pnpm test:mac-app

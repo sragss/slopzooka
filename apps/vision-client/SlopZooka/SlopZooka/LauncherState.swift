@@ -7,6 +7,8 @@ final class LauncherState: ObservableObject {
     @Published var host = ""
     @Published var pairingCode = ""
     @Published var needsPairing = false
+    @Published var isPairing = false
+    @Published var pairingError: String?
     @Published var healthState: HealthState = .idle
     @Published var recentRepos: [RecentRepoSummary] = []
     @Published var recentWorkspaces: [WorkspaceSummary] = []
@@ -20,6 +22,8 @@ final class LauncherState: ObservableObject {
     @Published var busyRepoID: String?
     @Published var busyWorkspaceID: String?
     @Published var isCreatingRepo = false
+    @Published var repoCreationError: String?
+    private var repoCreationID: UUID?
     @Published var mutatingWorkspaceID: String?
     @Published var isPruningMissingWorkspaces = false
     @Published var feedback: LaunchFeedback?
@@ -78,6 +82,8 @@ final class LauncherState: ObservableObject {
             healthState = .failure("Enter a valid companion host")
             return false
         }
+        needsPairing = false
+        pairingError = nil
         healthState = .checking
         do {
             let health = try await CompanionAPI.request(
@@ -106,12 +112,28 @@ final class LauncherState: ObservableObject {
     }
 
     func pair() async {
-        guard let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        guard !isPairing, needsPairing, pairingCode.count == 6,
+            pairingCode.allSatisfy({ $0 >= "0" && $0 <= "9" }),
+            let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        isPairing = true
+        pairingError = nil
+        defer { isPairing = false }
         do {
             try await CompanionAPI.pair(base: base, code: pairingCode.trimmingCharacters(in: .whitespacesAndNewlines))
+            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
             pairingCode = ""
             await connectAndRefresh()
-        } catch { show(error) }
+        } catch {
+            pairingCode = ""
+            pairingError = error.localizedDescription
+        }
+    }
+
+    func showConnectionCode() async {
+        guard needsPairing, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        // Optional convenience: older companions still expose their code in the menu.
+        _ = try? await CompanionAPI.request(APIAcknowledgement.self, base: base,
+            path: "/api/pair/display", method: "POST", timeout: 4)
     }
 
     func refreshHostCatalog() async {
@@ -181,8 +203,13 @@ final class LauncherState: ObservableObject {
     func createRepoAndLaunch(owner: String, repoName: String, isPrivate: Bool) async -> Bool {
         guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return false }
         let profile = selectedTool.queryValue
+        let operation = UUID()
+        repoCreationID = operation
         isCreatingRepo = true
-        defer { isCreatingRepo = false }
+        repoCreationError = nil
+        defer {
+            if repoCreationID == operation { repoCreationID = nil; isCreatingRepo = false }
+        }
         do {
             let body = try JSONEncoder().encode(
                 CreateRepoAndLaunchRequest(
@@ -190,15 +217,24 @@ final class LauncherState: ObservableObject {
             let workspace = try await CompanionAPI.request(
                 LaunchWorkspaceResponse.self, base: base, path: "/api/repos/create-and-launch", method: "POST",
                 body: body, timeout: 300)
+            try Task.checkCancellation()
+            guard repoCreationID == operation else { return false }
             UserDefaults.standard.set(owner, forKey: "newRepoOwnerLogin")
             try await startSession(workspace: workspace, base: base, profile: profile)
             await loadWorkspaces(base: base)
             await loadRepositories(base: base)
             return true
         } catch {
-            show(error)
+            if !Task.isCancelled && repoCreationID == operation { repoCreationError = error.localizedDescription }
             return false
         }
+    }
+
+    func cancelRepoCreation() {
+        guard repoCreationID != nil else { return }
+        repoCreationID = nil
+        isCreatingRepo = false
+        feedback = LaunchFeedback(message: "Stopped waiting. The repository may still finish creating on your Mac; check your projects before trying again.", style: .neutral)
     }
 
     func reopen(_ workspace: WorkspaceSummary) async {
@@ -223,6 +259,7 @@ final class LauncherState: ObservableObject {
         let result = try await CompanionAPI.request(
             CreatedSessionResponse.self, base: base,
             path: "/api/workspaces/\(workspace.workspaceId)/sessions", method: "POST", body: body)
+        try Task.checkCancellation()
         guard let terminal = terminalPayload(result.session, base: base) else { throw URLError(.badURL) }
         onTerminalLaunch?(terminal)
         feedback = LaunchFeedback(message: "\(workspace.repo.nameWithOwner) • \(workspace.branchName)", style: .success)
