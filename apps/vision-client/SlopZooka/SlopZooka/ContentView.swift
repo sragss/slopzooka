@@ -23,11 +23,23 @@ struct ContentView: View {
         VStack(spacing: 16) {
             launcherHeader
             if isReady {
-                Picker("Browse", selection: $section) {
-                    ForEach(LauncherSection.allCases) { section in
-                        Text(section.rawValue).tag(section)
+                HStack(spacing: 4) {
+                    ForEach(LauncherSection.allCases) { item in
+                        Button { section = item } label: {
+                            Text(item.rawValue)
+                                .font(.subheadline.weight(section == item ? .semibold : .regular))
+                                .foregroundStyle(section == item ? .primary : .secondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(section == item ? Color.white.opacity(0.14) : .clear,
+                                            in: RoundedRectangle(cornerRadius: 12))
+                                .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 12))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(section == item ? .isSelected : [])
                     }
-                }.pickerStyle(.segmented)
+                }
+                .accessibilityLabel("Browse")
             }
             ScrollView {
                 launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
@@ -180,9 +192,28 @@ struct ContentView: View {
                 }
                 .disabled(state.isMutatingWorkspace)
             }
-            TextField("Search projects or branches", text: $state.searchText)
-                .focused($projectSearchFocused)
-                .textInputAutocapitalization(.never).autocorrectionDisabled()
+            HStack(spacing: 12) {
+                TextField("Search projects or branches", text: $state.searchText)
+                    .textFieldStyle(.plain)
+                    .focused($projectSearchFocused)
+                    .textInputAutocapitalization(.never).autocorrectionDisabled()
+                Button { projectSearchFocused = true } label: {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Search projects or branches")
+            }
+            .padding(.leading, 18)
+            .padding(.trailing, 6)
+            .padding(.vertical, 6)
+            .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 16))
+            .overlay {
+                RoundedRectangle(cornerRadius: 16)
+                    .strokeBorder(.white.opacity(projectSearchFocused ? 0.4 : 0.16), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
             VStack(alignment: .leading, spacing: 12) {
                 sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
                 quickWorkspaceContent
@@ -370,7 +401,7 @@ struct ContentView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(matchingWorkspaces) { workspace in
-                        HStack(spacing: 8) {
+                        HStack(spacing: 0) {
                             Button {
                                 projectSearchFocused = false
                                 Task {
@@ -384,6 +415,7 @@ struct ContentView: View {
                                 )
                             }
                             .buttonStyle(.plain)
+                            .hoverEffectDisabled()
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
 
@@ -397,15 +429,26 @@ struct ContentView: View {
                                     }
                                 }
                             } label: {
-                                Image(systemName: "ellipsis.circle")
-                                    .font(.body)
+                                Image(systemName: "ellipsis")
+                                    .font(.body.weight(.semibold))
                                     .foregroundStyle(.secondary)
-                                    .padding(6)
-                                    .background(.quaternary.opacity(0.35), in: Circle())
+                                    .frame(width: 48, height: 48)
+                                    .contentShape(Circle())
                             }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Options for \(workspace.repo.nameWithOwner), \(workspace.branchName)")
+                            .padding(.trailing, 8)
                             .disabled(
                                 state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
                         }
+                        .background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 18))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18)
+                                .strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                                .allowsHitTesting(false)
+                        }
+                        .contentShape(.hoverEffect, RoundedRectangle(cornerRadius: 18))
+                        .hoverEffect(.highlight)
                     }
                 }
             }
