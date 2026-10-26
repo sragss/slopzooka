@@ -32,6 +32,18 @@ enum CompanionAPI {
 struct LauncherStateChecks {
     @MainActor
     static func main() async {
+        var speech = SpeechEndpoint()
+        precondition(!speech.shouldFinish(at: 100), "Silence without words must never send")
+        speech.received("hello", at: 100)
+        precondition(!speech.shouldFinish(at: 101.4), "Short pauses must not send")
+        speech.heardVoice(at: 101.3)
+        precondition(!speech.shouldFinish(at: 102), "Continuing speech extends the pause window")
+        precondition(speech.shouldFinish(at: 102.8), "A completed phrase should send after a pause")
+        speech.received("hello world", at: 103)
+        precondition(!speech.shouldFinish(at: 104), "Late recognition results get time to settle")
+        speech = SpeechEndpoint()
+        precondition(!speech.shouldFinish(at: 200), "A new recording must not inherit old words")
+        print("PASS: dictation waits for words and a pause, extends for speech, and resets between recordings")
         let terminal = URL(string: "http://Mac:7777/terminal?sessionId=fixture")!
         precondition(TerminalNavigation.allows(URL(string: "http://mac:7777/terminal?sessionId=fixture")!, document: terminal))
         precondition(TerminalNavigation.allows(URL(string: "http://mac/terminal")!, document: URL(string: "http://Mac:80/terminal")!))

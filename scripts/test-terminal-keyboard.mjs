@@ -27,6 +27,7 @@ window.runKeyboardChecks = () => {
   const edit = (type, target = input, composing = false) => target.dispatchEvent(new InputEvent('beforeinput', {
     inputType: type, bubbles: true, cancelable: true, isComposing: composing
   }));
+  window.slzInterruptTerminal(); check(['\\x1b'], 'interrupt sends Escape');
   edit('insertLineBreak'); check(['\\r'], 'floating Return');
   edit('insertParagraph'); check(['\\r'], 'paragraph Return');
   const accepted = input.dispatchEvent(new KeyboardEvent('keydown', {

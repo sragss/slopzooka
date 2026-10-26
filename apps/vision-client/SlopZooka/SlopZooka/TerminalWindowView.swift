@@ -18,6 +18,8 @@ struct TerminalWindowView: View {
     @State private var speechSubmitError: String?
     @State private var speechOrbPulse = false
     @State private var focusRequestToken = 0
+    @State private var interruptRequestToken = 0
+    @State private var speechCommandID = UUID().uuidString
 
     var body: some View {
         Group {
@@ -41,6 +43,7 @@ struct TerminalWindowView: View {
             }
         }
         .onDisappear {
+            speechCapture.onFinished = nil
             speechCapture.stopListening()
             if let sessionID {
                 appModel.markTerminalPresented(id: sessionID, isPresented: false)
@@ -70,7 +73,8 @@ struct TerminalWindowView: View {
                 CompanionWebView(
                     url: url,
                     loadState: $loadState,
-                    focusRequestToken: focusRequestToken
+                    focusRequestToken: focusRequestToken,
+                    interruptRequestToken: interruptRequestToken
                 )
                 .id(payload.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -104,6 +108,8 @@ struct TerminalWindowView: View {
                             speechCapture.stopListening()
                             isSpeechPanelExpanded = false
                         } else {
+                            speechSubmitError = nil
+                            speechCommandID = UUID().uuidString
                             isSpeechPanelExpanded = true
                             Task {
                                 await speechCapture.startListening()
@@ -118,6 +124,7 @@ struct TerminalWindowView: View {
                     .padding(10)
                     .background(.regularMaterial, in: Circle())
                     .help("Dictation").accessibilityLabel("Dictate to terminal")
+                    .disabled(!canSubmitSpeech || isSubmittingSpeech)
 
                     Menu {
                         Button("New Shell", systemImage: "terminal") { Task { await newShell(payload: payload) } }
@@ -135,6 +142,15 @@ struct TerminalWindowView: View {
                     .accessibilityLabel("Session actions")
 
                     Button {
+                        interruptRequestToken += 1
+                    } label: {
+                        Label("Interrupt", systemImage: "escape")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSubmitSpeech)
+                    .help("Send Escape to the terminal")
+
+                    Button {
                         closeWindow(payloadID: payload.id)
                     } label: {
                         Image(systemName: "xmark")
@@ -145,13 +161,6 @@ struct TerminalWindowView: View {
                     .background(.regularMaterial, in: Circle())
                 }
 
-                if isSpeechPanelExpanded {
-                    speechPanel(payloadID: payload.id)
-                        .frame(maxWidth: 420, alignment: .trailing)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .transition(.opacity.combined(with: .move(edge: .top)))
-                }
-
                 if isUtilitiesExpanded {
                     terminalUtilitiesSection(payload: payload)
                         .frame(maxWidth: .infinity, alignment: .trailing)
@@ -160,12 +169,23 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
+        .overlay(alignment: .center) {
+            if isSpeechPanelExpanded {
+                speechPanel(payloadID: payload.id)
+                    .frame(width: 460)
+                    .transition(.opacity)
+            }
+        }
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {
             Text("This stops the terminal and its attached dev servers. Close the window to keep them running.")
         }
         .onAppear {
+            speechCapture.onFinished = {
+                guard isSpeechPanelExpanded, !isSubmittingSpeech else { return }
+                Task { await submitSpeechTranscript(payloadID: payload.id) }
+            }
             slzLog("terminal scene appeared \(payload.id)")
             appModel.markTerminalPresented(id: payload.id, isPresented: true)
             withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
@@ -174,6 +194,7 @@ struct TerminalWindowView: View {
         }
         .onChange(of: loadState) { _, newLoadState in
             appModel.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
+            if !canSubmitSpeech { speechCapture.stopListening() }
         }
     }
 
@@ -229,7 +250,7 @@ struct TerminalWindowView: View {
                     Text("Voice Input")
                         .font(.subheadline.weight(.semibold))
 
-                    Text(speechCapture.statusText)
+                    Text(isSubmittingSpeech ? "Sending…" : speechCapture.statusText)
                         .font(.caption)
                         .foregroundStyle(speechCapture.isListening ? .red : .secondary)
                 }
@@ -250,33 +271,32 @@ struct TerminalWindowView: View {
             .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
 
             HStack(spacing: 10) {
-                Button("Close") {
+                Button("Cancel") {
                     speechCapture.stopListening()
+                    speechCapture.clearTranscript()
                     isSpeechPanelExpanded = false
                 }
                 .buttonStyle(.bordered)
-
+                .disabled(isSubmittingSpeech)
+                Spacer()
                 if speechCapture.isListening {
-                    Button("Stop") {
-                        speechCapture.stopListening()
-                    }
-                    .buttonStyle(.bordered)
-                } else {
-                    Button("Start") {
-                        Task {
-                            await speechCapture.startListening()
+                    Button("Send Now") { speechCapture.finishListening() }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(submissionTranscript.isEmpty)
+                } else if !isSubmittingSpeech && speechCapture.state != .preparing && speechCapture.state != .finishing {
+                    if !submissionTranscript.isEmpty {
+                        Button(speechSubmitError == nil ? "Send" : "Retry") {
+                            Task { await submitSpeechTranscript(payloadID: payloadID) }
                         }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!canSubmitSpeech)
+                    } else {
+                        Button("Try Again") {
+                            Task { await speechCapture.startListening() }
+                        }
+                        .disabled(!canSubmitSpeech)
                     }
-                    .buttonStyle(.bordered)
                 }
-
-                Button("Submit") {
-                    Task {
-                        await submitSpeechTranscript(payloadID: payloadID)
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(submissionTranscript.isEmpty || !canSubmitSpeech || isSubmittingSpeech)
             }
 
             if let speechSubmitError {
@@ -357,19 +377,12 @@ struct TerminalWindowView: View {
     }
 
     private var canSubmitSpeech: Bool {
-        if case .loading = loadState {
-            return false
-        }
-
-        return payload != nil
+        if case .loaded = loadState { return payload != nil && scenePhase == .active }
+        return false
     }
 
     private var speechPlaceholderText: String {
-        if speechCapture.isListening {
-            return "Listening… speak naturally, then stop or submit."
-        }
-
-        return "Tap Start and speak. Submit sends the transcript and Enter to the active PTY."
+        "Speak naturally. Your words will send automatically after a short pause."
     }
 
     private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
@@ -395,7 +408,9 @@ struct TerminalWindowView: View {
 
     private func submitSpeechTranscript(payloadID: String) async {
         let text = submissionTranscript
-        guard !text.isEmpty else {
+        guard !text.isEmpty, !isSubmittingSpeech, isSpeechPanelExpanded else { return }
+        guard canSubmitSpeech else {
+            speechSubmitError = "Terminal is not connected. Reconnect, then retry."
             return
         }
 
@@ -472,7 +487,7 @@ struct TerminalWindowView: View {
     private func submitSurfaceInput(text: String, to inputURL: URL) async throws {
         // Retrying a lost response uses the same command ID; the host deduplicates it.
         let body = try JSONSerialization.data(withJSONObject: [
-            "commandId": UUID().uuidString, "text": text, "sendReturn": true,
+            "commandId": speechCommandID, "text": text, "sendReturn": true,
         ])
         for attempt in 0..<2 {
             do {

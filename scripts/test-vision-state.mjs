@@ -12,6 +12,7 @@ const sources = [
   "HostConnection",
   "CompanionModels",
   "TerminalNavigation",
+  "SpeechEndpoint",
 ].map((name) =>
   path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
 );

@@ -5,6 +5,7 @@ struct CompanionWebView: UIViewRepresentable {
     let url: URL
     @Binding var loadState: TerminalLoadState
     let focusRequestToken: Int
+    let interruptRequestToken: Int
 
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
@@ -24,6 +25,10 @@ struct CompanionWebView: UIViewRepresentable {
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
         context.coordinator.load(url, in: webView)
+        if context.coordinator.interruptToken != interruptRequestToken {
+            context.coordinator.interruptToken = interruptRequestToken
+            webView.evaluateJavaScript("window.slzInterruptTerminal?.()")
+        }
         if context.coordinator.focusToken != focusRequestToken {
             context.coordinator.focusToken = focusRequestToken
             context.coordinator.requestFocus(in: webView)
@@ -43,6 +48,7 @@ struct CompanionWebView: UIViewRepresentable {
 final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
     var loadState: Binding<TerminalLoadState>
     var focusToken = 0
+    var interruptToken = 0
     private var requestedURL: URL?
     private weak var webView: WKWebView?
     private var terminalReady = false

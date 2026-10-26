@@ -9,6 +9,7 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         case idle
         case preparing
         case listening
+        case finishing
         case unavailable(String)
         case failed(String)
     }
@@ -20,6 +21,12 @@ final class SpeechCaptureController: NSObject, ObservableObject {
     private let recognizer = SFSpeechRecognizer()
     private var recognitionRequest: SFSpeechAudioBufferRecognitionRequest?
     private var recognitionTask: SFSpeechRecognitionTask?
+    private var captureID: UUID?
+    private var endpoint = SpeechEndpoint()
+    private var endpointTask: Task<Void, Never>?
+    private var finalResultTask: Task<Void, Never>?
+    private var hasTap = false
+    var onFinished: (() -> Void)?
 
     var isListening: Bool {
         if case .listening = state {
@@ -35,7 +42,9 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         case .preparing:
             return "Preparing microphone"
         case .listening:
-            return "Listening"
+            return "Pause briefly to send"
+        case .finishing:
+            return "Finishing transcription…"
         case let .unavailable(message), let .failed(message):
             return message
         }
@@ -47,34 +56,63 @@ final class SpeechCaptureController: NSObject, ObservableObject {
     }
 
     func startListening() async {
-        if isListening {
-            return
-        }
-
+        guard captureID == nil else { return }
+        let id = UUID()
+        captureID = id
+        transcript = ""
+        state = .preparing
         do {
             try await requestPermissions()
-            try configureAndStartRecognition()
+            guard captureID == id else { return }
+            try configureAndStartRecognition(id: id)
         } catch {
+            guard captureID == id else { return }
+            stopListening()
             state = .failed(error.localizedDescription)
         }
     }
 
+    /// Cancellation never submits, including delayed permission and recognition callbacks.
     func stopListening() {
-        guard isListening || recognitionRequest != nil || recognitionTask != nil else {
-            return
-        }
-
-        audioEngine.stop()
-        audioEngine.inputNode.removeTap(onBus: 0)
-        recognitionRequest?.endAudio()
-        recognitionRequest = nil
+        captureID = nil
+        endpointTask?.cancel()
+        endpointTask = nil
+        finalResultTask?.cancel()
+        finalResultTask = nil
+        stopAudio()
         recognitionTask?.cancel()
         recognitionTask = nil
-        if transcript.isEmpty {
-            state = .idle
-        } else {
-            state = .idle
+        recognitionRequest = nil
+        state = .idle
+    }
+
+    private func stopAudio() {
+        audioEngine.stop()
+        if hasTap {
+            audioEngine.inputNode.removeTap(onBus: 0)
+            hasTap = false
         }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    func finishListening() {
+        guard isListening, let id = captureID else { return }
+        state = .finishing
+        endpointTask?.cancel()
+        stopAudio()
+        recognitionRequest?.endAudio()
+        // Give recognition a chance to correct its last partial result before sending.
+        finalResultTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(1))
+            guard !Task.isCancelled, let self, self.captureID == id else { return }
+            self.complete()
+        }
+    }
+
+    private func complete() {
+        let hasText = !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        stopListening()
+        if hasText { onFinished?() }
     }
 
     func clearTranscript() {
@@ -113,14 +151,12 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         }
     }
 
-    private func configureAndStartRecognition() throws {
+    private func configureAndStartRecognition(id: UUID) throws {
         guard let recognizer else {
             throw SpeechCaptureError.unavailable("Speech recognition is unavailable on this device.")
         }
 
-        stopListening()
-        state = .preparing
-
+        endpoint = SpeechEndpoint()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
@@ -135,9 +171,19 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
         inputNode.removeTap(onBus: 0)
-        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak request] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self, weak request] buffer, _ in
             request?.append(buffer)
+            guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return }
+            var energy: Float = 0
+            for index in 0..<Int(buffer.frameLength) { energy += samples[index] * samples[index] }
+            if sqrt(energy / Float(buffer.frameLength)) > 0.015 {
+                Task { @MainActor in
+                    guard let self, self.captureID == id, self.isListening else { return }
+                    self.endpoint.heardVoice(at: ProcessInfo.processInfo.systemUptime)
+                }
+            }
         }
+        hasTap = true
 
         audioEngine.prepare()
         try audioEngine.start()
@@ -150,24 +196,29 @@ final class SpeechCaptureController: NSObject, ObservableObject {
             }
 
             Task { @MainActor in
+                guard self.captureID == id else { return }
                 if let result {
                     self.transcript = result.bestTranscription.formattedString
+                    self.endpoint.received(self.transcript, at: ProcessInfo.processInfo.systemUptime)
+                    if result.isFinal { self.complete(); return }
                 }
-
                 if let error {
-                    self.audioEngine.stop()
-                    self.audioEngine.inputNode.removeTap(onBus: 0)
-                    self.recognitionRequest = nil
-                    self.recognitionTask = nil
+                    self.stopListening()
                     self.state = .failed(error.localizedDescription)
-                    return
                 }
-
-                self.state = .listening
             }
         }
-
         state = .listening
+        endpointTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(200))
+                guard !Task.isCancelled, let self, self.captureID == id, self.isListening else { return }
+                if self.endpoint.shouldFinish(at: ProcessInfo.processInfo.systemUptime) {
+                    self.finishListening()
+                    return
+                }
+            }
+        }
     }
 }
 
@@ -175,12 +226,10 @@ extension SpeechCaptureController: SFSpeechRecognizerDelegate {
     nonisolated func speechRecognizer(_ speechRecognizer: SFSpeechRecognizer, availabilityDidChange available: Bool) {
         Task { @MainActor in
             if !available {
-                if self.isListening {
-                    self.stopListening()
-                }
+                self.stopListening()
                 self.state = .unavailable("Speech recognition became unavailable.")
             } else if case .unavailable = self.state {
-                self.state = self.transcript.isEmpty ? .idle : .idle
+                self.state = .idle
             }
         }
     }

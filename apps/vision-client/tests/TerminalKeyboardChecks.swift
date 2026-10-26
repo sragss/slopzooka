@@ -40,7 +40,7 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                 fputs("FAIL: \(error?.localizedDescription ?? String(describing: result))\n", stderr)
                 exit(1)
             }
-            print("PASS: floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
+            print("PASS: Escape interrupt, floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
             exit(0)
         }
     }
