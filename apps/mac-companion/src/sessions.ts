@@ -95,11 +95,12 @@ export class SessionManager {
     };
     const shell = process.env.SHELL ?? "/bin/zsh";
     // Keep a shell after the agent exits (including updater exits and launch failures).
+    // Interactive login configuration matches a normal terminal (including .zshrc PATH/tool managers).
     // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
     const term = pty.spawn(
       shell,
       profile
-        ? ["-c", '"$0" -lc "$1"; exec "$0" -l', shell, commands[profile]]
+        ? ["-c", '"$0" -lic "$1"; exec "$0" -l', shell, commands[profile]]
         : ["-l"],
       {
         cwd,
