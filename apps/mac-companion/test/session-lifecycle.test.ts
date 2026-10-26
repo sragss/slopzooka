@@ -113,6 +113,12 @@ test("agent resolution uses interactive shell PATH rather than an older login-on
       await new Promise((resolve) => setTimeout(resolve, 20));
     }
     assert.equal(sessions.summaries()[0]?.status, "running", output);
+    sessions.input(viewer, session.id, "printf 'FALLBACK_%s\\n' READY\r");
+    while (!output.includes("FALLBACK_READY")) {
+      assert.equal(sessions.summaries()[0]?.status, "running", output);
+      assert.ok(Date.now() < deadline, `Fallback cannot read input: ${output}`);
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
   } finally {
     await sessions.stop();
     keys.forEach((key, index) => {

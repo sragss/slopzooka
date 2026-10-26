@@ -94,20 +94,29 @@ export class SessionManager {
       opencode: process.env.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode",
     };
     const shell = process.env.SHELL ?? "/bin/zsh";
+    const terminalEnvironment: NodeJS.ProcessEnv = {
+      ...process.env,
+      TERM: "xterm-256color",
+      COLORTERM: "truecolor",
+    };
+    // Launcher/automation output preferences must not disable this full-color PTY.
+    // Users can still configure their terminal preferences in shell startup files.
+    delete terminalEnvironment.NO_COLOR;
     // Keep a shell after the agent exits (including updater exits and launch failures).
     // Interactive login configuration matches a normal terminal (including .zshrc PATH/tool managers).
+    // That shell owns job control, so it reclaims the foreground PTY when the agent subshell exits.
     // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
     const term = pty.spawn(
       shell,
       profile
-        ? ["-c", '"$0" -lic "$1"; exec "$0" -l', shell, commands[profile]]
+        ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]
         : ["-l"],
       {
         cwd,
         cols: summary.cols,
         rows: summary.rows,
         name: "xterm-256color",
-        env: { ...process.env, TERM: "xterm-256color" },
+        env: terminalEnvironment,
       },
     );
     const screen = new headless.Terminal({
