@@ -195,7 +195,10 @@ struct FrontendListView: View {
                 body: JSONSerialization.data(withJSONObject: ["id": frontend.id]))
             guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
             if let port = result.exposedPort, let token = result.accessToken {
-                url.scheme = "http"
+                url.scheme = result.gatewayScheme ?? "http"
+                if result.frontend.url.hasPrefix("https://") && url.scheme != "https" {
+                    throw CompanionError(message: "Update the Mac companion to open this HTTPS app securely.")
+                }
                 url.host = baseURL.host
                 url.port = port
                 url.path = "/__slz_access"
@@ -205,7 +208,8 @@ struct FrontendListView: View {
             guard let resolvedURL = url.url else { throw URLError(.badURL) }
             let id = "\(baseURL.host ?? "host"):\(baseURL.port ?? 80):\(frontend.id)"
             appModel.registerPreview(
-                PreviewWindowPayload(id: id, title: frontend.displayTitle, urlString: resolvedURL.absoluteString))
+                PreviewWindowPayload(id: id, title: frontend.displayTitle, urlString: resolvedURL.absoluteString,
+                    certificateAuthority: result.certificateAuthority))
             openWindow(id: "preview", value: id)
         } catch { self.error = error.localizedDescription }
     }

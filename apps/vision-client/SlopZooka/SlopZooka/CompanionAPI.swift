@@ -3,6 +3,14 @@ import Security
 
 @MainActor
 enum CompanionAPI {
+    private static let clientID: String = {
+        let key = "companionClientID"
+        if let saved = UserDefaults.standard.string(forKey: key), UUID(uuidString: saved) != nil { return saved }
+        let id = UUID().uuidString
+        UserDefaults.standard.set(id, forKey: key)
+        return id
+    }()
+
     static func baseURL(host: String) -> URL? {
         let value = host.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty, let url = URL(string: value.contains("://") ? value : "http://\(value)"),
@@ -13,6 +21,7 @@ enum CompanionAPI {
 
     static func authorized(_ request: URLRequest) -> URLRequest {
         var request = request
+        request.setValue(clientID, forHTTPHeaderField: "X-SlopZooka-Client-ID")
         if let url = request.url, let token = credential(for: url) {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }

@@ -37,6 +37,8 @@ export class Pairing {
   private attempts = { count: 0, until: 0 };
   displayUntil = 0;
   private nextDisplay = 0;
+  private displayRequester?: string;
+  private readonly connectedClients = new Map<string, number>();
   private readonly file: string;
   constructor(
     home: string,
@@ -90,24 +92,31 @@ export class Pairing {
     );
   }
   install(app: Express): void {
-    // Explicit pairing-screen request. Health checks never put a code on screen.
-    // Only private desktop IPC carries the code; this response cannot reveal it.
-    app.post("/api/pair/display", (req, res) => {
+    app.use((req, res, next) => {
       if (!this.sameOrigin(req)) {
         res.status(403).json({ error: "Origin rejected" });
         return;
       }
-      if (!this.authorized(req) && this.now() >= this.nextDisplay) {
+      if (this.authorized(req)) this.noteConnection(req);
+      next();
+    });
+    // Explicit pairing-screen request. Health checks never put a code on screen.
+    // Only private desktop IPC carries the code; this response cannot reveal it.
+    app.post("/api/pair/display", (req, res) => {
+      const requester = this.clientKey(req);
+      const connectedUntil = this.connectedClients.get(requester) ?? 0;
+      if (
+        !this.authorized(req) &&
+        this.now() >= connectedUntil &&
+        this.now() >= this.nextDisplay
+      ) {
+        this.displayRequester = requester;
         this.displayUntil = this.now() + 45_000;
         this.nextDisplay = this.now() + 60_000;
       }
       res.json({ ok: true });
     });
     app.post("/api/pair", (req, res) => {
-      if (!this.sameOrigin(req)) {
-        res.status(403).json({ error: "Origin rejected" });
-        return;
-      }
       const now = this.now();
       if (now >= this.attempts.until)
         this.attempts = { count: 0, until: now + 60_000 };
@@ -133,14 +142,12 @@ export class Pairing {
         this.tokens.delete(this.tokens.values().next().value!);
       this.persist();
       this.displayUntil = 0;
+      this.displayRequester = undefined;
+      this.noteConnection(req);
       this.cookie(req, res, token);
       res.json({ token, hostId: this.hostId });
     });
     app.use((req, res, next) => {
-      if (!this.sameOrigin(req)) {
-        res.status(403).json({ error: "Origin rejected" });
-        return;
-      }
       if (
         (req.method === "GET" || req.method === "HEAD") &&
         publicPaths.has(req.path)
@@ -157,6 +164,31 @@ export class Pairing {
       if (req.path === "/terminal") this.cookie(req, res, this.credential(req));
       next();
     });
+  }
+  private clientKey(req: IncomingMessage): string {
+    // This is display attribution, never an authentication credential. Native
+    // clients keep an ID across IPv4/IPv6 changes; older clients use their peer.
+    const id = req.headers["x-slopzooka-client-id"];
+    return typeof id === "string" &&
+      /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(id)
+      ? `client:${id.toLowerCase()}`
+      : `address:${req.socket.remoteAddress}`;
+  }
+  private noteConnection(req: IncomingMessage): void {
+    const requester = this.clientKey(req);
+    const now = this.now();
+    for (const [client, until] of this.connectedClients) {
+      if (until <= now) this.connectedClients.delete(client);
+    }
+    this.connectedClients.delete(requester);
+    // A short lease covers an in-flight display request arriving after connect.
+    this.connectedClients.set(requester, now + 15_000);
+    if (this.connectedClients.size > 128)
+      this.connectedClients.delete(this.connectedClients.keys().next().value!);
+    if (this.displayRequester === requester) {
+      this.displayUntil = 0;
+      this.displayRequester = undefined;
+    }
   }
   private credential(req: IncomingMessage): string {
     const bearer = req.headers.authorization;

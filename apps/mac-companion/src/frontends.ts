@@ -10,6 +10,7 @@ import httpProxy from "http-proxy";
 import type { Logger } from "./logger.js";
 import { ServiceError } from "./errors.js";
 import { frontendError } from "./frontend-error.js";
+import { PreviewTLS } from "./preview-tls.js";
 import {
   projectFrontends,
   type FrontendWorkspace,
@@ -26,6 +27,7 @@ import {
 export type { Frontend } from "./frontend-discovery.js";
 type Catalog = { frontends: Frontend[]; warning: string | null };
 type ProxyRecord = {
+  frontendId: string;
   server: http.Server;
   proxy: httpProxy;
   sockets: Set<Socket>;
@@ -33,6 +35,9 @@ type ProxyRecord = {
   token: string;
   routeKey: string;
   agent?: https.Agent;
+  gatewayScheme: "http" | "https";
+  certificateAuthority?: string;
+  certificateExpiresAt?: number;
 };
 type Options = {
   listeners?: (signal?: AbortSignal) => Promise<LocalListener[]>;
@@ -57,6 +62,7 @@ export class FrontendService {
   private stopping = false;
   private readonly stateDir: string;
   private readonly bookmarksPath: string;
+  private readonly previewTLS: PreviewTLS;
   private readonly listeners: (
     signal?: AbortSignal,
   ) => Promise<LocalListener[]>;
@@ -76,6 +82,9 @@ export class FrontendService {
         process.env.SLOPZOOKA_HOME ??
         path.join(os.homedir(), ".slopzooka"),
       "frontends.json",
+    );
+    this.previewTLS = new PreviewTLS(
+      path.join(path.dirname(this.bookmarksPath), "preview-tls"),
     );
     this.listeners = options.listeners ?? localListeners;
     this.dashboardOrigin = options.dashboardOrigin ?? (() => undefined);
@@ -485,7 +494,7 @@ export class FrontendService {
     }
     this.routes = new Map(routes.map((route) => [route.frontend.id, route]));
     for (const [id, record] of this.proxies) {
-      const route = this.routes.get(id);
+      const route = this.routes.get(record.frontendId);
       if (!route || this.routeKey(route) !== record.routeKey) {
         this.proxies.delete(id);
         await this.close(record);
@@ -508,10 +517,15 @@ export class FrontendService {
     };
     return this.catalog;
   }
-  openFrontend(id: string): Promise<{
+  openFrontend(
+    id: string,
+    gatewayHostname = "127.0.0.1",
+  ): Promise<{
     frontend: Frontend;
     exposedPort?: number;
     accessToken?: string;
+    gatewayScheme?: "http" | "https";
+    certificateAuthority?: string;
   }> {
     return this.enqueue(async () => {
       this.requireRunning();
@@ -529,19 +543,41 @@ export class FrontendService {
           503,
         );
       if (frontend.transport !== "gateway") return { frontend };
-      let record = this.proxies.get(id);
+      const secure = new URL(frontend.url).protocol === "https:";
+      const key = JSON.stringify([
+        id,
+        secure ? gatewayHostname.toLowerCase() : "",
+      ]);
+      let record = this.proxies.get(key);
+      if (
+        record?.certificateExpiresAt &&
+        record.certificateExpiresAt < Date.now() + 24 * 60 * 60_000
+      ) {
+        const tls = await this.previewTLS.certificate(gatewayHostname);
+        (record.server as https.Server).setSecureContext({
+          key: tls.key,
+          cert: tls.cert,
+        });
+        record.certificateAuthority = tls.certificateAuthority;
+        record.certificateExpiresAt = tls.expiresAt;
+      }
       if (!record) {
-        record = await this.createGateway(id);
+        record = await this.createGateway(
+          id,
+          secure ? gatewayHostname : undefined,
+        );
         if (this.stopping) {
           await this.close(record);
           this.requireRunning();
         }
-        this.proxies.set(id, record);
+        this.proxies.set(key, record);
       }
       return {
         frontend,
         exposedPort: record.exposedPort,
         accessToken: record.token,
+        gatewayScheme: record.gatewayScheme,
+        certificateAuthority: record.certificateAuthority,
       };
     });
   }
@@ -549,7 +585,16 @@ export class FrontendService {
     if (this.stopping)
       throw new ServiceError("Companion is shutting down", 503);
   }
-  private async createGateway(id: string): Promise<ProxyRecord> {
+  private async createGateway(
+    id: string,
+    gatewayHostname?: string,
+  ): Promise<ProxyRecord> {
+    const tls = gatewayHostname
+      ? await this.previewTLS.certificate(gatewayHostname)
+      : undefined;
+    const gatewayScheme = tls ? "https" : "http";
+    const externalOrigin = (req: http.IncomingMessage) =>
+      `${gatewayScheme}://${req.headers.host}`;
     const token = crypto.randomBytes(32).toString("hex");
     const cookieName = `slz_preview_${crypto.createHash("sha256").update(id).digest("hex").slice(0, 16)}`;
     const sockets = new Set<Socket>();
@@ -578,7 +623,7 @@ export class FrontendService {
         ?.split(";")
         .some((c) => c.trim() === `${cookieName}=${token}`);
     const prepare = (req: http.IncomingMessage) => {
-      const external = `http://${req.headers.host}`;
+      const external = externalOrigin(req);
       // Present one coherent upstream origin. Next.js validates Server Actions
       // against X-Forwarded-Host, and Portless preserves these forwarded headers.
       const upstream = new URL(routeOrigin);
@@ -588,6 +633,9 @@ export class FrontendService {
       req.headers["x-forwarded-port"] =
         upstream.port || (upstream.protocol === "https:" ? "443" : "80");
       if (req.headers.origin === external) req.headers.origin = routeOrigin;
+      if (req.headers.referer?.startsWith(external + "/"))
+        req.headers.referer =
+          routeOrigin + req.headers.referer.slice(external.length);
       // Never pass companion or preview credentials to the dev server.
       if (req.headers.cookie)
         req.headers.cookie = req.headers.cookie
@@ -615,18 +663,29 @@ export class FrontendService {
         response.headers["access-control-allow-origin"] === routeOrigin
       )
         response.headers["access-control-allow-origin"] = external;
-      if (external && response.headers.location?.startsWith(routeOrigin + "/"))
-        response.headers.location =
-          external + response.headers.location.slice(routeOrigin.length);
+      if (
+        external &&
+        response.headers.location &&
+        /^(https?:)?\/\//i.test(response.headers.location)
+      ) {
+        try {
+          const redirect = new URL(response.headers.location, routeOrigin);
+          if (redirect.origin === routeOrigin)
+            response.headers.location =
+              external + redirect.pathname + redirect.search + redirect.hash;
+        } catch {
+          /* Leave malformed upstream redirects for the browser to report. */
+        }
+      }
     });
-    const server = http.createServer((req, res) => {
+    const handle: http.RequestListener = (req, res) => {
       const url = new URL(req.url ?? "/", "http://preview.invalid");
       if (
         url.pathname === "/__slz_access" &&
         url.searchParams.get("token") === token
       ) {
         res.writeHead(303, {
-          "Set-Cookie": `${cookieName}=${token}; HttpOnly; SameSite=Strict; Path=/`,
+          "Set-Cookie": `${cookieName}=${token}; HttpOnly; SameSite=Lax; Path=/${tls ? "; Secure" : ""}`,
           Location:
             upstreamURL.pathname + upstreamURL.search + upstreamURL.hash,
           "Cache-Control": "no-store",
@@ -650,7 +709,7 @@ export class FrontendService {
         );
         return;
       }
-      externalOrigins.set(req, `http://${req.headers.host}`);
+      externalOrigins.set(req, externalOrigin(req));
       prepare(req);
       proxy.web(req, res, {
         target,
@@ -658,7 +717,10 @@ export class FrontendService {
         headers: { host: new URL(routeOrigin).host },
         cookieDomainRewrite: "",
       });
-    });
+    };
+    const server = tls
+      ? https.createServer({ key: tls.key, cert: tls.cert }, handle)
+      : http.createServer(handle);
     server.on("connection", (socket) => {
       sockets.add(socket);
       socket.on("close", () => sockets.delete(socket));
@@ -666,8 +728,7 @@ export class FrontendService {
     server.on("upgrade", (req, socket, head) => {
       if (
         !authorized(req) ||
-        (req.headers.origin &&
-          req.headers.origin !== `http://${req.headers.host}`)
+        (req.headers.origin && req.headers.origin !== externalOrigin(req))
       ) {
         socket.destroy();
         return;
@@ -680,6 +741,7 @@ export class FrontendService {
       });
     });
     const record: ProxyRecord = {
+      frontendId: id,
       server,
       proxy,
       sockets,
@@ -687,6 +749,9 @@ export class FrontendService {
       token,
       agent,
       routeKey: this.routeKey(route),
+      gatewayScheme,
+      certificateAuthority: tls?.certificateAuthority,
+      certificateExpiresAt: tls?.expiresAt,
     };
     try {
       await new Promise<void>((resolve, reject) => {

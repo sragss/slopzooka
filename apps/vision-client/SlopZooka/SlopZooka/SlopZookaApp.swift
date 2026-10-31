@@ -19,6 +19,7 @@ struct SlopZookaApp: App {
         .defaultSize(width: 460, height: 680)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.presented)
 
         WindowGroup("Terminal", id: "terminal", for: String.self) { sessionID in
             TerminalWindowView(sessionID: sessionID.wrappedValue)
@@ -27,6 +28,7 @@ struct SlopZookaApp: App {
         .defaultSize(width: 1280, height: 832)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
 
         WindowGroup("Preview", id: "preview", for: String.self) { previewID in
             BrowserWindowView(previewID: previewID.wrappedValue)
@@ -35,6 +37,7 @@ struct SlopZookaApp: App {
         .defaultSize(width: 1200, height: 820)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
 
         WindowGroup("Palm Spike", id: "palm-spike") {
             HandLauncherSpikeView()
@@ -42,5 +45,6 @@ struct SlopZookaApp: App {
         .defaultSize(width: 640, height: 520)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
     }
 }

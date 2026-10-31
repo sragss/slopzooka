@@ -9,6 +9,7 @@ import https from "node:https";
 import { once } from "node:events";
 import { WebSocket, WebSocketServer } from "ws";
 import { FrontendService } from "../src/frontends.js";
+import { tlsFetch } from "./https.js";
 import { isClientMessage } from "../../../packages/protocol/src/index.js";
 
 const delay = (ms = 30) => new Promise((r) => setTimeout(r, ms));
@@ -762,13 +763,13 @@ test(
     });
     try {
       const opened = await manager.openFrontend("fixture.localhost");
-      const base = `http://127.0.0.1:${opened.exposedPort}`;
-      const access = await fetch(
+      const base = `https://127.0.0.1:${opened.exposedPort}`;
+      const access = await tlsFetch(
         `${base}/__slz_access?token=${opened.accessToken}`,
-        { redirect: "manual" },
+        opened.certificateAuthority!,
       );
       const cookie = access.headers.get("set-cookie")!.split(";")[0]!;
-      const response = await fetch(base, {
+      const response = await tlsFetch(base, opened.certificateAuthority!, {
         headers: {
           Cookie: `${cookie}; slz_session=never-forward`,
           Authorization: "Bearer application-credential",
@@ -780,18 +781,22 @@ test(
       const saved = await manager.addURL(`https://fixture.localhost:${port}/`);
       assert.equal((await manager.getCatalog()).frontends.length, 1);
       const savedOpen = await manager.openFrontend(saved.id);
-      const savedBase = `http://127.0.0.1:${savedOpen.exposedPort}`;
-      const savedAccess = await fetch(
+      const savedBase = `https://127.0.0.1:${savedOpen.exposedPort}`;
+      const savedAccess = await tlsFetch(
         `${savedBase}/__slz_access?token=${savedOpen.accessToken}`,
-        { redirect: "manual" },
+        savedOpen.certificateAuthority!,
       );
-      const savedResponse = await fetch(savedBase, {
-        headers: {
-          Cookie: savedAccess.headers.get("set-cookie")!.split(";")[0]!,
-          Authorization: "Bearer application-credential",
-          Origin: savedBase,
+      const savedResponse = await tlsFetch(
+        savedBase,
+        savedOpen.certificateAuthority!,
+        {
+          headers: {
+            Cookie: savedAccess.headers.get("set-cookie")!.split(";")[0]!,
+            Authorization: "Bearer application-credential",
+            Origin: savedBase,
+          },
         },
-      });
+      );
       assert.equal(
         await savedResponse.text(),
         "trusted HTTPS",

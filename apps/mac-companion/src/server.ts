@@ -401,7 +401,8 @@ app.post("/api/frontends/open", async (req, res) => {
   try {
     if (typeof req.body?.id !== "string")
       throw new ServiceError("Frontend id required", 400);
-    res.json(await frontendService.openFrontend(req.body.id));
+    const hostname = new URL(`http://${req.headers.host}`).hostname;
+    res.json(await frontendService.openFrontend(req.body.id, hostname));
   } catch (error) {
     sendWorkspaceError(res, error, "Could not open frontend");
   }

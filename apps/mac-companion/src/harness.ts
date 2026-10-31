@@ -163,6 +163,9 @@ async function openResult(resolve: () => Promise<string>) {
 }
 function openFrontend(frontend: Frontend) {
   return openResult(async () => {
+    // On the Mac, keep the app's trusted HTTPS origin (including login cookies).
+    // The headset uses the separately authenticated TLS gateway instead.
+    if (new URL(frontend.url).protocol === "https:") return frontend.url;
     const result = await api("/api/frontends/open", { id: frontend.id });
     const url = new URL(result.frontend.url);
     if (result.exposedPort) {

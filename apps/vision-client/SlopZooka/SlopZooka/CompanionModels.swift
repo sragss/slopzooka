@@ -181,11 +181,14 @@ struct OpenFrontendResponse: Decodable {
     let frontend: FrontendSummary
     let exposedPort: Int?
     let accessToken: String?
+    let gatewayScheme: String?
+    let certificateAuthority: String?
 }
 struct PreviewWindowPayload: Codable, Hashable {
     let id: String
     let title: String
     let urlString: String
+    var certificateAuthority: String? = nil
     var url: URL? { URL(string: urlString) }
 }
 

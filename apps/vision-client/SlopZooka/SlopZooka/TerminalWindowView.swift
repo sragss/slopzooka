@@ -27,11 +27,17 @@ struct TerminalWindowView: View {
             if let payload {
                 terminalMode(payload: payload)
             } else {
-                ContentUnavailableView(
-                    "Session Unavailable",
-                    systemImage: "rectangle.slash",
-                    description: Text("This terminal session is no longer available.")
-                )
+                ContentUnavailableView {
+                    Label("Session Unavailable", systemImage: "rectangle.slash")
+                } description: {
+                    Text("Open the launcher to connect to your Mac or choose a terminal.")
+                } actions: {
+                    Button("Open Launcher", systemImage: "square.grid.2x2") {
+                        openWindow(id: "launcher")
+                        dismissWindow()
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }

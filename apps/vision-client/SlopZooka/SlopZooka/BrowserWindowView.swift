@@ -14,7 +14,8 @@ struct BrowserWindowView: View {
             if let payload {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
-                        PreviewWebView(url: url, loadState: $loadState, reloadToken: reloadToken)
+                        PreviewWebView(url: url, certificateAuthority: payload.certificateAuthority,
+                            loadState: $loadState, reloadToken: reloadToken)
                             .id(payload.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -115,11 +116,13 @@ private enum BrowserLoadState: Equatable {
 
 private struct PreviewWebView: UIViewRepresentable {
     let url: URL
+    let certificateAuthority: String?
     @Binding var loadState: BrowserLoadState
     let reloadToken: Int
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(loadState: $loadState, fallbackURL: url, reloadToken: reloadToken)
+        Coordinator(loadState: $loadState, fallbackURL: url, reloadToken: reloadToken,
+            certificateAuthority: certificateAuthority)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -141,6 +144,7 @@ private struct PreviewWebView: UIViewRepresentable {
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
+        context.coordinator.previewTrust = PreviewTrust(endpoint: url, certificateAuthority: certificateAuthority)
         if context.coordinator.fallbackURL != url {
             context.coordinator.fallbackURL = url
             webView.load(URLRequest(url: url))
@@ -159,11 +163,29 @@ private struct PreviewWebView: UIViewRepresentable {
         var loadState: Binding<BrowserLoadState>
         var fallbackURL: URL
         var reloadToken: Int
+        var previewTrust: PreviewTrust?
 
-        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL, reloadToken: Int) {
+        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL, reloadToken: Int, certificateAuthority: String?) {
             self.loadState = loadState
             self.fallbackURL = fallbackURL
             self.reloadToken = reloadToken
+            self.previewTrust = PreviewTrust(endpoint: fallbackURL, certificateAuthority: certificateAuthority)
+        }
+
+        func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge,
+            completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            let protection = challenge.protectionSpace
+            guard protection.authenticationMethod == NSURLAuthenticationMethodServerTrust,
+                let previewTrust, previewTrust.matches(host: protection.host, port: protection.port)
+            else {
+                completionHandler(.performDefaultHandling, nil)
+                return
+            }
+            guard let trust = protection.serverTrust, previewTrust.evaluate(trust) else {
+                completionHandler(.cancelAuthenticationChallenge, nil)
+                return
+            }
+            completionHandler(.useCredential, URLCredential(trust: trust))
         }
 
         func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {

@@ -3,14 +3,20 @@ import { spawn, execFileSync } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs/promises";
 import http from "node:http";
+import https from "node:https";
+import { X509Certificate } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const app =
   process.env.SLOPZOOKA_TEST_APP ??
   path.join(root, "build/mac-app/SlopZooka.app");
 const resources = path.join(app, "Contents/Resources");
+const { WebSocket } = createRequire(path.join(resources, "host/package.json"))(
+  "ws",
+);
 execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-desktop-test-"));
 const listener = http.createServer();
@@ -50,6 +56,11 @@ const environment = {
   SLOPZOOKA_DESKTOP: "1",
   SHELL: "/bin/sh",
   PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
+  NO_COLOR: "1",
+  COLORTERM: "",
+  SLOPZOOKA_CODEX_COMMAND:
+    `printf 'COLOR_ENV=%s/%s/%s\\n' "$TERM" "$COLORTERM" "\${NO_COLOR-unset}"; ` +
+    `printf '\\033[31mRED\\033[0m \\033[38;5;202mINDEXED\\033[0m \\033[38;2;12;120;240mRGB\\033[0m\\n'`,
 };
 const child = spawn(
   path.join(resources, "runtime/node"),
@@ -76,6 +87,7 @@ async function until(fn, timeout = 12000) {
 }
 let appProcess;
 let stalledPID;
+let colorViewer;
 const alive = (pid) => {
   try {
     process.kill(pid, 0);
@@ -145,6 +157,96 @@ try {
   );
   assert.equal(session.status, 201, await session.text());
   await until(() => output.includes('"sessions":1'));
+  // Exercise the shipped host, not just source tests: stale bundles can still
+  // leak automation's NO_COLOR into actual agents even when source tests pass.
+  colorViewer = new WebSocket(base.replace("http:", "ws:") + "/ws", {
+    headers: { Authorization: `Bearer ${paired.token}` },
+  });
+  let terminalOutput = "";
+  colorViewer.on("message", (data) => {
+    const message = JSON.parse(data);
+    if (message.type === "attached") terminalOutput += message.snapshot ?? "";
+    if (message.type === "output") terminalOutput += message.data;
+    if (message.type === "attached" || message.type === "output")
+      colorViewer.send(
+        JSON.stringify({
+          type: "ack",
+          sessionId: "desktop-colors",
+          cursor: message.cursor,
+        }),
+      );
+  });
+  await once(colorViewer, "open");
+  const colorSession = await fetch(
+    base + "/api/workspaces/desktop-fixture/sessions",
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${paired.token}`,
+      },
+      body: JSON.stringify({ sessionId: "desktop-colors", profile: "codex" }),
+    },
+  );
+  assert.equal(colorSession.status, 201, await colorSession.text());
+  colorViewer.send(
+    JSON.stringify({ type: "attach", sessionId: "desktop-colors" }),
+  );
+  await until(() => terminalOutput.includes("RGB"));
+  assert.ok(
+    terminalOutput.includes("COLOR_ENV=xterm-256color/truecolor/unset"),
+    terminalOutput,
+  );
+  assert.ok(terminalOutput.includes("\x1b[31mRED"), terminalOutput);
+  assert.ok(terminalOutput.includes("\x1b[38;5;202mINDEXED"), terminalOutput);
+  assert.ok(
+    terminalOutput.includes("\x1b[38;2;12;120;240mRGB"),
+    terminalOutput,
+  );
+  colorViewer.close();
+  const apiHeaders = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${paired.token}`,
+  };
+  const savedPreview = await fetch(base + "/api/frontends", {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify({ url: "https://127.0.0.1:1" }),
+  });
+  assert.equal(savedPreview.status, 201);
+  const { frontend } = await savedPreview.json();
+  const openedPreview = await fetch(base + "/api/frontends/open", {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify({ id: frontend.id }),
+  });
+  assert.equal(openedPreview.status, 200);
+  const preview = await openedPreview.json();
+  assert.equal(preview.gatewayScheme, "https");
+  await new Promise((resolve, reject) => {
+    const request = https.get(
+      `https://127.0.0.1:${preview.exposedPort}/__slz_access?token=${preview.accessToken}`,
+      {
+        ca: new X509Certificate(
+          Buffer.from(preview.certificateAuthority, "base64"),
+        ).toString(),
+      },
+      (response) => {
+        response.resume();
+        try {
+          assert.equal(response.statusCode, 303);
+          assert.match(response.headers["set-cookie"][0], /; Secure/);
+          resolve();
+        } catch (error) {
+          reject(error);
+        }
+      },
+    );
+    request.setTimeout(5000, () =>
+      request.destroy(new Error("Packaged TLS gateway timed out")),
+    );
+    request.on("error", reject);
+  });
   const logs = await fs.readFile(path.join(home, "mac-companion.log"), "utf8");
   assert.ok(!logs.includes(status.code), "pairing code stays off disk logs");
   child.stdin.end();
@@ -207,9 +309,10 @@ try {
     "UI remains available to retry after terminating the stalled host",
   );
   console.log(
-    "PASS: signed bundle, static assets, native PTY, private IPC, native startup, parent-crash shutdown, and stalled-startup escalation",
+    "PASS: signed bundle, static assets, native PTY colors, HTTPS preview, private IPC, native startup, parent-crash shutdown, and stalled-startup escalation",
   );
 } finally {
+  colorViewer?.terminate();
   if (stalledPID && alive(stalledPID)) process.kill(stalledPID, "SIGKILL");
   await stop(child);
   await stop(appProcess);

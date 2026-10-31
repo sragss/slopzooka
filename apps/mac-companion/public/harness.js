@@ -136,6 +136,7 @@ async function openResult(resolve) {
 }
 function openFrontend(frontend) {
   return openResult(async () => {
+    if (new URL(frontend.url).protocol === "https:") return frontend.url;
     const result = await api("/api/frontends/open", { id: frontend.id });
     const url = new URL(result.frontend.url);
     if (result.exposedPort) {
