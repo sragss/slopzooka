@@ -58,11 +58,12 @@ final class LauncherState: ObservableObject {
         return availableOwners.first(where: { $0.login == saved })?.login ?? availableOwners.first?.login
     }
 
-    func maybeAutoConnect(candidateHost: String, reason: String) async {
-        await maybeAutoConnect(candidateHosts: [candidateHost], reason: reason)
-    }
-    func maybeAutoConnect(candidateHosts: [String], reason: String) async {
-        for candidate in candidateHosts where !pendingHosts.contains(candidate) { pendingHosts.append(candidate) }
+    func maybeAutoConnect(candidateHosts: [String]) async {
+        let candidates = connecting ? candidateHosts : [normalizedHost] + candidateHosts
+        for candidate in candidates where !candidate.isEmpty && !pendingHosts.contains(candidate) {
+            if connecting && candidate == normalizedHost { continue }
+            pendingHosts.append(candidate)
+        }
         guard !connecting else { return }
         connecting = true
         defer { connecting = false }
@@ -73,7 +74,7 @@ final class LauncherState: ObservableObject {
                 return
             }
             host = candidate
-            if await connectAndRefresh() {
+            if await connectAndRefresh() || host != candidate {
                 pendingHosts.removeAll()
                 return
             }
@@ -110,7 +111,8 @@ final class LauncherState: ObservableObject {
             await loadOwners(base: base)
             return true
         } catch {
-            healthState = .failure(error.localizedDescription)
+            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return false }
+            healthState = .failure("\(base.absoluteString)\n\(error.localizedDescription)")
             return false
         }
     }
@@ -128,8 +130,9 @@ final class LauncherState: ObservableObject {
             pairingCode = ""
             await connectAndRefresh()
         } catch {
+            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
             pairingCode = ""
-            pairingError = error.localizedDescription
+            pairingError = "\(base.absoluteString)\n\(error.localizedDescription)"
         }
     }
 

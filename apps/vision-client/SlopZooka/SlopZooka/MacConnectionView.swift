@@ -42,7 +42,7 @@ struct MacConnectionView: View {
                 if let error = state.pairingError {
                     Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
                 }
-                Text("You can also find it in the Mac’s bazooka menu → Show Connection Code.")
+                Text("You can also find the code in the Mac’s SlopZooka menu.")
                     .font(.caption).foregroundStyle(.secondary)
             } else if state.isReady {
                 Label(selectedMacName, systemImage: "desktopcomputer").font(.title3.weight(.semibold))

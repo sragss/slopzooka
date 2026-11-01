@@ -81,15 +81,15 @@ final class WindowGateway: ObservableObject {
         guard serviceTask == nil else { return }
         launcher.loadSavedPreferences()
         discovery.onCompanionResolved = { [weak self] companion in
-            guard let self, self.launcher.connection.shouldTry(companion.host) else { return }
-            Task { await self.launcher.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour") }
+            guard let self else { return }
+            Task { await self.launcher.maybeAutoConnect(candidateHosts: companion.candidateHosts) }
         }
         discovery.start()
         serviceTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
                 if self.launcher.connection.current == nil {
-                    if !self.launcher.normalizedHost.isEmpty { await self.launcher.connectAndRefresh() }
+                    await self.launcher.maybeAutoConnect(candidateHosts: [self.launcher.normalizedHost])
                 } else { await self.launcher.refreshHostCatalog() }
                 try? await Task.sleep(for: .seconds(3))
             }
