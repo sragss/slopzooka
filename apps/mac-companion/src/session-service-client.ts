@@ -286,6 +286,7 @@ export class SessionServiceClient {
               ...hello,
               sessions: info.sessions,
               serviceInstanceId: info.instanceId,
+              supportsTakeControl: info.supportsTakeControl === true,
             }),
           );
         } catch {

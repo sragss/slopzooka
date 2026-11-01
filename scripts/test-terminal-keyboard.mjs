@@ -69,7 +69,10 @@ window.runKeyboardChecks = () => {
       root,
       "apps/vision-client/SlopZooka/SlopZooka/TerminalKeyboard.swift",
     ),
-    path.join(root, "apps/vision-client/SlopZooka/SlopZooka/TerminalZoom.swift"),
+    path.join(
+      root,
+      "apps/vision-client/SlopZooka/SlopZooka/TerminalZoom.swift",
+    ),
     path.join(root, "apps/vision-client/tests/TerminalKeyboardChecks.swift"),
     "-o",
     executable,
@@ -94,10 +97,11 @@ window.runKeyboardChecks = () => {
       contents: `
 import { isClientMessage, MAX_TERMINAL_DIMENSION } from "../../../packages/protocol/src/index.js";
 const sent = [];
+let viewportSocket;
 class ViewportSocket {
   static OPEN = 1; static CLOSING = 2;
   readyState = 1;
-  constructor() { queueMicrotask(() => this.receive({type: 'hello', version: 1})); }
+  constructor() { viewportSocket = this; queueMicrotask(() => this.receive({type: 'hello', version: 1, supportsTakeControl: true})); }
   receive(message) { this.onmessage?.({data: JSON.stringify(message)}); }
   send(raw) {
     const message = JSON.parse(raw); sent.push(message);
@@ -140,6 +144,21 @@ window.runViewportChecks = async () => {
     if (terminal.cols < MAX_TERMINAL_DIMENSION) check(screen.width >= viewport.width - screen.width / terminal.cols - 20, 'Right-side gap at zoom ' + zoom + ': ' + JSON.stringify({screen: screen.width, viewport: viewport.width, cols: terminal.cols}));
     if (terminal.rows < MAX_TERMINAL_DIMENSION) check(screen.height >= viewport.height - screen.height / terminal.rows - 1, 'Bottom gap at zoom ' + zoom);
   }
+  const button = document.getElementById('take-control');
+  viewportSocket.receive({type: 'ownership', sessionId, writable: false});
+  await until(() => !button.hidden);
+  check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
+  check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
+  document.documentElement.dataset.nativeTerminal = 'true';
+  check(getComputedStyle(button).display === 'none', 'Take Control must stay hidden on Vision Pro');
+  delete document.documentElement.dataset.nativeTerminal;
+  button.click();
+  check(sent.at(-1).type === 'take-control', 'Takeover must use the existing session connection');
+  check(!button.hidden, 'Control must not change before the service confirms it');
+  viewportSocket.receive({type: 'ownership', sessionId, writable: true});
+  await until(() => readOnlyBadge.hidden);
+  check(button.hidden, 'Confirmed takeover dismisses the action');
+  check(document.activeElement === terminal.textarea, 'Taking control must focus terminal input');
   window.slzDetachTerminal();
   return 'PASS';
 };`,

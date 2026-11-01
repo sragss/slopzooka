@@ -10,6 +10,8 @@ const messageLabel = document.querySelector<HTMLElement>(
 )!;
 const guidance = document.querySelector<HTMLElement>("#connection-guidance")!;
 const readOnlyBadge = document.querySelector<HTMLElement>("#read-only")!;
+const takeControlButton =
+  document.querySelector<HTMLButtonElement>("#take-control")!;
 const terminal = new Terminal({
   cursorBlink: true,
   fontSize: 16,
@@ -26,12 +28,13 @@ const connection = sessionId
   ? new TerminalConnection(
       terminal,
       sessionId,
-      (message, state, readOnly = false) => {
+      (message, state, readOnly = false, canTakeControl = false) => {
         overlay.hidden = state === "running";
         messageLabel.textContent = message;
         guidance.hidden = state !== "disconnected";
         overlay.classList.toggle("error", state === "failed");
         readOnlyBadge.hidden = !readOnly;
+        takeControlButton.hidden = !canTakeControl;
         window.webkit?.messageHandlers?.terminalState?.postMessage({
           state,
           message,
@@ -45,6 +48,10 @@ document.title = sessionId
   : "Missing session";
 if (!sessionId) messageLabel.textContent = "Missing terminal session";
 connection?.connect();
+takeControlButton.addEventListener("click", () => {
+  connection?.takeControl();
+  terminal.focus();
+});
 let resizeFrame = 0;
 const resizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
