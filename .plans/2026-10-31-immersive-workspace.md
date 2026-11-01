@@ -35,17 +35,25 @@ starts off; only the wrist preference persists.
 
 ## Mounting
 
-One `AnchorEntity` holds one `ViewAttachmentComponent`. Changing wrist changes the
-anchor target and local transform, preserving the menu entity. RealityKit owns
+One `AnchorEntity` holds a menu entity with separate SwiftUI attachments for the
+circular launcher control, up to three terminal tiles, an empty-state hint, and
+exit. The terminal tiles form a shallow arc; the launcher sits above and forward
+of them. The controls have independent depth, orientation, and hit surfaces.
+Each custom button uses the same shape for its glass, hit target, and cyan hover
+outline. A grouped hover effect reveals the outline and gently scales the whole
+control together; it does not add a separate system highlight with another shape.
+Changing wrist changes the anchor target and local transform, preserving these
+entities and their SwiftUI state. RealityKit owns
 tracking; there is no raw hand-data access, ARKit provider, or smoothing loop.
 Standard SwiftUI buttons provide interaction without custom palm gestures, which
 would compete with system Home/Control Center gestures.
 
 Apple defines wrist +Y outward from the back of the hand and +Z toward the thumb.
-The menu faces outward, top toward the fingers, 4.5 cm above the wrist and 12 cm
-toward the forearm to leave system overlays clear. Its 320-point width is scaled
-to 0.6. These are starting values for headset testing, not validated ergonomics.
-The simulator uses a one-time head anchor for the same UI, with an explicit note.
+The menu faces outward, top toward the fingers, 6 cm above the wrist and 3.5 cm
+toward the forearm. This moves its origin 8.5 cm toward the hand after the first
+device check found the original 12 cm forearm offset too low. The attachment
+group is scaled to 0.6. Comfort and overlay clearance still need checking on both
+wrists. The simulator uses a one-time head anchor for the same UI.
 The former Palm Spike scene is removed; normal window scene IDs remain unchanged.
 
 ## Verification and extension limits
@@ -55,8 +63,11 @@ build. The state tests cover cancellation, retry, repeated input, delayed scene
 appearance, and system dismissal during both opening and closing. Existing gateway
 and persistence tests continue to protect window intent and session lifetime.
 
-Physical-device verification is deferred: check both wrists, targeting and overlay
-clearance, loss/recovery of tracking, repeated mode switches, system dismissal,
+On November 1, the user verified pairing, Settings, immersive entry, and all wrist
+menu actions on a physical Vision Pro, then reported that the revised position
+and floating layout felt better. After aligning the hover surfaces, the user
+confirmed the revised controls worked well. Check both wrists, targeting and overlay clearance,
+loss/recovery of tracking, repeated mode switches, system dismissal,
 reopening windows with only the wrist visible, exit with no regular windows, and
 Mac disconnect/reconnect. Compilation does not establish these guarantees.
 
