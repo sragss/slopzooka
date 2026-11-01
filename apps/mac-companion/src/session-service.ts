@@ -74,6 +74,7 @@ async function main() {
       runtimeId,
       pid: process.pid,
       sessions: manager.summaries(),
+      capabilities: ["rename-session"],
     } satisfies ServiceInfo),
   );
   app.post("/sessions", (req, res) => {
@@ -97,6 +98,9 @@ async function main() {
     if (manager.summaries().some((session) => session.id === req.params.id))
       manager.terminate(req.params.id);
     res.json({ ok: true });
+  });
+  app.patch("/sessions/:id", (req, res) => {
+    res.json(manager.rename(req.params.id, req.body?.name));
   });
   app.post("/sessions/:id/input", (req, res) => {
     const { commandId, text, sendReturn } = req.body ?? {};

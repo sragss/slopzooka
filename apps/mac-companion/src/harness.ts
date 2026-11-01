@@ -246,11 +246,12 @@ function render(key: Section, force = false) {
   const matches = (text: string) => text.toLowerCase().includes(term);
   if (key === "sessions")
     for (const s of data.sessions) {
-      if (!matches(`${s.title} ${s.cwd} ${s.status}`)) continue;
-      const title = s.cwd.split("/").filter(Boolean).pop() || s.title;
+      if (!matches(`${s.name ?? ""} ${s.title} ${s.cwd} ${s.status}`)) continue;
+      const title =
+        s.name ?? (s.cwd.split("/").filter(Boolean).pop() || s.title);
       const r = row(
         title,
-        `${s.title} · ${s.status === "running" ? "Running" : "Ended"}`,
+        `${s.name ?? s.title} · ${s.status === "running" ? "Running" : "Ended"}`,
       );
       r.li.title = s.cwd;
       const link = document.createElement("a");
@@ -268,7 +269,7 @@ function render(key: Section, force = false) {
           if (
             s.status === "running" &&
             !confirm(
-              `End ${s.title}? This stops the terminal and its running processes.`,
+              `End ${s.name ?? s.title}? This stops the terminal and its running processes.`,
             )
           )
             return;

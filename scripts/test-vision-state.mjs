@@ -51,7 +51,10 @@ try {
     );
     const args =
       suite === "WindowGatewayChecks"
-        ? [path.join(root, "packages/protocol/fixtures/window-layout.v1.json")]
+        ? [
+            path.join(root, "packages/protocol/fixtures/window-layout.v1.json"),
+            path.join(root, "packages/protocol/fixtures/session-names.v1.json"),
+          ]
         : [];
     execFileSync(binary, args, { stdio: "inherit", timeout: 10_000 });
   }

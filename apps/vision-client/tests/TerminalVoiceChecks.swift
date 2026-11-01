@@ -57,10 +57,19 @@ struct TerminalVoiceChecks {
         let capture = FakeSpeechCapture()
         var available = Set(["a", "b"])
         var commands: [TerminalVoiceCommand] = []
+        var renames: [(id: String, name: String)] = []
+        var delayRename = false
+        var renameReply: CheckedContinuation<Void, Error>?
+        var completedRenames = 0
         var completedDeliveries = 0
         var reply: CheckedContinuation<Void, Error>?
         let voice = TerminalVoiceController(capture: capture, defaults: defaults,
-            isAvailable: { available.contains($0) }, deliver: { command in
+            isAvailable: { available.contains($0) },
+            rename: {
+                defer { completedRenames += 1 }
+                renames.append(($0, $1))
+                if delayRename { try await withCheckedThrowingContinuation { renameReply = $0 } }
+            }, deliver: { command in
                 defer { completedDeliveries += 1 }
                 commands.append(command)
                 try await withCheckedThrowingContinuation { reply = $0 }
@@ -82,7 +91,9 @@ struct TerminalVoiceChecks {
         precondition(capture.state == .idle, "Enabling the feature does not start the microphone")
         let restoredCapture = FakeSpeechCapture()
         let restored = TerminalVoiceController(capture: restoredCapture, defaults: defaults,
-            isAvailable: { _ in true }, deliver: { _ in preconditionFailure("Restoration cannot submit input") })
+            isAvailable: { _ in true },
+            rename: { _, _ in preconditionFailure("Restoration cannot rename") },
+            deliver: { _ in preconditionFailure("Restoration cannot submit input") })
         precondition(restored.conversationEnabled && restored.mode == nil && restoredCapture.starts == 0,
             "Only the preference persists; listening and target selection do not restore")
         voice.activateTerminal("a")
@@ -167,8 +178,72 @@ struct TerminalVoiceChecks {
         print("PASS: late delivery cannot clear a newer draft; discarding permits explicit terminal switching")
 
         voice.stop()
-        capture.delayPermission = true
+        voice.activateRename("b")
+        await until { capture.state == .listening }
+        precondition(voice.mode == .rename && capture.finishOnPause, "Rename always uses one-shot capture")
+        capture.finish("  Fix\t the\nlogin\u{00a0}flow  ")
+        await until { voice.mode == nil }
+        precondition(voice.mode == nil && capture.state == .idle)
+        precondition(renames.count == 1 && renames[0].id == "b" && renames[0].name == "Fix-the-login-flow")
+        precondition(commands.count == count + 4, "Naming must never deliver terminal input")
+
+        voice.activateRename("a")
+        await until { capture.state == .listening }
+        capture.transcript = "partial"
+        voice.send()
+        precondition(capture.state == .finishing && renames.count == 1)
+        capture.finish("Final name")
+        await until { voice.mode == nil }
+        precondition(renames.last?.name == "Final-name" && renames.last?.id == "a")
+        voice.activateRename("a")
+        await until { capture.state == .listening }
+        capture.finish(" \n ")
+        precondition(renames.count == 2 && voice.canResume, "Empty speech cannot replace a name")
+        voice.resume()
+        await until { capture.state == .listening }
+        capture.transcript = "keep until reconnect"
+        voice.targetUnavailable("a")
+        precondition(renames.count == 2 && voice.transcript == "keep until reconnect")
+        voice.stop()
         voice.activateTerminal("a")
+        await until { capture.state == .listening }
+        capture.transcript = "unsent command"
+        voice.activateRename("b")
+        precondition(voice.mode == .conversation && voice.targetID == "a" && voice.transcript == "unsent command")
+        print("PASS: rename starts capture, normalizes whitespace, waits for final text, and never submits terminal input")
+
+        voice.stop()
+        delayRename = true
+        voice.activateRename("a")
+        await until { capture.state == .listening }
+        capture.finish("Retry this name")
+        await until { renameReply != nil }
+        renameReply!.resume(throwing: URLError(.networkConnectionLost)); renameReply = nil
+        await until { !voice.isSubmitting }
+        precondition(voice.mode == .rename && voice.hasText && voice.canSend)
+        voice.send()
+        await until { renameReply != nil }
+        precondition(renames.suffix(2).allSatisfy { $0.id == "a" && $0.name == "Retry-this-name" })
+        renameReply!.resume(); renameReply = nil
+        await until { voice.mode == nil }
+        voice.activateRename("a")
+        await until { capture.state == .listening }
+        capture.finish("Older rename")
+        await until { renameReply != nil }
+        voice.stop()
+        voice.activateTerminal("b")
+        await until { capture.state == .listening }
+        capture.transcript = "new draft"
+        let completedBeforeRenameReply = completedRenames
+        renameReply!.resume(); renameReply = nil
+        await until { completedRenames > completedBeforeRenameReply }
+        precondition(voice.mode == .conversation && voice.targetID == "b" && voice.transcript == "new draft")
+        print("PASS: failed renames keep a retryable draft and stale acknowledgements cannot clear newer voice input")
+
+        voice.stop()
+        let renameCount = renames.count
+        capture.delayPermission = true
+        voice.activateRename("a")
         await until { capture.permission != nil }
         voice.conversationEnabled = false
         let completedBeforePermission = capture.completedStarts
@@ -178,6 +253,7 @@ struct TerminalVoiceChecks {
         precondition(voice.audioLevels.allSatisfy { $0 == 0 }, "Stopping capture must clear the waveform")
         precondition(!defaults.bool(forKey: "conversationVoiceEnabled"))
         precondition(commands.count == count + 4, "Cancellation and target switching must not submit anything")
+        precondition(renames.count == renameCount, "Late permission cannot rename a window")
         print("PASS: turning the setting off cancels delayed microphone preparation without sending")
         await checkRecognitionContinuity(defaults: defaults)
     }
@@ -187,7 +263,9 @@ struct TerminalVoiceChecks {
         let capture = FakeSpeechCapture()
         var commands: [TerminalVoiceCommand] = []
         let voice = TerminalVoiceController(capture: capture, defaults: defaults,
-            isAvailable: { _ in true }, deliver: { commands.append($0) })
+            isAvailable: { _ in true },
+            rename: { _, _ in preconditionFailure("Utterance continuity must not rename") },
+            deliver: { commands.append($0) })
         voice.conversationEnabled = true
         voice.activateTerminal("a")
         await until { capture.state == .listening }

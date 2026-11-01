@@ -45,6 +45,7 @@ final class WindowGateway: ObservableObject {
     private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var serviceTask: Task<Void, Never>?
     private var synchronizing = false
+    private var renameRequests: [String: UUID] = [:]
 
     init(persistence: WindowPersistence? = nil) {
         self.persistence = persistence ?? WindowPersistence()
@@ -108,6 +109,25 @@ final class WindowGateway: ObservableObject {
         }
     }
     func terminalPayload(for id: String) -> TerminalWindowPayload? { terminals[id]?.payload }
+
+    func rename(id: String, name: String) async throws {
+        guard canReceiveVoice(id), let reference = references[id], let base = terminals[id]?.payload.url else {
+            throw CompanionError(message: "Reconnect to this terminal before renaming it.")
+        }
+        let normalized = WindowName.normalized(name)
+        guard !normalized.isEmpty, normalized.utf16.count <= 120,
+            !normalized.unicodeScalars.contains(where: { $0.value < 32 }) else {
+            throw CompanionError(message: "Speak a window name of 120 characters or fewer.")
+        }
+        let token = UUID()
+        renameRequests[id] = token
+        defer { if renameRequests[id] == token { renameRequests.removeValue(forKey: id) } }
+        let result = try await CompanionAPI.request(CreatedSessionResponse.self, base: base,
+            path: "/api/sessions/\(id)", method: "PATCH",
+            body: JSONSerialization.data(withJSONObject: ["name": normalized]))
+        guard renameRequests[id] == token, references[id]?.hostID == reference.hostID else { return }
+        registerTerminal(result.session, hostID: reference.hostID, base: base)
+    }
     func previewPayload(for id: String) -> PreviewWindowPayload? { previews[id] }
     func reference(for id: String) -> WindowReference? { references[id] }
     func remember(_ reference: WindowReference) {
@@ -233,7 +253,8 @@ final class WindowGateway: ObservableObject {
         url.path = "/terminal"
         url.queryItems = [URLQueryItem(name: "sessionId", value: session.id)]
         let payload = TerminalWindowPayload(id: session.id, workspaceId: session.workspaceId,
-            title: "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)", urlString: url.url!.absoluteString)
+            title: session.name ?? "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)",
+            urlString: url.url!.absoluteString)
         terminals[session.id] = (payload, terminals[session.id]?.loadState ?? .idle)
         references[session.id] = WindowReference(hostID: hostID,
             window: WindowRecord(id: session.id, kind: .terminal, targetID: session.id))

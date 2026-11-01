@@ -24,11 +24,23 @@ enum CompanionAPI {
     static var requests: [String] = []
     static var inputBodies: [Data] = []
     static var loseInputReply = false
+    static var beforeRenameReply: (() async throws -> Void)?
     static func baseURL(host: String) -> URL? { URL(string: host.contains("://") ? host : "http://\(host)") }
     static func pair(base: URL, code: String) async throws {}
     static func request<T: Decodable>(_ type: T.Type, base: URL, path: String,
         method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20) async throws -> T {
         requests.append("\(method) \(path)")
+        if method == "PATCH", path.hasPrefix("/api/sessions/") {
+            let key = base.host!, id = String(path.dropFirst("/api/sessions/".count))
+            guard let index = sessions[key]?.firstIndex(where: { $0.id == id }) else {
+                throw CompanionError(message: "Missing session", statusCode: 404)
+            }
+            let body = try JSONSerialization.jsonObject(with: body!) as! [String: String]
+            sessions[key]![index].name = body["name"]
+            let response = CreatedSessionResponse(session: sessions[key]![index])
+            if let callback = beforeRenameReply { beforeRenameReply = nil; try await callback() }
+            return response as! T
+        }
         if method == "POST", path.hasSuffix("/input") {
             inputBodies.append(body!)
             if loseInputReply { loseInputReply = false; throw URLError(.networkConnectionLost) }
@@ -338,6 +350,53 @@ struct WindowGatewayChecks {
         voiceGateway.close(reference, dismiss: false)
         precondition(!voiceGateway.canReceiveVoice(terminal.id), "Close intent takes effect before native disappearance")
         print("PASS: voice input resolves through the gateway, retries identical commands, and respects scene availability and close intent")
+
+        let names = try JSONDecoder().decode(HostSessionsResponse.self,
+            from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[2]))).sessions
+        precondition(names[0].name == "Fix-the-login-flow" && names[1].name == nil)
+        let nameSuite = "TerminalNameChecks.\(UUID().uuidString)"
+        let nameDefaults = UserDefaults(suiteName: nameSuite)!
+        defer { nameDefaults.removePersistentDomain(forName: nameSuite) }
+        let nameBase = URL(string: "http://names.invalid:7777")!
+        let nameTarget = ConnectedHost(id: "names-host", endpoint: nameBase)
+        CompanionAPI.sessions[nameBase.host!] = names
+        CompanionAPI.layouts[nameBase.host!] = WindowLayout(windows: names.map {
+            WindowRecord(id: $0.id, kind: .terminal, targetID: $0.id)
+        })
+        let naming = WindowGateway(persistence: WindowPersistence(defaults: nameDefaults))
+        naming.observe(id: names[1].id, isPresented: true, isFocused: true)
+        await naming.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: names), nameTarget)
+        naming.updateTerminalLoadState(id: names[1].id, loadState: .loaded)
+        precondition(naming.terminalPayload(for: names[0].id)?.title == "Fix-the-login-flow")
+        precondition(naming.terminalPayload(for: names[1].id)?.title == "Terminal • project",
+            "Older companions and unnamed sessions retain their original title")
+        var nameCommands: [WindowCommand] = []
+        naming.attachPresenter(UUID()) { nameCommands.append($0) }
+        nameCommands.removeAll()
+        try await naming.rename(id: names[1].id, name: "  Fix\tthe\nsearch  ")
+        precondition(naming.terminalPayload(for: names[1].id)?.title == "Fix-the-search")
+        precondition(naming.terminalSessions.contains(where: { $0.payload.title == "Fix-the-search" }))
+        precondition(CompanionAPI.sessions[nameBase.host!]![1].name == "Fix-the-search")
+        var releaseName: CheckedContinuation<Void, Never>?
+        CompanionAPI.beforeRenameReply = { await withCheckedContinuation { releaseName = $0 } }
+        let olderRename = Task { try await naming.rename(id: names[1].id, name: "Older name") }
+        await until { releaseName != nil }
+        try await naming.rename(id: names[1].id, name: "Newest name")
+        releaseName!.resume()
+        try await olderRename.value
+        precondition(naming.terminalPayload(for: names[1].id)?.title == "Newest-name", "Late rename replies cannot replace a newer name")
+        await naming.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: CompanionAPI.sessions[nameBase.host!]!), nameTarget)
+        let recoveredName = WindowGateway(persistence: WindowPersistence(defaults: nameDefaults))
+        await recoveredName.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: CompanionAPI.sessions[nameBase.host!]!), nameTarget)
+        precondition(recoveredName.terminalPayload(for: names[1].id)?.title == "Newest-name", "Saved names recover without the launcher")
+        precondition(nameCommands.isEmpty, "Rename must not reopen, close, or replace native scenes")
+        naming.close(id: names[1].id)
+        let requestCount = CompanionAPI.requests.count
+        do { try await naming.rename(id: names[1].id, name: "Closed"); preconditionFailure("Closed windows cannot rename") }
+        catch {}
+        precondition(!CompanionAPI.requests.dropFirst(requestCount).contains(where: { $0.hasPrefix("PATCH") }))
+        print("PASS: shared names and legacy fallback reach launcher payloads, reject stale replies, and recover without replacing scenes or processes")
+
     }
 
     @MainActor

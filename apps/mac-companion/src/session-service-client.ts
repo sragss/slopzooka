@@ -146,6 +146,16 @@ export class SessionServiceClient {
   end(id: string) {
     return this.request(`/sessions/${encodeURIComponent(id)}`, "DELETE");
   }
+  async rename(id: string, name: unknown) {
+    if (!(await this.info()).capabilities?.includes("rename-session"))
+      throw new ServiceError(
+        "The running session service needs an explicit update before renaming. End its sessions before restarting it.",
+        503,
+      );
+    return this.request<
+      import("../../../packages/protocol/src/index.js").SessionSummary
+    >(`/sessions/${encodeURIComponent(id)}`, "PATCH", { name });
+  }
   paste(id: string, commandId: string, text: string, sendReturn: boolean) {
     return this.request(`/sessions/${encodeURIComponent(id)}/input`, "POST", {
       commandId,

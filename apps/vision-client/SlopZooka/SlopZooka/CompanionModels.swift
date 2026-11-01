@@ -300,6 +300,7 @@ struct HostSession: Decodable, Identifiable {
     let title: String
     let cwd: String
     let status: String
+    var name: String? = nil
 }
 struct HostSessionsResponse: Decodable {
     let sessions: [HostSession]

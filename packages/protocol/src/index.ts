@@ -5,6 +5,8 @@ export type SessionSummary = {
   workspaceId: string;
   profile: TuiProfile | null;
   title: string;
+  /** User-assigned name; title remains the original fallback. */
+  name?: string;
   cwd: string;
   cols: number;
   rows: number;

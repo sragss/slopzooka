@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import { spawn } from "node:child_process";
 import { WebSocket, WebSocketServer } from "ws";
 import { SessionServiceClient } from "../src/session-service-client.js";
+import { SESSION_SERVICE_VERSION } from "../src/session-service-protocol.js";
 
 const delay = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until<T>(run: () => T | Promise<T>): Promise<NonNullable<T>> {
@@ -116,6 +117,10 @@ test(
     ]);
     assert.deepEqual(sessions[0], sessions[1]);
     assert.equal((await client.info()).sessions.length, 1);
+    await client.rename("same-session", "  Shared terminal  ");
+    const named = (await peer.info()).sessions[0];
+    assert.equal(named.name, "Shared-terminal");
+    assert.equal(named.title, sessions[0].title);
     let host = await gateway(client);
     t.after(async () => host.stop());
     const a = await viewer(host.url);
@@ -165,6 +170,11 @@ test(
     const recovered = await recoveredClient.connectOrStart();
     assert.equal(recovered.instanceId, first.instanceId);
     assert.equal(recovered.pid, first.pid);
+    assert.equal(
+      recovered.sessions[0].name,
+      "Shared-terminal",
+      "Names survive companion restarts with the existing session",
+    );
     host = await gateway(recoveredClient);
     const c = await viewer(host.url);
     t.after(() => c.ws.terminate());
@@ -228,11 +238,10 @@ test(
     );
     const client = await SessionServiceClient.forHome(home);
     let respond = true;
+    let version = 999;
     const server = http.createServer((_req, res) => {
       if (respond)
-        res.end(
-          JSON.stringify({ version: 999, sessions: [{ id: "keep-me" }] }),
-        );
+        res.end(JSON.stringify({ version, sessions: [{ id: "keep-me" }] }));
     });
     server.listen(client.socketPath);
     await once(server, "listening");
@@ -246,6 +255,9 @@ test(
       await fs.rm(home, { recursive: true, force: true });
     });
     await assert.rejects(client.connectOrStart(), /explicit update/);
+    version = SESSION_SERVICE_VERSION;
+    assert.equal((await client.info()).sessions[0].id, "keep-me");
+    await assert.rejects(client.rename("keep-me", "Name"), /explicit update/);
     respond = false;
     await assert.rejects(client.connectOrStart(), /timed out/);
     assert.equal(
