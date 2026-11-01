@@ -155,7 +155,7 @@ struct WindowGatewayChecks {
             title: "Shell", cwd: "/project", status: "running")
         let closedSession = HostSession(id: "closed-session", workspaceId: "workspace", profile: nil,
             title: "Detached", cwd: "/project", status: "running")
-        await gateway.launcher.onSessionSnapshot?([session, closedSession], target)
+        await gateway.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session, closedSession]), target)
         await until { gateway.previewPayload(for: preview.id) != nil }
         precondition(opened == [preview.id], "An OS-restored scene is reused; only missing windows are opened")
         precondition(gateway.terminalPayload(for: terminal.id) != nil)
@@ -174,7 +174,7 @@ struct WindowGatewayChecks {
         precondition(opened == [preview.id], "Content reload must not reopen scenes or open detached sessions")
         gateway.observe(id: terminal.id, isPresented: false, isFocused: false)
         gateway.detachPresenter(presenterID)
-        await gateway.launcher.onSessionSnapshot?([session], target)
+        await gateway.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2, "Background and disconnect never close saved windows")
         precondition(opened.count == 1)
         precondition(gateway.terminalSessions.first?.isPresented == false)
@@ -188,7 +188,7 @@ struct WindowGatewayChecks {
         let next = WindowGateway(persistence: WindowPersistence(defaults: defaults))
         next.close(reference, dismiss: false)
         next.attachPresenter(UUID()) { if case .open(let window) = $0 { opened.append(window.id) } }
-        await next.launcher.onSessionSnapshot?([session], target)
+        await next.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         await until { CompanionAPI.layouts[base.host!]!.windows.isEmpty }
         precondition(opened == [preview.id], "A cold-start discard must win over the remote snapshot")
         precondition(!CompanionAPI.requests.contains(where: { $0.contains("/sessions") }), "Recovery never spawns replacement processes")
@@ -198,14 +198,14 @@ struct WindowGatewayChecks {
         let missing = WindowGateway(persistence: WindowPersistence(defaults: defaults))
         var missingOpens = 0
         missing.attachPresenter(UUID()) { if case .open = $0 { missingOpens += 1 } }
-        await missing.launcher.onSessionSnapshot?([], target)
-        await missing.launcher.onSessionSnapshot?([], target)
+        await missing.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: []), target)
+        await missing.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: []), target)
         precondition(missingOpens == 1 && missing.terminalPayload(for: terminal.id) == nil)
         precondition(missing.message(for: terminal.id).contains("no longer available"))
         let background = WindowGateway(persistence: WindowPersistence(defaults: defaults))
         background.observe(id: terminal.id, isPresented: false, isFocused: false)
         background.attachPresenter(UUID()) { if case .open = $0 { missingOpens += 1 } }
-        await background.launcher.onSessionSnapshot?([session], target)
+        await background.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         precondition(missingOpens == 1, "A restored background scene must not be pulled forward")
         print("PASS: missing sessions stay unavailable and restored background scenes stay in place")
 
@@ -218,7 +218,7 @@ struct WindowGatewayChecks {
             finishedPreview = true
         }
         let latePreview = WindowGateway(persistence: WindowPersistence(defaults: defaults))
-        let refresh = Task { await latePreview.launcher.onSessionSnapshot?([], target) }
+        let refresh = Task { await latePreview.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: []), target) }
         await until { releasePreview != nil }
         latePreview.close(WindowReference(hostID: hostID, window: preview), dismiss: false)
         await until { CompanionAPI.layouts[base.host!]!.windows.isEmpty }
@@ -226,16 +226,34 @@ struct WindowGatewayChecks {
         await refresh.value
         await until { finishedPreview }
         precondition(latePreview.previewPayload(for: preview.id) == nil)
-        await latePreview.launcher.onSessionSnapshot?([], target)
+        await latePreview.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: []), target)
         precondition(CompanionAPI.layouts[base.host!]!.windows.isEmpty)
         let encoded = try JSONEncoder().encode(CompanionAPI.layouts[base.host!]!)
         precondition(!String(decoding: encoded, as: UTF8.self).contains("transient-secret"))
         print("PASS: late preview resolution cannot resurrect a closed window")
 
+        // A successful snapshot from a new HTTP process refreshes preview routing,
+        // preserving desired windows and the existing terminal process identity.
+        CompanionAPI.layouts[base.host!] = WindowLayout(windows: [terminal, preview])
+        let restarted = WindowGateway(persistence: WindowPersistence(defaults: defaults))
+        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session], companionInstanceId: "before"), target)
+        await until { restarted.previewPayload(for: preview.id) != nil }
+        CompanionAPI.previewPort = 23456
+        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session], companionInstanceId: "after"), target)
+        await until { restarted.previewPayload(for: preview.id)?.urlString.contains(":23456/") == true }
+        precondition(restarted.terminalPayload(for: session.id) != nil)
+        precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2)
+        try accept(target, in: restarted.launcher.connection)
+        CompanionAPI.beforeSessions = { throw CompanionError(message: "Session service unavailable", statusCode: 503) }
+        await restarted.launcher.refreshHostCatalog()
+        precondition(restarted.terminalPayload(for: session.id) != nil, "A service outage is not an empty snapshot")
+        precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2)
+        print("PASS: HTTP companion restart refreshes preview gateways without changing window intent")
+
         gateway.attachPresenter(presenterID) { commands.append($0) }
         gateway.close(reference)
         precondition(commands.last == .close(terminal))
-        await gateway.launcher.onSessionSnapshot?([session], target)
+        await gateway.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         print("PASS: shared layout contract and typed scene commands preserve identity")
 
         // Poll the accepted connection while the next address is being edited.
@@ -284,7 +302,7 @@ struct WindowGatewayChecks {
         let voiceStore = WindowPersistence(defaults: defaults)
         try voiceStore.set(reference, isOpen: true)
         let voiceGateway = WindowGateway(persistence: voiceStore)
-        await voiceGateway.launcher.onSessionSnapshot?([session], target)
+        await voiceGateway.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: true)
         voiceGateway.updateTerminalLoadState(id: terminal.id, loadState: .loaded)
         precondition(voiceGateway.canReceiveVoice(terminal.id))

@@ -17,9 +17,9 @@ Move `build/mac-app/SlopZooka.app` to Applications and open it. It lives in the 
 
 The app bundles Node, production dependencies (including native PTY support), and the compiled companion. Running it does not require the repo, pnpm, or an installed Node. Your project tools (`git`, `gh`, Codex, etc.) still need to be installed. The app loads your login-shell PATH with a bounded timeout so tools managed by nvm/mise/pnpm remain available when launched from Finder.
 
-Closing the menu leaves sessions running. **Quit** confirms before ending active terminal sessions, then shuts down the owned companion. The private parent/child pipe also shuts down the host if the UI crashes. A companion crash triggers bounded restart attempts; terminal sessions cannot survive a host crash. A host that never finishes startup is stopped after 15 seconds, with force termination five seconds later if it ignores shutdown; the UI remains available to retry. A pre-existing companion on the same port is left alone: stop the Terminal-launched host before switching to the app. Pairing credentials remain in the same `~/.slopzooka` store.
+Closing the menu or choosing **Quit** leaves terminal sessions and their processes running. The menu owns the HTTP companion; its private parent/child pipe stops that companion if the UI exits or crashes. A separate local session service owns the PTYs and screens, so reopening the menu or restarting the HTTP companion reconnects to the same sessions. **Settings → Restart Companion** is safe for running terminals. **Restart Session Service** and **End All Sessions and Stop Service** explicitly end sessions and their descendants after confirmation. A companion crash triggers bounded restart attempts without restarting the session service. A host that never finishes startup is stopped after 15 seconds, with force termination five seconds later if it ignores shutdown; the UI remains available to retry. A pre-existing companion on the same port is left alone: stop the Terminal-launched host before switching to the app. Pairing credentials remain in the same `~/.slopzooka` store.
 
-The build uses an available Apple Development / Developer ID certificate so its signing identity survives updates and macOS can retain folder permissions. Set `SLOPZOOKA_SIGN_IDENTITY` to a specific identity when multiple teams are installed. Without a certificate, the build stops with setup guidance; `SLOPZOOKA_SIGN_IDENTITY=-` explicitly permits an ad-hoc test build, whose privacy permissions may reset after every rebuild. Run the app from Applications rather than from a repository inside Documents or Downloads. The bundle targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization. `pnpm test:mac-app` verifies the signed bundle, packaged static assets and PTY, private status channel, native-app startup, child teardown after a simulated UI crash, and force termination of a hung startup using an isolated home and port. It does not enable login startup or modify your live companion.
+The build uses an available Apple Development / Developer ID certificate so its signing identity survives updates and macOS can retain folder permissions. Set `SLOPZOOKA_SIGN_IDENTITY` to a specific identity when multiple teams are installed. Without a certificate, the build stops with setup guidance; `SLOPZOOKA_SIGN_IDENTITY=-` explicitly permits an ad-hoc test build, whose privacy permissions may reset after every rebuild. Run the app from Applications rather than from a repository inside Documents or Downloads. The bundle targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization. `pnpm test:mac-app` verifies the signed bundle, packaged static assets and PTY, private status channel, the same shell PID across UI/HTTP restarts, spawning after the old app runtime is removed, and force termination of a hung startup using an isolated home and port. It does not enable login startup or modify your live companion.
 
 ## Vision Pro and development
 
@@ -36,7 +36,11 @@ Terminal zoom ranges from **10% to 200%**, with an **80%** reset. The actions me
 
 For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/dashboard` for the desktop dashboard and pair with the same code.
 
-`pnpm dev:companion` intentionally does **not** restart on source changes. An opt-in `pnpm --filter @slz/mac-companion dev:watch` is available; each restart ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
+`pnpm dev:companion` does **not** restart on source changes. Use `pnpm --filter @slz/mac-companion dev:watch` to restart the HTTP companion on changes while the same session service keeps its terminals running. Terminal-engine changes require an explicit session-service restart, which ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
+
+Run production and development companions with different `SLOPZOOKA_HOME` directories and ports. Set `SLOPZOOKA_PORTLESS=0` for an isolated development instance. There is one session service per canonical home, independent of the HTTP port; never run two HTTP companions against the same home. `/health` identifies development versus packaged code. Builds can use `SLOPZOOKA_BUILD_DIR` to stage an independent app bundle without replacing the one under test.
+
+The companion connects to the existing session service or launches it under macOS's kernel-backed `lockf` utility. Local sockets live in a private user-owned directory, with no extra LAN listener or OS service registration. A versioned runtime under `SLOPZOOKA_HOME/session-runtimes` retains Node and native PTY helpers across app replacement. Only the service holding the lifetime lock prunes inactive runtimes at startup. Incompatible services are left running, and the Mac menu retains diagnostics and explicit restart controls. Logs are in `SLOPZOOKA_HOME/session-service.log`.
 
 ### Window recovery and iteration while wearing the headset
 
@@ -51,9 +55,10 @@ Every scene can start recovery, including when the launcher is closed. Existing
 system-restored windows resolve their content again; missing intended windows are
 opened once. Closing a window updates the saved layout without ending its terminal
 process. Backgrounding, disconnecting, or rebuilding the headset app does not close
-the saved windows. Sessions lost to a companion restart remain unavailable; recovery
-never silently launches replacement shells. Preview windows resolve fresh gateway
-URLs and trust material from the Mac. Cookies and browser navigation history still
+the saved windows. HTTP companion restarts preserve sessions. Sessions lost to a session-service
+restart remain unavailable; recovery never silently launches replacement shells. Preview windows resolve fresh gateway
+URLs and trust material from the Mac, including after detecting a new HTTP companion
+instance. Cookies and browser navigation history still
 belong to the WebView and do not survive native process replacement.
 
 visionOS owns physical placement and room locking. Recovery preserves scene IDs
@@ -83,7 +88,7 @@ Portless is optional. The registry adapter is tested against the Portless 0.14 s
 - Opening a session attaches a viewer. Closing a window or losing the network detaches it without killing the process.
 - Sessions reappear in the launcher after restarting the headset app. Reopening restores the current screen, including the alternate screen used by TUIs.
 - **New Shell** adds a terminal to the same workspace. **End Session** explicitly stops the process and its current descendants. Ending an already exited session removes its retained screen.
-- Sessions survive client disconnects, not companion/Mac restarts. Detached processes continue running until explicitly ended or the companion stops.
+- Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
@@ -148,7 +153,7 @@ Discovery sources fail independently: invalid Portless state produces a warning 
 
 Agent commands use their normal permission behavior. Previous implicit Claude permission bypassing has been removed.
 
-Shutdown closes admission before waiting for managed processes and frontend sockets; delayed launches cannot create new sessions during teardown.
+HTTP companion shutdown closes public admission, viewer connections, and frontend gateways without stopping terminal ownership. Session-service shutdown closes its own admission before terminating session descendants. An in-flight launch may have succeeded even if an HTTP reply was lost; retry with the same session ID instead of launching another agent.
 
 Opening the dashboard from the menu uses a single-use sign-in link, issued through the private app/companion pipe and valid for 60 seconds at the selected dashboard origin. The browser removes the link's fragment and exchanges it for an HttpOnly session cookie; the PIN and reusable credentials are never placed in the URL. Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints require authentication; browser requests and WebSocket upgrades also enforce the companion origin. Connection codes contain six digits, expire after five minutes, and rotate on host restart. Pairing is limited to ten attempts per minute across the host; paired credentials persist. The named dashboard supports Portless HTTPS with Secure cookies and exact-origin validation limited to the registered hostname through a loopback proxy. Direct LAN control transport remains HTTP; pairing is an access boundary, not transport encryption. Do not publish the control port to the internet.
 
@@ -160,7 +165,11 @@ Workspace mutations are serialized within the companion and the index is replace
 - `scripts/build-mac-app.mjs`: self-contained, locally signed macOS application bundle.
 
 - `src/server.ts`: HTTP routes, authenticated WebSocket transport, discovery, and shutdown.
-- `src/sessions.ts`: PTY ownership, screen state, attachment, replay, resize ownership, and input deduplication.
+- `src/sessions.ts`: PTY ownership, screen state, attachment, replay, resize ownership, and input deduplication; instantiated only by the session service.
+- `src/session-service.ts`: private service entry point, terminal protocol dispatch, explicit shutdown, and lock-protected stale socket/runtime cleanup.
+- `src/session-service-client.ts`: connect-or-start, immutable runtime installation, typed HTTP control, and bounded per-viewer terminal relay. It keeps no session registry.
+- `src/session-service-protocol.ts`: the small versioned local control contract.
+- `scripts/build-session-runtime.mjs`: build the retained terminal runtime; no additional npm dependencies.
 - `src/window-layout.ts`: authenticated, client-scoped window layouts with atomic persistence and revision checking.
 - `src/dashboard-address.ts`: optional Portless dashboard alias, verified redirects, and localhost fallback.
 - `src/frontend-discovery.ts`: read-only Portless adapter, macOS listener inventory, and bounded HTTP probes.

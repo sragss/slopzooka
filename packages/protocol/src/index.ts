@@ -24,6 +24,7 @@ export type ServerMessage =
       type: "hello";
       version: number;
       hostId: string;
+      serviceInstanceId?: string;
       sessions: SessionSummary[];
     }
   | {

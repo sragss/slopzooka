@@ -146,10 +146,31 @@ window.runViewportChecks = async () => {
     outfile: viewportBundle,
   });
   const viewportHTML = path.join(temporary, "viewport.html");
-  await fs.writeFile(
-    viewportHTML,
-    `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${await fs.readFile(path.join(temporary, "viewport.css"), "utf8")} html,body{margin:0;width:100%;height:100%;overflow:hidden}#terminal{width:100%;height:100%}</style><div id="terminal"></div><div id="title-pill"></div><div id="status-pill"></div><script>${(await fs.readFile(viewportBundle, "utf8")).replaceAll("</script", "<\\/script")}</script>`,
+  const viewportCSS = await fs.readFile(
+    path.join(temporary, "viewport.css"),
+    "utf8",
   );
+  const viewportScript = (await fs.readFile(viewportBundle, "utf8")).replaceAll(
+    "</script",
+    "<\\/script",
+  );
+  // Use the production surface so renderer/UI changes cannot leave this
+  // viewport fixture with stale element IDs or layout rules.
+  const surface = (
+    await fs.readFile(
+      path.join(root, "apps/mac-companion/public/terminal.html"),
+      "utf8",
+    )
+  )
+    .replace(
+      '<link rel="stylesheet" href="/terminal.css" />',
+      () => `<style>${viewportCSS}</style>`,
+    )
+    .replace(
+      '<script type="module" src="/terminal.js"></script>',
+      () => `<script>${viewportScript}</script>`,
+    );
+  await fs.writeFile(viewportHTML, surface);
   run(executable, [viewportHTML, "viewport"]);
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });

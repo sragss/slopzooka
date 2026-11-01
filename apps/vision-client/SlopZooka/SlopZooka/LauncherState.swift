@@ -28,7 +28,7 @@ final class LauncherState: ObservableObject {
     @Published var isPruningMissingWorkspaces = false
     @Published var feedback: LaunchFeedback?
     var launchTerminal: ((String, URL, String?) async throws -> Void)?
-    var onSessionSnapshot: (([HostSession], ConnectedHost) async -> Void)?
+    var onSessionSnapshot: ((HostSessionsResponse, ConnectedHost) async -> Void)?
 
     private var connecting = false
     private var refreshing = false
@@ -147,7 +147,7 @@ final class LauncherState: ObservableObject {
         do {
             let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: target.endpoint, path: "/api/sessions")
             guard !Task.isCancelled, connection.current == target else { return }
-            await onSessionSnapshot?(sessions.sessions, target)
+            await onSessionSnapshot?(sessions, target)
             guard !Task.isCancelled, connection.current == target else { return }
             // Preview availability must not block terminal recovery.
             let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: target.endpoint, path: "/api/frontends")

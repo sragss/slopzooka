@@ -17,6 +17,11 @@ final class CompanionModel: ObservableObject {
     @Published var loginNotice: String?
     @Published var openingDashboard = false
     @Published var dashboardError: String?
+    @Published var serviceBusy = false
+    @Published var serviceError: String?
+    private var serviceRequest: String?
+    private var serviceDeadline: Task<Void, Never>?
+    private var restartingCompanion = false
     private var dashboardRequest: String?
     private var dashboardDeadline: Task<Void, Never>?
     private var child: Process?
@@ -49,6 +54,7 @@ final class CompanionModel: ObservableObject {
         lastStatus = nil
         startupFailure = nil
         dashboardError = nil
+        serviceError = nil
         finishOpeningDashboard()
         guard let resources = Bundle.main.resourceURL else {
             fail("App resources are missing. Rebuild the app.")
@@ -130,12 +136,22 @@ final class CompanionModel: ObservableObject {
         let sessions: Int
         let viewers: Int
         let frontends: Int
+        let sessionServiceAvailable: Bool?
     }
     private func receive(_ data: Data) {
         buffer.append(data)
         while let newline = buffer.firstIndex(of: 10) {
             let line = Data(buffer[..<newline])
             buffer.removeSubrange(...newline)
+            let servicePrefix = Data("SLZ_SERVICE ".utf8)
+            if line.starts(with: servicePrefix) {
+                if let reply = try? JSONDecoder().decode(ServiceReply.self, from: line.dropFirst(servicePrefix.count)),
+                    reply.requestId == serviceRequest {
+                    finishServiceCommand()
+                    serviceError = reply.error
+                }
+                continue
+            }
             let dashboardPrefix = Data("SLZ_DASHBOARD ".utf8)
             if line.starts(with: dashboardPrefix) {
                 if let reply = try? JSONDecoder().decode(DashboardReply.self, from: line.dropFirst(dashboardPrefix.count)),
@@ -155,8 +171,9 @@ final class CompanionModel: ObservableObject {
             startupDeadline?.cancel()
             ready = true
             state = "Running"
-            detail =
-                status.viewers > 0
+            detail = status.sessionServiceAvailable == false
+                ? "Session service stopped or unavailable"
+                : status.viewers > 0
                 ? "\(status.viewers) connected terminal viewer\(status.viewers == 1 ? "" : "s")"
                 : "Ready for Vision Pro"
             code = status.code
@@ -173,6 +190,7 @@ final class CompanionModel: ObservableObject {
         startupDeadline?.cancel()
         stopDeadline?.cancel()
         finishOpeningDashboard()
+        finishServiceCommand()
         let wasReady = ready
         child = nil
         output?.fileHandleForReading.readabilityHandler = nil
@@ -190,6 +208,11 @@ final class CompanionModel: ObservableObject {
             onStopped?()
             return
         }
+        if restartingCompanion {
+            restartingCompanion = false
+            start()
+            return
+        }
         if let startupFailure {
             fail(startupFailure)
             return
@@ -204,7 +227,7 @@ final class CompanionModel: ObservableObject {
             return
         }
         state = "Reconnecting"
-        detail = "The companion stopped. Restarting; previous terminal sessions have ended."
+        detail = "The companion stopped. Reconnecting to your terminal sessions."
         retry = Task { [weak self] in
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
@@ -251,6 +274,49 @@ final class CompanionModel: ObservableObject {
         dashboardRequest = nil
         openingDashboard = false
     }
+    func restartCompanion() {
+        guard let child, !quitting else { return }
+        restartingCompanion = true
+        ready = false
+        terminateOwnedProcess(child)
+    }
+    private struct ServiceReply: Decodable {
+        let requestId: String
+        let error: String?
+    }
+    func manageSessionService(restart: Bool) {
+        guard ready, !serviceBusy, let input else { return }
+        let alert = NSAlert()
+        alert.messageText = restart ? "Restart session service?" : "End all sessions and stop service?"
+        alert.informativeText = "This ends all running terminals, agents, and their attached dev servers. Restarting the companion alone keeps them running."
+        alert.addButton(withTitle: "Cancel")
+        alert.addButton(withTitle: restart ? "End Sessions and Restart" : "End Sessions and Stop")
+        guard alert.runModal() == .alertSecondButtonReturn else { return }
+        serviceError = nil
+        let requestId = UUID().uuidString
+        serviceRequest = requestId
+        serviceBusy = true
+        do {
+            var data = try JSONSerialization.data(withJSONObject: ["type": restart ? "restart-session-service" : "stop-session-service", "requestId": requestId])
+            data.append(10)
+            try input.fileHandleForWriting.write(contentsOf: data)
+            serviceDeadline = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(30))
+                guard !Task.isCancelled, let self, self.serviceRequest == requestId else { return }
+                self.finishServiceCommand()
+                self.serviceError = "The session service did not respond. Check logs before retrying."
+            }
+        } catch {
+            finishServiceCommand()
+            serviceError = "Could not reach the companion. Restart the companion and try again."
+        }
+    }
+    private func finishServiceCommand() {
+        serviceDeadline?.cancel()
+        serviceDeadline = nil
+        serviceRequest = nil
+        serviceBusy = false
+    }
     func setLogin(_ enabled: Bool) {
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
@@ -262,6 +328,8 @@ final class CompanionModel: ObservableObject {
     }
     func stop() {
         quitting = true
+        restartingCompanion = false
+        finishServiceCommand()
         finishOpeningDashboard()
         retry?.cancel()
         startupDeadline?.cancel()

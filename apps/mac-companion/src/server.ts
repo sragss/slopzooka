@@ -1,4 +1,5 @@
 import { ServiceError } from "./errors.js";
+import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
 import os from "node:os";
@@ -17,13 +18,13 @@ import {
   type LaunchWorkspaceRequest,
 } from "./workspace.js";
 import {
-  isClientMessage,
   PROTOCOL_VERSION,
   validId,
   validProfile,
   type TuiProfile,
 } from "../../../packages/protocol/src/index.js";
-import { SessionManager, send } from "./sessions.js";
+import { SessionServiceClient } from "./session-service-client.js";
+import type { ServiceInfo } from "./session-service-protocol.js";
 import { Pairing } from "./auth.js";
 import { loadDesktopPath } from "./desktop.js";
 import { DashboardAddress } from "./dashboard-address.js";
@@ -45,7 +46,15 @@ const logger = createLogger("SlopZooka", "mac-companion.log");
 const gitHubClient = new GitHubClient();
 const workspaceService = new WorkspaceService(logger);
 
-const sessionManager = new SessionManager();
+const sessionService = await SessionServiceClient.forHome(
+  workspacePaths().slopzookaHome,
+);
+const companionInstanceId = randomUUID();
+let sessionStatus: ServiceInfo | undefined;
+let sessionServiceAvailable = false;
+let admissionReady = false;
+let changingService = false;
+let serviceGeneration = 0;
 const pairing: Pairing = new Pairing(
   workspacePaths().slopzookaHome,
   () => dashboardAddress.proxyOrigin,
@@ -71,15 +80,32 @@ const catalogTimer = setInterval(() => {
         frontend.status !== "stopped" && frontend.category !== "service",
     ).length;
   });
-  publishDesktopStatus();
+  const generation = serviceGeneration;
+  if (!changingService)
+    void sessionService
+      .info()
+      .then((info) => {
+        if (generation !== serviceGeneration) return;
+        sessionStatus = info;
+        sessionServiceAvailable = true;
+      })
+      .catch(() => {
+        if (generation !== serviceGeneration) return;
+        sessionServiceAvailable = false;
+      })
+      .finally(publishDesktopStatus);
 }, 2000);
 catalogTimer.unref();
 
 const app = express();
 app.use(express.json({ limit: "128kb" }));
 app.use((req, res, next) => {
-  if (shuttingDown) {
-    res.status(503).json({ error: "Companion is shutting down" });
+  if (shuttingDown || !admissionReady) {
+    res.status(503).json({
+      error: shuttingDown
+        ? "Companion is shutting down"
+        : "Companion is starting",
+    });
     return;
   }
   res.setHeader("Cache-Control", "no-store");
@@ -111,6 +137,9 @@ app.get("/health", (_req, res) => {
   res.json({
     ok: true,
     hostId: pairing.hostId,
+    companionInstanceId,
+    sessionServiceAvailable,
+    runtime: import.meta.url.endsWith(".ts") ? "development" : "packaged",
     paired: pairing.authorized(_req),
     protocolVersion: PROTOCOL_VERSION,
     name: "slopzooka-mac-companion",
@@ -125,9 +154,18 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.get("/api/sessions", (_req, res) =>
-  res.json({ sessions: sessionManager.summaries() }),
-);
+app.get("/api/sessions", async (_req, res) => {
+  try {
+    const info = await sessionService.info();
+    res.json({
+      sessions: info.sessions,
+      companionInstanceId,
+      serviceInstanceId: info.instanceId,
+    });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Session service unavailable");
+  }
+});
 app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
   try {
     if (
@@ -144,20 +182,25 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
     );
     if (!workspace.existsOnDisk)
       throw new ServiceError("Workspace directory is missing", 409);
-    const session = sessionManager.create(
-      workspace.workspaceId,
-      workspace.worktreePath,
-      req.body.profile ?? null,
-      req.body.sessionId,
-    );
+    const session = await sessionService.create({
+      workspaceId: workspace.workspaceId,
+      cwd: workspace.worktreePath,
+      profile: req.body.profile ?? null,
+      id: req.body.sessionId,
+      environment: Object.fromEntries(
+        Object.entries(process.env).filter(
+          (entry): entry is [string, string] => entry[1] !== undefined,
+        ),
+      ),
+    });
     res.status(201).json({ session });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not create session");
   }
 });
-app.delete("/api/sessions/:sessionId", (req, res) => {
+app.delete("/api/sessions/:sessionId", async (req, res) => {
   try {
-    sessionManager.terminate(req.params.sessionId);
+    await sessionService.end(req.params.sessionId);
     res.json({ ok: true });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not terminate session");
@@ -417,7 +460,7 @@ app.post("/api/frontends/open", async (req, res) => {
   }
 });
 
-app.post("/api/sessions/:sessionId/input", (req, res) => {
+app.post("/api/sessions/:sessionId/input", async (req, res) => {
   try {
     const { text, commandId, sendReturn } = req.body ?? {};
     if (
@@ -431,7 +474,12 @@ app.post("/api/sessions/:sessionId/input", (req, res) => {
         "Valid commandId, text and sendReturn required",
         400,
       );
-    sessionManager.paste(req.params.sessionId, commandId, text, sendReturn);
+    await sessionService.paste(
+      req.params.sessionId,
+      commandId,
+      text,
+      sendReturn,
+    );
     res.json({ ok: true, commandId });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not submit input");
@@ -480,50 +528,21 @@ heartbeat.unref();
 wss.on("connection", (ws) => {
   alive.add(ws);
   ws.on("pong", () => alive.add(ws));
-  send(ws, {
-    type: "hello",
-    version: PROTOCOL_VERSION,
-    hostId: pairing.hostId,
-    sessions: sessionManager.summaries(),
-  });
-  ws.on("message", (raw) => {
-    try {
-      const m: unknown = JSON.parse(raw.toString());
-      if (!isClientMessage(m))
-        throw new ServiceError("Invalid protocol message", 400);
-      switch (m.type) {
-        case "hello":
-          break;
-        case "attach":
-          sessionManager.attach(ws, m.sessionId, m.cursor);
-          break;
-        case "detach":
-          sessionManager.detach(ws, m.sessionId);
-          break;
-        case "input":
-          sessionManager.input(ws, m.sessionId, m.data);
-          break;
-        case "resize":
-          sessionManager.resize(ws, m.sessionId, m.cols, m.rows);
-          break;
-        case "ack":
-          sessionManager.acknowledge(ws, m.sessionId, m.cursor);
-          break;
-      }
-    } catch (error) {
-      send(ws, {
-        type: "error",
-        message: error instanceof Error ? error.message : "Invalid request",
-        code: error instanceof ServiceError ? String(error.statusCode) : "400",
-      });
-    }
-  });
+  void sessionService
+    .relay(ws, {
+      type: "hello",
+      version: PROTOCOL_VERSION,
+      hostId: pairing.hostId,
+    })
+    .catch((error) => {
+      logger.warn("Session relay unavailable", { error: String(error) });
+      ws.close(1013, "Session service unavailable; retry from the Mac menu");
+    });
   ws.on("error", (error) =>
     logger.warn("Socket error", { error: error.message }),
   );
   ws.on("close", () => {
     alive.delete(ws);
-    sessionManager.detach(ws);
   });
 });
 
@@ -533,7 +552,17 @@ server.listen(
     host: HOST,
     ipv6Only: false,
   },
-  () => {
+  async () => {
+    try {
+      sessionStatus = await sessionService.connectOrStart();
+      sessionServiceAvailable = true;
+    } catch (error) {
+      logger.error("Session service startup failed", { error: String(error) });
+      // Keep management and diagnostics available; an unavailable/incompatible
+      // service is never reported as an empty session catalog.
+      sessionServiceAvailable = false;
+    }
+    admissionReady = true;
     dashboardAddress.start();
     publishDesktopStatus();
     logger.info("Companion listening", {
@@ -666,9 +695,12 @@ function publishDesktopStatus(): void {
       JSON.stringify({
         code: pairing.code,
         pairingDisplayUntil: pairing.displayUntil,
-        sessions: sessionManager
-          .summaries()
-          .filter((session) => session.status === "running").length,
+        sessions:
+          sessionStatus?.sessions.filter(
+            (session) => session.status === "running",
+          ).length ?? 0,
+        sessionServiceAvailable,
+        sessionSocketPath: sessionService.socketPath,
         viewers: wss.clients.size,
         frontends: frontendCount,
       }),
@@ -690,8 +722,60 @@ if (process.env.SLOPZOOKA_DESKTOP === "1") {
       desktopInput = desktopInput.slice(newline + 1);
       try {
         const command = JSON.parse(line);
-        if (command.type !== "open-dashboard" || !validId(command.requestId))
+        if (!validId(command.requestId)) continue;
+        if (
+          command.type === "restart-session-service" ||
+          command.type === "stop-session-service"
+        ) {
+          if (changingService) {
+            console.log(
+              "SLZ_SERVICE " +
+                JSON.stringify({
+                  requestId: command.requestId,
+                  error: "A session service operation is already in progress",
+                }),
+            );
+            continue;
+          }
+          changingService = true;
+          serviceGeneration++;
+          void (async () => {
+            try {
+              try {
+                await sessionService.stop();
+              } catch (error) {
+                if (
+                  !["ENOENT", "ECONNREFUSED"].includes(
+                    (error as NodeJS.ErrnoException).code ?? "",
+                  )
+                )
+                  throw error;
+              }
+              sessionServiceAvailable = false;
+              sessionStatus = undefined;
+              if (command.type === "restart-session-service") {
+                sessionStatus = await sessionService.connectOrStart();
+                sessionServiceAvailable = true;
+              }
+              console.log(
+                "SLZ_SERVICE " +
+                  JSON.stringify({ requestId: command.requestId }),
+              );
+            } catch (error) {
+              console.log(
+                "SLZ_SERVICE " +
+                  JSON.stringify({
+                    requestId: command.requestId,
+                    error: String(error),
+                  }),
+              );
+            }
+            changingService = false;
+            publishDesktopStatus();
+          })();
           continue;
+        }
+        if (command.type !== "open-dashboard") continue;
         void dashboardAddress.destination().then((destination) => {
           if (shuttingDown) return;
           console.log(
@@ -727,7 +811,6 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
     server.close(() => resolve()),
   );
   await Promise.allSettled([
-    sessionManager.stop(),
     frontendService.stop(),
     dashboardAddress.stop(),
     bonjourAdvertiser?.stop(),
