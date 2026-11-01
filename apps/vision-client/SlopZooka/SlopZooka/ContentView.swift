@@ -209,48 +209,47 @@ struct ContentView: View {
         } else {
             LazyVStack(spacing: 10) {
                 ForEach(windows.terminalSessions) { session in
-                    Button {
-                        do { try windows.open(id: session.id) }
-                        catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
-                    } label: {
-                        let rowShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    HStack(spacing: 0) {
+                        Button {
+                            do { try windows.open(id: session.id) }
+                            catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
+                        } label: {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    HStack(spacing: 8) {
+                                        Text(session.payload.title)
+                                            .font(.subheadline.weight(.semibold))
+                                            .lineLimit(1)
 
-                        HStack(spacing: 12) {
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack(spacing: 8) {
-                                    Text(session.payload.title)
-                                        .font(.subheadline.weight(.semibold))
-                                        .lineLimit(1)
-
-                                    if session.isFocused {
-                                        Text("Active")
-                                            .font(.caption2.weight(.semibold))
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(.green.opacity(0.18), in: Capsule())
+                                        if session.isFocused {
+                                            Text("Active")
+                                                .font(.caption2.weight(.semibold))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(.green.opacity(0.18), in: Capsule())
+                                        }
                                     }
+
+                                    Text(sessionStateSummary(session))
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .lineLimit(1)
                                 }
 
-                                Text(sessionStateSummary(session))
+                                Spacer()
+
+                                Image(systemName: "arrow.up.forward")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
-                                    .lineLimit(1)
                             }
-
-                            Spacer()
-
-                            Image(systemName: "arrow.up.forward.square")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
-                        .padding(14)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(rowShape.fill(.quaternary.opacity(0.24)))
-                        .clipShape(rowShape)
-                        .contentShape(rowShape)
-                        .contentShape(.hoverEffect, rowShape)
+                        .buttonStyle(.plain)
+                        .hoverEffectDisabled()
                     }
-                    .buttonStyle(.plain)
+                    .modifier(LauncherRowSurface())
                 }
             }
         }
