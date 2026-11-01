@@ -26,6 +26,7 @@ const suites = {
   ],
   ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
   TerminalVoiceChecks: ["TerminalVoiceController"],
+  TerminalZoomChecks: ["TerminalZoom"],
 };
 try {
   for (const [suite, sources] of Object.entries(suites)) {

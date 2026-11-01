@@ -69,6 +69,7 @@ window.runKeyboardChecks = () => {
       root,
       "apps/vision-client/SlopZooka/SlopZooka/TerminalKeyboard.swift",
     ),
+    path.join(root, "apps/vision-client/SlopZooka/SlopZooka/TerminalZoom.swift"),
     path.join(root, "apps/vision-client/tests/TerminalKeyboardChecks.swift"),
     "-o",
     executable,
@@ -109,6 +110,7 @@ class ViewportSocket {
 }
 window.WebSocket = ViewportSocket;
 ${renderer}
+if (new URLSearchParams(location.search).has('legacy')) delete window.slzSetTerminalZoom;
 window.runViewportChecks = async () => {
   const check = (ok, label) => { if (!ok) throw Error(label); };
   const until = async (condition) => {
@@ -120,16 +122,17 @@ window.runViewportChecks = async () => {
   };
   const resizes = () => sent.filter(message => message.type === 'resize');
   await until(() => resizes().length > 0);
-  check(typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
+  const legacy = new URLSearchParams(location.search).has('legacy');
+  check(legacy || typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
-  for (const zoom of [0.8, 0.5, 0.3, 0.1, 1, 2, 0.8]) {
+  for (const zoom of [0.6, 0.7, 0.5, 0.3, 0.1, 1, 2, 0.6]) {
     const before = resizes().length;
-    window.slzSetTerminalZoom(zoom);
+    window.applyNativeZoom(zoom);
     await until(() => resizes().length > before);
     const size = resizes().at(-1);
     check(isClientMessage(size), 'Invalid resize at zoom ' + zoom);
     check(size.cols === terminal.cols && size.rows === terminal.rows, 'PTY and emulator grids diverged');
-    if (zoom === 0.8 || zoom === 0.5 || zoom === 0.3) {
+    if (zoom === 0.6 || zoom === 0.7 || zoom === 0.5 || zoom === 0.3) {
       check(terminal.cols > normalCols && terminal.rows > normalRows, 'Zoom-out must increase the PTY grid');
     }
     const screen = document.querySelector('.xterm-screen').getBoundingClientRect();
@@ -151,6 +154,7 @@ window.runViewportChecks = async () => {
     `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${await fs.readFile(path.join(temporary, "viewport.css"), "utf8")} html,body{margin:0;width:100%;height:100%;overflow:hidden}#terminal{width:100%;height:100%}</style><div id="terminal"></div><div id="title-pill"></div><div id="status-pill"></div><script>${(await fs.readFile(viewportBundle, "utf8")).replaceAll("</script", "<\\/script")}</script>`,
   );
   run(executable, [viewportHTML, "viewport"]);
+  run(executable, [viewportHTML, "legacy"]);
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

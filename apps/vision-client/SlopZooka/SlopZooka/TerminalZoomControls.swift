@@ -4,15 +4,18 @@ import SwiftUI
 /// the same shape defines the tap target and the system-rendered gaze highlight.
 struct TerminalZoomControls: View {
     @Binding var steps: Int
+    let defaultSteps: Int
 
     var body: some View {
         HStack(spacing: 0) {
             Button("Zoom Out", systemImage: "minus.magnifyingglass") { steps -= 1 }
-                .disabled(steps <= -9)
+                .disabled(steps <= TerminalZoom.stepRange.lowerBound)
             Button("Zoom In", systemImage: "plus.magnifyingglass") { steps += 1 }
-                .disabled(steps >= 10)
-            Button("Reset Zoom (80%)", systemImage: "magnifyingglass") { steps = -2 }
-                .disabled(steps == -2)
+                .disabled(steps >= TerminalZoom.stepRange.upperBound)
+            Button("Reset Zoom (\(TerminalZoom.percent(steps: defaultSteps))%)", systemImage: "magnifyingglass") {
+                steps = defaultSteps
+            }
+                .disabled(steps == defaultSteps)
             Text("\(100 + steps * 10)%")
                 .monospacedDigit()
                 .font(.body.weight(.medium))
