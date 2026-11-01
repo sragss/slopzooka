@@ -16,8 +16,21 @@ const fit = new FitAddon();
 terminal.loadAddon(fit);
 terminal.open(mount);
 fit.fit();
-// Opening or restoring a terminal must not summon the floating keyboard.
-// Focus comes from a tap in the terminal or the native Keyboard button.
+// Keep hardware typing ready; the floating keyboard requires an explicit request.
+focusTerminal();
+
+function focusTerminal(showKeyboard = false) {
+  const input = terminal.textarea;
+  if (input) {
+    const mode = showKeyboard ? "text" : "none";
+    if (input.inputMode !== mode) {
+      input.inputMode = mode;
+      // WebKit needs a fresh focus session when changing keyboard presentation.
+      if (document.activeElement === input) input.blur();
+    }
+  }
+  terminal.focus();
+}
 const sessionId = new URLSearchParams(location.search).get("sessionId");
 const connection = sessionId
   ? new TerminalConnection(
@@ -66,15 +79,15 @@ window.addEventListener("pagehide", detach);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
-window.slzFocusTerminal = () => terminal.focus();
+window.slzFocusTerminal = focusTerminal;
 // Synthetic keydowns make xterm focus its textarea, reopening the keyboard.
 // Direct input uses the same onData/ownership path without changing focus.
 window.slzInterruptTerminal = () => terminal.input("\u001b", true);
 window.slzDetachTerminal = detach;
-mount.addEventListener("pointerdown", () => terminal.focus());
+mount.addEventListener("pointerdown", () => focusTerminal(true));
 declare global {
   interface Window {
-    slzFocusTerminal?: () => void;
+    slzFocusTerminal?: (showKeyboard?: boolean) => void;
     slzInterruptTerminal?: () => void;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;

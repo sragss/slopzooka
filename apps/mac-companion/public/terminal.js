@@ -9354,6 +9354,18 @@ var fit = new o();
 terminal.loadAddon(fit);
 terminal.open(mount);
 fit.fit();
+focusTerminal();
+function focusTerminal(showKeyboard = false) {
+  const input = terminal.textarea;
+  if (input) {
+    const mode = showKeyboard ? "text" : "none";
+    if (input.inputMode !== mode) {
+      input.inputMode = mode;
+      if (document.activeElement === input) input.blur();
+    }
+  }
+  terminal.focus();
+}
 var sessionId = new URLSearchParams(location.search).get("sessionId");
 var connection = sessionId ? new TerminalConnection(
   terminal,
@@ -9396,10 +9408,10 @@ window.addEventListener("pagehide", detach);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
-window.slzFocusTerminal = () => terminal.focus();
+window.slzFocusTerminal = focusTerminal;
 window.slzInterruptTerminal = () => terminal.input("\x1B", true);
 window.slzDetachTerminal = detach;
-mount.addEventListener("pointerdown", () => terminal.focus());
+mount.addEventListener("pointerdown", () => focusTerminal(true));
 /*! Bundled license information:
 
 @xterm/addon-fit/lib/addon-fit.mjs:

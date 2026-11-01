@@ -27,7 +27,7 @@ Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the hea
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
-Opening, selecting, restoring, or reconnecting a terminal leaves the floating keyboard alone, as does sending voice input. Choose **Keyboard** in the terminal toolbar or tap inside the terminal when you want to type.
+Opening or activating a terminal keeps its input focused so you can continue typing with your Mac keyboard through Mac Virtual Display. Automatic focus suppresses the floating keyboard; choose **Keyboard** in the terminal toolbar or tap inside the terminal to request it. Voice acknowledgements and Interrupt preserve existing focus. On older companions, automatic focus still works but may also show the floating keyboard; update the companion for separate keyboard control.
 
 Terminal zoom ranges from **10% to 200%**, with an **80%** reset. The actions menu groups zoom out, zoom in, and reset into one row of magnifying-glass icons, with the percentage at the far right. Full button cells share their tap and hover bounds; zoom actions keep the popover open for repeated adjustments. Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. It remains a per-scene preference. At extreme zoom, the emulator and PTY share the protocol’s bounded grid.
 
@@ -200,6 +200,8 @@ xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
 ```
 
 Integration tests use temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSocket fixtures. They do not modify your Portless registry, workspaces, or GitHub repositories. Tests cover authentication, malformed messages, reconnect/replay/checkpoints, output floods, multiple viewers, command deduplication, descendant cleanup, simultaneous workspace mutations, branch selection, and frontend listener lifecycle. Discovery tests include restart recovery with stable preview credentials, cancellation during shutdown, browser/service classification, project naming, a real macOS child server, non-HTTP exclusion, incremental SSE, WebSockets, Portless failure isolation, and saved-URL persistence. The TLS fixture requires `openssl`.
+
+On physical Vision Pro, verify Mac Virtual Display typing immediately after opening, switching, and recovering terminal windows, then request and dismiss the floating keyboard and repeat. WebKit checks validate input focus and key delivery; the simulator does not establish Mac Virtual Display routing or floating-keyboard presentation.
 
 Before relying on a headset release, exercise these on physical Vision Pro: pair; open an agent and a shell in one workspace; close/reopen a window; sleep/wake the headset during output; dictate once while interrupting the connection; and open Next.js/Vite apps with HMR, auth, and cross-service requests. LAN certificate trust and framework origin policies require real-device verification.
 

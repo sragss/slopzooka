@@ -120,25 +120,49 @@ window.runViewportChecks = async () => {
   const resizes = () => sent.filter(message => message.type === 'resize');
   await until(() => resizes().length > 0);
   const isFocused = () => document.activeElement === terminal.textarea;
-  check(!isFocused(), 'Opening a terminal must not focus its keyboard input');
-  window.slzFocusTerminal();
-  check(isFocused(), 'The Keyboard button bridge must focus terminal input');
   const inputs = () => sent.filter(message => message.type === 'input').map(message => message.data);
+  const checkInputs = (expected, label) => check(JSON.stringify(inputs()) === JSON.stringify(expected), label + ': ' + JSON.stringify(inputs()));
+  const hardwareKey = (key, code, keyCode, modifiers = {}) => {
+    const target = document.activeElement;
+    const options = {key, code, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+    const accepted = target.dispatchEvent(new KeyboardEvent('keydown', options));
+    if (accepted && key.length === 1) target.dispatchEvent(new KeyboardEvent('keypress', {
+      ...options, keyCode: key.charCodeAt(0), charCode: key.charCodeAt(0), which: key.charCodeAt(0)
+    }));
+    target.dispatchEvent(new KeyboardEvent('keyup', options));
+  };
+  check(isFocused(), 'Opening a terminal must be ready for physical keyboard typing');
+  check(terminal.textarea.inputMode === 'none', 'Automatic focus must suppress only the software keyboard');
+  check(!terminal.textarea.readOnly && !terminal.textarea.disabled, 'Hardware input must remain editable');
+  hardwareKey('a', 'KeyA', 65);
+  hardwareKey('ArrowLeft', 'ArrowLeft', 37);
+  hardwareKey('Enter', 'Enter', 13);
+  hardwareKey('c', 'KeyC', 67, {ctrlKey: true});
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03'], 'Hardware text, arrows, Return, and Ctrl+C must reach the PTY without requesting software UI');
+  window.slzFocusTerminal(true);
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'The Keyboard button must request software UI while keeping input focused');
   window.slzInterruptTerminal();
-  check(isFocused(), 'Interrupt must preserve existing keyboard focus');
-  check(JSON.stringify(inputs()) === JSON.stringify(['\\x1b']), 'Focused interrupt must send exactly one Escape');
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must preserve the requested keyboard mode');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b'], 'Focused interrupt must send exactly one Escape');
+  window.slzFocusTerminal(false);
+  check(isFocused() && terminal.textarea.inputMode === 'none', 'Reactivating a terminal must restore physical input without software UI');
+  hardwareKey('b', 'KeyB', 66);
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b'], 'Hardware typing must work after reactivation');
   terminal.blur();
   mount.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
-  check(isFocused(), 'Tapping the terminal must still focus input');
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'Tapping the terminal must explicitly request the software keyboard');
   terminal.blur();
   window.slzInterruptTerminal();
-  check(!isFocused(), 'Interrupt must not summon the keyboard');
-  check(JSON.stringify(inputs()) === JSON.stringify(['\\x1b', '\\x1b']), 'Unfocused interrupt must send exactly one Escape');
+  check(!isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must not change focus or keyboard mode');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b'], 'Unfocused interrupt must send exactly one Escape');
+  window.slzFocusTerminal(false);
   const attachments = () => sent.filter(message => message.type === 'attach').length;
   const beforeReconnect = attachments();
   window.dispatchEvent(new Event('online'));
   await until(() => attachments() > beforeReconnect && resizes().length > 1);
-  check(!isFocused(), 'Reconnecting must not summon the keyboard');
+  check(isFocused() && terminal.textarea.inputMode === 'none', 'Reconnecting must preserve physical keyboard focus and software suppression');
+  hardwareKey('d', 'KeyD', 68);
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
   check(typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
   for (const zoom of [0.8, 0.5, 0.3, 0.1, 1, 2, 0.8]) {
@@ -146,7 +170,7 @@ window.runViewportChecks = async () => {
     window.slzSetTerminalZoom(zoom);
     await until(() => resizes().length > before);
     const size = resizes().at(-1);
-    check(!isFocused(), 'Zoom must not summon the keyboard');
+    check(isFocused() && terminal.textarea.inputMode === 'none', 'Zoom must preserve physical keyboard focus and software suppression');
     check(isClientMessage(size), 'Invalid resize at zoom ' + zoom);
     check(size.cols === terminal.cols && size.rows === terminal.rows, 'PTY and emulator grids diverged');
     if (zoom === 0.8 || zoom === 0.5 || zoom === 0.3) {
@@ -171,6 +195,24 @@ window.runViewportChecks = async () => {
     `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${await fs.readFile(path.join(temporary, "viewport.css"), "utf8")} html,body{margin:0;width:100%;height:100%;overflow:hidden}#terminal{width:100%;height:100%}</style><div id="terminal"></div><div id="title-pill"></div><div id="status-pill"></div><script>${(await fs.readFile(viewportBundle, "utf8")).replaceAll("</script", "<\\/script")}</script>`,
   );
   run(executable, [viewportHTML, "viewport"]);
+  const nativeChecks = path.join(temporary, "native-focus-checks");
+  run("xcrun", [
+    "swiftc",
+    "-swift-version",
+    "5",
+    "-parse-as-library",
+    ...["CompanionWebView", "CompanionModels", "TerminalNavigation"].map(
+      (name) =>
+        path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
+    ),
+    path.join(
+      root,
+      "apps/vision-client/tests/TerminalSessionControllerChecks.swift",
+    ),
+    "-o",
+    nativeChecks,
+  ]);
+  run(nativeChecks, []);
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

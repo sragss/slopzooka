@@ -41,6 +41,7 @@ struct TerminalWindowView: View {
                     url: url,
                     reloadToken: windows.reloadToken(for: payload.id),
                     loadState: $loadState,
+                    isActive: scenePhase == .active,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
                     zoom: Double(10 + terminalZoomSteps) / 10

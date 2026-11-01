@@ -48,7 +48,7 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                 let function = viewport ? "runViewportChecks" : "runKeyboardChecks"
                 let result = try await webView.callAsyncJavaScript("return await \(function)()", arguments: [:], in: nil, contentWorld: .page)
                 guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
-                print(viewport ? "PASS: explicit keyboard focus, passive open/reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
+                print(viewport ? "PASS: automatic hardware input, explicit software keyboard mode, focus-preserving reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
                     : "PASS: floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
                 exit(0)
             } catch {
