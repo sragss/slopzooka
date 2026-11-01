@@ -319,7 +319,17 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     assert.equal(terminal.cols, 80, "Zooming back in restores the fitted grid");
     assert.equal(terminal.rows, 24);
     current.receive({ type: "ownership", sessionId: "s1", writable: false });
+    current.receive({
+      type: "error",
+      code: "403",
+      message: "Read-only viewer",
+    });
     await flush();
+    assert.equal(
+      states.at(-1),
+      "running",
+      "rejected in-flight input cannot turn a handoff into a connection failure",
+    );
     assert.deepEqual(ownership.at(-1), {
       readOnly: true,
       canTakeControl: true,

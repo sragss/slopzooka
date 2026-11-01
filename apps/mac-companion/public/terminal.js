@@ -9327,6 +9327,10 @@ var TerminalConnection = class {
         break;
       case "error":
         if (!this.isCurrent(ws2)) return;
+        if (m.code === "403" && this.attached && this.running && !this.writable) {
+          this.publishOwnership();
+          break;
+        }
         this.status(
           m.code === "404" ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})` : `${m.message} (${m.code})`,
           "failed"

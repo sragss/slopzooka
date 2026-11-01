@@ -219,6 +219,16 @@ export class TerminalConnection {
         break;
       case "error":
         if (!this.isCurrent(ws)) return;
+        // Input already in flight when control moves is an ordinary read-only transition.
+        if (
+          m.code === "403" &&
+          this.attached &&
+          this.running &&
+          !this.writable
+        ) {
+          this.publishOwnership();
+          break;
+        }
         this.status(
           m.code === "404"
             ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})`
