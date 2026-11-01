@@ -198,3 +198,89 @@ test("six-digit codes expire; rate limiting is host-wide and existing credential
   const saved = await fs.readFile(path.join(home, "pairing.json"), "utf8");
   assert.ok(!saved.includes(token));
 });
+
+test("desktop sign-in links are single-use, short-lived, origin-bound, and keep control routes protected", async (t) => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-desktop-signin-"));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  let now = 1000;
+  const pairing = new Pairing(
+    home,
+    () => undefined,
+    () => now,
+  );
+  const app = express();
+  app.use(express.json());
+  pairing.install(app);
+  app.get("/private", (_req, res) => res.json({ ok: true }));
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+  const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+  const issue = (origin = base) => {
+    const link = new URL(pairing.dashboardLink(origin + "/"));
+    assert.equal(link.search, "");
+    assert.equal(link.pathname, "/");
+    return new URLSearchParams(link.hash.slice(1)).get("connect")!;
+  };
+  const redeem = (
+    ticket: string,
+    origin: string | null = base,
+    cookie?: string,
+  ) =>
+    fetch(base + "/api/pair/dashboard", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(origin ? { Origin: origin } : {}),
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+      body: JSON.stringify({ ticket }),
+    });
+  assert.equal((await fetch(base + "/private")).status, 401);
+  assert.equal((await redeem("guessed")).status, 401);
+  const ticket = issue();
+  assert.equal((await redeem(ticket, "http://foreign.invalid")).status, 403);
+  assert.equal((await redeem(ticket, null)).status, 401);
+  const signedIn = await redeem(ticket);
+  assert.equal(signedIn.status, 200);
+  assert.deepEqual(await signedIn.json(), { ok: true });
+  const cookie = signedIn.headers.get("set-cookie")!;
+  assert.match(cookie, /HttpOnly/);
+  assert.match(cookie, /SameSite=Strict/);
+  assert.equal(
+    (
+      await fetch(base + "/private", {
+        headers: { Cookie: cookie.split(";")[0]! },
+      })
+    ).status,
+    200,
+  );
+  assert.equal(
+    (await redeem(ticket)).status,
+    401,
+    "a link cannot sign in twice",
+  );
+  const store = await fs.readFile(path.join(home, "pairing.json"), "utf8");
+  assert.ok(!store.includes(ticket));
+  assert.equal((await redeem(issue(), base, cookie)).status, 200);
+  assert.equal(
+    await fs.readFile(path.join(home, "pairing.json"), "utf8"),
+    store,
+    "reopening an already paired browser does not retire other devices",
+  );
+  assert.equal(
+    (await redeem(issue("http://localhost:9999"))).status,
+    401,
+    "another dashboard origin cannot redeem the link",
+  );
+  const expired = issue();
+  now += 60_000;
+  assert.equal((await redeem(expired)).status, 401);
+  const restart = new Pairing(home);
+  assert.ok(
+    restart.authorized({
+      headers: { cookie: cookie.split(";")[0]! },
+    } as http.IncomingMessage),
+    "browser authorization survives companion restarts",
+  );
+});

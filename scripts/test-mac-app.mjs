@@ -247,6 +247,41 @@ try {
     );
     request.on("error", reject);
   });
+  // Opening from the native app uses private IPC, never the public pairing PIN.
+  child.stdin.write(
+    JSON.stringify({ type: "open-dashboard", requestId: "desktop-open" }) +
+      "\n",
+  );
+  const dashboardFrame = await until(() =>
+    output.split("\n").find((line) => line.startsWith("SLZ_DASHBOARD ")),
+  );
+  const dashboardReply = JSON.parse(
+    dashboardFrame.slice("SLZ_DASHBOARD ".length),
+  );
+  assert.equal(dashboardReply.requestId, "desktop-open");
+  const dashboardURL = new URL(dashboardReply.url);
+  assert.equal(dashboardURL.origin, `http://localhost:${port}`);
+  assert.equal(dashboardURL.search, "");
+  const ticket = new URLSearchParams(dashboardURL.hash.slice(1)).get("connect");
+  assert.match(ticket, /^[a-f0-9]{64}$/);
+  const signIn = await fetch(dashboardURL.origin + "/api/pair/dashboard", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Origin: dashboardURL.origin,
+    },
+    body: JSON.stringify({ ticket }),
+  });
+  assert.equal(signIn.status, 200, await signIn.text());
+  const dashboardCookie = signIn.headers.get("set-cookie").split(";")[0];
+  assert.equal(
+    (
+      await fetch(base + "/api/sessions", {
+        headers: { Cookie: dashboardCookie },
+      })
+    ).status,
+    200,
+  );
   const logs = await fs.readFile(path.join(home, "mac-companion.log"), "utf8");
   assert.ok(!logs.includes(status.code), "pairing code stays off disk logs");
   child.stdin.end();

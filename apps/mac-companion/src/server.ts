@@ -676,6 +676,37 @@ function publishDesktopStatus(): void {
 }
 if (process.env.SLOPZOOKA_DESKTOP === "1") {
   // An app crash closes this pipe too: do not orphan a hidden companion.
+  let desktopInput = "";
+  process.stdin.setEncoding("utf8");
+  process.stdin.on("data", (chunk: string) => {
+    desktopInput += chunk;
+    if (desktopInput.length > 16 * 1024) {
+      desktopInput = "";
+      return;
+    }
+    let newline: number;
+    while ((newline = desktopInput.indexOf("\n")) !== -1) {
+      const line = desktopInput.slice(0, newline);
+      desktopInput = desktopInput.slice(newline + 1);
+      try {
+        const command = JSON.parse(line);
+        if (command.type !== "open-dashboard" || !validId(command.requestId))
+          continue;
+        void dashboardAddress.destination().then((destination) => {
+          if (shuttingDown) return;
+          console.log(
+            "SLZ_DASHBOARD " +
+              JSON.stringify({
+                requestId: command.requestId,
+                url: pairing.dashboardLink(destination),
+              }),
+          );
+        });
+      } catch {
+        // Ignore malformed private commands; never print their contents.
+      }
+    }
+  });
   process.stdin.resume();
   process.stdin.once("end", () => {
     void shutdown("desktop-disconnected");

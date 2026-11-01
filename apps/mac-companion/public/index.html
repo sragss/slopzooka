@@ -61,8 +61,7 @@
         <div class="pairing-content">
           <h1 id="pairing-title">Connect this browser</h1>
           <p>
-            Open the SlopZooka menu on your Mac and choose
-            <strong>Show Connection Code</strong> to find your pairing code.
+            Open the SlopZooka menu on your Mac to find your connection code.
           </p>
           <form id="pair">
             <label for="code">Pairing code</label>
@@ -140,6 +139,13 @@
           <ul id="frontends" class="rows"></ul>
         </section>
       </div>
+      <div id="startup-error" class="loading" role="alert" hidden>
+        <p>
+          Couldn’t load the dashboard. Check that SlopZooka is running, then
+          retry.
+        </p>
+        <button id="retry-startup">Retry</button>
+      </div>
       <div id="loading" class="loading" role="status">
         Connecting to your Mac…
       </div>
@@ -166,6 +172,38 @@
         </div>
       </form>
     </dialog>
-    <script type="module" src="/harness.js"></script>
+    <script id="dashboard-script" type="module" src="/harness.js"></script>
+    <script id="dashboard-startup">
+      (() => {
+        const loading = document.getElementById("loading");
+        const error = document.getElementById("startup-error");
+        const label = document.getElementById("connection-label");
+        const script = document.getElementById("dashboard-script");
+        const fail = () => {
+          loading.hidden = true;
+          error.hidden = false;
+          label.textContent = "Dashboard unavailable";
+        };
+        const deadline = setTimeout(fail, 15000);
+        script.addEventListener("error", fail);
+        window.addEventListener("error", fail);
+        window.addEventListener(
+          "slz-dashboard-ready",
+          () => {
+            clearTimeout(deadline);
+            script.removeEventListener("error", fail);
+            window.removeEventListener("error", fail);
+            if (!error.hidden) {
+              error.hidden = true;
+              loading.hidden = false;
+              label.textContent = "Connecting…";
+            }
+          },
+          { once: true },
+        );
+        document.getElementById("retry-startup").onclick = () =>
+          location.reload();
+      })();
+    </script>
   </body>
 </html>
