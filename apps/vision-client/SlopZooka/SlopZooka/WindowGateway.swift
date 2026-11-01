@@ -4,10 +4,22 @@ import Foundation
 struct TerminalSessionState: Identifiable {
     let payload: TerminalWindowPayload
     var id: String { payload.id }
+    let isPresented: Bool
+    let isFocused: Bool
+    let loadState: TerminalLoadState
+    let lastFocusedAt: Date
+}
+
+private struct WindowPresence {
     var isPresented = false
     var isFocused = false
-    var loadState: TerminalLoadState = .idle
-    var lastFocusedAt = Date()
+    var lastFocusedAt = Date.distantPast
+}
+
+enum WindowCommand: Equatable {
+    case open(WindowRecord)
+    case close(WindowRecord)
+    case openLauncher
 }
 
 /// The only entry point for window intent, content resolution, and restoration.
@@ -18,7 +30,8 @@ final class WindowGateway: ObservableObject {
     let launcher = LauncherState()
     let discovery = CompanionDiscovery()
     private let persistence: WindowPersistence
-    @Published private var terminals: [String: TerminalSessionState] = [:]
+    @Published private var terminals: [String: (payload: TerminalWindowPayload, loadState: TerminalLoadState)] = [:]
+    @Published private var presence: [String: WindowPresence] = [:]
     @Published private var previews: [String: PreviewWindowPayload] = [:]
     @Published private var failures: [String: String] = [:]
     @Published private var reloads: [String: Int] = [:]
@@ -28,9 +41,7 @@ final class WindowGateway: ObservableObject {
     private var resolvingPreviews: [String: Task<Void, Never>] = [:]
     private var endpoints: [String: URL] = [:]
     private var requested: Set<String> = []
-    private var presented: Set<String> = []
-    private var focused: Set<String> = []
-    private var presenters: [UUID: (String, String?, Bool) -> Void] = [:]
+    private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var serviceTask: Task<Void, Never>?
     private var synchronizing = false
 
@@ -39,8 +50,9 @@ final class WindowGateway: ObservableObject {
         launcher.launchTerminal = { [weak self] workspaceID, base, profile in
             try await self?.launchTerminal(workspaceID: workspaceID, base: base, profile: profile)
         }
-        launcher.onSessionSnapshot = { [weak self] sessions, base, hostID in
+        launcher.onSessionSnapshot = { [weak self] sessions, target in
             guard let self else { return }
+            let hostID = target.id, base = target.endpoint
             self.endpoints[hostID] = base
             let ids = Set(sessions.map(\.id))
             for (id, reference) in self.references where reference.hostID == hostID && reference.window.kind == .terminal && !ids.contains(id) {
@@ -64,7 +76,7 @@ final class WindowGateway: ObservableObject {
         serviceTask = Task { [weak self] in
             guard let self else { return }
             while !Task.isCancelled {
-                if self.launcher.connection.endpoint == nil {
+                if self.launcher.connection.current == nil {
                     if !self.launcher.normalizedHost.isEmpty { await self.launcher.connectAndRefresh() }
                 } else { await self.launcher.refreshHostCatalog() }
                 try? await Task.sleep(for: .seconds(3))
@@ -73,10 +85,15 @@ final class WindowGateway: ObservableObject {
     }
 
     var terminalSessions: [TerminalSessionState] {
-        terminals.values.sorted {
+        terminals.map { id, terminal in
+            let scene = presence[id, default: WindowPresence()]
+            return TerminalSessionState(payload: terminal.payload, isPresented: scene.isPresented,
+                isFocused: scene.isFocused, loadState: terminal.loadState, lastFocusedAt: scene.lastFocusedAt)
+        }.sorted {
             if $0.isFocused != $1.isFocused { return $0.isFocused }
             if $0.isPresented != $1.isPresented { return $0.isPresented }
-            return $0.lastFocusedAt > $1.lastFocusedAt
+            if $0.lastFocusedAt != $1.lastFocusedAt { return $0.lastFocusedAt > $1.lastFocusedAt }
+            return $0.id < $1.id
         }
     }
     func terminalPayload(for id: String) -> TerminalWindowPayload? { terminals[id]?.payload }
@@ -114,11 +131,11 @@ final class WindowGateway: ObservableObject {
             resolvingPreviews[reference.window.id]?.cancel()
             previews.removeValue(forKey: reference.window.id)
             failures.removeValue(forKey: reference.window.id)
-            if dismiss { presenters.values.first?(reference.window.kind.rawValue, reference.window.id, false) }
+            if dismiss { presenters.values.first?(.close(reference.window)) }
             Task { await synchronize() }
         } catch { persistenceError = "Could not save the window layout: \(error.localizedDescription)" }
     }
-    func openLauncher() { presenters.values.first?("launcher", nil, true) }
+    func openLauncher() { presenters.values.first?(.openLauncher) }
 
     func newShell(for id: String) async throws {
         guard let payload = terminalPayload(for: id), let base = payload.url else { return }
@@ -141,7 +158,7 @@ final class WindowGateway: ObservableObject {
 
     /// Reload content while preserving native scenes, placement, and running PTYs.
     func reload(id: String? = nil) {
-        for windowID in id.map({ [$0] }) ?? Array(presented) {
+        for windowID in id.map({ [$0] }) ?? presence.compactMap({ $0.value.isPresented ? $0.key : nil }) {
             reloads[windowID, default: 0] += 1
             if references[windowID]?.window.kind == .preview { refreshPreviews.insert(windowID) }
             failures.removeValue(forKey: windowID)
@@ -153,13 +170,10 @@ final class WindowGateway: ObservableObject {
     func observe(id: String?, isPresented: Bool, isFocused: Bool) {
         guard let id else { return }
         requested.insert(id) // An existing background scene is also already restored.
-        if isPresented { presented.insert(id) } else { presented.remove(id) }
-        if isFocused { focused.insert(id) } else { focused.remove(id) }
-        terminals[id]?.isPresented = isPresented
-        terminals[id]?.isFocused = isFocused
-        if isFocused { terminals[id]?.lastFocusedAt = Date() }
+        presence[id] = WindowPresence(isPresented: isPresented, isFocused: isFocused,
+            lastFocusedAt: isFocused ? Date() : presence[id]?.lastFocusedAt ?? .distantPast)
     }
-    func attachPresenter(_ id: UUID, action: @escaping (String, String?, Bool) -> Void) {
+    func attachPresenter(_ id: UUID, action: @escaping (WindowCommand) -> Void) {
         presenters[id] = action
         restoreWindows()
     }
@@ -167,9 +181,9 @@ final class WindowGateway: ObservableObject {
 
     private func hostID(for base: URL) throws -> String {
         func origin(_ url: URL) -> String { "\(url.scheme ?? "http")://\(url.host ?? ""):\(url.port ?? (url.scheme == "https" ? 443 : 80))" }
-        if let endpoint = launcher.connection.endpoint, let hostID = launcher.connection.hostID, origin(endpoint) == origin(base) {
-            endpoints[hostID] = endpoint
-            return hostID
+        if let target = launcher.connection.current, origin(target.endpoint) == origin(base) {
+            endpoints[target.id] = target.endpoint
+            return target.id
         }
         guard let hostID = endpoints.first(where: { origin($0.value) == origin(base) })?.key else {
             throw CompanionError(message: "Connect to this Mac before opening a window.")
@@ -182,9 +196,7 @@ final class WindowGateway: ObservableObject {
         url.queryItems = [URLQueryItem(name: "sessionId", value: session.id)]
         let payload = TerminalWindowPayload(id: session.id, workspaceId: session.workspaceId,
             title: "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)", urlString: url.url!.absoluteString)
-        let old = terminals[session.id]
-        terminals[session.id] = TerminalSessionState(payload: payload, isPresented: presented.contains(session.id),
-            isFocused: focused.contains(session.id), loadState: old?.loadState ?? .idle, lastFocusedAt: old?.lastFocusedAt ?? Date())
+        terminals[session.id] = (payload, terminals[session.id]?.loadState ?? .idle)
         references[session.id] = WindowReference(hostID: hostID,
             window: WindowRecord(id: session.id, kind: .terminal, targetID: session.id))
         failures.removeValue(forKey: session.id)
@@ -235,7 +247,7 @@ final class WindowGateway: ObservableObject {
     private func present(_ record: WindowRecord, explicit: Bool = false) {
         guard (explicit || !requested.contains(record.id)), let action = presenters.values.first else { return }
         requested.insert(record.id)
-        action(record.kind.rawValue, record.id, true)
+        action(.open(record))
     }
     private func resolvePreview(_ record: WindowRecord, base: URL) async throws -> PreviewWindowPayload {
         let result = try await CompanionAPI.request(OpenFrontendResponse.self, base: base,

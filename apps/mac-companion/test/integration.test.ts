@@ -267,7 +267,7 @@ test(
         fetch(base + "/api/window-layout", {
           method: "PUT",
           headers: layoutHeaders,
-          body: JSON.stringify({ revision, windows }),
+          body: JSON.stringify({ version: 1, revision, windows }),
         });
       assert.equal((await saveLayout(0, [windowRecord])).status, 200);
       const first = await connect();

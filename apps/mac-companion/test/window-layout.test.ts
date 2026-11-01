@@ -13,8 +13,17 @@ import {
 
 const client = "11111111-1111-1111-1111-111111111111";
 const otherClient = "22222222-2222-2222-2222-222222222222";
-const terminal = { id: "session-1", kind: "terminal", targetID: "session-1" };
-const preview = { id: "host:preview", kind: "preview", targetID: "manual:abc" };
+// The Swift recovery checks decode and round-trip this same wire contract.
+const contract = JSON.parse(
+  await fs.readFile(
+    new URL(
+      "../../../packages/protocol/fixtures/window-layout.v1.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+const [terminal, preview] = contract.windows;
 
 test("layouts survive restart, isolate clients, serialize conflicting edits, and reject corrupt stores", async () => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-layout-"));
@@ -96,15 +105,27 @@ test("layout API requires pairing and a client ID, checks revisions, and persist
       ).status,
       403,
     );
-    const put = (revision: number, windows: unknown[]) =>
+    const put = (
+      revision: number,
+      windows: unknown[],
+      version: unknown = contract.version,
+    ) =>
       fetch(base + "/api/window-layout", {
         method: "PUT",
         headers,
-        body: JSON.stringify({ revision, windows }),
+        body: JSON.stringify({ version, revision, windows }),
       });
+    for (const version of [null, "1", 0, 2]) {
+      assert.equal((await put(0, contract.windows, version)).status, 400);
+    }
+    assert.equal((await put(contract.revision, contract.windows)).status, 200);
+    const savedContract = await fetch(base + "/api/window-layout", {
+      headers,
+    }).then((r) => r.json());
+    assert.deepEqual(savedContract, { ...contract, revision: 1 });
     assert.equal(
       (
-        await put(0, [
+        await put(1, [
           {
             ...terminal,
             url: "http://secret",
@@ -120,7 +141,7 @@ test("layout API requires pairing and a client ID, checks revisions, and persist
       headers,
     }).then((r) => r.json())) as { windows: unknown[] };
     assert.deepEqual(snapshot.windows, [terminal]);
-    assert.equal((await put(1, [])).status, 200);
+    assert.equal((await put(2, [])).status, 200);
     assert.deepEqual(
       (await new WindowLayoutStore(home).get(client)).windows,
       [],

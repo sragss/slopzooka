@@ -161,6 +161,8 @@ export function installWindowLayoutRoutes(
   });
   app.put("/api/window-layout", async (req, res) => {
     try {
+      if (req.body?.version !== 1)
+        throw new ServiceError("Unsupported window layout version", 400);
       res.json(
         await store.put(client(req), req.body?.revision, req.body?.windows),
       );

@@ -28,7 +28,7 @@ final class LauncherState: ObservableObject {
     @Published var isPruningMissingWorkspaces = false
     @Published var feedback: LaunchFeedback?
     var launchTerminal: ((String, URL, String?) async throws -> Void)?
-    var onSessionSnapshot: (([HostSession], URL, String) async -> Void)?
+    var onSessionSnapshot: (([HostSession], ConnectedHost) async -> Void)?
 
     private var connecting = false
     private var refreshing = false
@@ -68,7 +68,7 @@ final class LauncherState: ObservableObject {
         defer { connecting = false }
         while !pendingHosts.isEmpty {
             let candidate = pendingHosts.removeFirst()
-            if connection.endpoint != nil {
+            if connection.current != nil {
                 pendingHosts.removeAll()
                 return
             }
@@ -141,20 +141,21 @@ final class LauncherState: ObservableObject {
     }
 
     func refreshHostCatalog() async {
-        guard !refreshing, !needsPairing, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
+        guard !refreshing, !needsPairing, let target = connection.current else { return }
         refreshing = true
         defer { refreshing = false }
         do {
-            let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: base, path: "/api/sessions")
-            guard !Task.isCancelled, base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            if let hostID = connection.hostID { await onSessionSnapshot?(sessions.sessions, base, hostID) }
+            let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: target.endpoint, path: "/api/sessions")
+            guard !Task.isCancelled, connection.current == target else { return }
+            await onSessionSnapshot?(sessions.sessions, target)
+            guard !Task.isCancelled, connection.current == target else { return }
             // Preview availability must not block terminal recovery.
-            let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: base, path: "/api/frontends")
-            guard !Task.isCancelled, base == CompanionAPI.baseURL(host: normalizedHost) else { return }
+            let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: target.endpoint, path: "/api/frontends")
+            guard !Task.isCancelled, connection.current == target else { return }
             frontends = catalog.frontends
             frontendWarning = catalog.warning
         } catch {
-            guard !Task.isCancelled, base == CompanionAPI.baseURL(host: normalizedHost) else { return }
+            guard !Task.isCancelled, connection.current == target else { return }
             frontendWarning = error.localizedDescription
             if (error as? CompanionError)?.statusCode == 401 { needsPairing = true }
         }

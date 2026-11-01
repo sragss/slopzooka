@@ -17,6 +17,13 @@ struct WindowLayout: Codable {
     var version = 1
     var revision = 0
     var windows: [WindowRecord] = []
+
+    func validated() throws -> Self {
+        guard version == 1, revision >= 0, Set(windows.map(\.id)).count == windows.count else {
+            throw CompanionError(message: "Unsupported window layout. Update the companion and headset app together.")
+        }
+        return self
+    }
 }
 
 /// The companion is authoritative. Locally we persist only unacknowledged intent,
@@ -58,16 +65,13 @@ final class WindowPersistence {
     // Caller serializes synchronization; changes arriving during a request stay in the outbox.
     func synchronize(hostID: String, base: URL) async throws {
         if let loadError { throw loadError }
-        let snapshot = try await CompanionAPI.request(WindowLayout.self, base: base, path: "/api/window-layout")
-        guard snapshot.version == 1, Set(snapshot.windows.map(\.id)).count == snapshot.windows.count else {
-            throw CompanionError(message: "Unsupported window layout. Update the companion and headset app together.")
-        }
+        let snapshot = try await CompanionAPI.request(WindowLayout.self, base: base, path: "/api/window-layout").validated()
         snapshots[hostID] = snapshot
         let changes = pending[hostID] ?? [:]
         guard !changes.isEmpty else { return }
         let next = WindowLayout(revision: snapshot.revision, windows: windows(hostID: hostID))
         let saved = try await CompanionAPI.request(WindowLayout.self, base: base, path: "/api/window-layout",
-            method: "PUT", body: JSONEncoder().encode(next))
+            method: "PUT", body: JSONEncoder().encode(next)).validated()
         snapshots[hostID] = saved
         for (id, change) in changes where pending[hostID]?[id] == change { pending[hostID]?.removeValue(forKey: id) }
         if pending[hostID]?.isEmpty == true { pending.removeValue(forKey: hostID) }
