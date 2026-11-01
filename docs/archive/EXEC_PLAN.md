@@ -1,4 +1,4 @@
-> Historical design plan. The current implementation, protocol, setup, and verification steps are documented in `README.md`; this plan contains superseded surface/cluster and preview-scanning terminology.
+> Historical design plan. The current implementation, protocol, setup, and verification steps are documented in the [README](../../README.md) and [development guide](../../CONTRIBUTING.md); this plan contains superseded surface/cluster and preview-scanning terminology.
 
 # EXEC_PLAN
 
@@ -251,7 +251,7 @@ Mitigation:
 ### Optional immersive workspace and wrist controls
 
 The original palm/wrist spike is superseded by the optional mixed immersive
-workspace described in [.plans/2026-10-31-immersive-workspace.md](.plans/2026-10-31-immersive-workspace.md).
+workspace described in [.plans/2026-10-31-immersive-workspace.md](../../.plans/2026-10-31-immersive-workspace.md).
 Normal windows remain the default. A Settings toggle adds a wrist palette using
 existing gateway actions. The former Palm Spike window has been removed. Device
 validation of wrist ergonomics remains required; no shared-space hand anchoring or
