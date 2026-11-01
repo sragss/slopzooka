@@ -12,6 +12,8 @@ The display dismisses after 45 seconds, successful pairing, or an authenticated 
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
+Terminal rows match project rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
+
 ## Keyboard and zoom
 
 Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose **Keyboard** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.
