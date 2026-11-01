@@ -52,6 +52,24 @@ export class SessionManager {
   summaries(): SessionSummary[] {
     return [...this.sessions.values()].map((s) => ({ ...s.summary }));
   }
+  rename(id: string, name: unknown): SessionSummary {
+    const session = this.require(id);
+    if (name === null) {
+      delete session.summary.name;
+    } else {
+      if (typeof name !== "string")
+        throw new ServiceError("A terminal name is required", 400);
+      const normalized = name.trim().replace(/\s+/gu, "-");
+      if (
+        !normalized ||
+        normalized.length > 120 ||
+        /[\x00-\x1f]/u.test(normalized)
+      )
+        throw new ServiceError("Terminal names must be 1–120 characters", 400);
+      session.summary.name = normalized;
+    }
+    return { ...session.summary };
+  }
   create(
     workspaceId: string,
     cwd: string,

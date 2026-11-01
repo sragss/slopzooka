@@ -90,7 +90,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                 }
             }
             .overlay {
-                if voice.targetID == id && voice.mode == .dictation {
+                if voice.targetID == id && (voice.mode == .dictation || voice.mode == .rename) {
                     TerminalVoiceDraft()
                         .frame(maxWidth: 520)
                         .padding(20)
@@ -120,6 +120,9 @@ private struct TerminalVoiceDraft: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if voice.mode == .rename {
+                Text("Name this window").font(.title2.weight(.semibold))
+            }
             HStack {
                 Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")
                     .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
@@ -131,12 +134,12 @@ private struct TerminalVoiceDraft: View {
                     .accessibilityLabel("Stop voice input and discard draft")
             }
             ScrollView {
-                Text(voice.hasText ? voice.transcript : placeholder)
+                Text(voice.hasText ? draft : placeholder)
                     .foregroundStyle(voice.hasText ? .primary : .secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .textSelection(.enabled)
             }
-            .frame(height: voice.mode == .dictation ? 148 : 80)
+            .frame(height: voice.mode == .conversation ? 80 : 148)
             HStack {
                 Button("Discard") { voice.discard() }
                     .disabled(voice.isSubmitting)
@@ -144,7 +147,7 @@ private struct TerminalVoiceDraft: View {
                 if voice.canResume {
                     Button("Resume") { voice.resume() }
                 }
-                Button(voice.needsRetry ? "Retry" : "Send") { voice.send() }
+                Button(voice.mode == .rename ? "Save Name" : (voice.needsRetry ? "Retry" : "Send")) { voice.send() }
                     .buttonStyle(.borderedProminent)
                     .disabled(!voice.canSend)
             }
@@ -155,7 +158,12 @@ private struct TerminalVoiceDraft: View {
     }
 
     private var placeholder: String {
-        voice.mode == .dictation ? "Speak naturally. A short pause sends your message."
+        if voice.mode == .rename { return "Say a name. A short pause saves it with dashes between words." }
+        return voice.mode == .dictation ? "Speak naturally. A short pause sends your message."
             : "Speak naturally. Pauses keep your draft; tap Send when ready."
+    }
+
+    private var draft: String {
+        voice.mode == .rename ? WindowName.normalized(voice.transcript) : voice.transcript
     }
 }

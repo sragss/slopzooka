@@ -1,0 +1,27 @@
+{
+  "sessions": [
+    {
+      "id": "named-terminal",
+      "workspaceId": "workspace",
+      "profile": null,
+      "title": "Terminal",
+      "name": "Fix-the-login-flow",
+      "cwd": "/project",
+      "cols": 120,
+      "rows": 36,
+      "status": "running",
+      "exitCode": null
+    },
+    {
+      "id": "unnamed-terminal",
+      "workspaceId": "workspace",
+      "profile": null,
+      "title": "Terminal",
+      "cwd": "/project",
+      "cols": 120,
+      "rows": 36,
+      "status": "running",
+      "exitCode": null
+    }
+  ]
+}

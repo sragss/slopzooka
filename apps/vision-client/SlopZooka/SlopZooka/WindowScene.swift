@@ -143,6 +143,10 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
         self.windows = windows
         voice = TerminalVoiceController(capture: SpeechCaptureController(),
             isAvailable: { [weak windows] in windows?.canReceiveVoice($0) == true },
+            rename: { [weak windows] id, name in
+                guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
+                try await windows.rename(id: id, name: name)
+            },
             deliver: { [weak windows] command in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
                 try await windows.submitVoiceInput(command)

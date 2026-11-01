@@ -4,6 +4,7 @@ struct TerminalWindowView: View {
     let sessionID: String?
 
     @EnvironmentObject private var windows: WindowGateway
+    @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var debugLog = AppDebugLog.shared
     @State private var loadState: TerminalLoadState = .idle
@@ -127,6 +128,15 @@ struct TerminalWindowView: View {
                     .help("Send Escape to the terminal")
 
                     Button {
+                        voice.activateRename(payload.id)
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSubmitSpeech || voice.isSubmitting)
+                    .help("Speak a name for this window")
+
+                    Button {
                         windows.close(id: payload.id)
                     } label: {
                         Image(systemName: "xmark")
@@ -147,6 +157,19 @@ struct TerminalWindowView: View {
         }
         .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech,
             onSent: { focusRequestToken += 1 }))
+        .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
+            Text(payload.title)
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.5)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 14)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+                .frame(maxWidth: 1000)
+                .padding(.bottom, 20)
+                .accessibilityAddTraits(.isHeader)
+        }
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {

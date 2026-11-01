@@ -11,6 +11,7 @@ export type ServiceInfo = {
   runtimeId: string;
   pid: number;
   sessions: SessionSummary[];
+  capabilities?: string[];
 };
 export type SessionLaunch = {
   workspaceId: string;
