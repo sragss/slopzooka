@@ -10,6 +10,8 @@ const messageLabel = document.querySelector<HTMLElement>(
 )!;
 const guidance = document.querySelector<HTMLElement>("#connection-guidance")!;
 const readOnlyBadge = document.querySelector<HTMLElement>("#read-only")!;
+const takeControlButton =
+  document.querySelector<HTMLButtonElement>("#take-control")!;
 const terminal = new Terminal({
   cursorBlink: true,
   fontSize: 16,
@@ -20,18 +22,33 @@ const fit = new FitAddon();
 terminal.loadAddon(fit);
 terminal.open(mount);
 fit.fit();
-terminal.focus();
+// Keep hardware typing ready; the floating keyboard requires an explicit request.
+focusTerminal();
+
+function focusTerminal(showKeyboard = false) {
+  const input = terminal.textarea;
+  if (input) {
+    const mode = showKeyboard ? "text" : "none";
+    if (input.inputMode !== mode) {
+      input.inputMode = mode;
+      // WebKit needs a fresh focus session when changing keyboard presentation.
+      if (document.activeElement === input) input.blur();
+    }
+  }
+  terminal.focus();
+}
 const sessionId = new URLSearchParams(location.search).get("sessionId");
 const connection = sessionId
   ? new TerminalConnection(
       terminal,
       sessionId,
-      (message, state, readOnly = false) => {
+      (message, state, readOnly = false, canTakeControl = false) => {
         overlay.hidden = state === "running";
         messageLabel.textContent = message;
         guidance.hidden = state !== "disconnected";
         overlay.classList.toggle("error", state === "failed");
         readOnlyBadge.hidden = !readOnly;
+        takeControlButton.hidden = !canTakeControl;
         window.webkit?.messageHandlers?.terminalState?.postMessage({
           state,
           message,
@@ -45,6 +62,10 @@ document.title = sessionId
   : "Missing session";
 if (!sessionId) messageLabel.textContent = "Missing terminal session";
 connection?.connect();
+takeControlButton.addEventListener("click", () => {
+  connection?.takeControl();
+  terminal.focus();
+});
 let resizeFrame = 0;
 const resizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);
@@ -73,12 +94,16 @@ window.addEventListener("pagehide", detach);
 window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
-window.slzFocusTerminal = () => terminal.focus();
+window.slzFocusTerminal = focusTerminal;
+// Synthetic keydowns make xterm focus its textarea, reopening the keyboard.
+// Direct input uses the same onData/ownership path without changing focus.
+window.slzInterruptTerminal = () => terminal.input("\u001b", true);
 window.slzDetachTerminal = detach;
-mount.addEventListener("pointerdown", () => terminal.focus());
+mount.addEventListener("pointerdown", () => focusTerminal(true));
 declare global {
   interface Window {
-    slzFocusTerminal?: () => void;
+    slzFocusTerminal?: (showKeyboard?: boolean) => void;
+    slzInterruptTerminal?: () => void;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {

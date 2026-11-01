@@ -20,6 +20,7 @@ export class TerminalConnection {
   private running = false;
   private attached = false;
   private lostConnection = false;
+  private supportsTakeControl = false;
   constructor(
     private readonly terminal: Terminal,
     private readonly sessionId: string,
@@ -27,6 +28,7 @@ export class TerminalConnection {
       message: string,
       state: "connecting" | "disconnected" | "running" | "exited" | "failed",
       readOnly?: boolean,
+      canTakeControl?: boolean,
     ) => void,
     private readonly fit: () => void,
   ) {
@@ -115,6 +117,15 @@ export class TerminalConnection {
       rows,
     });
   }
+  takeControl(): void {
+    if (
+      this.attached &&
+      this.running &&
+      !this.writable &&
+      this.supportsTakeControl
+    )
+      this.send({ type: "take-control", sessionId: this.sessionId });
+  }
   reconnect(): void {
     if (this.stopped) return;
     this.socket?.close();
@@ -149,10 +160,7 @@ export class TerminalConnection {
       case "ownership":
         if (!this.isCurrent(ws) || m.sessionId !== this.sessionId) return;
         this.writable = m.writable;
-        this.status(
-          this.running ? "Connected" : "Session ended",
-          this.running ? "running" : "exited",
-        );
+        this.publishOwnership();
         this.resize();
         break;
       case "hello":
@@ -164,6 +172,7 @@ export class TerminalConnection {
         )
           this.cursor = undefined;
         this.serviceInstanceId = m.serviceInstanceId;
+        this.supportsTakeControl = m.supportsTakeControl === true;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -195,15 +204,7 @@ export class TerminalConnection {
         this.writable = m.writable;
         this.attached = true;
         this.lostConnection = false;
-        this.status(
-          this.running
-            ? m.writable
-              ? "Connected"
-              : "Connected • read only"
-            : "Session ended",
-          this.running ? "running" : "exited",
-          this.running && !m.writable,
-        );
+        this.publishOwnership();
         this.resize();
         break;
       case "output":
@@ -218,6 +219,16 @@ export class TerminalConnection {
         break;
       case "error":
         if (!this.isCurrent(ws)) return;
+        // Input already in flight when control moves is an ordinary read-only transition.
+        if (
+          m.code === "403" &&
+          this.attached &&
+          this.running &&
+          !this.writable
+        ) {
+          this.publishOwnership();
+          break;
+        }
         this.status(
           m.code === "404"
             ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})`
@@ -227,6 +238,19 @@ export class TerminalConnection {
         if (m.code === "404") this.detach();
         break;
     }
+  }
+  private publishOwnership(): void {
+    const readOnly = this.running && !this.writable;
+    this.status(
+      this.running
+        ? readOnly
+          ? "Connected • read only"
+          : "Connected"
+        : "Session ended",
+      this.running ? "running" : "exited",
+      readOnly,
+      readOnly && this.supportsTakeControl,
+    );
   }
   private write(data: string): Promise<void> {
     return new Promise((resolve) => this.terminal.write(data, resolve));

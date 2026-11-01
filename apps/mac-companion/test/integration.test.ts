@@ -40,11 +40,16 @@ const logger = {
 };
 
 test("protocol rejects malformed dimensions, identifiers, payloads and versions", () => {
+  assert.equal(
+    isClientMessage({ type: "take-control", sessionId: "session-1" }),
+    true,
+  );
   for (const value of [
     null,
     {},
     { type: "hello", version: 2 },
     { type: "input", sessionId: "x", data: 1 },
+    { type: "take-control", sessionId: "../x" },
     { type: "resize", sessionId: "x", cols: Infinity, rows: 40 },
     { type: "resize", sessionId: "x", cols: 999999, rows: 40 },
     { type: "ack", sessionId: "../x", cursor: 1 },
