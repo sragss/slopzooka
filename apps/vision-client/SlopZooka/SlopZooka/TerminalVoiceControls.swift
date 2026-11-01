@@ -77,7 +77,6 @@ private struct VoiceOrb: View {
 struct TerminalVoiceOverlay: ViewModifier {
     let id: String
     let isAvailable: Bool
-    var onSent: () -> Void
     @EnvironmentObject private var voice: TerminalVoiceController
 
     func body(content: Content) -> some View {
@@ -107,9 +106,6 @@ struct TerminalVoiceOverlay: ViewModifier {
             }
             .onChange(of: isAvailable) { _, available in
                 if !available { voice.targetUnavailable(id) }
-            }
-            .onChange(of: voice.lastAcknowledgedCommand) { _, command in
-                if isAvailable && command?.targetID == id { onSent() }
             }
             .onDisappear { voice.targetUnavailable(id) }
     }

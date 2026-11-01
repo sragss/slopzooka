@@ -27,7 +27,6 @@ window.runKeyboardChecks = () => {
   const edit = (type, target = input, composing = false) => target.dispatchEvent(new InputEvent('beforeinput', {
     inputType: type, bubbles: true, cancelable: true, isComposing: composing
   }));
-  window.slzInterruptTerminal(); check(['\\x1b'], 'interrupt sends Escape');
   edit('insertLineBreak'); check(['\\r'], 'floating Return');
   edit('insertParagraph'); check(['\\r'], 'paragraph Return');
   const accepted = input.dispatchEvent(new KeyboardEvent('keydown', {
@@ -120,6 +119,26 @@ window.runViewportChecks = async () => {
   };
   const resizes = () => sent.filter(message => message.type === 'resize');
   await until(() => resizes().length > 0);
+  const isFocused = () => document.activeElement === terminal.textarea;
+  check(!isFocused(), 'Opening a terminal must not focus its keyboard input');
+  window.slzFocusTerminal();
+  check(isFocused(), 'The Keyboard button bridge must focus terminal input');
+  const inputs = () => sent.filter(message => message.type === 'input').map(message => message.data);
+  window.slzInterruptTerminal();
+  check(isFocused(), 'Interrupt must preserve existing keyboard focus');
+  check(JSON.stringify(inputs()) === JSON.stringify(['\\x1b']), 'Focused interrupt must send exactly one Escape');
+  terminal.blur();
+  mount.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  check(isFocused(), 'Tapping the terminal must still focus input');
+  terminal.blur();
+  window.slzInterruptTerminal();
+  check(!isFocused(), 'Interrupt must not summon the keyboard');
+  check(JSON.stringify(inputs()) === JSON.stringify(['\\x1b', '\\x1b']), 'Unfocused interrupt must send exactly one Escape');
+  const attachments = () => sent.filter(message => message.type === 'attach').length;
+  const beforeReconnect = attachments();
+  window.dispatchEvent(new Event('online'));
+  await until(() => attachments() > beforeReconnect && resizes().length > 1);
+  check(!isFocused(), 'Reconnecting must not summon the keyboard');
   check(typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
   for (const zoom of [0.8, 0.5, 0.3, 0.1, 1, 2, 0.8]) {
@@ -127,6 +146,7 @@ window.runViewportChecks = async () => {
     window.slzSetTerminalZoom(zoom);
     await until(() => resizes().length > before);
     const size = resizes().at(-1);
+    check(!isFocused(), 'Zoom must not summon the keyboard');
     check(isClientMessage(size), 'Invalid resize at zoom ' + zoom);
     check(size.cols === terminal.cols && size.rows === terminal.rows, 'PTY and emulator grids diverged');
     if (zoom === 0.8 || zoom === 0.5 || zoom === 0.3) {

@@ -24,10 +24,6 @@ struct TerminalWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { syncScenePhase(scenePhase) }
-        .onChange(of: scenePhase) { _, newPhase in
-            syncScenePhase(newPhase)
-        }
     }
 
     private var payload: TerminalWindowPayload? {
@@ -92,6 +88,15 @@ struct TerminalWindowView: View {
                     }
 
                     Button {
+                        focusRequestToken += 1
+                    } label: {
+                        Label("Keyboard", systemImage: "keyboard")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSubmitSpeech)
+                    .help("Type in the terminal")
+
+                    Button {
                         interruptRequestToken += 1
                     } label: {
                         Label("Interrupt", systemImage: "escape")
@@ -119,8 +124,7 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech,
-            onSent: { focusRequestToken += 1 }))
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech))
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {
@@ -256,10 +260,6 @@ struct TerminalWindowView: View {
     private var canSubmitSpeech: Bool {
         if case .loaded = loadState { return payload != nil && scenePhase == .active }
         return false
-    }
-
-    private func syncScenePhase(_ phase: ScenePhase) {
-        if phase == .active { focusRequestToken += 1 }
     }
 
     private func newShell(payload: TerminalWindowPayload) async {

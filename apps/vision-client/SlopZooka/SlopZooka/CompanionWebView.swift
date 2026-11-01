@@ -12,6 +12,7 @@ struct CompanionWebView: UIViewRepresentable {
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
         context.coordinator.reloadToken = reloadToken
+        context.coordinator.focusToken = focusRequestToken
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.userContentController.addUserScript(WKUserScript(
@@ -126,7 +127,8 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         guard let requestedURL else { return }
         terminalReady = false
-        pendingFocus = true
+        // Recover the document without reopening the keyboard or replaying old intent.
+        pendingFocus = false
         loadState.wrappedValue = .loading("Reconnecting")
         webView.load(CompanionAPI.authorized(URLRequest(url: requestedURL)))
     }

@@ -16,7 +16,8 @@ const fit = new FitAddon();
 terminal.loadAddon(fit);
 terminal.open(mount);
 fit.fit();
-terminal.focus();
+// Opening or restoring a terminal must not summon the floating keyboard.
+// Focus comes from a tap in the terminal or the native Keyboard button.
 const sessionId = new URLSearchParams(location.search).get("sessionId");
 const connection = sessionId
   ? new TerminalConnection(
@@ -66,11 +67,15 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = () => terminal.focus();
+// Synthetic keydowns make xterm focus its textarea, reopening the keyboard.
+// Direct input uses the same onData/ownership path without changing focus.
+window.slzInterruptTerminal = () => terminal.input("\u001b", true);
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => terminal.focus());
 declare global {
   interface Window {
     slzFocusTerminal?: () => void;
+    slzInterruptTerminal?: () => void;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {

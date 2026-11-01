@@ -45,7 +45,6 @@ final class TerminalVoiceController: ObservableObject {
     @Published private(set) var captureState: SpeechCaptureState = .idle
     @Published private(set) var isSubmitting = false
     @Published private(set) var error: String?
-    @Published private(set) var lastAcknowledgedCommand: TerminalVoiceCommand?
 
     private let defaults: UserDefaults
     private let capture: any SpeechCapturing
@@ -220,7 +219,6 @@ final class TerminalVoiceController: ObservableObject {
             do {
                 try await self.deliver(command)
                 guard self.generation == token else { return }
-                self.lastAcknowledgedCommand = command
                 self.isSubmitting = false
                 if self.mode == .dictation { self.stop() }
                 else {

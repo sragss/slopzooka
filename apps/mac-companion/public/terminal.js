@@ -9354,7 +9354,6 @@ var fit = new o();
 terminal.loadAddon(fit);
 terminal.open(mount);
 fit.fit();
-terminal.focus();
 var sessionId = new URLSearchParams(location.search).get("sessionId");
 var connection = sessionId ? new TerminalConnection(
   terminal,
@@ -9398,6 +9397,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = () => terminal.focus();
+window.slzInterruptTerminal = () => terminal.input("\x1B", true);
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => terminal.focus());
 /*! Bundled license information:

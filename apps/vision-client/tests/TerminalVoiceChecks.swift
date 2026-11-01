@@ -143,11 +143,9 @@ struct TerminalVoiceChecks {
         await until { capture.state == .listening }
         capture.transcript = "newer draft"
         let completedBeforeReply = completedDeliveries
-        let acknowledgedBeforeReply = voice.lastAcknowledgedCommand
         lateReply.resume()
         await until { completedDeliveries > completedBeforeReply }
         precondition(voice.targetID == "b" && voice.transcript == "newer draft" && capture.state == .listening)
-        precondition(voice.lastAcknowledgedCommand == acknowledgedBeforeReply, "Late acknowledgements cannot steal terminal focus")
         voice.discard()
         await until { capture.state == .listening }
         precondition(!voice.hasText && voice.targetID == "b")
