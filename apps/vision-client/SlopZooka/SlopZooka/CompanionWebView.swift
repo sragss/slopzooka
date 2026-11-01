@@ -60,19 +60,20 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     private var requestedURL: URL?
     private weak var webView: WKWebView?
     private var terminalReady = false
+    private var documentReady = false
     private var pendingFocus = false
     private var zoom = 1.0
 
     func requestZoom(_ zoom: Double, in webView: WKWebView) {
         guard self.zoom != zoom else { return }
         self.zoom = zoom
-        if terminalReady { applyZoom(in: webView) }
+        if documentReady || terminalReady { applyZoom(in: webView) }
     }
 
     private func applyZoom(in webView: WKWebView) {
         // Scale the terminal font, not the web view's drawing surface. The web
         // bridge explicitly refits the emulator and sends its new grid to the PTY.
-        webView.evaluateJavaScript("window.slzSetTerminalZoom?.(\(zoom))")
+        webView.evaluateJavaScript(TerminalZoom.script(scale: zoom))
     }
     func requestFocus(in webView: WKWebView) {
         pendingFocus = true
@@ -87,6 +88,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         requestedURL = url
         self.webView = webView
         terminalReady = false
+        documentReady = false
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
         webView.load(CompanionAPI.authorized(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)))
     }
@@ -105,6 +107,10 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         loadState.wrappedValue = .failed(error.localizedDescription)
+    }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        documentReady = true
+        applyZoom(in: webView)
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         loadState.wrappedValue = .failed(error.localizedDescription)
@@ -126,6 +132,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         guard let requestedURL else { return }
         terminalReady = false
+        documentReady = false
         pendingFocus = true
         loadState.wrappedValue = .loading("Reconnecting")
         webView.load(CompanionAPI.authorized(URLRequest(url: requestedURL)))

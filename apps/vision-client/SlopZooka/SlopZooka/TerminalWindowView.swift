@@ -13,7 +13,19 @@ struct TerminalWindowView: View {
     @State private var isActionsPresented = false
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
-    @SceneStorage("terminalZoomSteps") private var terminalZoomSteps = -2
+    @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
+    @SceneStorage("terminalZoomSteps") private var terminalZoomSteps: Int?
+
+    private var zoomSteps: Binding<Int> {
+        Binding(
+            get: { TerminalZoom.resolvedSteps(scene: terminalZoomSteps, defaultSteps: defaultTerminalZoomSteps) },
+            set: { terminalZoomSteps = $0 }
+        )
+    }
+
+    private var defaultZoomSteps: Int {
+        TerminalZoom.resolvedSteps(scene: nil, defaultSteps: defaultTerminalZoomSteps)
+    }
 
     var body: some View {
         Group {
@@ -47,7 +59,7 @@ struct TerminalWindowView: View {
                     loadState: $loadState,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
-                    zoom: Double(10 + terminalZoomSteps) / 10
+                    zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue)
                 )
                 .id(payload.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -136,7 +148,7 @@ struct TerminalWindowView: View {
 
     private func terminalActions(payload: TerminalWindowPayload) -> some View {
         VStack(spacing: 0) {
-            TerminalZoomControls(steps: $terminalZoomSteps)
+            TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
             Divider()
             Button("New Shell", systemImage: "terminal") {
                 isActionsPresented = false
