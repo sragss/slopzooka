@@ -25,7 +25,7 @@ const suites = {
     "CompanionModels",
   ],
   ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
-  TerminalVoiceChecks: ["TerminalVoiceController"],
+  TerminalVoiceChecks: ["TerminalVoiceController", "SpeechRecognitionSegment"],
   TerminalZoomChecks: ["TerminalZoom"],
 };
 try {

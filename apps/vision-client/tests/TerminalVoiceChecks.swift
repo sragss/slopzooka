@@ -13,6 +13,7 @@ private final class FakeSpeechCapture: SpeechCapturing {
     var permission: CheckedContinuation<Void, Never>?
     var delayPermission = false
     private var recording: UUID?
+    private var segment = SpeechRecognitionSegment()
 
     func startListening(finishOnPause: Bool) async {
         defer { completedStarts += 1 }
@@ -21,6 +22,7 @@ private final class FakeSpeechCapture: SpeechCapturing {
         recording = id
         starts += 1
         self.finishOnPause = finishOnPause
+        segment = SpeechRecognitionSegment()
         transcript = ""
         state = .preparing
         if delayPermission { await withCheckedContinuation { permission = $0 } }
@@ -30,11 +32,19 @@ private final class FakeSpeechCapture: SpeechCapturing {
     func finishListening() { state = .finishing }
     func stopListening() { recording = nil; audioLevels = Array(repeating: 0, count: 5); state = .idle }
     func clearTranscript() { transcript = "" }
-    func finish(_ text: String) {
-        transcript = text
-        stopListening()
-        onFinished?()
+    func receive(_ text: String, isFinal: Bool = false, hasUtteranceMetadata: Bool = false, hasError: Bool = false) {
+        let finished = segment.receive(text, isFinal: isFinal, hasUtteranceMetadata: hasUtteranceMetadata,
+            isFinishing: state == .finishing, hasError: hasError)
+        transcript = segment.transcript
+        if finished {
+            stopListening()
+            onFinished?()
+        } else if hasError {
+            stopListening()
+            state = .failed("Recognition failed")
+        }
     }
+    func finish(_ text: String) { receive(text, isFinal: true) }
 }
 
 @main
@@ -167,6 +177,68 @@ struct TerminalVoiceChecks {
         precondition(!defaults.bool(forKey: "conversationVoiceEnabled"))
         precondition(commands.count == count + 4, "Cancellation and target switching must not submit anything")
         print("PASS: turning the setting off cancels delayed microphone preparation without sending")
+        await checkRecognitionContinuity(defaults: defaults)
+    }
+
+    @MainActor
+    private static func checkRecognitionContinuity(defaults: UserDefaults) async {
+        let capture = FakeSpeechCapture()
+        var commands: [TerminalVoiceCommand] = []
+        let voice = TerminalVoiceController(capture: capture, defaults: defaults,
+            isAvailable: { _ in true }, deliver: { commands.append($0) })
+        voice.conversationEnabled = true
+        voice.activateTerminal("a")
+        await until { capture.state == .listening }
+
+        capture.receive("keep the entire draft with extra words")
+        capture.receive("keep the entire draft")
+        precondition(voice.transcript == "keep the entire draft", "Corrections replace the current hypothesis")
+        capture.receive("")
+        precondition(voice.transcript == "keep the entire draft", "Empty partial results cannot erase words")
+        var starts = capture.starts
+        capture.receive("Keep the entire draft.", hasUtteranceMetadata: true)
+        await until { capture.starts > starts && capture.state == .listening }
+        precondition(voice.transcript == "Keep the entire draft." && commands.isEmpty,
+            "Utterance metadata without isFinal commits the text and rearms without sending")
+        capture.receive("including after a long pause")
+        starts = capture.starts
+        capture.finish("")
+        await until { capture.starts > starts && capture.state == .listening }
+        precondition(voice.transcript == "Keep the entire draft. including after a long pause",
+            "An empty final result keeps both the committed and current utterances")
+        print("PASS: on-device utterance boundaries and empty results keep the draft across pauses")
+
+        precondition(!SpeechRecognitionSegment.shouldRotate(elapsed: 49.9))
+        precondition(SpeechRecognitionSegment.shouldRotate(elapsed: 50))
+        for index in 1...2 {
+            capture.receive("long recording part \(index)")
+            // The backend ends audio before the task limit, then completes with
+            // the last nonempty hypothesis if the final callback is empty.
+            capture.finishListening()
+            starts = capture.starts
+            if index == 1 { capture.finish("") }
+            else { capture.receive("", hasError: true) }
+            await until { capture.starts > starts && capture.state == .listening }
+            precondition(commands.isEmpty && voice.hasText, "Task rotation must never send or discard the draft")
+        }
+        let beforeFailure = voice.transcript
+        starts = capture.starts
+        capture.receive("", hasError: true)
+        precondition(voice.transcript == beforeFailure && capture.state == .failed("Recognition failed"))
+        precondition(capture.starts == starts && commands.isEmpty && voice.canResume,
+            "An unsolicited recognition failure keeps the draft and requires explicit Resume")
+        voice.resume()
+        await until { capture.state == .listening }
+        precondition(voice.transcript == beforeFailure)
+        capture.receive("last words")
+        voice.send()
+        capture.receive("", hasError: true)
+        await until { commands.count == 1 && !voice.isSubmitting && capture.state == .listening }
+        precondition(commands[0].targetID == "a")
+        precondition(commands[0].text == "Keep the entire draft. including after a long pause long recording part 1 long recording part 2 last words")
+        precondition(!voice.hasText, "Only acknowledged explicit Send clears the conversation draft")
+        voice.stop()
+        print("PASS: long-recording rotations and endAudio errors keep each segment once; unsolicited failures require Resume")
     }
 
     @MainActor

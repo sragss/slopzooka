@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Shared surface for repository and workspace rows; actions remain inside the outline.
+/// Shared surface for launcher rows; actions remain inside the outline.
 struct LauncherRowSurface: ViewModifier {
     private let shape = RoundedRectangle(cornerRadius: 18)
 

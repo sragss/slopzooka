@@ -1,4 +1,22 @@
-# Window architecture
+# Repository guidance
+
+SlopZooka is a macOS companion and visionOS client for spatial coding. Read
+[CONTRIBUTING.md](CONTRIBUTING.md) for development and verification, and
+[docs/architecture.md](docs/architecture.md) for the source map and ownership.
+Historical plans in `docs/archive` are context, not current requirements.
+
+## Working conventions
+
+- Keep process and workspace ownership on the Mac. Headset views request intent
+  and render state; terminal processes belong to the session service.
+- Edit browser sources in `apps/mac-companion/src`, then regenerate the checked-in
+  assets with `pnpm build:harness`. Do not hand-edit bundled JavaScript.
+- Keep shared protocol changes compatible with the Swift client and update the
+  relevant regression coverage and fixtures.
+- Update the relevant usage guide for user-facing changes. Keep setup in README,
+  development commands in CONTRIBUTING, and ownership rules here.
+
+## Window architecture
 
 Route all terminal/preview window lifecycle decisions through `WindowGateway.swift`.
 It is the sole gateway for opening, closing, content reload, session launch/end,
@@ -26,9 +44,12 @@ For new window kinds or lifecycle behavior, extend this boundary and its schema
 rather than adding a parallel persistence or routing mechanism. Keep the TypeScript
 and Swift window schemas compatible. Preserve scene IDs and values when possible.
 
+## Verification
+
 Verify changes with `pnpm test:vision-state`, `pnpm typecheck`, `pnpm test`,
-`pnpm format:check`, `pnpm build:harness`, and a visionOS simulator build as documented
-in README. Window persistence tests must cover late replies, explicit close versus
-disconnect, recovery without the launcher, and avoiding duplicate process creation.
+`pnpm test:terminal-keyboard`, `pnpm format:check`, `pnpm build:harness`, and a
+visionOS simulator build as documented in [CONTRIBUTING.md](CONTRIBUTING.md#verify).
+Window persistence tests must cover late replies, explicit close versus disconnect,
+recovery without the launcher, and avoiding duplicate process creation.
 Real-device validation is needed for placement across Xcode installs and system
 close/room-lock behavior; simulator compilation does not establish those guarantees.
