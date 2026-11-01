@@ -6,6 +6,7 @@ struct BrowserWindowView: View {
 
     @EnvironmentObject private var windows: WindowGateway
     @State private var loadState: BrowserLoadState = .idle
+    @StateObject private var navigation = BrowserNavigation()
 
     var body: some View {
         Group {
@@ -13,7 +14,8 @@ struct BrowserWindowView: View {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
                         PreviewWebView(url: url, certificateAuthority: payload.certificateAuthority,
-                            loadState: $loadState, reloadToken: windows.reloadToken(for: payload.id))
+                            loadState: $loadState, navigation: navigation,
+                            reloadToken: windows.reloadToken(for: payload.id))
                             .id(payload.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -37,6 +39,28 @@ struct BrowserWindowView: View {
                         }
 
                         Spacer(minLength: 0)
+
+                        Button("Back", systemImage: "chevron.left") {
+                            navigation.goBack()
+                        }
+                        .labelStyle(.iconOnly)
+                        .font(.title3)
+                        .buttonStyle(.plain)
+                        .padding(10)
+                        .background(.regularMaterial, in: Circle())
+                        .disabled(!navigation.canGoBack)
+                        .help("Back")
+
+                        Button("Forward", systemImage: "chevron.right") {
+                            navigation.goForward()
+                        }
+                        .labelStyle(.iconOnly)
+                        .font(.title3)
+                        .buttonStyle(.plain)
+                        .padding(10)
+                        .background(.regularMaterial, in: Circle())
+                        .disabled(!navigation.canGoForward)
+                        .help("Forward")
 
                         Button {
                             windows.reload(id: payload.id)
@@ -108,6 +132,7 @@ private struct PreviewWebView: UIViewRepresentable {
     let url: URL
     let certificateAuthority: String?
     @Binding var loadState: BrowserLoadState
+    let navigation: BrowserNavigation
     let reloadToken: Int
 
     func makeCoordinator() -> Coordinator {
@@ -125,6 +150,8 @@ private struct PreviewWebView: UIViewRepresentable {
         webView.allowsBackForwardNavigationGestures = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.navigationDelegate = context.coordinator
+        context.coordinator.navigation = navigation
+        navigation.attach(to: webView)
         DispatchQueue.main.async {
             loadState = .loading(url.absoluteString)
         }
@@ -149,7 +176,14 @@ private struct PreviewWebView: UIViewRepresentable {
         context.coordinator.reloadToken = reloadToken
     }
 
+    static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {
+        coordinator.navigation?.detach(from: webView)
+        webView.navigationDelegate = nil
+        webView.stopLoading()
+    }
+
     final class Coordinator: NSObject, WKNavigationDelegate {
+        var navigation: BrowserNavigation?
         var loadState: Binding<BrowserLoadState>
         var fallbackURL: URL
         var reloadToken: Int

@@ -300,6 +300,21 @@ window.runViewportChecks = async () => {
     nativeChecks,
   ]);
   run(nativeChecks, []);
+  const browserChecks = path.join(temporary, "browser-navigation-checks");
+  run("xcrun", [
+    "swiftc",
+    "-swift-version",
+    "5",
+    "-parse-as-library",
+    path.join(
+      root,
+      "apps/vision-client/SlopZooka/SlopZooka/BrowserNavigation.swift",
+    ),
+    path.join(root, "apps/vision-client/tests/BrowserNavigationChecks.swift"),
+    "-o",
+    browserChecks,
+  ]);
+  run(browserChecks, []);
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

@@ -10,6 +10,8 @@ There is one list and one Open action for three sources:
 - **Portless:** Keep using your usual workflow. SlopZooka reads `routes.json` and the proxy's port/TLS/LAN state from `PORTLESS_STATE_DIR` or `~/.portless`. Named routes retain their identity across backend port changes. Registration is not a health check. The adapter never starts, stops, reconfigures, or writes Portless state.
 - **Saved URLs:** Use **Add URL** on the headset or host page for custom URLs, HTTPS servers, and deployed previews. Local addresses use the Mac gateway; remote URLs open directly on the headset, preserving their origin and path. Saved URLs persist in `SLOPZOOKA_HOME/frontends.json`; remove them with the headset's context menu or the host page's Remove button. Embedded credentials and non-HTTP(S) URLs are rejected. Local/remote classification happens when a URL is added; re-add it if its DNS destination changes between machines.
 
+In a headset preview window, use **Back** and **Forward** beside Reload to move through that window's browsing history. Each button is disabled when there is no page in that direction. Reload keeps the current WebView and its history; closing the window or restarting the headset app starts a fresh history.
+
 ## Workspace configuration
 
 Servers inside a managed worktree automatically appear beside that workspace and its terminals. This works with ordinary HTTP servers and Portless; no config or special launch command is required. Nested packages belong to their containing worktree, and simultaneous worktrees remain separate. The host dashboard offers an Open app button or a frontend picker; Vision Pro terminals show a workspace-only frontend popover. Apps without an identifiable workspace remain available in the global Frontends tab.
