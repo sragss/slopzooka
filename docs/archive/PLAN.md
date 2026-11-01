@@ -1,3 +1,5 @@
+> Historical product brief. See the [README](../../README.md) for current setup and [architecture](../architecture.md) for current ownership. This brief predates the workspace terminology and shipped implementation.
+
 Goal: Apple Vision Pro app for vibe coding.
 
 
