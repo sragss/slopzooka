@@ -7,6 +7,7 @@ Research and live discovery from October 31–November 1, 2026. These documents 
 1. [Execution and presentation architecture](orchestrator-execution-path.md): the current design focus. Follow one request from voice/Pi, through local Mac tool execution, into a new streamed Vision window, and back through observed results. Includes the terminal Codex MCP path and the missing production connections.
 2. [Live findings](shared-window-live-results.md): what the physical Mac/Vision Pro experiment established, failures and fixes, lock/unlock evidence, cleanup and remaining limits.
 3. [Coordinator and tool responsibilities](orchestrator-tools.md): ephemeral Pi, voice delegation, shared providers, context, workspace naming and actual Poncho2 findings.
+4. [Implementation and rollout sequence](orchestrator-execution-path.md#implementation-testing-and-rollout-sequence): extend the existing gateway, integrate one controllable preview, connect the real agents, then expand workspace launch, voice and opt-in use. Each stage has an observed completion criterion.
 
 ## Supporting research
 
