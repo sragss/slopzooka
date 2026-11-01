@@ -17,6 +17,7 @@ const suites = {
   ],
   WindowGatewayChecks: [
     "WindowGateway",
+    "TerminalVoiceController",
     "ImmersiveWorkspaceState",
     "WindowPersistence",
     "LauncherState",
@@ -24,6 +25,7 @@ const suites = {
     "CompanionModels",
   ],
   ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
+  TerminalVoiceChecks: ["TerminalVoiceController"],
 };
 try {
   for (const [suite, sources] of Object.entries(suites)) {

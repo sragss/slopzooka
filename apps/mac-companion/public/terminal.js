@@ -9139,6 +9139,7 @@ var Dl = class extends D {
 
 // ../../packages/protocol/src/index.ts
 var PROTOCOL_VERSION = 1;
+var MAX_TERMINAL_DIMENSION = 500;
 
 // src/terminal-connection.ts
 var TerminalConnection = class {
@@ -9213,11 +9214,21 @@ var TerminalConnection = class {
   resize() {
     if (!this.attached || !this.writable || !this.running) return;
     this.fit();
+    const cols = Math.max(
+      2,
+      Math.min(MAX_TERMINAL_DIMENSION, this.terminal.cols)
+    );
+    const rows = Math.max(
+      2,
+      Math.min(MAX_TERMINAL_DIMENSION, this.terminal.rows)
+    );
+    if (cols !== this.terminal.cols || rows !== this.terminal.rows)
+      this.terminal.resize(cols, rows);
     this.send({
       type: "resize",
       sessionId: this.sessionId,
-      cols: this.terminal.cols,
-      rows: this.terminal.rows
+      cols,
+      rows
     });
   }
   reconnect() {
@@ -9367,6 +9378,14 @@ var resizeObserver = new ResizeObserver(() => {
 });
 resizeObserver.observe(mount);
 var reconnect = () => connection?.reconnect();
+window.slzSetTerminalZoom = (zoom) => {
+  if (!Number.isFinite(zoom) || zoom < 0.1 || zoom > 2) return;
+  const fontSize = 16 * zoom;
+  if (terminal.options.fontSize === fontSize) return;
+  terminal.options.fontSize = fontSize;
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => connection?.resize());
+};
 window.addEventListener("online", reconnect);
 function detach() {
   resizeObserver.disconnect();

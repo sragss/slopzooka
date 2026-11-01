@@ -1,21 +1,14 @@
 import AVFoundation
-import Combine
 import Foundation
 import Speech
 
 @MainActor
-final class SpeechCaptureController: NSObject, ObservableObject {
-    enum State: Equatable {
-        case idle
-        case preparing
-        case listening
-        case finishing
-        case unavailable(String)
-        case failed(String)
-    }
-
-    @Published private(set) var state: State = .idle
-    @Published private(set) var transcript = ""
+final class SpeechCaptureController: NSObject, SpeechCapturing {
+    private(set) var state: SpeechCaptureState = .idle { didSet { onUpdate?() } }
+    private(set) var transcript = "" { didSet { onUpdate?() } }
+    private(set) var audioLevels = Array(repeating: 0.0, count: 5) { didSet { onUpdate?() } }
+    var onUpdate: (() -> Void)?
+    private var finishOnPause = true
 
     private let audioEngine = AVAudioEngine()
     private let recognizer = SFSpeechRecognizer()
@@ -26,6 +19,8 @@ final class SpeechCaptureController: NSObject, ObservableObject {
     private var endpointTask: Task<Void, Never>?
     private var finalResultTask: Task<Void, Never>?
     private var hasTap = false
+    private var levelMeter = SpeechLevelMeter()
+    private var lastLevelUpdate: TimeInterval = 0
     var onFinished: (() -> Void)?
 
     var isListening: Bool {
@@ -35,28 +30,14 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         return false
     }
 
-    var statusText: String {
-        switch state {
-        case .idle:
-            return transcript.isEmpty ? "Ready to listen" : "Ready to submit"
-        case .preparing:
-            return "Preparing microphone"
-        case .listening:
-            return "Pause briefly to send"
-        case .finishing:
-            return "Finishing transcription…"
-        case let .unavailable(message), let .failed(message):
-            return message
-        }
-    }
-
     override init() {
         super.init()
         recognizer?.delegate = self
     }
 
-    func startListening() async {
+    func startListening(finishOnPause: Bool) async {
         guard captureID == nil else { return }
+        self.finishOnPause = finishOnPause
         let id = UUID()
         captureID = id
         transcript = ""
@@ -80,6 +61,8 @@ final class SpeechCaptureController: NSObject, ObservableObject {
         finalResultTask?.cancel()
         finalResultTask = nil
         stopAudio()
+        levelMeter = SpeechLevelMeter()
+        audioLevels = levelMeter.levels
         recognitionTask?.cancel()
         recognitionTask = nil
         recognitionRequest = nil
@@ -110,9 +93,8 @@ final class SpeechCaptureController: NSObject, ObservableObject {
     }
 
     private func complete() {
-        let hasText = !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         stopListening()
-        if hasText { onFinished?() }
+        onFinished?()
     }
 
     func clearTranscript() {
@@ -170,16 +152,21 @@ final class SpeechCaptureController: NSObject, ObservableObject {
 
         let inputNode = audioEngine.inputNode
         let format = inputNode.outputFormat(forBus: 0)
+        let detectsPauses = finishOnPause
         inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: 1024, format: format) { [weak self, weak request] buffer, _ in
             request?.append(buffer)
             guard let samples = buffer.floatChannelData?[0], buffer.frameLength > 0 else { return }
             var energy: Float = 0
             for index in 0..<Int(buffer.frameLength) { energy += samples[index] * samples[index] }
-            if sqrt(energy / Float(buffer.frameLength)) > 0.015 {
-                Task { @MainActor in
-                    guard let self, self.captureID == id, self.isListening else { return }
-                    self.endpoint.heardVoice(at: ProcessInfo.processInfo.systemUptime)
+            let rms = sqrt(energy / Float(buffer.frameLength))
+            Task { @MainActor in
+                guard let self, self.captureID == id, self.isListening else { return }
+                let now = ProcessInfo.processInfo.systemUptime
+                if detectsPauses && rms > 0.015 { self.endpoint.heardVoice(at: now) }
+                if now - self.lastLevelUpdate >= 1 / 30 {
+                    self.lastLevelUpdate = now
+                    self.audioLevels = self.levelMeter.receive(rms: rms)
                 }
             }
         }
@@ -209,6 +196,7 @@ final class SpeechCaptureController: NSObject, ObservableObject {
             }
         }
         state = .listening
+        guard finishOnPause else { return }
         endpointTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(200))

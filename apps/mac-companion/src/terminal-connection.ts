@@ -1,5 +1,6 @@
 import type { Terminal } from "@xterm/xterm";
 import {
+  MAX_TERMINAL_DIMENSION,
   PROTOCOL_VERSION,
   type ClientMessage,
   type ServerMessage,
@@ -87,11 +88,23 @@ export class TerminalConnection {
   resize(): void {
     if (!this.attached || !this.writable || !this.running) return;
     this.fit();
+    // Small page zoom can fit more cells than the protocol permits. Keep the
+    // emulator and PTY on the same bounded grid instead of sending an invalid resize.
+    const cols = Math.max(
+      2,
+      Math.min(MAX_TERMINAL_DIMENSION, this.terminal.cols),
+    );
+    const rows = Math.max(
+      2,
+      Math.min(MAX_TERMINAL_DIMENSION, this.terminal.rows),
+    );
+    if (cols !== this.terminal.cols || rows !== this.terminal.rows)
+      this.terminal.resize(cols, rows);
     this.send({
       type: "resize",
       sessionId: this.sessionId,
-      cols: this.terminal.cols,
-      rows: this.terminal.rows,
+      cols,
+      rows,
     });
   }
   reconnect(): void {

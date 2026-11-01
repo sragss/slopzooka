@@ -44,6 +44,15 @@ struct LauncherStateChecks {
         speech = SpeechEndpoint()
         precondition(!speech.shouldFinish(at: 200), "A new recording must not inherit old words")
         print("PASS: dictation waits for words and a pause, extends for speech, and resets between recordings")
+        var quietMeter = SpeechLevelMeter(), loudMeter = SpeechLevelMeter()
+        precondition(quietMeter.receive(rms: 0).allSatisfy { $0 == 0 })
+        let quiet = quietMeter.receive(rms: 0.005).last!
+        let loud = loudMeter.receive(rms: 0.1).last!
+        precondition(loud > quiet && quiet > 0, "Waveform amplitude must follow microphone energy")
+        for _ in 0..<30 { _ = loudMeter.receive(rms: 0) }
+        precondition(loudMeter.levels.allSatisfy { $0 == 0 }, "Silence must settle, without a decorative animation")
+        precondition(loudMeter.receive(rms: 10).allSatisfy { $0 >= 0 && $0 <= 1 })
+        print("PASS: microphone metering responds to volume, stays bounded, and settles during silence")
         let terminal = URL(string: "http://Mac:7777/terminal?sessionId=fixture")!
         precondition(TerminalNavigation.allows(URL(string: "http://mac:7777/terminal?sessionId=fixture")!, document: terminal))
         precondition(TerminalNavigation.allows(URL(string: "http://mac/terminal")!, document: URL(string: "http://Mac:80/terminal")!))

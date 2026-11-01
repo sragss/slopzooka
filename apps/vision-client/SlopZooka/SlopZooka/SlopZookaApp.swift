@@ -14,6 +14,7 @@ struct SlopZookaApp: App {
     var body: some Scene {
         WindowGroup("Launcher", id: "launcher") {
             WindowScene(windows: appDelegate.windows) { ContentView() }
+                .environmentObject(appDelegate.voice)
         }
         .defaultSize(width: 460, height: 680)
         .windowStyle(.plain)
@@ -24,6 +25,7 @@ struct SlopZookaApp: App {
             WindowScene(windows: appDelegate.windows, id: sessionID.wrappedValue) {
                 TerminalWindowView(sessionID: sessionID.wrappedValue)
             }
+            .environmentObject(appDelegate.voice)
         }
         .defaultSize(width: 1280, height: 832)
         .windowStyle(.plain)

@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { TerminalConnection } from "../src/terminal-connection.js";
+import { isClientMessage } from "../../../packages/protocol/src/index.js";
 
 test("terminal rendering serializes checkpoints with output and resumes from rendered cursor", async () => {
   const originalSocket = globalThis.WebSocket;
@@ -183,6 +184,7 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     value: { href: "http://host/terminal", protocol: "http:" },
   });
   let disposals = 0;
+  let fittedSize = { cols: 80, rows: 24 };
   const status: string[] = [];
   const terminal = {
     cols: 80,
@@ -195,7 +197,10 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
       };
     },
     reset() {},
-    resize() {},
+    resize(cols: number, rows: number) {
+      this.cols = cols;
+      this.rows = rows;
+    },
     write(_data: string, done: () => void) {
       done();
     },
@@ -204,7 +209,10 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     terminal as any,
     "s1",
     (message) => status.push(message),
-    () => {},
+    () => {
+      terminal.cols = fittedSize.cols;
+      terminal.rows = fittedSize.rows;
+    },
   );
   const flush = async () => {
     for (let i = 0; i < 10; i++) await Promise.resolve();
@@ -238,6 +246,22 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
       "retired retry and attachment timers cannot interrupt a healthy connection",
     );
     assert.equal(current.readyState, 1);
+    // Extreme zoom-out must not send dimensions the companion will reject, or
+    // leave the local emulator wrapping at a different width from the PTY.
+    fittedSize = { cols: 1328, rows: 832 };
+    connection.resize();
+    const extremeResize = current.sent.at(-1);
+    assert.ok(isClientMessage(extremeResize));
+    assert.equal(extremeResize.type, "resize");
+    assert.equal(terminal.cols, extremeResize.cols);
+    assert.equal(terminal.rows, extremeResize.rows);
+    assert.ok(
+      terminal.cols < fittedSize.cols && terminal.rows < fittedSize.rows,
+    );
+    fittedSize = { cols: 80, rows: 24 };
+    connection.resize();
+    assert.equal(terminal.cols, 80, "Zooming back in restores the fitted grid");
+    assert.equal(terminal.rows, 24);
     current.receive({
       type: "error",
       code: "404",

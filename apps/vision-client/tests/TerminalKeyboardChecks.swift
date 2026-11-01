@@ -27,7 +27,14 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
         window = NSWindow(contentRect: webView.frame, styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = webView
         let fixture = try! String(contentsOfFile: CommandLine.arguments[1], encoding: .utf8)
-        webView.loadHTMLString(fixture, baseURL: nil)
+        if CommandLine.arguments.count > 2 {
+            var url = URLComponents(url: URL(fileURLWithPath: CommandLine.arguments[1]), resolvingAgainstBaseURL: false)!
+            url.queryItems = [URLQueryItem(name: "sessionId", value: "viewport-fixture")]
+            webView.loadFileURL(url.url!, allowingReadAccessTo: url.url!.deletingLastPathComponent())
+            window.orderFront(nil)
+        } else {
+            webView.loadHTMLString(fixture, baseURL: nil)
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
             fputs("FAIL: WebKit keyboard test timed out\n", stderr)
             exit(1)
@@ -35,13 +42,19 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        webView.evaluateJavaScript("runKeyboardChecks()") { result, error in
-            guard error == nil, result as? String == "PASS" else {
-                fputs("FAIL: \(error?.localizedDescription ?? String(describing: result))\n", stderr)
+        let viewport = CommandLine.arguments.count > 2
+        Task { @MainActor in
+            do {
+                let function = viewport ? "runViewportChecks" : "runKeyboardChecks"
+                let result = try await webView.callAsyncJavaScript("return await \(function)()", arguments: [:], in: nil, contentWorld: .page)
+                guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
+                print(viewport ? "PASS: font zoom fills the viewport, refits the emulator, sends matching PTY resizes, and respects grid bounds"
+                    : "PASS: Escape interrupt, floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
+                exit(0)
+            } catch {
+                fputs("FAIL: \(error)\n", stderr)
                 exit(1)
             }
-            print("PASS: Escape interrupt, floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
-            exit(0)
         }
     }
 }

@@ -38,8 +38,11 @@ export type ServerMessage =
   | { type: "error"; message: string; code: string };
 export const validId = (value: unknown): value is string =>
   typeof value === "string" && /^[a-zA-Z0-9._:-]{1,120}$/.test(value);
+export const MAX_TERMINAL_DIMENSION = 500;
 export const validDimension = (value: unknown): value is number =>
-  Number.isInteger(value) && Number(value) >= 2 && Number(value) <= 500;
+  Number.isInteger(value) &&
+  Number(value) >= 2 &&
+  Number(value) <= MAX_TERMINAL_DIMENSION;
 export const validProfile = (value: unknown): value is TuiProfile | null =>
   value === null ||
   value === "codex" ||

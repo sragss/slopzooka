@@ -107,6 +107,33 @@ final class WindowGateway: ObservableObject {
     func reloadToken(for id: String) -> Int { reloads[id, default: 0] }
     func updateTerminalLoadState(id: String, loadState: TerminalLoadState) { terminals[id]?.loadState = loadState }
 
+    func canReceiveVoice(_ id: String) -> Bool {
+        guard let scene = presence[id], scene.isPresented, scene.isFocused,
+            let reference = references[id], persistence.windows(hostID: reference.hostID).contains(reference.window),
+            case .loaded = terminals[id]?.loadState else { return false }
+        return true
+    }
+
+    func submitVoiceInput(_ command: TerminalVoiceCommand) async throws {
+        guard canReceiveVoice(command.targetID), let base = terminalPayload(for: command.targetID)?.url else {
+            throw CompanionError(message: "Terminal is not connected. Reconnect, then retry.")
+        }
+        let path = "/api/sessions/\(command.targetID)/input"
+        let body = try JSONSerialization.data(withJSONObject: [
+            "commandId": command.commandID, "text": command.text, "sendReturn": true,
+        ])
+        for attempt in 0..<2 {
+            do {
+                _ = try await CompanionAPI.request(APIAcknowledgement.self, base: base, path: path, method: "POST", body: body)
+                return
+            } catch let error as URLError
+                where attempt == 0 && [.timedOut, .networkConnectionLost].contains(error.code) {
+                try await Task.sleep(for: .milliseconds(300))
+                guard canReceiveVoice(command.targetID) else { throw error }
+            }
+        }
+    }
+
     func open(id: String) throws {
         guard let reference = references[id] else { throw CompanionError(message: "Reconnect to your Mac before opening this window.") }
         try persistence.set(reference, isOpen: true)
