@@ -5,6 +5,11 @@ var sections = {
   frontends: "Frontends"
 };
 var $ = (id) => document.getElementById(id);
+var dashboardTicket = new URLSearchParams(location.hash.slice(1)).get(
+  "connect"
+);
+if (dashboardTicket)
+  history.replaceState(null, "", location.pathname + location.search);
 var section = "sessions";
 var paired = false;
 var refreshing = false;
@@ -445,6 +450,21 @@ dialog.addEventListener("cancel", (event) => {
   if (busy) event.preventDefault();
 });
 async function connect() {
+  if (dashboardTicket) {
+    const ticket = dashboardTicket;
+    dashboardTicket = null;
+    try {
+      await api("/api/pair/dashboard", { ticket });
+    } catch (error) {
+      gate(false);
+      failure(
+        "pair-error",
+        error,
+        "Open Dashboard again from the SlopZooka menu to sign in automatically."
+      );
+      return;
+    }
+  }
   try {
     const health = await api("/health");
     gate(health.paired);
@@ -459,6 +479,7 @@ async function connect() {
     );
   }
 }
+window.dispatchEvent(new Event("slz-dashboard-ready"));
 void connect();
 setInterval(() => {
   if (!document.hidden) {

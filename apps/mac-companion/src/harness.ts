@@ -16,6 +16,11 @@ const sections = {
 type Section = keyof typeof sections;
 const $ = <T extends HTMLElement = HTMLElement>(id: string) =>
   document.getElementById(id) as T;
+let dashboardTicket = new URLSearchParams(location.hash.slice(1)).get(
+  "connect",
+);
+if (dashboardTicket)
+  history.replaceState(null, "", location.pathname + location.search);
 let section: Section = "sessions";
 let paired = false;
 let refreshing = false;
@@ -488,6 +493,21 @@ dialog.addEventListener("cancel", (event) => {
   if (busy) event.preventDefault();
 });
 async function connect() {
+  if (dashboardTicket) {
+    const ticket = dashboardTicket;
+    dashboardTicket = null;
+    try {
+      await api("/api/pair/dashboard", { ticket });
+    } catch (error) {
+      gate(false);
+      failure(
+        "pair-error",
+        error,
+        "Open Dashboard again from the SlopZooka menu to sign in automatically.",
+      );
+      return;
+    }
+  }
   try {
     const health = await api("/health");
     gate(health.paired);
@@ -502,6 +522,7 @@ async function connect() {
     );
   }
 }
+window.dispatchEvent(new Event("slz-dashboard-ready"));
 void connect();
 setInterval(() => {
   if (!document.hidden) {

@@ -15,6 +15,10 @@ final class CompanionModel: ObservableObject {
     @Published var ready = false
     @Published var loginEnabled = SMAppService.mainApp.status == .enabled
     @Published var loginNotice: String?
+    @Published var openingDashboard = false
+    @Published var dashboardError: String?
+    private var dashboardRequest: String?
+    private var dashboardDeadline: Task<Void, Never>?
     private var child: Process?
     private var input: Pipe?
     private var output: Pipe?
@@ -29,8 +33,6 @@ final class CompanionModel: ObservableObject {
     private var startedAt = Date()
     private var quitting = false
     var onStopped: (() -> Void)?
-    private let port = ProcessInfo.processInfo.environment["SLOPZOOKA_PORT"] ?? "7777"
-    var dashboard: URL { URL(string: "http://localhost:\(port)/dashboard")! }
     var logDirectory: URL {
         if let path = ProcessInfo.processInfo.environment["SLOPZOOKA_LOG_DIR"] { return URL(fileURLWithPath: path) }
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/SlopZooka")
@@ -46,6 +48,8 @@ final class CompanionModel: ObservableObject {
         buffer.removeAll()
         lastStatus = nil
         startupFailure = nil
+        dashboardError = nil
+        finishOpeningDashboard()
         guard let resources = Bundle.main.resourceURL else {
             fail("App resources are missing. Rebuild the app.")
             return
@@ -132,6 +136,16 @@ final class CompanionModel: ObservableObject {
         while let newline = buffer.firstIndex(of: 10) {
             let line = Data(buffer[..<newline])
             buffer.removeSubrange(...newline)
+            let dashboardPrefix = Data("SLZ_DASHBOARD ".utf8)
+            if line.starts(with: dashboardPrefix) {
+                if let reply = try? JSONDecoder().decode(DashboardReply.self, from: line.dropFirst(dashboardPrefix.count)),
+                    reply.requestId == dashboardRequest, ready, !quitting,
+                    let url = URL(string: reply.url), ["http", "https"].contains(url.scheme ?? "") {
+                    finishOpeningDashboard()
+                    if !NSWorkspace.shared.open(url) { dashboardError = "Could not open your browser. Try again." }
+                }
+                continue
+            }
             let prefix = Data("SLZ_DESKTOP ".utf8)
             guard line.starts(with: prefix),
                 let status = try? JSONDecoder().decode(Status.self, from: line.dropFirst(prefix.count))
@@ -158,6 +172,7 @@ final class CompanionModel: ObservableObject {
         guard child === process else { return }
         startupDeadline?.cancel()
         stopDeadline?.cancel()
+        finishOpeningDashboard()
         let wasReady = ready
         child = nil
         output?.fileHandleForReading.readabilityHandler = nil
@@ -205,9 +220,36 @@ final class CompanionModel: ObservableObject {
         failures = 0
         start()
     }
-    func copyCode() {
-        NSPasteboard.general.clearContents()
-        NSPasteboard.general.setString(code, forType: .string)
+    private struct DashboardReply: Decodable {
+        let requestId: String
+        let url: String
+    }
+    func openDashboard() {
+        guard ready, !openingDashboard, let input else { return }
+        dashboardError = nil
+        let requestId = UUID().uuidString
+        dashboardRequest = requestId
+        openingDashboard = true
+        do {
+            var data = try JSONSerialization.data(withJSONObject: ["type": "open-dashboard", "requestId": requestId])
+            data.append(10)
+            try input.fileHandleForWriting.write(contentsOf: data)
+            dashboardDeadline = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(10))
+                guard !Task.isCancelled, let self, self.dashboardRequest == requestId else { return }
+                self.finishOpeningDashboard()
+                self.dashboardError = "Could not open the dashboard. Try again."
+            }
+        } catch {
+            finishOpeningDashboard()
+            dashboardError = "Could not open the dashboard. Try again."
+        }
+    }
+    private func finishOpeningDashboard() {
+        dashboardDeadline?.cancel()
+        dashboardDeadline = nil
+        dashboardRequest = nil
+        openingDashboard = false
     }
     func setLogin(_ enabled: Bool) {
         do {
@@ -220,6 +262,7 @@ final class CompanionModel: ObservableObject {
     }
     func stop() {
         quitting = true
+        finishOpeningDashboard()
         retry?.cancel()
         startupDeadline?.cancel()
         guard let child else {

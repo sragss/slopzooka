@@ -33,6 +33,10 @@ export class Pairing {
     }
     return this.currentCode;
   }
+  private readonly dashboardTickets = new Map<
+    string,
+    { origin: string; expires: number }
+  >();
   private readonly tokens: Set<string>;
   private attempts = { count: 0, until: 0 };
   displayUntil = 0;
@@ -60,6 +64,31 @@ export class Pairing {
     this.tokens = new Set(saved.tokens);
     this.persist();
   }
+  // Issued only through the private desktop pipe. The fragment never reaches
+  // HTTP access logs or Referer headers; the browser exchanges it once for a cookie.
+  dashboardLink(destination: string): string {
+    const url = new URL(destination);
+    for (const [key, ticket] of this.dashboardTickets) {
+      if (ticket.expires <= this.now()) this.dashboardTickets.delete(key);
+    }
+    const ticket = crypto.randomBytes(32).toString("hex");
+    this.dashboardTickets.set(this.digest(ticket), {
+      origin: url.origin,
+      expires: this.now() + 60_000,
+    });
+    if (this.dashboardTickets.size > 8)
+      this.dashboardTickets.delete(this.dashboardTickets.keys().next().value!);
+    url.hash = `connect=${ticket}`;
+    return url.href;
+  }
+  private issueCredential(): string {
+    const token = crypto.randomBytes(32).toString("hex");
+    this.tokens.add(this.digest(token));
+    if (this.tokens.size > 32)
+      this.tokens.delete(this.tokens.values().next().value!);
+    this.persist();
+    return token;
+  }
   authorized(req: IncomingMessage): boolean {
     return this.tokens.has(this.digest(this.credential(req)));
   }
@@ -68,12 +97,9 @@ export class Pairing {
     if (!origin) return true; // Native clients authenticate with a bearer token.
     try {
       const url = new URL(origin);
-      return (
-        url.host === req.headers.host &&
-        (this.secureProxy(req)
-          ? url.origin === this.proxyOrigin()
-          : url.protocol === "http:")
-      );
+      return this.secureProxy(req)
+        ? url.origin === this.proxyOrigin()
+        : url.host === req.headers.host && url.protocol === "http:";
     } catch {
       return false;
     }
@@ -81,10 +107,20 @@ export class Pairing {
   private secureProxy(req: IncomingMessage): boolean {
     const origin = this.proxyOrigin();
     const address = req.socket.remoteAddress;
+    if (!origin || !origin.startsWith("https:")) return false;
+    const host = new URL(origin).host;
+    // Portless translates HTTP/2 :authority to X-Forwarded-Host, while the
+    // upstream HTTP/1 Host becomes the loopback backend address. Only accept
+    // that alternative from the local proxy and for this exact listener.
+    const backendHosts = ["127.0.0.1", "localhost", "[::1]"].map(
+      (name) => `${name}:${req.socket.localPort}`,
+    );
+    const matchesHost =
+      req.headers.host === host ||
+      (backendHosts.includes(req.headers.host ?? "") &&
+        req.headers["x-forwarded-host"] === host);
     return (
-      !!origin &&
-      origin.startsWith("https:") &&
-      new URL(origin).host === req.headers.host &&
+      matchesHost &&
       (address === "127.0.0.1" ||
         address === "::1" ||
         address === "::ffff:127.0.0.1") &&
@@ -116,6 +152,30 @@ export class Pairing {
       }
       res.json({ ok: true });
     });
+    app.post("/api/pair/dashboard", (req, res) => {
+      const key = this.digest(
+        typeof req.body?.ticket === "string" ? req.body.ticket : "",
+      );
+      const ticket = this.dashboardTickets.get(key);
+      if (
+        !ticket ||
+        ticket.expires <= this.now() ||
+        req.headers.origin !== ticket.origin
+      ) {
+        res
+          .status(401)
+          .json({ error: "Open Dashboard again from the SlopZooka menu" });
+        return;
+      }
+      this.dashboardTickets.delete(key);
+      this.cookie(
+        req,
+        res,
+        this.authorized(req) ? this.credential(req) : this.issueCredential(),
+      );
+      this.noteConnection(req);
+      res.json({ ok: true });
+    });
     app.post("/api/pair", (req, res) => {
       const now = this.now();
       if (now >= this.attempts.until)
@@ -135,12 +195,7 @@ export class Pairing {
           .json({ error: "Enter the pairing code shown on your Mac" });
         return;
       }
-      const token = crypto.randomBytes(32).toString("hex");
-      this.tokens.add(this.digest(token));
-      // Bound credentials; pairing again eventually retires the oldest credentials.
-      if (this.tokens.size > 32)
-        this.tokens.delete(this.tokens.values().next().value!);
-      this.persist();
+      const token = this.issueCredential();
       this.displayUntil = 0;
       this.displayRequester = undefined;
       this.noteConnection(req);

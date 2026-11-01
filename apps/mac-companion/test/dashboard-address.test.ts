@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import http from "node:http";
 import https from "node:https";
+import http2 from "node:http2";
 import type net from "node:net";
 import { once } from "node:events";
 import { execFileSync, spawn } from "node:child_process";
@@ -128,6 +129,30 @@ test("HTTPS origin trust is restricted to the registered dashboard, loopback, an
       socket: { remoteAddress: address },
     }) as any;
   try {
+    const forwarded = (
+      overrides: Record<string, string> = {},
+      address = "127.0.0.1",
+    ) =>
+      ({
+        headers: {
+          origin,
+          host: "127.0.0.1:7777",
+          "x-forwarded-host": "slopzooka.localhost:1355",
+          "x-forwarded-proto": "https",
+          ...overrides,
+        },
+        socket: { remoteAddress: address, localPort: 7777 },
+      }) as any;
+    assert.ok(pairing.sameOrigin(forwarded()));
+    for (const headers of [
+      { origin: "https://foreign.invalid" },
+      { "x-forwarded-host": "foreign.localhost:1355" },
+      { "x-forwarded-proto": "http" },
+      { host: "127.0.0.1:8888" },
+      { host: "foreign.localhost:7777" },
+    ])
+      assert.ok(!pairing.sameOrigin(forwarded(headers)));
+    assert.ok(!pairing.sameOrigin(forwarded({}, "192.168.1.9")));
     assert.ok(pairing.sameOrigin(request(origin, "slopzooka.localhost:1355")));
     assert.ok(
       pairing.sameOrigin(
@@ -225,9 +250,54 @@ test(
         res.end();
       } else res.destroy();
     });
-    const proxy = https.createServer(
-      { key: await fs.readFile(path.join(home, "key.pem")), cert: ca },
-      (req, res) => upstream.web(req, res),
+    const proxy = http2.createSecureServer(
+      {
+        key: await fs.readFile(path.join(home, "key.pem")),
+        cert: ca,
+        allowHTTP1: true,
+      },
+      (req, res) => {
+        if (req.httpVersionMajor === 2) {
+          // Match Portless's HTTP/2 translation: preserve authority only in
+          // X-Forwarded-Host; HTTP/1 Host names the backend listener.
+          const headers = {
+            ...req.headers,
+            host: `127.0.0.1:${backendPort}`,
+            "x-forwarded-host": req.headers[":authority"],
+            "x-forwarded-proto": "https",
+          };
+          for (const key of Object.keys(headers)) {
+            if (key.startsWith(":")) delete headers[key];
+          }
+          const backend = http.request(
+            {
+              hostname: "127.0.0.1",
+              port: backendPort,
+              path: req.url,
+              method: req.method,
+              headers,
+            },
+            (response) => {
+              const responseHeaders = { ...response.headers };
+              for (const key of [
+                "connection",
+                "keep-alive",
+                "transfer-encoding",
+              ])
+                delete responseHeaders[key];
+              res.writeHead(response.statusCode!, responseHeaders);
+              response.pipe(res);
+            },
+          );
+          backend.on("error", () => {
+            res.writeHead(502);
+            res.end();
+          });
+          req.pipe(backend);
+          return;
+        }
+        upstream.web(req as http.IncomingMessage, res as http.ServerResponse);
+      },
     );
     proxy.on("upgrade", (req, socket, head) => upstream.ws(req, socket, head));
     const sockets = new Set<net.Socket>();
@@ -254,10 +324,11 @@ test(
           SLOPZOOKA_LOG_DIR: home,
           SLOPZOOKA_PORT: String(backendPort),
           SLOPZOOKA_HOST: "127.0.0.1",
+          SLOPZOOKA_DESKTOP: "1",
           PORTLESS_STATE_DIR: home,
           SHELL: "/bin/sh",
         },
-        stdio: ["ignore", "pipe", "pipe"],
+        stdio: ["pipe", "pipe", "pipe"],
       },
     );
     let output = "";
@@ -356,6 +427,109 @@ test(
         ),
         origin + "/",
       );
+      const h2 = http2.connect(`https://127.0.0.1:${port}`, {
+        ca,
+        servername: hostname,
+      });
+      const h2Request = (
+        pathname: string,
+        headers: Record<string, string> = {},
+        body?: unknown,
+      ) =>
+        new Promise<{
+          status: number;
+          headers: http2.IncomingHttpHeaders;
+          body: string;
+        }>((resolve, reject) => {
+          const stream = h2.request({
+            ":authority": `${hostname}:${port}`,
+            ":path": pathname,
+            ":method": body ? "POST" : "GET",
+            origin,
+            ...(body ? { "content-type": "application/json" } : {}),
+            ...headers,
+          });
+          let responseHeaders: http2.IncomingHttpHeaders;
+          let text = "";
+          stream.on("response", (headers) => {
+            responseHeaders = headers;
+          });
+          stream.on("data", (chunk) => {
+            text += chunk;
+          });
+          stream.on("error", reject);
+          stream.on("end", () =>
+            resolve({
+              status: Number(responseHeaders[":status"]),
+              headers: responseHeaders,
+              body: text,
+            }),
+          );
+          stream.end(body ? JSON.stringify(body) : undefined);
+        });
+      try {
+        assert.equal((await h2Request("/harness.js")).status, 200);
+        assert.equal((await h2Request("/health")).status, 200);
+        assert.equal(
+          (
+            await h2Request("/harness.js", {
+              origin: "https://foreign.invalid",
+            })
+          ).status,
+          403,
+        );
+        assert.equal((await h2Request("/api/sessions")).status, 401);
+        child.stdin.write(
+          JSON.stringify({
+            type: "open-dashboard",
+            requestId: "h2-dashboard",
+          }) + "\n",
+        );
+        const linkReply = await until(() => {
+          const line = output
+            .split("\n")
+            .find((line) => line.startsWith("SLZ_DASHBOARD "));
+          return line
+            ? JSON.parse(line.slice("SLZ_DASHBOARD ".length))
+            : undefined;
+        });
+        const link = new URL(linkReply.url);
+        assert.equal(link.origin, origin);
+        const ticket = new URLSearchParams(link.hash.slice(1)).get("connect");
+        const desktopSignIn = await h2Request(
+          "/api/pair/dashboard",
+          {},
+          { ticket },
+        );
+        assert.equal(desktopSignIn.status, 200, desktopSignIn.body);
+        assert.match(desktopSignIn.headers["set-cookie"]![0]!, /; Secure/);
+        assert.equal(
+          (
+            await h2Request("/api/sessions", {
+              cookie: desktopSignIn.headers["set-cookie"]![0]!.split(";")[0]!,
+            })
+          ).status,
+          200,
+        );
+        assert.equal(
+          (await h2Request("/api/pair/dashboard", {}, { ticket })).status,
+          401,
+        );
+        const pairedH2 = await h2Request("/api/pair", {}, { code });
+        assert.equal(pairedH2.status, 200, pairedH2.body);
+        const cookieH2 = pairedH2.headers["set-cookie"]![0]!;
+        assert.match(cookieH2, /; Secure/);
+        assert.equal(
+          (
+            await h2Request("/api/sessions", {
+              cookie: cookieH2.split(";")[0]!,
+            })
+          ).status,
+          200,
+        );
+      } finally {
+        h2.destroy();
+      }
       const paired = await request("/api/pair", "POST", {}, { code });
       assert.equal(paired.status, 200, paired.body);
       const cookie = paired.headers["set-cookie"]![0]!;
