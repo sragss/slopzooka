@@ -4,7 +4,7 @@
 
 ## Connect to your Mac
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback.
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback. On startup, the headset tries the saved companion address before discovered alternatives, one connection attempt at a time. Pairing errors show the attempted URL so companions on different ports can be distinguished.
 
 The display dismisses after 45 seconds, successful pairing, or an authenticated reconnection by the device that requested it. Late display requests from a recently connected device do not reopen the prompt; other devices can still pair. Repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 

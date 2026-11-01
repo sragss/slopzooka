@@ -16,8 +16,4 @@ final class HostConnection {
         }
         current = ConnectedHost(id: health.hostId, endpoint: endpoint)
     }
-
-    func shouldTry(_ candidate: String) -> Bool {
-        current == nil || CompanionAPI.baseURL(host: candidate)?.host == current?.endpoint.host
-    }
 }

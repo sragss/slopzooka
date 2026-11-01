@@ -8,9 +8,18 @@ enum CompanionAPI {
     static var sessionRequests = 0
     static var pairRequests = 0
     static var pendingPair: CheckedContinuation<Void, Never>?
-    static func baseURL(host: String) -> URL? { URL(string: "http://fixture.invalid") }
+    static var healthRequests: [URL] = []
+    static var healthReply: ((URL) async throws -> CompanionHealthResponse)?
+    static func baseURL(host: String) -> URL? {
+        guard !host.isEmpty else { return nil }
+        return URL(string: host.contains("://") ? host : "http://\(host)")
+    }
     static func request<T: Decodable>(_ type: T.Type, base: URL, path: String,
         method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20) async throws -> T {
+        if path == "/health", let reply = healthReply {
+            healthRequests.append(base)
+            return try await reply(base) as! T
+        }
         if path == "/api/repos/create-and-launch" {
             await withCheckedContinuation { pending.append($0) }
             let repo = RecentRepoSummary(name: "fixture", nameWithOwner: "test/fixture", url: "", sshUrl: "",
@@ -84,6 +93,7 @@ struct LauncherStateChecks {
         precondition(!state.isMutatingWorkspace)
         precondition(state.repoCreationError == "fixture failure", "Creation errors must remain visible inside the sheet")
 
+        state.host = "fixture.invalid:17777"
         state.needsPairing = true
         state.pairingCode = "123456"
         let pairing = Task { await state.pair() }
@@ -93,7 +103,38 @@ struct LauncherStateChecks {
         CompanionAPI.pendingPair?.resume()
         await pairing.value
         precondition(!state.isPairing && state.pairingCode.isEmpty)
-        precondition(state.pairingError == "Wrong code")
+        precondition(state.pairingError == "http://fixture.invalid:17777\nWrong code")
         print("PASS: cancellation unlocks controls, stale completions cannot launch or reset newer work, errors remain visible, pairing submits once")
+
+        // Both startup paths share one queue, even when Bonjour arrives first.
+        let saved = "mac.local:7777", discovered = "mac.local:17777"
+        let savedPreference = UserDefaults.standard.object(forKey: "companionHost")
+        defer { UserDefaults.standard.set(savedPreference, forKey: "companionHost") }
+        for savedFails in [false, true] {
+            let startup = LauncherState()
+            startup.host = saved
+            CompanionAPI.healthRequests = []
+            var release: CheckedContinuation<Void, Never>?
+            CompanionAPI.healthReply = { base in
+                if base.port == 7777 {
+                    await withCheckedContinuation { release = $0 }
+                    if savedFails { throw URLError(.cannotConnectToHost) }
+                }
+                return CompanionHealthResponse(ok: true, hostId: "host-\(base.port!)", paired: false,
+                    protocolVersion: 1, name: "fixture", version: "1", hostname: "mac", localHostName: "mac",
+                    controlOrigin: base.absoluteString, bonjourServiceType: nil, cwd: "/fixture", logFilePath: "", workspacePaths: nil)
+            }
+            let attempt = Task { await startup.maybeAutoConnect(candidateHosts: [discovered]) }
+            while release == nil { await Task.yield() }
+            await startup.maybeAutoConnect(candidateHosts: [startup.normalizedHost])
+            await startup.maybeAutoConnect(candidateHosts: [discovered])
+            precondition(CompanionAPI.healthRequests.map(\.port) == [7777], "Discovery and retries must not race the saved host")
+            release!.resume()
+            await attempt.value
+            precondition(CompanionAPI.healthRequests.map(\.port) == (savedFails ? [7777, 17777] : [7777]))
+            precondition(startup.connection.current?.endpoint.port == (savedFails ? 17777 : 7777))
+            precondition(startup.needsPairing, "An unpaired saved host remains selected instead of falling through to another instance")
+        }
+        print("PASS: saved-host priority, serialized discovery/retries, and fallback distinguish companions on different ports")
     }
 }
