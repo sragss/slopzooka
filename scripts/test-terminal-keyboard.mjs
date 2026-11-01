@@ -19,7 +19,7 @@ terminal.open(document.getElementById('terminal'));
 const input = terminal.textarea;
 let data = [];
 terminal.onData(value => data.push(value));
-window.runKeyboardChecks = () => {
+window.runKeyboardChecks = async () => {
   const check = (expected, label) => {
     if (JSON.stringify(data) !== JSON.stringify(expected)) throw Error(label + ': ' + JSON.stringify(data));
     data = [];
@@ -35,6 +35,45 @@ window.runKeyboardChecks = () => {
   if (accepted) edit('insertLineBreak');
   input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true}));
   check(['\\r'], 'hardware Enter must not double submit');
+  for (const mode of ['none', 'text']) {
+    input.inputMode = mode;
+    for (const [key, code, keyCode, expected, modifiers = {}] of [
+      ['Backspace', 'Backspace', 8, '\\x7f'],
+      ['Delete', 'Delete', 46, '\\x1b[3~'],
+      ['Tab', 'Tab', 9, '\\t'],
+      ['Escape', 'Escape', 27, '\\x1b'],
+      ['ArrowLeft', 'ArrowLeft', 37, '\\x1b[D'],
+      ['Backspace', 'Backspace', 8, '\\b', {ctrlKey: true}],
+      ['Backspace', 'Backspace', 8, '\\x1b\\x7f', {altKey: true}],
+    ]) {
+      const options = {key, code, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+      const accepted = input.dispatchEvent(new KeyboardEvent('keydown', options));
+      if (accepted && key === 'Backspace') edit('deleteContentBackward');
+      if (accepted && key === 'Delete') edit('deleteContentForward');
+      input.dispatchEvent(new KeyboardEvent('keyup', options));
+      check([expected], key + ' in inputmode=' + mode);
+    }
+  }
+  edit('deleteContentBackward'); check(['\\x7f'], 'editing-only Backspace');
+  edit('deleteContentForward'); check(['\\x1b[3~'], 'editing-only Delete');
+  for (const keyCode of [0, 229]) {
+    input.value = 'x';
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true, cancelable: true}));
+    edit('deleteContentBackward');
+    input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true}));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    check(['\\x7f'], 'Backspace with unusable keyCode=' + keyCode + ' must send exactly once');
+    input.value = '';
+  }
+  edit('deleteContentBackward'); edit('deleteContentBackward');
+  check(['\\x7f', '\\x7f'], 'repeated editing-only Backspace');
+  edit('deleteContentBackward', input, true); check([], 'composition deletion must not emit a terminal key');
+  edit('deleteContentForward', input, true); check([], 'composition forward deletion must not emit a terminal key');
+  edit('deleteContentBackward', document.getElementById('other')); check([], 'other fields must keep their deletion behavior');
+  edit('deleteContentForward', document.getElementById('other')); check([], 'other fields must keep forward deletion');
+  const alreadyHandled = new InputEvent('beforeinput', {inputType: 'deleteContentBackward', bubbles: true, cancelable: true});
+  alreadyHandled.preventDefault(); input.dispatchEvent(alreadyHandled);
+  check([], 'already handled deletion must not duplicate input');
   input.dispatchEvent(new InputEvent('input', {inputType:'insertText', data:'x', bubbles:true}));
   check(['x'], 'normal typing');
   edit('insertLineBreak', input, true); check([], 'composition must not submit');
