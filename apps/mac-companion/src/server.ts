@@ -27,6 +27,10 @@ import { SessionManager, send } from "./sessions.js";
 import { Pairing } from "./auth.js";
 import { loadDesktopPath } from "./desktop.js";
 import { DashboardAddress } from "./dashboard-address.js";
+import {
+  installWindowLayoutRoutes,
+  WindowLayoutStore,
+} from "./window-layout.js";
 
 await loadDesktopPath();
 
@@ -87,6 +91,10 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installWindowLayoutRoutes(
+  app,
+  new WindowLayoutStore(workspacePaths().slopzookaHome),
+);
 app.use(express.static(path.join(import.meta.dirname, "..", "public")));
 
 app.get("/dashboard", async (_req, res) => {

@@ -19,6 +19,7 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm format:check
       - run: pnpm test
+      - run: pnpm test:vision-state
       - run: pnpm build:harness
       - run: git diff --exit-code -- apps/mac-companion/public
       - run: pnpm build:mac-app

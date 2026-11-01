@@ -31,6 +31,39 @@ For companion development, run `pnpm dev:companion` instead of the menu-bar app.
 
 `pnpm dev:companion` intentionally does **not** restart on source changes. An opt-in `pnpm --filter @slz/mac-companion dev:watch` is available; each restart ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
 
+### Window recovery and iteration while wearing the headset
+
+The companion saves the intended set of terminal and preview windows in
+`SLOPZOOKA_HOME/window-layouts.json`, separately for each headset installation's
+client ID. Update both apps to use this feature. The headset keeps a small outbox
+of unacknowledged open/close changes, so a disconnected close or interrupted save
+can be retried after reconnecting. A native rebuild over the existing installation
+retains that client ID; deleting the app's data creates a different client.
+
+Every scene can start recovery, including when the launcher is closed. Existing
+system-restored windows resolve their content again; missing intended windows are
+opened once. Closing a window updates the saved layout without ending its terminal
+process. Backgrounding, disconnecting, or rebuilding the headset app does not close
+the saved windows. Sessions lost to a companion restart remain unavailable; recovery
+never silently launches replacement shells. Preview windows resolve fresh gateway
+URLs and trust material from the Mac. Cookies and browser navigation history still
+belong to the WebView and do not survive native process replacement.
+
+visionOS owns physical placement and room locking. Recovery preserves scene IDs
+and reuses restored scenes, but opening a missing window is not a guarantee of its
+previous physical position. Xcode stop/run, installation over an existing app,
+system-close behavior, and locked/unlocked room placement require device testing.
+
+For terminal web UI development, keep `pnpm dev:companion` running and run
+`pnpm --filter @slz/mac-companion dev:web` in another terminal. The watcher rebuilds
+browser assets without restarting the host or its PTYs. Use **Reload Content** in
+a terminal's actions menu, or the launcher's reload button for all visible windows.
+This reloads content inside the same native scenes. Preview reload also refreshes
+its gateway connection while keeping the WebView. Swift changes still require a
+native build; this workflow does not inject Swift code into a running app. The
+packaged Mac app serves its bundled assets, so use the development companion for
+this workflow.
+
 **Named dashboard:** When an installed Portless proxy is configured, the companion automatically registers `slopzooka.localhost` through `portless alias`. **Open Dashboard** checks that the named route reaches this companion, then redirects there; if Portless is absent, stopped, misconfigured, or the name belongs to another port, it opens the regular localhost dashboard. The companion keeps running on its own port and Bonjour continues to advertise the Mac’s LAN address for Vision Pro. `.localhost` is for browsers on the Mac.
 
 The named URL follows the existing proxy: `https://slopzooka.localhost` on HTTPS port 443, or e.g. `https://slopzooka.localhost:1355` on a custom port. SlopZooka does not restart the shared proxy, change its port, install Portless, or alter certificate trust. The static alias remains available across companion restarts. If Safari cannot resolve a `.localhost` name, use Portless’s `hosts sync` setup or the direct localhost URL. Set `SLOPZOOKA_PORTLESS=0` to disable the dashboard alias. Pair the browser once at the new hostname; its cookies are separate from localhost.
@@ -121,19 +154,34 @@ Workspace mutations are serialized within the companion and the index is replace
 
 - `src/server.ts`: HTTP routes, authenticated WebSocket transport, discovery, and shutdown.
 - `src/sessions.ts`: PTY ownership, screen state, attachment, replay, resize ownership, and input deduplication.
+- `src/window-layout.ts`: authenticated, client-scoped window layouts with atomic persistence and revision checking.
 - `src/dashboard-address.ts`: optional Portless dashboard alias, verified redirects, and localhost fallback.
 - `src/frontend-discovery.ts`: read-only Portless adapter, macOS listener inventory, and bounded HTTP probes.
 - `src/frontends.ts`: unified catalog, saved URLs, and frontend gateway lifecycle.
 - `src/workspace.ts`: git worktrees and workspace persistence.
 - `src/terminal-connection.ts`: browser reconnect and ordered rendering.
 - `packages/protocol`: versioned terminal messages and runtime validation.
-- Vision client: `HostConnection`, `CompanionAPI`, `LauncherState`, and `TerminalSessionController` separate connection identity, requests, launcher state, and the WebView bridge from presentation.
+- Vision client: `WindowGateway` is the single entry point for window intent,
+  session launch/end, content resolution, reload, and recovery. `WindowPersistence`
+  owns layout synchronization and the local outbox. `WindowScene` alone adapts
+  native window actions and scene lifecycle; permanent scene discards record close
+  intent, while disconnect/background events only update live presentation state.
+  `HostConnection`, `CompanionAPI`, the shared `LauncherState`, and
+  `TerminalSessionController` handle connection identity, requests, project browsing,
+  and the WebView bridge. The gateway owns the shared discovery/refresh lifetime,
+  independent of the launcher view.
+
+New window types and lifecycle features must extend this gateway/persistence path,
+not introduce another registry or direct scene actions in views. Persist stable
+content references, never resolved URLs, access tokens, focus, or physical poses.
+See [AGENTS.md](AGENTS.md) for the architecture rules and verification expectations.
 
 ## Verify
 
 ```sh
 pnpm typecheck
 pnpm test
+pnpm test:vision-state
 pnpm format:check
 pnpm build:harness
 xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \

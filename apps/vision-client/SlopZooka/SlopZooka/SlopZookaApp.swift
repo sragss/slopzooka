@@ -9,12 +9,11 @@ import SwiftUI
 
 @main
 struct SlopZookaApp: App {
-    @StateObject private var appModel = AppModel()
+    @UIApplicationDelegateAdaptor(WindowApplicationDelegate.self) private var appDelegate
 
     var body: some Scene {
         WindowGroup("Launcher", id: "launcher") {
-            ContentView()
-                .environmentObject(appModel)
+            WindowScene(windows: appDelegate.windows) { ContentView() }
         }
         .defaultSize(width: 460, height: 680)
         .windowStyle(.plain)
@@ -22,8 +21,9 @@ struct SlopZookaApp: App {
         .defaultLaunchBehavior(.presented)
 
         WindowGroup("Terminal", id: "terminal", for: String.self) { sessionID in
-            TerminalWindowView(sessionID: sessionID.wrappedValue)
-                .environmentObject(appModel)
+            WindowScene(windows: appDelegate.windows, id: sessionID.wrappedValue) {
+                TerminalWindowView(sessionID: sessionID.wrappedValue)
+            }
         }
         .defaultSize(width: 1280, height: 832)
         .windowStyle(.plain)
@@ -31,8 +31,9 @@ struct SlopZookaApp: App {
         .defaultLaunchBehavior(.suppressed)
 
         WindowGroup("Preview", id: "preview", for: String.self) { previewID in
-            BrowserWindowView(previewID: previewID.wrappedValue)
-                .environmentObject(appModel)
+            WindowScene(windows: appDelegate.windows, id: previewID.wrappedValue) {
+                BrowserWindowView(previewID: previewID.wrappedValue)
+            }
         }
         .defaultSize(width: 1200, height: 820)
         .windowStyle(.plain)

@@ -32,6 +32,29 @@ try {
     { stdio: "inherit", timeout: 60_000 },
   );
   execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
+  execFileSync(
+    "xcrun",
+    [
+      "swiftc",
+      "-swift-version",
+      "5",
+      "-parse-as-library",
+      ...[
+        "WindowGateway",
+        "WindowPersistence",
+        "LauncherState",
+        "HostConnection",
+        "CompanionModels",
+      ].map((name) =>
+        path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
+      ),
+      path.join(root, "apps/vision-client/tests/WindowGatewayChecks.swift"),
+      "-o",
+      binary,
+    ],
+    { stdio: "inherit", timeout: 60_000 },
+  );
+  execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

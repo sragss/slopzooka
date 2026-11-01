@@ -3,9 +3,7 @@ import SwiftUI
 struct TerminalWindowView: View {
     let sessionID: String?
 
-    @EnvironmentObject private var appModel: AppModel
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
+    @EnvironmentObject private var windows: WindowGateway
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var debugLog = AppDebugLog.shared
     @StateObject private var speechCapture = SpeechCaptureController()
@@ -19,7 +17,7 @@ struct TerminalWindowView: View {
     @State private var speechOrbPulse = false
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
-    @State private var terminalZoomSteps = -2
+    @SceneStorage("terminalZoomSteps") private var terminalZoomSteps = -2
     @State private var speechCommandID = UUID().uuidString
 
     var body: some View {
@@ -27,42 +25,17 @@ struct TerminalWindowView: View {
             if let payload {
                 terminalMode(payload: payload)
             } else {
-                ContentUnavailableView {
-                    Label("Session Unavailable", systemImage: "rectangle.slash")
-                } description: {
-                    Text("Open the launcher to connect to your Mac or choose a terminal.")
-                } actions: {
-                    Button("Open Launcher", systemImage: "square.grid.2x2") {
-                        openWindow(id: "launcher")
-                        dismissWindow()
-                    }
-                    .buttonStyle(.borderedProminent)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                WindowRecoveryView(id: sessionID)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear {
-            slzLog("TerminalWindowView appeared \(sessionID ?? "nil")")
-            if let sessionID {
-                appModel.markTerminalPresented(id: sessionID, isPresented: true)
-                syncScenePhase(scenePhase, sessionID: sessionID)
-            }
-        }
+        .onAppear { syncScenePhase(scenePhase) }
         .onDisappear {
             speechCapture.onFinished = nil
             speechCapture.stopListening()
-            if let sessionID {
-                appModel.markTerminalPresented(id: sessionID, isPresented: false)
-                appModel.markTerminalFocused(id: sessionID, isFocused: false)
-            }
         }
         .onChange(of: scenePhase) { _, newPhase in
-            guard let sessionID else {
-                return
-            }
-
-            syncScenePhase(newPhase, sessionID: sessionID)
+            syncScenePhase(newPhase)
         }
     }
 
@@ -71,7 +44,7 @@ struct TerminalWindowView: View {
             return nil
         }
 
-        return appModel.terminalPayload(for: sessionID)
+        return windows.terminalPayload(for: sessionID)
     }
 
     private func terminalMode(payload: TerminalWindowPayload) -> some View {
@@ -79,6 +52,7 @@ struct TerminalWindowView: View {
             if let url = payload.url {
                 CompanionWebView(
                     url: url,
+                    reloadToken: windows.reloadToken(for: payload.id),
                     loadState: $loadState,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
@@ -144,7 +118,8 @@ struct TerminalWindowView: View {
                                 .disabled(terminalZoomSteps == -2)
                         }
                         Button("New Shell", systemImage: "terminal") { Task { await newShell(payload: payload) } }
-                        Button("Open Launcher", systemImage: "square.grid.2x2") { openWindow(id: "launcher") }
+                        Button("Reload Content", systemImage: "arrow.clockwise") { windows.reload(id: payload.id) }
+                        Button("Open Launcher", systemImage: "square.grid.2x2") { windows.openLauncher() }
                         Button("Session Details", systemImage: "info.circle") {
                             isUtilitiesExpanded.toggle()
                             isSessionDetailsExpanded = isUtilitiesExpanded
@@ -171,7 +146,7 @@ struct TerminalWindowView: View {
                     .help("Send Escape to the terminal")
 
                     Button {
-                        closeWindow(payloadID: payload.id)
+                        windows.close(id: payload.id)
                     } label: {
                         Image(systemName: "xmark")
                             .font(.headline.weight(.semibold))
@@ -207,20 +182,14 @@ struct TerminalWindowView: View {
                 Task { await submitSpeechTranscript(payloadID: payload.id) }
             }
             slzLog("terminal scene appeared \(payload.id)")
-            appModel.markTerminalPresented(id: payload.id, isPresented: true)
             withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
                 speechOrbPulse = true
             }
         }
         .onChange(of: loadState) { _, newLoadState in
-            appModel.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
+            windows.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
             if !canSubmitSpeech { speechCapture.stopListening() }
         }
-    }
-
-    private func closeWindow(payloadID: String) {
-        appModel.markTerminalPresented(id: payloadID, isPresented: false)
-        dismissWindow(id: "terminal", value: payloadID)
     }
 
     private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
@@ -405,25 +374,9 @@ struct TerminalWindowView: View {
         "Speak naturally. Your words will send automatically after a short pause."
     }
 
-    private func syncScenePhase(_ phase: ScenePhase, sessionID: String) {
-        switch phase {
-        case .active:
-            appModel.markTerminalPresented(id: sessionID, isPresented: true)
-            appModel.markTerminalFocused(id: sessionID, isFocused: true)
-            focusRequestToken += 1
-            slzLog("terminal scene active \(sessionID)")
-        case .inactive:
-            speechCapture.stopListening()
-            appModel.markTerminalFocused(id: sessionID, isFocused: false)
-            slzLog("terminal scene inactive \(sessionID)")
-        case .background:
-            speechCapture.stopListening()
-            appModel.markTerminalPresented(id: sessionID, isPresented: false)
-            appModel.markTerminalFocused(id: sessionID, isFocused: false)
-            slzLog("terminal scene background \(sessionID)")
-        @unknown default:
-            break
-        }
+    private func syncScenePhase(_ phase: ScenePhase) {
+        if phase == .active { focusRequestToken += 1 }
+        else { speechCapture.stopListening() }
     }
 
     private func submitSpeechTranscript(payloadID: String) async {
@@ -465,30 +418,13 @@ struct TerminalWindowView: View {
     }
 
     private func newShell(payload: TerminalWindowPayload) async {
-        guard let base = payload.url else { return }
-        do {
-            let result = try await CompanionAPI.request(
-                CreatedSessionResponse.self, base: base,
-                path: "/api/workspaces/\(payload.workspaceId)/sessions", method: "POST",
-                body: JSONSerialization.data(withJSONObject: ["sessionId": UUID().uuidString, "profile": NSNull()]))
-            guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return }
-            components.queryItems = [URLQueryItem(name: "sessionId", value: result.session.id)]
-            guard let url = components.url else { return }
-            appModel.registerTerminal(
-                TerminalWindowPayload(
-                    id: result.session.id, workspaceId: payload.workspaceId, title: "Terminal",
-                    urlString: url.absoluteString))
-            openWindow(id: "terminal", value: result.session.id)
-        } catch { loadState = .failed(error.localizedDescription) }
+        do { try await windows.newShell(for: payload.id) }
+        catch { loadState = .failed(error.localizedDescription) }
     }
 
     private func endSession(payload: TerminalWindowPayload) async {
-        guard let base = payload.url else { return }
-        do {
-            _ = try await CompanionAPI.request(
-                APIAcknowledgement.self, base: base, path: "/api/sessions/\(payload.id)", method: "DELETE")
-            closeWindow(payloadID: payload.id)
-        } catch { loadState = .failed(error.localizedDescription) }
+        do { try await windows.endSession(id: payload.id) }
+        catch { loadState = .failed(error.localizedDescription) }
     }
 
     private func surfaceInputURL(for payload: TerminalWindowPayload) -> URL? {
