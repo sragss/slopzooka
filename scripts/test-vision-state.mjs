@@ -7,76 +7,47 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-vision-state-"));
 const binary = path.join(temporary, "checks");
-const sources = [
-  "LauncherState",
-  "HostConnection",
-  "CompanionModels",
-  "TerminalNavigation",
-  "SpeechEndpoint",
-].map((name) =>
-  path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
-);
+const suites = {
+  LauncherStateChecks: [
+    "LauncherState",
+    "HostConnection",
+    "CompanionModels",
+    "TerminalNavigation",
+    "SpeechEndpoint",
+  ],
+  WindowGatewayChecks: [
+    "WindowGateway",
+    "ImmersiveWorkspaceState",
+    "WindowPersistence",
+    "LauncherState",
+    "HostConnection",
+    "CompanionModels",
+  ],
+  ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
+};
 try {
-  execFileSync(
-    "xcrun",
-    [
-      "swiftc",
-      "-swift-version",
-      "5",
-      "-parse-as-library",
-      ...sources,
-      path.join(root, "apps/vision-client/tests/LauncherStateChecks.swift"),
-      "-o",
-      binary,
-    ],
-    { stdio: "inherit", timeout: 60_000 },
-  );
-  execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
-  execFileSync(
-    "xcrun",
-    [
-      "swiftc",
-      "-swift-version",
-      "5",
-      "-parse-as-library",
-      ...[
-        "WindowGateway",
-        "ImmersiveWorkspaceState",
-        "WindowPersistence",
-        "LauncherState",
-        "HostConnection",
-        "CompanionModels",
-      ].map((name) =>
-        path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
-      ),
-      path.join(root, "apps/vision-client/tests/WindowGatewayChecks.swift"),
-      "-o",
-      binary,
-    ],
-    { stdio: "inherit", timeout: 60_000 },
-  );
-  execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
-  execFileSync(
-    "xcrun",
-    [
-      "swiftc",
-      "-swift-version",
-      "5",
-      "-parse-as-library",
-      path.join(
-        root,
-        "apps/vision-client/SlopZooka/SlopZooka/ImmersiveWorkspaceState.swift",
-      ),
-      path.join(
-        root,
-        "apps/vision-client/tests/ImmersiveWorkspaceChecks.swift",
-      ),
-      "-o",
-      binary,
-    ],
-    { stdio: "inherit", timeout: 60_000 },
-  );
-  execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
+  for (const [suite, sources] of Object.entries(suites)) {
+    execFileSync(
+      "xcrun",
+      [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-parse-as-library",
+        ...sources.map((name) =>
+          path.join(
+            root,
+            `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`,
+          ),
+        ),
+        path.join(root, `apps/vision-client/tests/${suite}.swift`),
+        "-o",
+        binary,
+      ],
+      { stdio: "inherit", timeout: 60_000 },
+    );
+    execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
+  }
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

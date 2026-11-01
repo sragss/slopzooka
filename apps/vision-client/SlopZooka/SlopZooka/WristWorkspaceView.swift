@@ -1,55 +1,42 @@
 import RealityKit
 import SwiftUI
 
+enum Wrist: String, CaseIterable { case left, right }
+
 struct WristWorkspaceView: View {
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var workspace: ImmersiveWorkspaceState
+    @AppStorage("wristMenuHand") private var wrist: Wrist = .left
 
     var body: some View {
-        RealityView { content, attachments in
-            #if targetEnvironment(simulator)
-            // The simulator has no tracked wrist. Exercise the real UI at a fixed location.
-            let anchor = AnchorEntity(.head, trackingMode: .once)
-            if let menu = attachments.entity(for: "wrist-menu") {
-                menu.position = [0, -0.15, -0.65]
-                menu.scale = .init(repeating: 0.65)
-                anchor.addChild(menu)
-            }
+        RealityView { content in
+            let anchor = AnchorEntity()
+            let menu = Entity()
+            menu.components.set(ViewAttachmentComponent(rootView: WristMenuView()
+                .environmentObject(windows).environmentObject(workspace)))
+            anchor.addChild(menu)
+            configure(anchor)
             content.add(anchor)
-            #else
-            for wrist in ImmersiveWorkspaceState.Wrist.allCases {
-                let anchor = AnchorEntity(.hand(wrist == .left ? .left : .right, location: .wrist),
-                    trackingMode: .continuous)
-                anchor.name = wrist.rawValue
-                content.add(anchor)
-            }
-            mountMenu(in: content, attachments: attachments)
-            #endif
-        } update: { content, attachments in
-            #if !targetEnvironment(simulator)
-            mountMenu(in: content, attachments: attachments)
-            #endif
-        } attachments: {
-            Attachment(id: "wrist-menu") {
-                WristMenuView()
-                    .environmentObject(windows)
-                    .environmentObject(workspace)
-            }
+        } update: { content in
+            if let anchor = content.entities.first as? AnchorEntity { configure(anchor) }
         }
     }
 
-    private func mountMenu(in content: RealityViewContent, attachments: RealityViewAttachments) {
-        guard let menu = attachments.entity(for: "wrist-menu"),
-            let anchor = content.entities.first(where: { $0.name == workspace.wrist.rawValue }) else { return }
-        guard menu.parent !== anchor else { return }
-        anchor.addChild(menu)
-        let isLeft = workspace.wrist == .left
-        // Wrist +Y points out of the back of the hand; +Z points toward the thumb.
-        // Face away from the wrist, with the top toward the fingers on either hand.
-        // Bias toward the forearm to leave the system's hand overlays clear.
+    private func configure(_ anchor: AnchorEntity) {
+        guard let menu = anchor.children.first else { return }
+        #if targetEnvironment(simulator)
+        let anchoring = AnchoringComponent(.head, trackingMode: .once)
+        menu.position = [0, -0.15, -0.65]
+        #else
+        let isLeft = wrist == .left
+        let anchoring = AnchoringComponent(.hand(isLeft ? .left : .right, location: .wrist), trackingMode: .continuous)
+        // Wrist +Y points out of the hand and +Z toward the thumb. Face outward,
+        // top toward the fingers; offset toward the forearm to clear system overlays.
         menu.position = [isLeft ? -0.12 : 0.12, 0.045, 0]
         menu.orientation = simd_quatf(angle: isLeft ? -.pi / 2 : .pi / 2, axis: [0, 1, 0])
             * simd_quatf(angle: -.pi / 2, axis: [1, 0, 0])
+        #endif
+        if anchor.anchoring != anchoring { anchor.anchoring = anchoring }
         menu.scale = .init(repeating: 0.6)
     }
 }
@@ -60,17 +47,9 @@ private struct WristMenuView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 10) {
-                Image(systemName: "square.stack.3d.up.fill").foregroundStyle(.cyan)
-                Text("SlopZooka").font(.headline)
-                Spacer()
-            }
-            Button { windows.openLauncher() } label: {
-                Label("Open Launcher", systemImage: "square.grid.2x2")
-                    .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
-            }
-            .buttonStyle(.borderedProminent)
-            .tint(.cyan)
+            Label("SlopZooka", systemImage: "square.stack.3d.up.fill").font(.headline)
+            Button("Open Launcher", systemImage: "square.grid.2x2", action: windows.openLauncher)
+                .buttonStyle(.borderedProminent).tint(.cyan)
 
             if windows.terminalSessions.isEmpty {
                 Text("Open the launcher to choose a project.")
@@ -86,7 +65,6 @@ private struct WristMenuView: View {
                             .lineLimit(1)
                             .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
                     }
-                    .buttonStyle(.bordered)
                     .accessibilityLabel("Open terminal, \(session.payload.title)")
                 }
             }
@@ -101,6 +79,8 @@ private struct WristMenuView: View {
                 .font(.caption2).foregroundStyle(.secondary)
             #endif
         }
+        .buttonStyle(.bordered)
+        .controlSize(.large)
         .padding(20)
         .frame(width: 320)
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))

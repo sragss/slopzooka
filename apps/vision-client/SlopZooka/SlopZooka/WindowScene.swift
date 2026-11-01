@@ -20,8 +20,8 @@ struct ImmersiveWorkspaceScene: View {
     var body: some View {
         WristWorkspaceView()
             .modifier(SceneActions(windows: windows))
-            .onAppear { windows.immersiveWorkspace.didAppear() }
-            .onDisappear { windows.immersiveWorkspace.didDisappear() }
+            .onAppear { windows.immersiveWorkspace.observe(isPresented: true) }
+            .onDisappear { windows.immersiveWorkspace.observe(isPresented: false) }
     }
 }
 
@@ -70,13 +70,10 @@ struct ImmersiveWorkspaceControl: View {
     var body: some View {
         Group {
             if exitOnly {
-                Button { changeMode(false) } label: {
-                    Label("Exit Immersive Workspace", systemImage: "arrow.uturn.backward")
-                        .frame(maxWidth: .infinity, minHeight: 32, alignment: .leading)
-                }.buttonStyle(.bordered)
+                Button("Exit Immersive Workspace", systemImage: "arrow.uturn.backward") { changeMode(false) }
             } else {
                 Toggle("Immersive workspace", isOn: Binding(
-                    get: { workspace.isEnabled }, set: changeMode))
+                    get: { workspace.isPresented }, set: changeMode))
             }
         }
         .disabled(workspace.isTransitioning)

@@ -5,23 +5,24 @@ struct LauncherSettingsView: View {
     @EnvironmentObject private var state: LauncherState
     @EnvironmentObject private var workspace: ImmersiveWorkspaceState
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("wristMenuHand") private var wrist: Wrist = .left
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     ImmersiveWorkspaceControl()
-                    if workspace.isEnabled {
-                        Picker("Wrist", selection: $workspace.wrist) {
-                            ForEach(ImmersiveWorkspaceState.Wrist.allCases) { wrist in
-                                Text(wrist.title).tag(wrist)
+                    if workspace.isPresented {
+                        Picker("Wrist", selection: $wrist) {
+                            ForEach(Wrist.allCases, id: \.self) { wrist in
+                                Text(wrist.rawValue.capitalized).tag(wrist)
                             }
                         }
                         .pickerStyle(.segmented)
                         .disabled(workspace.isTransitioning)
                     }
                     if workspace.isTransitioning {
-                        ProgressView(workspace.phase == .opening ? "Opening workspace…" : "Closing workspace…")
+                        ProgressView("Updating workspace…")
                     }
                     if let error = workspace.error {
                         Text(error).foregroundStyle(.orange)
@@ -38,7 +39,17 @@ struct LauncherSettingsView: View {
                     } label: {
                         LabeledContent("Connected Mac", value: state.isReady ? "Connected" : "Not connected")
                     }
-                    NavigationLink("Troubleshooting") { troubleshooting }
+                    DisclosureGroup("Troubleshooting") {
+                        Button("Reload All Window Content", systemImage: "arrow.clockwise") { windows.reload() }
+                            .disabled(!state.isReady)
+                        Text("Reloads content without ending sessions or moving windows.")
+                            .font(.footnote).foregroundStyle(.secondary)
+                        if case .success(let health) = state.healthState {
+                            Text("Address: \(health.controlOrigin)").textSelection(.enabled)
+                            Text("Logs: \(health.logFilePath)").textSelection(.enabled)
+                        }
+                        if let error = windows.persistenceError { Text(error).foregroundStyle(.orange) }
+                    }
                 }
             }
             .navigationTitle("Settings")
@@ -51,24 +62,4 @@ struct LauncherSettingsView: View {
         .frame(width: 540, height: 560)
     }
 
-    private var troubleshooting: some View {
-        Form {
-            Section {
-                Button("Reload All Window Content", systemImage: "arrow.clockwise") { windows.reload() }
-                    .disabled(!state.isReady)
-            } footer: {
-                Text("Reloads terminal and preview content without ending sessions or moving windows.")
-            }
-            if case .success(let health) = state.healthState {
-                Section("Mac details") {
-                    Text("Address: \(health.controlOrigin)")
-                    Text("Logs: \(health.logFilePath)")
-                }.textSelection(.enabled)
-            }
-            if let error = windows.persistenceError {
-                Section("Window recovery") { Text(error).foregroundStyle(.orange) }
-            }
-        }
-        .navigationTitle("Troubleshooting")
-    }
 }

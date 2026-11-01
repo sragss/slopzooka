@@ -17,7 +17,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
-      - run: pnpm test:vision-state
       - run: pnpm format:check
       - run: pnpm test
       - run: pnpm test:vision-state

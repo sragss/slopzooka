@@ -8,19 +8,12 @@ struct MacConnectionView: View {
     @State private var connectionHost = ""
     @FocusState private var pairingCodeFocused: Bool
 
-    var body: some View {
-        connectionContent
-            .onChange(of: state.host) { old, new in
-                if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
-            }
-    }
-
     private var selectedMacName: String {
         discovery.companions.first(where: { $0.candidateHosts.contains(state.normalizedHost) })?.name
             ?? state.connection.endpoint?.host() ?? "your Mac"
     }
 
-    private var connectionContent: some View {
+    var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             if state.needsPairing {
                 Text("Connect to \(selectedMacName)").font(.title3.weight(.semibold))
@@ -89,6 +82,9 @@ struct MacConnectionView: View {
             }
         }
         .onAppear { connectionHost = state.host }
+        .onChange(of: state.host) { old, new in
+            if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
+        }
     }
 
     private func selectMac(_ host: String) {
