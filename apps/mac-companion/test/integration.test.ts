@@ -8,6 +8,7 @@ import http from "node:http";
 import https from "node:https";
 import { once } from "node:events";
 import { WebSocket, WebSocketServer } from "ws";
+import { SessionServiceClient } from "../src/session-service-client.js";
 import { FrontendService } from "../src/frontends.js";
 import { tlsFetch } from "./https.js";
 import { isClientMessage } from "../../../packages/protocol/src/index.js";
@@ -519,6 +520,15 @@ test(
       const exited = once(child, "exit");
       child.kill("SIGTERM");
       await exited;
+      const service = await SessionServiceClient.forHome(home);
+      assert.ok(
+        (await service.info()).sessions.some(
+          (session) => session.id === "terminal-2",
+        ),
+        "HTTP shutdown preserves terminals",
+      );
+      process.kill(shutdownChildPID, 0);
+      await service.stop();
       await until(() => {
         try {
           process.kill(shutdownChildPID!, 0);
@@ -538,6 +548,12 @@ test(
         } catch {}
       }
       if (child.exitCode === null) child.kill("SIGKILL");
+      const service = await SessionServiceClient.forHome(home);
+      await service.stop().catch(() => {});
+      await fs.rm(path.dirname(service.socketPath), {
+        recursive: true,
+        force: true,
+      });
       await fs.rm(home, { recursive: true, force: true });
     }
   },

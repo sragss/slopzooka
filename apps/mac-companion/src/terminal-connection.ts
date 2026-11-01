@@ -10,6 +10,7 @@ export class TerminalConnection {
   private socket?: WebSocket;
   private renderTail: Promise<void> = Promise.resolve();
   private cursor?: number;
+  private serviceInstanceId?: string;
   private retry?: ReturnType<typeof setTimeout>;
   private handshake?: ReturnType<typeof setTimeout>;
   private readonly inputSubscription: { dispose(): void };
@@ -18,12 +19,14 @@ export class TerminalConnection {
   private writable = false;
   private running = false;
   private attached = false;
+  private lostConnection = false;
   constructor(
     private readonly terminal: Terminal,
     private readonly sessionId: string,
     private readonly status: (
       message: string,
-      state: "connecting" | "running" | "exited" | "failed",
+      state: "connecting" | "disconnected" | "running" | "exited" | "failed",
+      readOnly?: boolean,
     ) => void,
     private readonly fit: () => void,
   ) {
@@ -41,7 +44,12 @@ export class TerminalConnection {
     this.clearTimers();
     this.attached = false;
     this.writable = false;
-    this.status("Connecting to your Mac…", "connecting");
+    this.status(
+      this.lostConnection
+        ? "Lost companion connection."
+        : "Connecting to your Mac…",
+      this.lostConnection ? "disconnected" : "connecting",
+    );
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(url);
@@ -71,18 +79,18 @@ export class TerminalConnection {
       this.clearTimers();
       this.attached = false;
       this.writable = false;
-      this.status(
-        "Reconnecting to your Mac… Keep SlopZooka running.",
-        "connecting",
-      );
+      this.lostConnection = true;
+      this.status("Lost companion connection.", "disconnected");
       this.retry = setTimeout(
         () => this.connect(),
         Math.min(10000, 300 * 2 ** this.attempts++) + Math.random() * 300,
       );
     };
     ws.onerror = () => {
-      if (this.isCurrent(ws))
-        this.status("Connection interrupted", "connecting");
+      if (this.isCurrent(ws)) {
+        this.lostConnection = true;
+        this.status("Lost companion connection.", "disconnected");
+      }
     };
   }
   resize(): void {
@@ -149,6 +157,13 @@ export class TerminalConnection {
         break;
       case "hello":
         if (!this.isCurrent(ws)) return;
+        if (
+          m.serviceInstanceId &&
+          this.serviceInstanceId &&
+          m.serviceInstanceId !== this.serviceInstanceId
+        )
+          this.cursor = undefined;
+        this.serviceInstanceId = m.serviceInstanceId;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -179,6 +194,7 @@ export class TerminalConnection {
         this.running = m.session.status === "running";
         this.writable = m.writable;
         this.attached = true;
+        this.lostConnection = false;
         this.status(
           this.running
             ? m.writable
@@ -186,6 +202,7 @@ export class TerminalConnection {
               : "Connected • read only"
             : "Session ended",
           this.running ? "running" : "exited",
+          this.running && !m.writable,
         );
         this.resize();
         break;

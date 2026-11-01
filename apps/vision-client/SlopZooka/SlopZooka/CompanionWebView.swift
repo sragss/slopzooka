@@ -94,12 +94,14 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }
+        terminalReady = body["state"] == "running"
         switch body["state"] {
         case "running":
             terminalReady = true
             loadState.wrappedValue = .loaded
             if let webView { applyZoom(in: webView) }
             if pendingFocus, let webView { requestFocus(in: webView) }
+        case "disconnected": loadState.wrappedValue = .disconnected
         case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
         case "exited": loadState.wrappedValue = .ended(body["message"] ?? "Session ended")
         default: loadState.wrappedValue = .loading(body["message"] ?? "Connecting")

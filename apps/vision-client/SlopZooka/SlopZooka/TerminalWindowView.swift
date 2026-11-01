@@ -73,6 +73,20 @@ struct TerminalWindowView: View {
                 .frame(maxWidth: .infinity, minHeight: 360)
             }
 
+            if let notice = terminalConnectionNotice {
+                VStack(spacing: 10) {
+                    Text(notice.title).font(.headline)
+                    if let guidance = notice.guidance {
+                        Text(guidance).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .multilineTextAlignment(.center)
+                .padding(28)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .allowsHitTesting(false)
+            }
+
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
                     if let statusText = terminalStatusText {
@@ -243,14 +257,23 @@ struct TerminalWindowView: View {
         }
     }
 
+    private var terminalConnectionNotice: (title: String, guidance: String?)? {
+        switch loadState {
+        case .disconnected:
+            return ("Lost companion connection.", "Reopen SlopZooka on your Mac.")
+        case .idle, .loading:
+            return ("Connecting to your Mac…", nil)
+        case .loaded, .failed, .ended:
+            return nil
+        }
+    }
+
     private var terminalStatusText: String? {
         switch loadState {
         case .ended(let message):
             return message
-        case .idle, .loaded:
+        case .idle, .loaded, .loading, .disconnected:
             return nil
-        case .loading:
-            return "Loading"
         case .failed:
             return "Failed"
         }
@@ -260,7 +283,7 @@ struct TerminalWindowView: View {
         switch loadState {
         case .failed:
             return AnyShapeStyle(.red)
-        case .loading, .idle, .loaded, .ended:
+        case .loading, .disconnected, .idle, .loaded, .ended:
             return AnyShapeStyle(.secondary)
         }
     }

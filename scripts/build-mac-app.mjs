@@ -34,7 +34,9 @@ if (!signingIdentity) {
 console.log(
   `Signing companion with ${signingIdentity === "-" ? "ad-hoc identity (permissions may reset)" : signingIdentity}`,
 );
-const destination = path.join(root, "build/mac-app");
+const destination = path.resolve(
+  process.env.SLOPZOOKA_BUILD_DIR ?? path.join(root, "build/mac-app"),
+);
 function requireStopped() {
   const bundle = path.join(destination, "SlopZooka.app");
   const processes = execFileSync("ps", ["-axo", "command="], {
@@ -89,6 +91,10 @@ try {
     "--format=esm",
     "--packages=external",
     `--outfile=${resources}/host/src/server.mjs`,
+  ]);
+  run("node", [
+    path.join(root, "apps/mac-companion/scripts/build-session-runtime.mjs"),
+    path.join(resources, "session-runtime"),
   ]);
   await fs.copyFile(process.execPath, path.join(resources, "runtime/node"));
   await fs.chmod(path.join(resources, "runtime/node"), 0o755);

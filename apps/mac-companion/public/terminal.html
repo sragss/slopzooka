@@ -6,6 +6,12 @@
     <title>SlopZooka Terminal</title>
     <link rel="icon" type="image/png" sizes="64x64" href="/favicon.png" />
     <link rel="stylesheet" href="/terminal.css" />
+    <script>
+      // The headset renders the same connection state natively, including before
+      // this document loads. Browser terminals use the centered HTML notice.
+      if (window.webkit?.messageHandlers?.terminalState)
+        document.documentElement.dataset.nativeTerminal = "true";
+    </script>
     <style>
       :root {
         color-scheme: dark;
@@ -38,32 +44,56 @@
         height: 100%;
       }
 
-      .overlay {
+      [hidden] {
+        display: none !important;
+      }
+
+      .connection-overlay {
         position: fixed;
-        top: 14px;
-        left: 14px;
-        right: 14px;
-        display: flex;
-        justify-content: space-between;
-        align-items: flex-start;
-        gap: 12px;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        padding: 24px;
         pointer-events: none;
       }
 
-      .pill {
-        max-width: min(50vw, 720px);
-        padding: 10px 14px;
-        border: 1px solid var(--border);
-        border-radius: 999px;
-        background: var(--overlay);
-        backdrop-filter: blur(14px);
-        font-size: 13px;
-        line-height: 1.3;
-        color: var(--muted);
+      [data-native-terminal] .connection-overlay {
+        display: none;
       }
 
-      .pill strong {
-        color: var(--text);
+      .connection-card {
+        max-width: 440px;
+        padding: 24px 32px;
+        border: 1px solid var(--border);
+        border-radius: 20px;
+        background: var(--overlay);
+        backdrop-filter: blur(14px);
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        text-align: center;
+        line-height: 1.5;
+      }
+
+      #connection-message {
+        font-size: 18px;
+        font-weight: 600;
+      }
+
+      #connection-guidance {
+        margin: 8px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      #read-only {
+        position: fixed;
+        top: 14px;
+        left: 14px;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--overlay);
+        color: var(--muted);
+        font-size: 13px;
+        pointer-events: none;
       }
 
       .error {
@@ -73,12 +103,18 @@
   </head>
   <body>
     <div id="terminal"></div>
-    <div class="overlay">
-      <div id="title-pill" class="pill">
-        <strong>SlopZooka</strong> Preparing terminal...
+    <div
+      id="connection-overlay"
+      class="connection-overlay"
+      role="status"
+      aria-live="polite"
+    >
+      <div class="connection-card">
+        <div id="connection-message">Connecting to your Mac…</div>
+        <p id="connection-guidance" hidden>Reopen SlopZooka on your Mac.</p>
       </div>
-      <div id="status-pill" class="pill">Connecting...</div>
     </div>
+    <div id="read-only" hidden>Read only</div>
     <script type="module" src="/terminal.js"></script>
   </body>
 </html>

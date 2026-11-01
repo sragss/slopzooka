@@ -431,6 +431,8 @@ struct ContentView: View {
             return "Session ended"
         case .failed:
             return session.isPresented ? "Connection needs attention" : "Reopen to reconnect"
+        case .disconnected:
+            return "Mac companion disconnected"
         case .loading:
             return session.isPresented ? "Connecting…" : "Reopen to connect"
         case .idle, .loaded:
