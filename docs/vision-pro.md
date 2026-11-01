@@ -14,7 +14,9 @@ The headset launcher separates **Terminals**, **Projects**, and **Frontends**, a
 
 ## Keyboard and zoom
 
-Tap inside a terminal to focus input and type with a connected keyboard. Use **Interrupt** in the terminal toolbar to send Escape.
+Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose **Keyboard** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.
+
+Use **Interrupt** in the terminal toolbar to send Escape without changing keyboard focus. WebKit editing events for Return, Backspace, and Delete are routed through the terminal's key handling. Update both apps for separate floating-keyboard control; older companions retain typing focus but may also show the floating keyboard.
 
 Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom** starts at **60%** and persists across app launches. Terminals without a custom zoom follow that default; existing scene zoom preferences are preserved. Reset Zoom applies the current saved default. Use the zoom controls in the actions menu; it stays open for repeated adjustments.
 

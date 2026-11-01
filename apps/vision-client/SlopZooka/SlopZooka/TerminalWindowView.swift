@@ -37,10 +37,6 @@ struct TerminalWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .onAppear { syncScenePhase(scenePhase) }
-        .onChange(of: scenePhase) { _, newPhase in
-            syncScenePhase(newPhase)
-        }
     }
 
     private var payload: TerminalWindowPayload? {
@@ -58,6 +54,7 @@ struct TerminalWindowView: View {
                     url: url,
                     reloadToken: windows.reloadToken(for: payload.id),
                     loadState: $loadState,
+                    isActive: scenePhase == .active,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
                     zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue)
@@ -119,6 +116,15 @@ struct TerminalWindowView: View {
                     }
 
                     Button {
+                        focusRequestToken += 1
+                    } label: {
+                        Label("Keyboard", systemImage: "keyboard")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSubmitSpeech)
+                    .help("Type in the terminal")
+
+                    Button {
                         interruptRequestToken += 1
                     } label: {
                         Label("Interrupt", systemImage: "escape")
@@ -155,8 +161,7 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech,
-            onSent: { focusRequestToken += 1 }))
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech))
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
             Text(payload.title)
                 .font(.system(size: 48, weight: .bold, design: .rounded))
@@ -314,10 +319,6 @@ struct TerminalWindowView: View {
     private var canSubmitSpeech: Bool {
         if case .loaded = loadState { return payload != nil && scenePhase == .active }
         return false
-    }
-
-    private func syncScenePhase(_ phase: ScenePhase) {
-        if phase == .active { focusRequestToken += 1 }
     }
 
     private func newShell(payload: TerminalWindowPayload) async {

@@ -19,7 +19,7 @@ terminal.open(document.getElementById('terminal'));
 const input = terminal.textarea;
 let data = [];
 terminal.onData(value => data.push(value));
-window.runKeyboardChecks = () => {
+window.runKeyboardChecks = async () => {
   const check = (expected, label) => {
     if (JSON.stringify(data) !== JSON.stringify(expected)) throw Error(label + ': ' + JSON.stringify(data));
     data = [];
@@ -27,7 +27,6 @@ window.runKeyboardChecks = () => {
   const edit = (type, target = input, composing = false) => target.dispatchEvent(new InputEvent('beforeinput', {
     inputType: type, bubbles: true, cancelable: true, isComposing: composing
   }));
-  window.slzInterruptTerminal(); check(['\\x1b'], 'interrupt sends Escape');
   edit('insertLineBreak'); check(['\\r'], 'floating Return');
   edit('insertParagraph'); check(['\\r'], 'paragraph Return');
   const accepted = input.dispatchEvent(new KeyboardEvent('keydown', {
@@ -36,6 +35,45 @@ window.runKeyboardChecks = () => {
   if (accepted) edit('insertLineBreak');
   input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true}));
   check(['\\r'], 'hardware Enter must not double submit');
+  for (const mode of ['none', 'text']) {
+    input.inputMode = mode;
+    for (const [key, code, keyCode, expected, modifiers = {}] of [
+      ['Backspace', 'Backspace', 8, '\\x7f'],
+      ['Delete', 'Delete', 46, '\\x1b[3~'],
+      ['Tab', 'Tab', 9, '\\t'],
+      ['Escape', 'Escape', 27, '\\x1b'],
+      ['ArrowLeft', 'ArrowLeft', 37, '\\x1b[D'],
+      ['Backspace', 'Backspace', 8, '\\b', {ctrlKey: true}],
+      ['Backspace', 'Backspace', 8, '\\x1b\\x7f', {altKey: true}],
+    ]) {
+      const options = {key, code, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+      const accepted = input.dispatchEvent(new KeyboardEvent('keydown', options));
+      if (accepted && key === 'Backspace') edit('deleteContentBackward');
+      if (accepted && key === 'Delete') edit('deleteContentForward');
+      input.dispatchEvent(new KeyboardEvent('keyup', options));
+      check([expected], key + ' in inputmode=' + mode);
+    }
+  }
+  edit('deleteContentBackward'); check(['\\x7f'], 'editing-only Backspace');
+  edit('deleteContentForward'); check(['\\x1b[3~'], 'editing-only Delete');
+  for (const keyCode of [0, 229]) {
+    input.value = 'x';
+    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true, cancelable: true}));
+    edit('deleteContentBackward');
+    input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true}));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    check(['\\x7f'], 'Backspace with unusable keyCode=' + keyCode + ' must send exactly once');
+    input.value = '';
+  }
+  edit('deleteContentBackward'); edit('deleteContentBackward');
+  check(['\\x7f', '\\x7f'], 'repeated editing-only Backspace');
+  edit('deleteContentBackward', input, true); check([], 'composition deletion must not emit a terminal key');
+  edit('deleteContentForward', input, true); check([], 'composition forward deletion must not emit a terminal key');
+  edit('deleteContentBackward', document.getElementById('other')); check([], 'other fields must keep their deletion behavior');
+  edit('deleteContentForward', document.getElementById('other')); check([], 'other fields must keep forward deletion');
+  const alreadyHandled = new InputEvent('beforeinput', {inputType: 'deleteContentBackward', bubbles: true, cancelable: true});
+  alreadyHandled.preventDefault(); input.dispatchEvent(alreadyHandled);
+  check([], 'already handled deletion must not duplicate input');
   input.dispatchEvent(new InputEvent('input', {inputType:'insertText', data:'x', bubbles:true}));
   check(['x'], 'normal typing');
   edit('insertLineBreak', input, true); check([], 'composition must not submit');
@@ -126,6 +164,50 @@ window.runViewportChecks = async () => {
   };
   const resizes = () => sent.filter(message => message.type === 'resize');
   await until(() => resizes().length > 0);
+  const isFocused = () => document.activeElement === terminal.textarea;
+  const inputs = () => sent.filter(message => message.type === 'input').map(message => message.data);
+  const checkInputs = (expected, label) => check(JSON.stringify(inputs()) === JSON.stringify(expected), label + ': ' + JSON.stringify(inputs()));
+  const hardwareKey = (key, code, keyCode, modifiers = {}) => {
+    const target = document.activeElement;
+    const options = {key, code, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+    const accepted = target.dispatchEvent(new KeyboardEvent('keydown', options));
+    if (accepted && key.length === 1) target.dispatchEvent(new KeyboardEvent('keypress', {
+      ...options, keyCode: key.charCodeAt(0), charCode: key.charCodeAt(0), which: key.charCodeAt(0)
+    }));
+    target.dispatchEvent(new KeyboardEvent('keyup', options));
+  };
+  check(isFocused(), 'Opening a terminal must be ready for physical keyboard typing');
+  check(terminal.textarea.inputMode === 'none', 'Automatic focus must suppress only the software keyboard');
+  check(!terminal.textarea.readOnly && !terminal.textarea.disabled, 'Hardware input must remain editable');
+  hardwareKey('a', 'KeyA', 65);
+  hardwareKey('ArrowLeft', 'ArrowLeft', 37);
+  hardwareKey('Enter', 'Enter', 13);
+  hardwareKey('c', 'KeyC', 67, {ctrlKey: true});
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03'], 'Hardware text, arrows, Return, and Ctrl+C must reach the PTY without requesting software UI');
+  window.slzFocusTerminal(true);
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'The Keyboard button must request software UI while keeping input focused');
+  window.slzInterruptTerminal();
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must preserve the requested keyboard mode');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b'], 'Focused interrupt must send exactly one Escape');
+  window.slzFocusTerminal(false);
+  check(isFocused() && terminal.textarea.inputMode === 'none', 'Reactivating a terminal must restore physical input without software UI');
+  hardwareKey('b', 'KeyB', 66);
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b'], 'Hardware typing must work after reactivation');
+  terminal.blur();
+  mount.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'Tapping the terminal must explicitly request the software keyboard');
+  terminal.blur();
+  window.slzInterruptTerminal();
+  check(!isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must not change focus or keyboard mode');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b'], 'Unfocused interrupt must send exactly one Escape');
+  window.slzFocusTerminal(false);
+  const attachments = () => sent.filter(message => message.type === 'attach').length;
+  const beforeReconnect = attachments();
+  window.dispatchEvent(new Event('online'));
+  await until(() => attachments() > beforeReconnect && resizes().length > 1);
+  check(isFocused() && terminal.textarea.inputMode === 'none', 'Reconnecting must preserve physical keyboard focus and software suppression');
+  hardwareKey('d', 'KeyD', 68);
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
   const legacy = new URLSearchParams(location.search).has('legacy');
   check(legacy || typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
@@ -134,6 +216,7 @@ window.runViewportChecks = async () => {
     window.applyNativeZoom(zoom);
     await until(() => resizes().length > before);
     const size = resizes().at(-1);
+    check(isFocused() && terminal.textarea.inputMode === 'none', 'Zoom must preserve physical keyboard focus and software suppression');
     check(isClientMessage(size), 'Invalid resize at zoom ' + zoom);
     check(size.cols === terminal.cols && size.rows === terminal.rows, 'PTY and emulator grids diverged');
     if (zoom === 0.6 || zoom === 0.7 || zoom === 0.5 || zoom === 0.3) {
@@ -195,6 +278,28 @@ window.runViewportChecks = async () => {
   await fs.writeFile(viewportHTML, surface);
   run(executable, [viewportHTML, "viewport"]);
   run(executable, [viewportHTML, "legacy"]);
+  const nativeChecks = path.join(temporary, "native-focus-checks");
+  run("xcrun", [
+    "swiftc",
+    "-swift-version",
+    "5",
+    "-parse-as-library",
+    ...[
+      "CompanionWebView",
+      "CompanionModels",
+      "TerminalNavigation",
+      "TerminalZoom",
+    ].map((name) =>
+      path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
+    ),
+    path.join(
+      root,
+      "apps/vision-client/tests/TerminalSessionControllerChecks.swift",
+    ),
+    "-o",
+    nativeChecks,
+  ]);
+  run(nativeChecks, []);
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }

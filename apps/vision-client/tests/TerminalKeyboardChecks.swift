@@ -57,8 +57,8 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                     return await \(function)();
                     """, arguments: ["zoomScripts": scripts], in: nil, contentWorld: .page)
                 guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
-                print(viewport ? "PASS: font zoom fills the viewport, refits the emulator, sends matching PTY resizes, and respects grid bounds"
-                    : "PASS: Escape interrupt, floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")
+                print(viewport ? "PASS: automatic hardware input, explicit software keyboard mode, focus-preserving reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
+                    : "PASS: hardware editing keys in both keyboard modes, editing-only Return/Backspace/Delete, normal text, composition, and non-terminal fields")
                 exit(0)
             } catch {
                 fputs("FAIL: \(error)\n", stderr)
