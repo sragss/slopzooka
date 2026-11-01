@@ -4,10 +4,8 @@ import WebKit
 struct BrowserWindowView: View {
     let previewID: String?
 
-    @EnvironmentObject private var appModel: AppModel
-    @Environment(\.dismissWindow) private var dismissWindow
+    @EnvironmentObject private var windows: WindowGateway
     @State private var loadState: BrowserLoadState = .idle
-    @State private var reloadToken = 0
 
     var body: some View {
         Group {
@@ -15,7 +13,7 @@ struct BrowserWindowView: View {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
                         PreviewWebView(url: url, certificateAuthority: payload.certificateAuthority,
-                            loadState: $loadState, reloadToken: reloadToken)
+                            loadState: $loadState, reloadToken: windows.reloadToken(for: payload.id))
                             .id(payload.id)
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -41,7 +39,7 @@ struct BrowserWindowView: View {
                         Spacer(minLength: 0)
 
                         Button {
-                            reloadToken += 1
+                            windows.reload(id: payload.id)
                         } label: {
                             Image(systemName: "arrow.clockwise")
                                 .font(.title3)
@@ -51,7 +49,7 @@ struct BrowserWindowView: View {
                         .background(.regularMaterial, in: Circle())
 
                         Button {
-                            closeWindow(payloadID: payload.id)
+                            windows.close(id: payload.id)
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.headline.weight(.semibold))
@@ -63,12 +61,7 @@ struct BrowserWindowView: View {
                     .padding(14)
                 }
             } else {
-                ContentUnavailableView(
-                    "Preview Unavailable",
-                    systemImage: "rectangle.slash",
-                    description: Text("This preview is no longer available.")
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                WindowRecoveryView(id: previewID)
             }
         }
     }
@@ -78,15 +71,11 @@ struct BrowserWindowView: View {
             return nil
         }
 
-        return appModel.previewPayload(for: previewID)
-    }
-
-    private func closeWindow(payloadID: String) {
-        appModel.removePreview(id: payloadID)
-        dismissWindow(id: "preview", value: payloadID)
+        return windows.previewPayload(for: previewID)
     }
 
     private var statusText: String? {
+        if let previewID, let error = windows.contentError(for: previewID) { return error }
         switch loadState {
         case .idle, .loaded:
             return nil
@@ -98,6 +87,7 @@ struct BrowserWindowView: View {
     }
 
     private var statusColor: AnyShapeStyle {
+        if let previewID, windows.contentError(for: previewID) != nil { return AnyShapeStyle(.red) }
         switch loadState {
         case .failed:
             return AnyShapeStyle(.red)

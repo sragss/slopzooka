@@ -27,8 +27,8 @@ final class LauncherState: ObservableObject {
     @Published var mutatingWorkspaceID: String?
     @Published var isPruningMissingWorkspaces = false
     @Published var feedback: LaunchFeedback?
-    var onTerminalLaunch: ((TerminalWindowPayload) -> Void)?
-    var onSessionSnapshot: (([TerminalWindowPayload]) -> Void)?
+    var launchTerminal: ((String, URL, String?) async throws -> Void)?
+    var onSessionSnapshot: (([HostSession], URL, String) async -> Void)?
 
     private var connecting = false
     private var refreshing = false
@@ -143,7 +143,7 @@ final class LauncherState: ObservableObject {
         do {
             let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: base, path: "/api/sessions")
             guard !Task.isCancelled, base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            onSessionSnapshot?(sessions.sessions.compactMap { terminalPayload($0, base: base) })
+            if let hostID = connection.hostID { await onSessionSnapshot?(sessions.sessions, base, hostID) }
             // Preview availability must not block terminal recovery.
             let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: base, path: "/api/frontends")
             guard !Task.isCancelled, base == CompanionAPI.baseURL(host: normalizedHost) else { return }
@@ -253,27 +253,10 @@ final class LauncherState: ObservableObject {
     }
 
     private func startSession(workspace: LaunchWorkspaceResponse, base: URL, profile: String?) async throws {
-        let body = try JSONSerialization.data(withJSONObject: [
-            "sessionId": UUID().uuidString, "profile": profile as Any? ?? NSNull(),
-        ])
-        let result = try await CompanionAPI.request(
-            CreatedSessionResponse.self, base: base,
-            path: "/api/workspaces/\(workspace.workspaceId)/sessions", method: "POST", body: body)
         try Task.checkCancellation()
-        guard let terminal = terminalPayload(result.session, base: base) else { throw URLError(.badURL) }
-        onTerminalLaunch?(terminal)
+        guard let launchTerminal else { throw CompanionError(message: "Window gateway is unavailable") }
+        try await launchTerminal(workspace.workspaceId, base, profile)
         feedback = LaunchFeedback(message: "\(workspace.repo.nameWithOwner) • \(workspace.branchName)", style: .success)
-    }
-
-    private func terminalPayload(_ session: HostSession, base: URL) -> TerminalWindowPayload? {
-        guard var components = URLComponents(url: base, resolvingAgainstBaseURL: false) else { return nil }
-        components.path = "/terminal"
-        components.queryItems = [URLQueryItem(name: "sessionId", value: session.id)]
-        guard let url = components.url else { return nil }
-        return TerminalWindowPayload(
-            id: session.id, workspaceId: session.workspaceId,
-            title: "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)",
-            urlString: url.absoluteString)
     }
 
     func archive(_ workspace: WorkspaceSummary) async {

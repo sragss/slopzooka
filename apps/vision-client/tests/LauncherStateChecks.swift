@@ -51,6 +51,10 @@ struct LauncherStateChecks {
             precondition(!TerminalNavigation.allows(URL(string: rejected)!, document: terminal))
         }
         let state = LauncherState()
+        state.launchTerminal = { workspaceID, base, _ in
+            _ = try await CompanionAPI.request(CreatedSessionResponse.self, base: base,
+                path: "/api/workspaces/\(workspaceID)/sessions", method: "POST")
+        }
         state.host = "fixture.invalid"
         let first = Task { await state.createRepoAndLaunch(owner: "test", repoName: "one", isPrivate: true) }
         while CompanionAPI.pending.count < 1 { await Task.yield() }

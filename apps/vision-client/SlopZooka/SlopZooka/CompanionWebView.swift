@@ -3,6 +3,7 @@ import WebKit
 
 struct CompanionWebView: UIViewRepresentable {
     let url: URL
+    let reloadToken: Int
     @Binding var loadState: TerminalLoadState
     let focusRequestToken: Int
     let interruptRequestToken: Int
@@ -10,6 +11,7 @@ struct CompanionWebView: UIViewRepresentable {
 
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
+        context.coordinator.reloadToken = reloadToken
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.userContentController.addUserScript(WKUserScript(
@@ -26,7 +28,9 @@ struct CompanionWebView: UIViewRepresentable {
     }
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
-        context.coordinator.load(url, in: webView)
+        let reload = context.coordinator.reloadToken != reloadToken
+        context.coordinator.reloadToken = reloadToken
+        context.coordinator.load(url, in: webView, force: reload)
         // Page zoom changes the CSS viewport; the terminal's ResizeObserver refits the PTY grid.
         if webView.pageZoom != CGFloat(zoom) { webView.pageZoom = CGFloat(zoom) }
         if context.coordinator.interruptToken != interruptRequestToken {
@@ -53,6 +57,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     var loadState: Binding<TerminalLoadState>
     var focusToken = 0
     var interruptToken = 0
+    var reloadToken = 0
     private var requestedURL: URL?
     private weak var webView: WKWebView?
     private var terminalReady = false
@@ -65,13 +70,13 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         webView.evaluateJavaScript("window.slzFocusTerminal?.()")
     }
     init(loadState: Binding<TerminalLoadState>) { self.loadState = loadState }
-    func load(_ url: URL, in webView: WKWebView) {
-        guard requestedURL != url else { return }
+    func load(_ url: URL, in webView: WKWebView, force: Bool = false) {
+        guard force || requestedURL != url else { return }
         requestedURL = url
         self.webView = webView
         terminalReady = false
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
-        webView.load(CompanionAPI.authorized(URLRequest(url: url)))
+        webView.load(CompanionAPI.authorized(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)))
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }

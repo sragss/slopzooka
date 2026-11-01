@@ -253,6 +253,23 @@ test(
         profile: null,
       });
       assert.equal((await api("/api/sessions")).body.sessions.length, 2);
+      const layoutHeaders = {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        "X-SlopZooka-Client-ID": "11111111-1111-1111-1111-111111111111",
+      };
+      const windowRecord = {
+        id: "terminal-1",
+        kind: "terminal",
+        targetID: "terminal-1",
+      };
+      const saveLayout = (revision: number, windows: unknown[]) =>
+        fetch(base + "/api/window-layout", {
+          method: "PUT",
+          headers: layoutHeaders,
+          body: JSON.stringify({ revision, windows }),
+        });
+      assert.equal((await saveLayout(0, [windowRecord])).status, 200);
       const first = await connect();
       assert.equal(first.messages[0].sessions.length, 2);
       first.send({ type: "attach", sessionId: "terminal-1" });
@@ -328,6 +345,22 @@ test(
       await once(first.ws, "close");
       reader.ws.close();
       await once(reader.ws, "close");
+      const retainedLayout = await fetch(base + "/api/window-layout", {
+        headers: layoutHeaders,
+      }).then((response) => response.json());
+      assert.deepEqual(
+        retainedLayout.windows,
+        [windowRecord],
+        "disconnecting all viewers does not erase the desired window layout",
+      );
+      assert.equal((await saveLayout(retainedLayout.revision, [])).status, 200);
+      assert.equal(
+        (await api("/api/sessions")).body.sessions.find(
+          (session: { id: string }) => session.id === "terminal-1",
+        ).status,
+        "running",
+        "closing a saved window must not end its process",
+      );
       process.kill(pid, 0);
       assert.equal(
         (await api("/api/sessions")).body.sessions.filter(

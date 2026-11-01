@@ -3,10 +3,9 @@ import SwiftUI
 struct ContentView: View {
     private let launcherWindowSize = CGSize(width: 620, height: 760)
 
-    @Environment(\.openWindow) private var openWindow
-    @EnvironmentObject private var appModel: AppModel
-    @StateObject private var state = LauncherState()
-    @StateObject private var discovery = CompanionDiscovery()
+    @EnvironmentObject private var windows: WindowGateway
+    @EnvironmentObject private var state: LauncherState
+    @EnvironmentObject private var discovery: CompanionDiscovery
     @AppStorage("launcherSection") private var section: LauncherSection = .projects
     private enum Sheet: String, Identifiable {
         case connection, newRepo
@@ -79,37 +78,6 @@ struct ContentView: View {
                 }
             }
         }
-        .task {
-            state.onTerminalLaunch = { payload in
-                appModel.registerTerminal(payload)
-                openWindow(id: "terminal", value: payload.id)
-            }
-            state.onSessionSnapshot = { payloads in
-                appModel.reconcileTerminals(payloads, host: state.normalizedHost)
-            }
-            state.loadSavedPreferences()
-            discovery.onCompanionResolved = { companion in
-                Task {
-                    guard state.connection.shouldTry(companion.host) else { return }
-                    await state.maybeAutoConnect(candidateHosts: companion.candidateHosts, reason: "bonjour_callback")
-                }
-            }
-            discovery.start()
-            if !state.normalizedHost.isEmpty {
-                await state.maybeAutoConnect(candidateHost: state.normalizedHost, reason: "saved_host")
-            }
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(3))
-                if Task.isCancelled { break }
-                await state.refreshHostCatalog()
-            }
-        }
-        .onAppear {
-            slzLog("ContentView appeared")
-        }
-        .onDisappear {
-            discovery.stop()
-        }
         .onChange(of: state.host) { old, new in
             if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
         }
@@ -138,6 +106,9 @@ struct ContentView: View {
             Text("SlopZooka").font(.title2.weight(.semibold))
             Spacer()
             if isReady {
+                Button { windows.reload() } label: {
+                    Image(systemName: "arrow.clockwise")
+                }.help("Reload window content").accessibilityLabel("Reload window content")
                 Button { activeSheet = .connection } label: {
                     Label("Mac", systemImage: "desktopcomputer").font(.subheadline)
                 }.buttonStyle(.bordered)
@@ -148,17 +119,20 @@ struct ContentView: View {
     private var launcherMode: some View {
         VStack(alignment: .leading, spacing: 20) {
             if let feedback = state.feedback { feedbackBanner(feedback) }
+            if let error = windows.persistenceError {
+                Text(error).font(.footnote).foregroundStyle(.orange)
+            }
             if !isReady {
                 if activeSheet != .connection { connectionContent }
             } else {
                 switch section {
                 case .sessions:
                     VStack(alignment: .leading, spacing: 12) {
-                        sectionHeading("Your terminals", count: appModel.openTerminalSessions.count)
+                        sectionHeading("Your terminals", count: windows.terminalSessions.count)
                         Text("Reopen a session without interrupting what’s running.")
                             .font(.footnote).foregroundStyle(.secondary)
                         quickOpenSessionsContent
-                        if appModel.openTerminalSessions.isEmpty {
+                        if windows.terminalSessions.isEmpty {
                             Button("Open a Project") { section = .projects }.buttonStyle(.borderedProminent)
                         }
                     }
@@ -341,13 +315,14 @@ struct ContentView: View {
 
     @ViewBuilder
     private var quickOpenSessionsContent: some View {
-        if appModel.openTerminalSessions.isEmpty {
+        if windows.terminalSessions.isEmpty {
             compactEmptyView("No open terminal sessions.")
         } else {
             LazyVStack(spacing: 10) {
-                ForEach(appModel.openTerminalSessions) { session in
+                ForEach(windows.terminalSessions) { session in
                     Button {
-                        openWindow(id: "terminal", value: session.id)
+                        do { try windows.open(id: session.id) }
+                        catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
                     } label: {
                         let rowShape = RoundedRectangle(cornerRadius: 18, style: .continuous)
 

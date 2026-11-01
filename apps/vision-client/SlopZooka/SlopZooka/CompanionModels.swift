@@ -145,7 +145,8 @@ struct APIErrorResponse: Decodable {
     let error: String
 }
 
-struct TerminalWindowPayload: Codable, Hashable {
+// Resolved view data is deliberately not Codable. Persist WindowRecord instead.
+struct TerminalWindowPayload {
     let id: String
     let workspaceId: String
     let title: String
@@ -184,7 +185,7 @@ struct OpenFrontendResponse: Decodable {
     let gatewayScheme: String?
     let certificateAuthority: String?
 }
-struct PreviewWindowPayload: Codable, Hashable {
+struct PreviewWindowPayload {
     let id: String
     let title: String
     let urlString: String

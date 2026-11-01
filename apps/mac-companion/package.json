@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build:web": "esbuild src/harness.ts --bundle --format=esm --platform=browser --outfile=public/harness.js && esbuild src/terminal.ts --bundle --format=esm --platform=browser --outfile=public/terminal.js",
+    "build:web": "node scripts/build-web.mjs",
+    "dev:web": "node scripts/build-web.mjs --watch",
     "build:harness": "pnpm run build:web",
     "dev": "pnpm run start",
     "typecheck": "tsc --noEmit -p tsconfig.json",

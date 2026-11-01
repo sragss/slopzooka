@@ -49,8 +49,7 @@ struct FrontendListView: View {
     let warning: String?
     let baseURL: URL?
     var workspaceId: String? = nil
-    @EnvironmentObject private var appModel: AppModel
-    @Environment(\.openWindow) private var openWindow
+    @EnvironmentObject private var windows: WindowGateway
     @State private var error: String?
     @State private var failureAction = "complete this action"
     @State private var opening: String?
@@ -190,27 +189,7 @@ struct FrontendListView: View {
         failureAction = "open this frontend"
         defer { opening = nil }
         do {
-            let result = try await CompanionAPI.request(
-                OpenFrontendResponse.self, base: baseURL, path: "/api/frontends/open", method: "POST",
-                body: JSONSerialization.data(withJSONObject: ["id": frontend.id]))
-            guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
-            if let port = result.exposedPort, let token = result.accessToken {
-                url.scheme = result.gatewayScheme ?? "http"
-                if result.frontend.url.hasPrefix("https://") && url.scheme != "https" {
-                    throw CompanionError(message: "Update the Mac companion to open this HTTPS app securely.")
-                }
-                url.host = baseURL.host
-                url.port = port
-                url.path = "/__slz_access"
-                url.fragment = nil
-                url.queryItems = [URLQueryItem(name: "token", value: token)]
-            }
-            guard let resolvedURL = url.url else { throw URLError(.badURL) }
-            let id = "\(baseURL.host ?? "host"):\(baseURL.port ?? 80):\(frontend.id)"
-            appModel.registerPreview(
-                PreviewWindowPayload(id: id, title: frontend.displayTitle, urlString: resolvedURL.absoluteString,
-                    certificateAuthority: result.certificateAuthority))
-            openWindow(id: "preview", value: id)
+            try windows.openPreview(frontend, base: baseURL)
         } catch { self.error = error.localizedDescription }
     }
 }
