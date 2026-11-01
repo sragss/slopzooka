@@ -116,6 +116,21 @@ export class PreviewTLS {
     const temporary = await fs.mkdtemp(path.join(this.directory, "ca-"));
     const pending = `${file}.${randomUUID()}.tmp`;
     try {
+      // OpenSSL 1.1 appends -addext to system defaults, which can duplicate
+      // basicConstraints and produce an invalid CA. Own the full configuration.
+      await fs.writeFile(
+        path.join(temporary, "ca.cnf"),
+        [
+          "[req]",
+          "distinguished_name=subject",
+          "x509_extensions=ca",
+          "[subject]",
+          "[ca]",
+          "basicConstraints=critical,CA:TRUE,pathlen:0",
+          "keyUsage=critical,keyCertSign,cRLSign",
+          "subjectKeyIdentifier=hash",
+        ].join("\n"),
+      );
       await this.openssl(temporary, [
         "req",
         "-x509",
@@ -131,10 +146,8 @@ export class PreviewTLS {
         "cert.pem",
         "-subj",
         "/CN=SlopZooka Preview CA",
-        "-addext",
-        "basicConstraints=critical,CA:TRUE,pathlen:0",
-        "-addext",
-        "keyUsage=critical,keyCertSign,cRLSign",
+        "-config",
+        "ca.cnf",
       ]);
       const authority = {
         key: await fs.readFile(path.join(temporary, "key.pem"), "utf8"),
