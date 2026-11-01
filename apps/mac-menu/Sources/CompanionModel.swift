@@ -43,6 +43,13 @@ final class CompanionModel: ObservableObject {
         return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/SlopZooka")
     }
 
+    func showLogs() {
+        NSWorkspace.shared.open(logDirectory)
+        if let path = lastStatus?.sessionLogPath {
+            NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+        }
+    }
+
     func start() {
         guard child == nil, !quitting else { return }
         retry?.cancel()
@@ -137,6 +144,7 @@ final class CompanionModel: ObservableObject {
         let viewers: Int
         let frontends: Int
         let sessionServiceAvailable: Bool?
+        let sessionLogPath: String?
     }
     private func receive(_ data: Data) {
         buffer.append(data)

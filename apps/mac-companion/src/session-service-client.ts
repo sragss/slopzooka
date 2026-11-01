@@ -52,6 +52,9 @@ export class SessionServiceClient {
       canonical,
     );
   }
+  get logPath(): string {
+    return path.join(this.home, "session-service.log");
+  }
   async info(): Promise<ServiceInfo> {
     const info = await this.request<ServiceInfo>("/info");
     if (info.version !== SESSION_SERVICE_VERSION)
@@ -74,11 +77,7 @@ export class SessionServiceClient {
     let launcherExit: number | undefined;
     const launch = async () => {
       launcherExit = undefined;
-      const log = await fs.open(
-        path.join(this.home, "session-service.log"),
-        "a",
-        0o600,
-      );
+      const log = await fs.open(this.logPath, "a", 0o600);
       try {
         // lockf holds a kernel lock for the lifetime of its command. Competing
         // launchers exit immediately; stale sockets are handled only by the winner.
@@ -300,18 +299,7 @@ export class SessionServiceClient {
     await fs.mkdir(root, { recursive: true, mode: 0o700 });
     const stage = await fs.mkdtemp(path.join(root, ".stage-"));
     try {
-      const packaged = path.resolve(
-        import.meta.dirname,
-        "../../session-runtime",
-      );
-      try {
-        await fs.access(path.join(packaged, "runtime.json"));
-        await fs.cp(packaged, stage, {
-          recursive: true,
-          mode: constants.COPYFILE_FICLONE,
-        });
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+      if (import.meta.url.endsWith(".ts")) {
         // Development gets the same immutable runtime as a packaged build.
         await promisify(execFile)(
           process.execPath,
@@ -323,6 +311,15 @@ export class SessionServiceClient {
             stage,
           ],
           { timeout: 30000, maxBuffer: 1024 * 1024 },
+        );
+      } else {
+        await fs.cp(
+          path.resolve(import.meta.dirname, "../../session-runtime"),
+          stage,
+          {
+            recursive: true,
+            mode: constants.COPYFILE_FICLONE,
+          },
         );
       }
       const { id } = JSON.parse(

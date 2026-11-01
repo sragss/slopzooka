@@ -141,6 +141,11 @@ try {
     sessionSocketPath,
     "private status identifies the isolated service endpoint",
   );
+  assert.equal(
+    status.sessionLogPath,
+    path.join(await fs.realpath(home), "session-service.log"),
+  );
+  await fs.access(status.sessionLogPath);
   assert.match(status.code, /^[0-9]{6}$/);
   assert.equal(status.sessions, 0);
   assert.equal(

@@ -69,6 +69,7 @@ let displayedPairingCode = pairing.code;
 console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
 
 let frontendCount = 0;
+let pollingSessions = false;
 const catalogTimer = setInterval(() => {
   if (pairing.code !== displayedPairingCode) {
     displayedPairingCode = pairing.code;
@@ -80,20 +81,24 @@ const catalogTimer = setInterval(() => {
         frontend.status !== "stopped" && frontend.category !== "service",
     ).length;
   });
+  if (changingService || pollingSessions) return;
+  pollingSessions = true;
   const generation = serviceGeneration;
-  if (!changingService)
-    void sessionService
-      .info()
-      .then((info) => {
-        if (generation !== serviceGeneration) return;
-        sessionStatus = info;
-        sessionServiceAvailable = true;
-      })
-      .catch(() => {
-        if (generation !== serviceGeneration) return;
-        sessionServiceAvailable = false;
-      })
-      .finally(publishDesktopStatus);
+  void sessionService
+    .info()
+    .then((info) => {
+      if (generation !== serviceGeneration) return;
+      sessionStatus = info;
+      sessionServiceAvailable = true;
+    })
+    .catch(() => {
+      if (generation !== serviceGeneration) return;
+      sessionServiceAvailable = false;
+    })
+    .finally(() => {
+      pollingSessions = false;
+      publishDesktopStatus();
+    });
 }, 2000);
 catalogTimer.unref();
 
@@ -701,6 +706,7 @@ function publishDesktopStatus(): void {
           ).length ?? 0,
         sessionServiceAvailable,
         sessionSocketPath: sessionService.socketPath,
+        sessionLogPath: sessionService.logPath,
         viewers: wss.clients.size,
         frontends: frontendCount,
       }),
