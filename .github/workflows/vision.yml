@@ -1,0 +1,25 @@
+name: visionOS build
+on:
+  pull_request:
+    paths: ['apps/vision-client/**', '.github/workflows/vision.yml']
+  push:
+    branches: [main, master]
+    paths: ['apps/vision-client/**', '.github/workflows/vision.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  vision:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build visionOS simulator app
+        run: |
+          xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
+            -scheme SlopZooka -sdk xrsimulator -configuration Debug \
+            -destination 'generic/platform=visionOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/slz-derived" CODE_SIGNING_ALLOWED=NO build
