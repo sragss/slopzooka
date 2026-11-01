@@ -85,6 +85,28 @@ async function until(fn, timeout = 12000) {
   }
   throw new Error(`Timed out. ${stderr}`);
 }
+let sessionSocketPath;
+async function serviceControl(route, method = "GET") {
+  if (!sessionSocketPath) return;
+  return new Promise((resolve, reject) => {
+    const request = http.request(
+      { socketPath: sessionSocketPath, path: route, method, agent: false },
+      (response) => {
+        let body = "";
+        response.on("data", (chunk) => {
+          body += chunk;
+        });
+        response.on("end", () => resolve(JSON.parse(body)));
+        response.on("error", reject);
+      },
+    );
+    request.setTimeout(5000, () =>
+      request.destroy(new Error("Service control timed out")),
+    );
+    request.on("error", reject);
+    request.end();
+  });
+}
 let appProcess;
 let stalledPID;
 let colorViewer;
@@ -114,6 +136,11 @@ try {
     output.split("\n").find((line) => line.startsWith("SLZ_DESKTOP ")),
   );
   const status = JSON.parse(frame.slice("SLZ_DESKTOP ".length));
+  sessionSocketPath = status.sessionSocketPath;
+  assert.ok(
+    sessionSocketPath,
+    "private status identifies the isolated service endpoint",
+  );
   assert.match(status.code, /^[0-9]{6}$/);
   assert.equal(status.sessions, 0);
   assert.equal(
@@ -284,6 +311,39 @@ try {
   );
   const logs = await fs.readFile(path.join(home, "mac-companion.log"), "utf8");
   assert.ok(!logs.includes(status.code), "pairing code stays off disk logs");
+  // A running service must not depend on files being retained in the old .app.
+  const runtime = path.join(resources, "session-runtime");
+  const heldRuntime = path.join(home, "old-bundle-runtime");
+  await fs.rename(runtime, heldRuntime);
+  try {
+    const replacementShell = await fetch(
+      base + "/api/workspaces/desktop-fixture/sessions",
+      {
+        method: "POST",
+        headers: apiHeaders,
+        body: JSON.stringify({ sessionId: "after-replacement", profile: null }),
+      },
+    );
+    assert.equal(replacementShell.status, 201, await replacementShell.text());
+    await fetch(base + "/api/sessions/after-replacement/input", {
+      method: "POST",
+      headers: apiHeaders,
+      body: JSON.stringify({
+        commandId: "before",
+        text: "echo $$ > survivor-pid",
+        sendReturn: true,
+      }),
+    });
+    await until(() =>
+      fs.readFile(path.join(home, "survivor-pid"), "utf8").catch(() => ""),
+    );
+  } finally {
+    await fs.rename(heldRuntime, runtime);
+  }
+  const survivorPID = await fs.readFile(
+    path.join(home, "survivor-pid"),
+    "utf8",
+  );
   child.stdin.end();
   assert.equal(
     (await exited)[0],
@@ -306,6 +366,23 @@ try {
     }
   });
   assert.equal((await fetch(base + "/")).status, 200);
+  await fetch(base + "/api/sessions/after-replacement/input", {
+    method: "POST",
+    headers: apiHeaders,
+    body: JSON.stringify({
+      commandId: "after",
+      text: "echo $$ > survivor-pid-after",
+      sendReturn: true,
+    }),
+  });
+  await until(() =>
+    fs.readFile(path.join(home, "survivor-pid-after"), "utf8").catch(() => ""),
+  );
+  assert.equal(
+    await fs.readFile(path.join(home, "survivor-pid-after"), "utf8"),
+    survivorPID,
+    "native relaunch reconnects to the same PTY after parent-pipe shutdown",
+  );
   appProcess.kill("SIGKILL"); // Simulate a UI crash: its pipe must still tear down the child.
   await once(appProcess, "exit");
   await until(async () => {
@@ -316,6 +393,12 @@ try {
       return true;
     }
   });
+  assert.ok(
+    (await serviceControl("/info")).sessions.some(
+      (session) => session.id === "after-replacement",
+    ),
+    "UI crash stops its HTTP child but retains the service and terminals",
+  );
   // Block Node's event loop before startup and make SIGTERM ineffective.
   // This used to leave the menu permanently stuck in Starting after its deadline.
   const stalled = path.join(home, "stalled.cjs");
@@ -344,12 +427,27 @@ try {
     "UI remains available to retry after terminating the stalled host",
   );
   console.log(
-    "PASS: signed bundle, static assets, native PTY colors, HTTPS preview, private IPC, native startup, parent-crash shutdown, and stalled-startup escalation",
+    "PASS: signed bundle, PTY survival across app replacement and UI/HTTP restarts, private IPC sign-in, HTTPS preview, and stalled-startup escalation",
   );
 } finally {
   colorViewer?.terminate();
   if (stalledPID && alive(stalledPID)) process.kill(stalledPID, "SIGKILL");
   await stop(child);
   await stop(appProcess);
+  if (sessionSocketPath) {
+    await serviceControl("/stop", "POST").catch(() => {});
+    await until(async () => {
+      try {
+        await serviceControl("/info");
+        return false;
+      } catch {
+        return true;
+      }
+    }, 5000).catch(() => {});
+    await fs.rm(path.dirname(sessionSocketPath), {
+      recursive: true,
+      force: true,
+    });
+  }
   await fs.rm(home, { recursive: true, force: true });
 }

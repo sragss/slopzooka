@@ -40,6 +40,7 @@ final class WindowGateway: ObservableObject {
     private var refreshPreviews: Set<String> = []
     private var resolvingPreviews: [String: Task<Void, Never>] = [:]
     private var endpoints: [String: URL] = [:]
+    private var companionInstances: [String: String] = [:]
     private var requested: Set<String> = []
     private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var serviceTask: Task<Void, Never>?
@@ -50,14 +51,24 @@ final class WindowGateway: ObservableObject {
         launcher.launchTerminal = { [weak self] workspaceID, base, profile in
             try await self?.launchTerminal(workspaceID: workspaceID, base: base, profile: profile)
         }
-        launcher.onSessionSnapshot = { [weak self] sessions, target in
+        launcher.onSessionSnapshot = { [weak self] snapshot, target in
             guard let self else { return }
             let hostID = target.id, base = target.endpoint
             self.endpoints[hostID] = base
+            if let instance = snapshot.companionInstanceId {
+                if let previous = self.companionInstances[hostID], previous != instance {
+                    for (id, reference) in self.references where reference.hostID == hostID && reference.window.kind == .preview {
+                        self.refreshPreviews.insert(id)
+                        self.resolvingPreviews[id]?.cancel()
+                    }
+                }
+                self.companionInstances[hostID] = instance
+            }
+            let sessions = snapshot.sessions
             let ids = Set(sessions.map(\.id))
             for (id, reference) in self.references where reference.hostID == hostID && reference.window.kind == .terminal && !ids.contains(id) {
                 self.terminals.removeValue(forKey: id)
-                self.failures[id] = "This terminal is no longer available. Its session may have ended or the Mac companion restarted."
+                self.failures[id] = "This terminal is no longer available. Its session may have ended or the Mac session service restarted."
             }
             for session in sessions { self.registerTerminal(session, hostID: hostID, base: base) }
             await self.synchronize()
@@ -265,7 +276,7 @@ final class WindowGateway: ObservableObject {
             for record in persistence.windows(hostID: hostID) {
                 references[record.id] = WindowReference(hostID: hostID, window: record)
                 if record.kind == .terminal && terminals[record.id] == nil {
-                    failures[record.id] = "This terminal is no longer available. Its session may have ended or the Mac companion restarted."
+                    failures[record.id] = "This terminal is no longer available. Its session may have ended or the Mac session service restarted."
                 }
                 present(record)
             }

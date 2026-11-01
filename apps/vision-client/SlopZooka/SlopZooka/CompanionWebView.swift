@@ -66,6 +66,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     private var requestedURL: URL?
     private weak var webView: WKWebView?
     private var terminalReady = false
+    private var documentReady = false
     private var isActive = false
     private var focusGeneration = 0
     // nil means no pending focus; false keeps physical typing ready without software UI.
@@ -75,13 +76,13 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func requestZoom(_ zoom: Double, in webView: WKWebView) {
         guard self.zoom != zoom else { return }
         self.zoom = zoom
-        if terminalReady { applyZoom(in: webView) }
+        if documentReady || terminalReady { applyZoom(in: webView) }
     }
 
     private func applyZoom(in webView: WKWebView) {
         // Scale the terminal font, not the web view's drawing surface. The web
         // bridge explicitly refits the emulator and sends its new grid to the PTY.
-        webView.evaluateJavaScript("window.slzSetTerminalZoom?.(\(zoom))")
+        webView.evaluateJavaScript(TerminalZoom.script(scale: zoom))
     }
     func updateActivity(_ active: Bool, in webView: WKWebView) {
         guard isActive != active else { return }
@@ -110,6 +111,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         requestedURL = url
         self.webView = webView
         terminalReady = false
+        documentReady = false
         focusGeneration += 1
         pendingFocus = isActive ? false : nil
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
@@ -117,12 +119,14 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }
+        terminalReady = body["state"] == "running"
         switch body["state"] {
         case "running":
             terminalReady = true
             loadState.wrappedValue = .loaded
             if let webView { applyZoom(in: webView) }
             if let showKeyboard = pendingFocus, let webView { requestFocus(in: webView, showKeyboard: showKeyboard) }
+        case "disconnected": loadState.wrappedValue = .disconnected
         case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
         case "exited": loadState.wrappedValue = .ended(body["message"] ?? "Session ended")
         default: loadState.wrappedValue = .loading(body["message"] ?? "Connecting")
@@ -130,6 +134,10 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
         loadState.wrappedValue = .failed(error.localizedDescription)
+    }
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        documentReady = true
+        applyZoom(in: webView)
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         loadState.wrappedValue = .failed(error.localizedDescription)
@@ -151,6 +159,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
         guard let requestedURL else { return }
         terminalReady = false
+        documentReady = false
         focusGeneration += 1
         // Restore physical typing without replaying an old software-keyboard request.
         pendingFocus = isActive ? false : nil

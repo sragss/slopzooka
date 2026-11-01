@@ -4,8 +4,12 @@ import "@xterm/xterm/css/xterm.css";
 import { TerminalConnection } from "./terminal-connection.js";
 
 const mount = document.querySelector<HTMLElement>("#terminal")!;
-const title = document.querySelector<HTMLElement>("#title-pill")!;
-const status = document.querySelector<HTMLElement>("#status-pill")!;
+const overlay = document.querySelector<HTMLElement>("#connection-overlay")!;
+const messageLabel = document.querySelector<HTMLElement>(
+  "#connection-message",
+)!;
+const guidance = document.querySelector<HTMLElement>("#connection-guidance")!;
+const readOnlyBadge = document.querySelector<HTMLElement>("#read-only")!;
 const terminal = new Terminal({
   cursorBlink: true,
   fontSize: 16,
@@ -36,10 +40,13 @@ const connection = sessionId
   ? new TerminalConnection(
       terminal,
       sessionId,
-      (message, state) => {
-        status.textContent = message;
-        status.classList.toggle("error", state === "failed");
-        window.webkit?.messageHandlers.terminalState?.postMessage({
+      (message, state, readOnly = false) => {
+        overlay.hidden = state === "running";
+        messageLabel.textContent = message;
+        guidance.hidden = state !== "disconnected";
+        overlay.classList.toggle("error", state === "failed");
+        readOnlyBadge.hidden = !readOnly;
+        window.webkit?.messageHandlers?.terminalState?.postMessage({
           state,
           message,
         });
@@ -47,9 +54,10 @@ const connection = sessionId
       () => fit.fit(),
     )
   : undefined;
-title.textContent = sessionId
+document.title = sessionId
   ? `Terminal • ${sessionId.slice(0, 8)}`
   : "Missing session";
+if (!sessionId) messageLabel.textContent = "Missing terminal session";
 connection?.connect();
 let resizeFrame = 0;
 const resizeObserver = new ResizeObserver(() => {
@@ -92,7 +100,7 @@ declare global {
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {
-      messageHandlers: {
+      messageHandlers?: {
         terminalState?: { postMessage: (value: unknown) => void };
       };
     };

@@ -30,6 +30,9 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
         if CommandLine.arguments.count > 2 {
             var url = URLComponents(url: URL(fileURLWithPath: CommandLine.arguments[1]), resolvingAgainstBaseURL: false)!
             url.queryItems = [URLQueryItem(name: "sessionId", value: "viewport-fixture")]
+            if CommandLine.arguments[2] == "legacy" {
+                url.queryItems?.append(URLQueryItem(name: "legacy", value: "1"))
+            }
             webView.loadFileURL(url.url!, allowingReadAccessTo: url.url!.deletingLastPathComponent())
             window.orderFront(nil)
         } else {
@@ -46,7 +49,13 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
         Task { @MainActor in
             do {
                 let function = viewport ? "runViewportChecks" : "runKeyboardChecks"
-                let result = try await webView.callAsyncJavaScript("return await \(function)()", arguments: [:], in: nil, contentWorld: .page)
+                let scripts = Dictionary(uniqueKeysWithValues: [0.1, 0.3, 0.5, 0.6, 0.7, 1.0, 2.0].map {
+                    (String($0), TerminalZoom.script(scale: $0))
+                })
+                let result = try await webView.callAsyncJavaScript("""
+                    window.applyNativeZoom = zoom => (0, eval)(zoomScripts[Number(zoom).toFixed(1)]);
+                    return await \(function)();
+                    """, arguments: ["zoomScripts": scripts], in: nil, contentWorld: .page)
                 guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
                 print(viewport ? "PASS: automatic hardware input, explicit software keyboard mode, focus-preserving reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
                     : "PASS: floating Return, paragraph Return, hardware Enter, normal text, composition, and non-terminal fields")

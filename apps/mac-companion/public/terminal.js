@@ -9143,10 +9143,10 @@ var MAX_TERMINAL_DIMENSION = 500;
 
 // src/terminal-connection.ts
 var TerminalConnection = class {
-  constructor(terminal2, sessionId2, status2, fit2) {
+  constructor(terminal2, sessionId2, status, fit2) {
     this.terminal = terminal2;
     this.sessionId = sessionId2;
-    this.status = status2;
+    this.status = status;
     this.fit = fit2;
     this.inputSubscription = terminal2.onData((data) => {
       if (this.attached && this.writable && this.running)
@@ -9156,6 +9156,7 @@ var TerminalConnection = class {
   socket;
   renderTail = Promise.resolve();
   cursor;
+  serviceInstanceId;
   retry;
   handshake;
   inputSubscription;
@@ -9164,13 +9165,17 @@ var TerminalConnection = class {
   writable = false;
   running = false;
   attached = false;
+  lostConnection = false;
   connect() {
     if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
       return;
     this.clearTimers();
     this.attached = false;
     this.writable = false;
-    this.status("Connecting to your Mac\u2026", "connecting");
+    this.status(
+      this.lostConnection ? "Lost companion connection." : "Connecting to your Mac\u2026",
+      this.lostConnection ? "disconnected" : "connecting"
+    );
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws2 = new WebSocket(url);
@@ -9197,18 +9202,18 @@ var TerminalConnection = class {
       this.clearTimers();
       this.attached = false;
       this.writable = false;
-      this.status(
-        "Reconnecting to your Mac\u2026 Keep SlopZooka running.",
-        "connecting"
-      );
+      this.lostConnection = true;
+      this.status("Lost companion connection.", "disconnected");
       this.retry = setTimeout(
         () => this.connect(),
         Math.min(1e4, 300 * 2 ** this.attempts++) + Math.random() * 300
       );
     };
     ws2.onerror = () => {
-      if (this.isCurrent(ws2))
-        this.status("Connection interrupted", "connecting");
+      if (this.isCurrent(ws2)) {
+        this.lostConnection = true;
+        this.status("Lost companion connection.", "disconnected");
+      }
     };
   }
   resize() {
@@ -9270,6 +9275,9 @@ var TerminalConnection = class {
         break;
       case "hello":
         if (!this.isCurrent(ws2)) return;
+        if (m.serviceInstanceId && this.serviceInstanceId && m.serviceInstanceId !== this.serviceInstanceId)
+          this.cursor = void 0;
+        this.serviceInstanceId = m.serviceInstanceId;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -9300,9 +9308,11 @@ var TerminalConnection = class {
         this.running = m.session.status === "running";
         this.writable = m.writable;
         this.attached = true;
+        this.lostConnection = false;
         this.status(
           this.running ? m.writable ? "Connected" : "Connected \u2022 read only" : "Session ended",
-          this.running ? "running" : "exited"
+          this.running ? "running" : "exited",
+          this.running && !m.writable
         );
         this.resize();
         break;
@@ -9342,8 +9352,12 @@ var TerminalConnection = class {
 
 // src/terminal.ts
 var mount = document.querySelector("#terminal");
-var title = document.querySelector("#title-pill");
-var status = document.querySelector("#status-pill");
+var overlay = document.querySelector("#connection-overlay");
+var messageLabel = document.querySelector(
+  "#connection-message"
+);
+var guidance = document.querySelector("#connection-guidance");
+var readOnlyBadge = document.querySelector("#read-only");
 var terminal = new Dl({
   cursorBlink: true,
   fontSize: 16,
@@ -9370,17 +9384,21 @@ var sessionId = new URLSearchParams(location.search).get("sessionId");
 var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
-  (message, state) => {
-    status.textContent = message;
-    status.classList.toggle("error", state === "failed");
-    window.webkit?.messageHandlers.terminalState?.postMessage({
+  (message, state, readOnly = false) => {
+    overlay.hidden = state === "running";
+    messageLabel.textContent = message;
+    guidance.hidden = state !== "disconnected";
+    overlay.classList.toggle("error", state === "failed");
+    readOnlyBadge.hidden = !readOnly;
+    window.webkit?.messageHandlers?.terminalState?.postMessage({
       state,
       message
     });
   },
   () => fit.fit()
 ) : void 0;
-title.textContent = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
+document.title = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
+if (!sessionId) messageLabel.textContent = "Missing terminal session";
 connection?.connect();
 var resizeFrame = 0;
 var resizeObserver = new ResizeObserver(() => {

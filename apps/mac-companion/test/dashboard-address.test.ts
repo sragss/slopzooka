@@ -12,6 +12,7 @@ import { execFileSync, spawn } from "node:child_process";
 import httpProxy from "http-proxy";
 import { WebSocket } from "ws";
 import { DashboardAddress } from "../src/dashboard-address.js";
+import { SessionServiceClient } from "../src/session-service-client.js";
 import { Pairing } from "../src/auth.js";
 const logger = {
   info() {},
@@ -200,6 +201,7 @@ test(
       "apps/mac-companion/src",
       "apps/mac-companion/public",
       "apps/mac-companion/package.json",
+      "apps/mac-companion/scripts",
       "packages/protocol",
     ]) {
       await fs.cp(
@@ -570,6 +572,36 @@ test(
       ws.close();
       await once(ws, "close");
       ws = undefined;
+      const serviceBefore = await (
+        await SessionServiceClient.forHome(home)
+      ).info();
+      child.stdin.write(
+        JSON.stringify({
+          type: "stop-session-service",
+          requestId: "stop-fixture",
+        }) + "\n",
+      );
+      await until(() => output.includes('"requestId":"stop-fixture"'));
+      const unavailable = await request("/api/sessions", "GET", headers);
+      assert.ok(
+        unavailable.status >= 500,
+        "service outage is never an empty session list",
+      );
+      child.stdin.write(
+        JSON.stringify({
+          type: "restart-session-service",
+          requestId: "restart-fixture",
+        }) + "\n",
+      );
+      await until(() => output.includes('"requestId":"restart-fixture"'));
+      const serviceAfter = await (
+        await SessionServiceClient.forHome(home)
+      ).info();
+      assert.notEqual(serviceAfter.instanceId, serviceBefore.instanceId);
+      assert.equal(
+        (await request("/api/sessions", "GET", headers)).status,
+        200,
+      );
       for (const socket of sockets) socket.destroy();
       await close(proxy);
       const fallback = await fetch(base + "/dashboard", { redirect: "manual" });
@@ -584,6 +616,12 @@ test(
       for (const socket of sockets) socket.destroy();
       upstream.close();
       await close(proxy);
+      const service = await SessionServiceClient.forHome(home);
+      await service.stop().catch(() => {});
+      await fs.rm(path.dirname(service.socketPath), {
+        recursive: true,
+        force: true,
+      });
       await fs.rm(home, { recursive: true, force: true });
     }
   },

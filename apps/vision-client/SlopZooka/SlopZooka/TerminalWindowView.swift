@@ -13,7 +13,19 @@ struct TerminalWindowView: View {
     @State private var isActionsPresented = false
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
-    @SceneStorage("terminalZoomSteps") private var terminalZoomSteps = -2
+    @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
+    @SceneStorage("terminalZoomSteps") private var terminalZoomSteps: Int?
+
+    private var zoomSteps: Binding<Int> {
+        Binding(
+            get: { TerminalZoom.resolvedSteps(scene: terminalZoomSteps, defaultSteps: defaultTerminalZoomSteps) },
+            set: { terminalZoomSteps = $0 }
+        )
+    }
+
+    private var defaultZoomSteps: Int {
+        TerminalZoom.resolvedSteps(scene: nil, defaultSteps: defaultTerminalZoomSteps)
+    }
 
     var body: some View {
         Group {
@@ -44,7 +56,7 @@ struct TerminalWindowView: View {
                     isActive: scenePhase == .active,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
-                    zoom: Double(10 + terminalZoomSteps) / 10
+                    zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue)
                 )
                 .id(payload.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -56,6 +68,20 @@ struct TerminalWindowView: View {
                     description: Text("SlopZooka could not open the terminal surface.")
                 )
                 .frame(maxWidth: .infinity, minHeight: 360)
+            }
+
+            if let notice = terminalConnectionNotice {
+                VStack(spacing: 10) {
+                    Text(notice.title).font(.headline)
+                    if let guidance = notice.guidance {
+                        Text(guidance).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .multilineTextAlignment(.center)
+                .padding(28)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .allowsHitTesting(false)
             }
 
             VStack(alignment: .leading, spacing: 10) {
@@ -141,7 +167,7 @@ struct TerminalWindowView: View {
 
     private func terminalActions(payload: TerminalWindowPayload) -> some View {
         VStack(spacing: 0) {
-            TerminalZoomControls(steps: $terminalZoomSteps)
+            TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
             Divider()
             Button("New Shell", systemImage: "terminal") {
                 isActionsPresented = false
@@ -236,14 +262,23 @@ struct TerminalWindowView: View {
         }
     }
 
+    private var terminalConnectionNotice: (title: String, guidance: String?)? {
+        switch loadState {
+        case .disconnected:
+            return ("Lost companion connection.", "Reopen SlopZooka on your Mac.")
+        case .idle, .loading:
+            return ("Connecting to your Mac…", nil)
+        case .loaded, .failed, .ended:
+            return nil
+        }
+    }
+
     private var terminalStatusText: String? {
         switch loadState {
         case .ended(let message):
             return message
-        case .idle, .loaded:
+        case .idle, .loaded, .loading, .disconnected:
             return nil
-        case .loading:
-            return "Loading"
         case .failed:
             return "Failed"
         }
@@ -253,7 +288,7 @@ struct TerminalWindowView: View {
         switch loadState {
         case .failed:
             return AnyShapeStyle(.red)
-        case .loading, .idle, .loaded, .ended:
+        case .loading, .disconnected, .idle, .loaded, .ended:
             return AnyShapeStyle(.secondary)
         }
     }

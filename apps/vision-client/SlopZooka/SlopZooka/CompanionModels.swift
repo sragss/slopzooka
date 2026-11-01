@@ -197,6 +197,7 @@ enum TerminalLoadState: Equatable {
     case ended(String)
     case idle
     case loading(String)
+    case disconnected
     case loaded
     case failed(String)
 }
@@ -300,6 +301,9 @@ struct HostSession: Decodable, Identifiable {
     let cwd: String
     let status: String
 }
-struct HostSessionsResponse: Decodable { let sessions: [HostSession] }
+struct HostSessionsResponse: Decodable {
+    let sessions: [HostSession]
+    var companionInstanceId: String? = nil
+}
 struct CreatedSessionResponse: Decodable { let session: HostSession }
 struct APIAcknowledgement: Decodable { let ok: Bool }

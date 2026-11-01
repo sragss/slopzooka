@@ -88,6 +88,20 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
                 controller.webViewWebContentProcessDidTerminate(webView)
                 try await documentReady(webView)
                 try await ready(webView, expecting: [])
+                // Companion restart/disconnect keeps activation intent queued until running.
+                controller.updateActivity(true, in: webView)
+                try await expect(webView, [false])
+                _ = try await webView.evaluateJavaScript("webkit.messageHandlers.terminalState.postMessage({state: 'disconnected'}); 0")
+                try await until { state == .disconnected }
+                controller.updateActivity(false, in: webView)
+                controller.updateActivity(true, in: webView)
+                try await expect(webView, [false])
+                try await ready(webView, expecting: [false, false])
+                _ = try await webView.evaluateJavaScript("webkit.messageHandlers.terminalState.postMessage({state: 'disconnected'}); 0")
+                try await until { state == .disconnected }
+                controller.requestFocus(in: webView, showKeyboard: true)
+                try await expect(webView, [false, false])
+                try await ready(webView, expecting: [false, false, true])
                 print("PASS: native activation restores hardware focus, explicit Keyboard requests software UI, background cancels pending focus, and recovery respects scene activity")
                 exit(0)
             } catch {

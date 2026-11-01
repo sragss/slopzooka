@@ -44,7 +44,7 @@ export function send(ws: WebSocket, message: ServerMessage): void {
   ws.send(JSON.stringify(message));
 }
 
-/** Owns processes independently of viewers. Survives client disconnects, not host restarts. */
+/** Owns processes independently of viewers. Lives in the session service; survives companion/viewer disconnects. */
 export class SessionManager {
   private readonly sessions = new Map<string, Session>();
   private readonly terminations = new Set<Promise<void>>();
@@ -56,7 +56,8 @@ export class SessionManager {
     workspaceId: string,
     cwd: string,
     profile: TuiProfile | null,
-    id = crypto.randomUUID(),
+    id: string = crypto.randomUUID(),
+    environment: NodeJS.ProcessEnv = process.env,
   ): SessionSummary {
     if (this.stopping)
       throw new ServiceError("Companion is shutting down", 503);
@@ -64,7 +65,8 @@ export class SessionManager {
     if (existing) {
       if (
         existing.summary.workspaceId !== workspaceId ||
-        existing.summary.profile !== profile
+        existing.summary.profile !== profile ||
+        existing.summary.cwd !== cwd
       )
         throw new ServiceError(
           "Session ID already used for a different launch",
@@ -89,13 +91,13 @@ export class SessionManager {
       exitCode: null,
     };
     const commands = {
-      codex: process.env.SLOPZOOKA_CODEX_COMMAND ?? "codex",
-      claude: process.env.SLOPZOOKA_CLAUDE_COMMAND ?? "claude",
-      opencode: process.env.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode",
+      codex: environment.SLOPZOOKA_CODEX_COMMAND ?? "codex",
+      claude: environment.SLOPZOOKA_CLAUDE_COMMAND ?? "claude",
+      opencode: environment.SLOPZOOKA_OPENCODE_COMMAND ?? "opencode",
     };
-    const shell = process.env.SHELL ?? "/bin/zsh";
+    const shell = environment.SHELL ?? "/bin/zsh";
     const terminalEnvironment: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...environment,
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
     };

@@ -7,10 +7,22 @@ struct LauncherSettingsView: View {
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.dismiss) private var dismiss
     @AppStorage("wristMenuHand") private var wrist: Wrist = .left
+    @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Picker("Default terminal zoom", selection: $defaultTerminalZoomSteps) {
+                        ForEach(TerminalZoom.stepRange, id: \.self) { steps in
+                            Text("\(TerminalZoom.percent(steps: steps))%").tag(steps)
+                        }
+                    }
+                } header: {
+                    Text("Terminal")
+                } footer: {
+                    Text("Saved across launches. Terminals without a custom zoom use this value. Reset Zoom applies it to any terminal.")
+                }
                 Section {
                     Toggle("Persistent voice input", isOn: $voice.conversationEnabled)
                     if voice.targetID != nil {

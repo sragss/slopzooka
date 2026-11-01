@@ -70,7 +70,7 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
   try {
     connection.connect();
     const ws = sockets[0]!;
-    ws.receive({ type: "hello", version: 1 });
+    ws.receive({ type: "hello", version: 1, serviceInstanceId: "first" });
     ws.receive({
       type: "attached",
       session,
@@ -107,7 +107,11 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     await new Promise((r) => setTimeout(r, 650));
     const reconnected = sockets[1]!;
     assert.ok(reconnected);
-    reconnected.receive({ type: "hello", version: 1 });
+    reconnected.receive({
+      type: "hello",
+      version: 1,
+      serviceInstanceId: "first",
+    });
     await new Promise((r) => setTimeout(r, 10));
     assert.deepEqual(reconnected.sent[0], {
       type: "attach",
@@ -133,12 +137,30 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       [],
       "retired sockets must not resize or activate their replacement",
     );
-    replacement.receive({ type: "hello", version: 1 });
+    replacement.receive({
+      type: "hello",
+      version: 1,
+      serviceInstanceId: "first",
+    });
     await new Promise((r) => setTimeout(r, 10));
     assert.equal(
       replacement.sent[0].cursor,
       4,
       "resume includes bytes actually rendered before reconnection",
+    );
+    replacement.close();
+    connection.connect();
+    const restartedService = sockets[3]!;
+    restartedService.receive({
+      type: "hello",
+      version: 1,
+      serviceInstanceId: "second",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(
+      restartedService.sent[0].cursor,
+      undefined,
+      "a new session-service instance cannot reuse an old screen cursor",
     );
   } finally {
     connection.detach();
@@ -186,6 +208,7 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   let disposals = 0;
   let fittedSize = { cols: 80, rows: 24 };
   const status: string[] = [];
+  const states: string[] = [];
   const terminal = {
     cols: 80,
     rows: 24,
@@ -208,7 +231,10 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   const connection = new TerminalConnection(
     terminal as any,
     "s1",
-    (message) => status.push(message),
+    (message, state) => {
+      status.push(message);
+      states.push(state);
+    },
     () => {
       terminal.cols = fittedSize.cols;
       terminal.rows = fittedSize.rows;
@@ -219,14 +245,21 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   };
   try {
     connection.connect();
+    assert.equal(states.at(-1), "connecting");
     t.mock.timers.tick(10_000);
     assert.equal(
       sockets[0]!.readyState,
       3,
       "a silent open socket cannot strand the terminal forever",
     );
+    assert.equal(states.at(-1), "disconnected");
     t.mock.timers.tick(1000);
     assert.equal(sockets.length, 2);
+    assert.equal(
+      states.at(-1),
+      "disconnected",
+      "retries keep one stable lost-connection notice",
+    );
     connection.reconnect();
     assert.equal(sockets.length, 3);
     const current = sockets[2]!;
@@ -239,6 +272,11 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
       snapshot: "",
     });
     await flush();
+    assert.equal(
+      states.at(-1),
+      "running",
+      "reattachment dismisses the connection notice",
+    );
     t.mock.timers.tick(30_000);
     assert.equal(
       sockets.length,

@@ -73,16 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         guard !terminating else { return .terminateLater }
-        if model.sessions > 0 {
-            NSApp.activate(ignoringOtherApps: true)
-            let alert = NSAlert()
-            alert.messageText = "Quit SlopZooka?"
-            alert.informativeText =
-                "This ends \(model.sessions) active terminal session\(model.sessions == 1 ? "" : "s") and their attached dev servers. Closing the menu keeps everything running."
-            alert.addButton(withTitle: "Keep Running")
-            alert.addButton(withTitle: "Quit and End Sessions")
-            guard alert.runModal() == .alertSecondButtonReturn else { return .terminateCancel }
-        }
         terminating = true
         model.onStopped = { NSApp.reply(toApplicationShouldTerminate: true) }
         // Defer even the no-child case until AppKit has received terminateLater.

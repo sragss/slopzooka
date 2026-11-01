@@ -59,6 +59,9 @@ struct CompanionPanel: View {
                         ProgressView().controlSize(.small)
                     }
                 }
+                if let error = model.serviceError {
+                    Text(error).font(.caption).foregroundStyle(.secondary)
+                }
                 if let notice = model.loginNotice {
                     Text(notice).font(.caption).foregroundStyle(.secondary)
                     Button("Open Login Settings…") { SMAppService.openSystemSettingsLoginItems() }.buttonStyle(.link)
@@ -71,6 +74,10 @@ struct CompanionPanel: View {
             HStack {
                 Menu {
                     Toggle("Start at Login", isOn: Binding(get: { model.loginEnabled }, set: { model.setLogin($0) }))
+                    Button("Restart Companion") { model.restartCompanion() }.disabled(!model.ready || model.serviceBusy)
+                    Button("Restart Session Service…") { model.manageSessionService(restart: true) }.disabled(!model.ready || model.serviceBusy)
+                    Button("End All Sessions and Stop Service…") { model.manageSessionService(restart: false) }.disabled(!model.ready || model.serviceBusy)
+                    Divider()
                     Button("View Logs…") { NSWorkspace.shared.open(model.logDirectory) }
                     Button("Login Settings…") { SMAppService.openSystemSettingsLoginItems() }
                 } label: {
@@ -84,6 +91,7 @@ struct CompanionPanel: View {
                 .fixedSize()
                 Spacer()
                 Button("Quit") { NSApp.terminate(nil) }
+                    .help("Quit the menu app. Terminal sessions keep running.")
                     .buttonStyle(.plain)
                     .font(.callout)
             }

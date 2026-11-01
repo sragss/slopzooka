@@ -1,0 +1,377 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import http from "node:http";
+import { once } from "node:events";
+import { spawn } from "node:child_process";
+import { WebSocket, WebSocketServer } from "ws";
+import { SessionServiceClient } from "../src/session-service-client.js";
+
+const delay = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
+async function until<T>(run: () => T | Promise<T>): Promise<NonNullable<T>> {
+  const deadline = Date.now() + 10000;
+  while (Date.now() < deadline) {
+    const result = await run();
+    if (result) return result as NonNullable<T>;
+    await delay();
+  }
+  throw new Error("Condition timed out");
+}
+function environment() {
+  return {
+    ...Object.fromEntries(
+      Object.entries(process.env).filter(
+        (entry): entry is [string, string] => entry[1] !== undefined,
+      ),
+    ),
+    SHELL: "/bin/sh",
+  };
+}
+async function gateway(client: SessionServiceClient) {
+  const server = http.createServer();
+  const sockets = new WebSocketServer({ server });
+  sockets.on("connection", (ws) => {
+    void client
+      .relay(ws, { type: "hello", version: 1, hostId: "test" })
+      .catch(() => ws.terminate());
+  });
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  return {
+    url: `ws://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}`,
+    stop: async () => {
+      for (const ws of sockets.clients) ws.terminate();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    },
+  };
+}
+async function viewer(url: string) {
+  const ws = new WebSocket(url);
+  const messages: any[] = [];
+  let output = "";
+  ws.on("message", (raw) => {
+    const message = JSON.parse(raw.toString());
+    messages.push(message);
+    if (message.type === "attached" || message.type === "output") {
+      output += message.snapshot ?? message.data ?? "";
+      ws.send(
+        JSON.stringify({
+          type: "ack",
+          sessionId: message.sessionId ?? message.session.id,
+          cursor: message.cursor,
+        }),
+      );
+    }
+  });
+  await until(() => messages.some((message) => message.type === "hello"));
+  return {
+    ws,
+    messages,
+    output: () => output,
+    attach: (cursor?: number) =>
+      ws.send(
+        JSON.stringify({ type: "attach", sessionId: "same-session", cursor }),
+      ),
+  };
+}
+
+test(
+  "one service survives gateway restarts with the same PTY, screen, ownership, and deduplicated launches/input",
+  { timeout: 60000 },
+  async (t) => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-service-"));
+    const client = await SessionServiceClient.forHome(home);
+    t.after(async () => {
+      await client.stop().catch(() => {});
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+      await fs.rm(home, { recursive: true, force: true });
+    });
+    const peer = await SessionServiceClient.forHome(home + "/.");
+    const [first, second] = await Promise.all([
+      client.connectOrStart(),
+      peer.connectOrStart(),
+    ]);
+    assert.equal(
+      first.pid,
+      second.pid,
+      "kernel lock chooses one service under concurrent startup",
+    );
+    const launch = {
+      workspaceId: "workspace",
+      cwd: home,
+      profile: null,
+      id: "same-session",
+      environment: environment(),
+    };
+    const sessions = await Promise.all([
+      client.create(launch),
+      peer.create(launch),
+    ]);
+    assert.deepEqual(sessions[0], sessions[1]);
+    assert.equal((await client.info()).sessions.length, 1);
+    let host = await gateway(client);
+    t.after(async () => host.stop());
+    const a = await viewer(host.url);
+    const b = await viewer(host.url);
+    t.after(() => {
+      a.ws.terminate();
+      b.ws.terminate();
+    });
+    a.attach();
+    b.attach();
+    await until(() =>
+      a.messages.some((message) => message.type === "attached"),
+    );
+    await until(() =>
+      b.messages.some((message) => message.type === "attached"),
+    );
+    assert.equal(
+      a.messages.find((message) => message.type === "attached").writable,
+      true,
+    );
+    assert.equal(
+      b.messages.find((message) => message.type === "attached").writable,
+      false,
+    );
+    a.ws.terminate();
+    await until(() =>
+      b.messages.some(
+        (message) => message.type === "ownership" && message.writable,
+      ),
+    );
+    const command =
+      "echo $$ > shell-pid; printf 'ONCE\\n' >> commands; printf 'BEFORE_%s\\n' RESTART";
+    await client.paste("same-session", "once", command, true);
+    await client.paste("same-session", "once", command, true);
+    await until(() => b.output().includes("BEFORE_RESTART"));
+    const pid = await until(() =>
+      fs.readFile(path.join(home, "shell-pid"), "utf8").catch(() => ""),
+    );
+    await host.stop();
+    await client.paste(
+      "same-session",
+      "offline",
+      "printf 'WHILE_%s\\n' DISCONNECTED",
+      true,
+    );
+    const recoveredClient = await SessionServiceClient.forHome(home);
+    const recovered = await recoveredClient.connectOrStart();
+    assert.equal(recovered.instanceId, first.instanceId);
+    assert.equal(recovered.pid, first.pid);
+    host = await gateway(recoveredClient);
+    const c = await viewer(host.url);
+    t.after(() => c.ws.terminate());
+    c.attach();
+    await until(() => c.output().includes("WHILE_DISCONNECTED"));
+    assert.ok(c.output().includes("BEFORE_RESTART"));
+    c.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "echo $$ > shell-pid-after\r",
+      }),
+    );
+    await until(() =>
+      fs.readFile(path.join(home, "shell-pid-after"), "utf8").catch(() => ""),
+    );
+    assert.equal(
+      await fs.readFile(path.join(home, "shell-pid-after"), "utf8"),
+      pid,
+    );
+    assert.equal(
+      await fs.readFile(path.join(home, "commands"), "utf8"),
+      "ONCE\n",
+    );
+    // Fresh shells use current companion configuration, not daemon-startup env.
+    await recoveredClient.create({
+      ...launch,
+      id: "fresh",
+      environment: { ...environment(), SERVICE_TEST: "fresh" },
+    });
+    await recoveredClient.paste(
+      "fresh",
+      "fresh",
+      "printf '%s' \"$SERVICE_TEST\" > fresh-env",
+      true,
+    );
+    await until(() =>
+      fs.readFile(path.join(home, "fresh-env"), "utf8").catch(() => ""),
+    );
+    assert.equal(
+      await fs.readFile(path.join(home, "fresh-env"), "utf8"),
+      "fresh",
+    );
+    await recoveredClient.end("fresh");
+    await recoveredClient.end("fresh");
+    await recoveredClient.stop();
+    await assert.rejects(recoveredClient.info(), (error) =>
+      ["ENOENT", "ECONNREFUSED"].includes(
+        (error as NodeJS.ErrnoException).code ?? "",
+      ),
+    );
+  },
+);
+
+test(
+  "incompatible and unresponsive endpoints are never replaced, and socket access stays private",
+  { timeout: 15000 },
+  async (t) => {
+    const home = await fs.mkdtemp(
+      path.join(os.tmpdir(), "slz-service-incompatible-"),
+    );
+    const client = await SessionServiceClient.forHome(home);
+    let respond = true;
+    const server = http.createServer((_req, res) => {
+      if (respond)
+        res.end(
+          JSON.stringify({ version: 999, sessions: [{ id: "keep-me" }] }),
+        );
+    });
+    server.listen(client.socketPath);
+    await once(server, "listening");
+    t.after(async () => {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+      await fs.rm(home, { recursive: true, force: true });
+    });
+    await assert.rejects(client.connectOrStart(), /explicit update/);
+    respond = false;
+    await assert.rejects(client.connectOrStart(), /timed out/);
+    assert.equal(
+      (await fs.stat(path.dirname(client.socketPath))).mode & 0o077,
+      0,
+    );
+    await assert.rejects(fs.access(path.join(home, "session-runtimes")), {
+      code: "ENOENT",
+    });
+  },
+);
+
+test(
+  "a crashed service releases its kernel lock and a new instance recovers its stale socket without relaunching sessions",
+  { timeout: 30000 },
+  async (t) => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-service-crash-"));
+    const client = await SessionServiceClient.forHome(home);
+    t.after(async () => {
+      await client.stop().catch(() => {});
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+      await fs.rm(home, { recursive: true, force: true });
+    });
+    const before = await client.connectOrStart();
+    // No PTYs in this crash fixture; the old lockf parent reaps this exact test PID.
+    process.kill(before.pid, "SIGKILL");
+    await until(async () => {
+      try {
+        await client.info();
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    const after = await client.connectOrStart();
+    assert.notEqual(after.instanceId, before.instanceId);
+    assert.notEqual(after.pid, before.pid);
+    assert.deepEqual(after.sessions, []);
+  },
+);
+
+test("the bounded relay accepts a large screen checkpoint without introducing another replay layer", async (t) => {
+  const home = await fs.mkdtemp(
+    path.join(os.tmpdir(), "slz-service-checkpoint-"),
+  );
+  const client = await SessionServiceClient.forHome(home);
+  const server = http.createServer();
+  const sockets = new WebSocketServer({ server });
+  const snapshot = "x".repeat(3 * 1024 * 1024);
+  sockets.on("connection", (ws) => {
+    ws.send(
+      JSON.stringify({
+        type: "service-ready",
+        version: 1,
+        instanceId: "fixture",
+        sessions: [],
+      }),
+    );
+    ws.send(
+      JSON.stringify({
+        type: "attached",
+        session: { id: "same-session" },
+        cursor: 10,
+        snapshot,
+        writable: true,
+      }),
+    );
+  });
+  server.listen(client.socketPath);
+  await once(server, "listening");
+  const host = await gateway(client);
+  t.after(async () => {
+    await host.stop();
+    for (const ws of sockets.clients) ws.terminate();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await fs.rm(path.dirname(client.socketPath), {
+      recursive: true,
+      force: true,
+    });
+    await fs.rm(home, { recursive: true, force: true });
+  });
+  const page = await viewer(host.url);
+  t.after(() => page.ws.terminate());
+  await until(() =>
+    page.messages.some((message) => message.type === "attached"),
+  );
+  assert.equal(page.output(), snapshot);
+});
+
+test(
+  "startup retries immediate kernel-lock contention without leaving a queued service launch",
+  { timeout: 30000 },
+  async (t) => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-service-lock-"));
+    const client = await SessionServiceClient.forHome(home);
+    const locker = spawn(
+      "/usr/bin/lockf",
+      [
+        "-k",
+        path.join(path.dirname(client.socketPath), "service.lock"),
+        "/bin/sleep",
+        "3",
+      ],
+      { stdio: "ignore" },
+    );
+    const released = once(locker, "exit");
+    t.after(async () => {
+      await released;
+      await client.stop().catch(() => {});
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+      await fs.rm(home, { recursive: true, force: true });
+    });
+    await delay(100);
+    const service = await client.connectOrStart();
+    assert.ok(service.pid > 0);
+    await released;
+    await client.stop();
+    await delay(300);
+    await assert.rejects(client.info(), (error) =>
+      ["ENOENT", "ECONNREFUSED"].includes(
+        (error as NodeJS.ErrnoException).code ?? "",
+      ),
+    );
+  },
+);

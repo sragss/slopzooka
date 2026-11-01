@@ -68,6 +68,10 @@ window.runKeyboardChecks = () => {
       root,
       "apps/vision-client/SlopZooka/SlopZooka/TerminalKeyboard.swift",
     ),
+    path.join(
+      root,
+      "apps/vision-client/SlopZooka/SlopZooka/TerminalZoom.swift",
+    ),
     path.join(root, "apps/vision-client/tests/TerminalKeyboardChecks.swift"),
     "-o",
     executable,
@@ -108,6 +112,7 @@ class ViewportSocket {
 }
 window.WebSocket = ViewportSocket;
 ${renderer}
+if (new URLSearchParams(location.search).has('legacy')) delete window.slzSetTerminalZoom;
 window.runViewportChecks = async () => {
   const check = (ok, label) => { if (!ok) throw Error(label); };
   const until = async (condition) => {
@@ -163,17 +168,18 @@ window.runViewportChecks = async () => {
   check(isFocused() && terminal.textarea.inputMode === 'none', 'Reconnecting must preserve physical keyboard focus and software suppression');
   hardwareKey('d', 'KeyD', 68);
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
-  check(typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
+  const legacy = new URLSearchParams(location.search).has('legacy');
+  check(legacy || typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
-  for (const zoom of [0.8, 0.5, 0.3, 0.1, 1, 2, 0.8]) {
+  for (const zoom of [0.6, 0.7, 0.5, 0.3, 0.1, 1, 2, 0.6]) {
     const before = resizes().length;
-    window.slzSetTerminalZoom(zoom);
+    window.applyNativeZoom(zoom);
     await until(() => resizes().length > before);
     const size = resizes().at(-1);
     check(isFocused() && terminal.textarea.inputMode === 'none', 'Zoom must preserve physical keyboard focus and software suppression');
     check(isClientMessage(size), 'Invalid resize at zoom ' + zoom);
     check(size.cols === terminal.cols && size.rows === terminal.rows, 'PTY and emulator grids diverged');
-    if (zoom === 0.8 || zoom === 0.5 || zoom === 0.3) {
+    if (zoom === 0.6 || zoom === 0.7 || zoom === 0.5 || zoom === 0.3) {
       check(terminal.cols > normalCols && terminal.rows > normalRows, 'Zoom-out must increase the PTY grid');
     }
     const screen = document.querySelector('.xterm-screen').getBoundingClientRect();
@@ -190,20 +196,46 @@ window.runViewportChecks = async () => {
     outfile: viewportBundle,
   });
   const viewportHTML = path.join(temporary, "viewport.html");
-  await fs.writeFile(
-    viewportHTML,
-    `<meta name="viewport" content="width=device-width, initial-scale=1"><style>${await fs.readFile(path.join(temporary, "viewport.css"), "utf8")} html,body{margin:0;width:100%;height:100%;overflow:hidden}#terminal{width:100%;height:100%}</style><div id="terminal"></div><div id="title-pill"></div><div id="status-pill"></div><script>${(await fs.readFile(viewportBundle, "utf8")).replaceAll("</script", "<\\/script")}</script>`,
+  const viewportCSS = await fs.readFile(
+    path.join(temporary, "viewport.css"),
+    "utf8",
   );
+  const viewportScript = (await fs.readFile(viewportBundle, "utf8")).replaceAll(
+    "</script",
+    "<\\/script",
+  );
+  // Use the production surface so renderer/UI changes cannot leave this
+  // viewport fixture with stale element IDs or layout rules.
+  const surface = (
+    await fs.readFile(
+      path.join(root, "apps/mac-companion/public/terminal.html"),
+      "utf8",
+    )
+  )
+    .replace(
+      '<link rel="stylesheet" href="/terminal.css" />',
+      () => `<style>${viewportCSS}</style>`,
+    )
+    .replace(
+      '<script type="module" src="/terminal.js"></script>',
+      () => `<script>${viewportScript}</script>`,
+    );
+  await fs.writeFile(viewportHTML, surface);
   run(executable, [viewportHTML, "viewport"]);
+  run(executable, [viewportHTML, "legacy"]);
   const nativeChecks = path.join(temporary, "native-focus-checks");
   run("xcrun", [
     "swiftc",
     "-swift-version",
     "5",
     "-parse-as-library",
-    ...["CompanionWebView", "CompanionModels", "TerminalNavigation"].map(
-      (name) =>
-        path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
+    ...[
+      "CompanionWebView",
+      "CompanionModels",
+      "TerminalNavigation",
+      "TerminalZoom",
+    ].map((name) =>
+      path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
     ),
     path.join(
       root,
