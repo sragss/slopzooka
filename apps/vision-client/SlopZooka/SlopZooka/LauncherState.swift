@@ -148,8 +148,12 @@ final class LauncherState: ObservableObject {
             let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: target.endpoint, path: "/api/sessions")
             guard !Task.isCancelled, connection.current == target else { return }
             await onSessionSnapshot?(sessions, target)
+        } catch {
             guard !Task.isCancelled, connection.current == target else { return }
-            // Preview availability must not block terminal recovery.
+            if (error as? CompanionError)?.statusCode == 401 { needsPairing = true }
+        }
+        guard !Task.isCancelled, connection.current == target, !needsPairing else { return }
+        do {
             let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: target.endpoint, path: "/api/frontends")
             guard !Task.isCancelled, connection.current == target else { return }
             frontends = catalog.frontends

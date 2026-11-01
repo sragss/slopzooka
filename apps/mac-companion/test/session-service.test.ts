@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import http from "node:http";
 import { once } from "node:events";
+import { pathToFileURL } from "node:url";
+import { build } from "esbuild";
 import { spawn } from "node:child_process";
 import { WebSocket, WebSocketServer } from "ws";
 import { SessionServiceClient } from "../src/session-service-client.js";
@@ -373,5 +375,141 @@ test(
         (error as NodeJS.ErrnoException).code ?? "",
       ),
     );
+  },
+);
+
+test("packaged runtime damage reports the filesystem error without trying a development build", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-runtime-damage-"));
+  const host = path.join(home, "host");
+  let client: SessionServiceClient | undefined;
+  try {
+    await fs.mkdir(host);
+    await fs.symlink(
+      path.resolve(import.meta.dirname, "../node_modules"),
+      path.join(host, "node_modules"),
+      "dir",
+    );
+    const outfile = path.join(host, "src/client.mjs");
+    await build({
+      entryPoints: [
+        path.resolve(import.meta.dirname, "../src/session-service-client.ts"),
+      ],
+      outfile,
+      bundle: true,
+      platform: "node",
+      format: "esm",
+      packages: "external",
+    });
+    const { SessionServiceClient: PackagedClient } = await import(
+      pathToFileURL(outfile).href
+    );
+    client = await PackagedClient.forHome(home);
+    for (const missing of ["directory", "manifest"]) {
+      if (missing === "manifest")
+        await fs.mkdir(path.join(home, "session-runtime"));
+      await assert.rejects(
+        client!.connectOrStart(),
+        (error: NodeJS.ErrnoException) => {
+          assert.equal(error.code, "ENOENT");
+          assert.match(error.message, /session-runtime|runtime.json/);
+          assert.doesNotMatch(error.message, /build-session-runtime|esbuild/);
+          return true;
+        },
+      );
+      assert.deepEqual(
+        await fs.readdir(path.join(home, "session-runtimes")),
+        [],
+        "failed installs leave no staged runtime",
+      );
+    }
+  } finally {
+    if (client)
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});
+
+test(
+  "desktop status polls stay serial through service timeouts and recover",
+  { timeout: 20000 },
+  async (t) => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-status-poll-"));
+    const client = await SessionServiceClient.forHome(home);
+    let stalled = false,
+      active = 0,
+      peak = 0;
+    const service = http.createServer((_req, res) => {
+      active++;
+      peak = Math.max(peak, active);
+      res.on("close", () => active--);
+      if (!stalled)
+        res.end(
+          JSON.stringify({
+            version: 1,
+            instanceId: "fixture",
+            runtimeId: "fixture",
+            pid: process.pid,
+            sessions: [],
+          }),
+        );
+    });
+    service.listen(client.socketPath);
+    await once(service, "listening");
+    const listener = http.createServer();
+    listener.listen(0, "127.0.0.1");
+    await once(listener, "listening");
+    const port = (listener.address() as import("node:net").AddressInfo).port;
+    await new Promise<void>((resolve) => listener.close(() => resolve()));
+    const child = spawn(
+      process.execPath,
+      ["--import", "tsx", "src/server.ts"],
+      {
+        cwd: path.resolve(import.meta.dirname, ".."),
+        env: {
+          ...process.env,
+          SLOPZOOKA_HOME: home,
+          SLOPZOOKA_LOG_DIR: home,
+          SLOPZOOKA_PORT: String(port),
+          SLOPZOOKA_HOST: "127.0.0.1",
+          SLOPZOOKA_DESKTOP: "1",
+          PORTLESS_STATE_DIR: home,
+        },
+        stdio: ["pipe", "pipe", "pipe"],
+      },
+    );
+    t.after(async () => {
+      child.stdin.end();
+      if (child.exitCode === null && child.signalCode === null)
+        await once(child, "exit");
+      service.closeAllConnections();
+      await new Promise<void>((resolve) => service.close(() => resolve()));
+      await fs.rm(path.dirname(client.socketPath), {
+        recursive: true,
+        force: true,
+      });
+      await fs.rm(home, { recursive: true, force: true });
+    });
+    const statuses: { sessionServiceAvailable: boolean }[] = [];
+    let output = "";
+    child.stderr.resume();
+    child.stdout.on("data", (data) => {
+      output += data;
+      let end: number;
+      while ((end = output.indexOf("\n")) !== -1) {
+        const line = output.slice(0, end);
+        output = output.slice(end + 1);
+        if (line.startsWith("SLZ_DESKTOP "))
+          statuses.push(JSON.parse(line.slice("SLZ_DESKTOP ".length)));
+      }
+    });
+    await until(() => statuses.at(-1)?.sessionServiceAvailable);
+    stalled = true;
+    await until(() => statuses.at(-1)?.sessionServiceAvailable === false);
+    assert.equal(peak, 1, "a slow status request must not overlap later ticks");
+    stalled = false;
+    await until(() => statuses.at(-1)?.sessionServiceAvailable);
   },
 );

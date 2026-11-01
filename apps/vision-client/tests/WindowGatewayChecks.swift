@@ -13,6 +13,7 @@ enum CompanionAPI {
     static var layouts: [String: WindowLayout] = [:]
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
+    static var beforeFrontends: (() async throws -> Void)?
     static var beforeSessions: (() async throws -> Void)?
     static var sessions: [String: [HostSession]] = [:]
     static var sessionEndpoints: [URL] = []
@@ -54,7 +55,10 @@ enum CompanionAPI {
             if let callback = beforeSessions { beforeSessions = nil; try await callback() }
             return HostSessionsResponse(sessions: sessions[base.host!] ?? []) as! T
         }
-        if path == "/api/frontends" { return FrontendCatalog(frontends: [], warning: nil) as! T }
+        if path == "/api/frontends" {
+            if let callback = beforeFrontends { beforeFrontends = nil; try await callback() }
+            return FrontendCatalog(frontends: [], warning: "Frontend fixture") as! T
+        }
         if path == "/api/frontends/open" {
             if let callback = beforePreview { beforePreview = nil; await callback() }
             return try JSONDecoder().decode(T.self, from: Data("""
@@ -245,10 +249,21 @@ struct WindowGatewayChecks {
         precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2)
         try accept(target, in: restarted.launcher.connection)
         CompanionAPI.beforeSessions = { throw CompanionError(message: "Session service unavailable", statusCode: 503) }
+        CompanionAPI.requests.removeAll()
         await restarted.launcher.refreshHostCatalog()
+        precondition(CompanionAPI.requests.contains("GET /api/frontends"), "Session failure cannot block frontend refresh")
+        precondition(restarted.launcher.frontendWarning == "Frontend fixture")
         precondition(restarted.terminalPayload(for: session.id) != nil, "A service outage is not an empty snapshot")
         precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2)
-        print("PASS: HTTP companion restart refreshes preview gateways without changing window intent")
+        CompanionAPI.sessions[base.host!] = [session]
+        CompanionAPI.beforeFrontends = { throw CompanionError(message: "Frontend unavailable", statusCode: 503) }
+        await restarted.launcher.refreshHostCatalog()
+        precondition(restarted.launcher.frontendWarning == "Frontend unavailable")
+        CompanionAPI.beforeSessions = { throw CompanionError(message: "Pair again", statusCode: 401) }
+        CompanionAPI.requests.removeAll()
+        await restarted.launcher.refreshHostCatalog()
+        precondition(restarted.launcher.needsPairing && !CompanionAPI.requests.contains("GET /api/frontends"))
+        print("PASS: companion restarts and independent catalog failures preserve window intent and authentication")
 
         gateway.attachPresenter(presenterID) { commands.append($0) }
         gateway.close(reference)
