@@ -18,7 +18,7 @@ struct CompanionWebView: UIViewRepresentable {
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
         let webView = WKWebView(frame: .zero, configuration: configuration)
-        webView.pageZoom = CGFloat(zoom)
+        context.coordinator.requestZoom(zoom, in: webView)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.02, green: 0.03, blue: 0.04, alpha: 1)
@@ -31,8 +31,7 @@ struct CompanionWebView: UIViewRepresentable {
         let reload = context.coordinator.reloadToken != reloadToken
         context.coordinator.reloadToken = reloadToken
         context.coordinator.load(url, in: webView, force: reload)
-        // Page zoom changes the CSS viewport; the terminal's ResizeObserver refits the PTY grid.
-        if webView.pageZoom != CGFloat(zoom) { webView.pageZoom = CGFloat(zoom) }
+        context.coordinator.requestZoom(zoom, in: webView)
         if context.coordinator.interruptToken != interruptRequestToken {
             context.coordinator.interruptToken = interruptRequestToken
             webView.evaluateJavaScript("window.slzInterruptTerminal?.()")
@@ -62,6 +61,19 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     private weak var webView: WKWebView?
     private var terminalReady = false
     private var pendingFocus = false
+    private var zoom = 1.0
+
+    func requestZoom(_ zoom: Double, in webView: WKWebView) {
+        guard self.zoom != zoom else { return }
+        self.zoom = zoom
+        if terminalReady { applyZoom(in: webView) }
+    }
+
+    private func applyZoom(in webView: WKWebView) {
+        // Scale the terminal font, not the web view's drawing surface. The web
+        // bridge explicitly refits the emulator and sends its new grid to the PTY.
+        webView.evaluateJavaScript("window.slzSetTerminalZoom?.(\(zoom))")
+    }
     func requestFocus(in webView: WKWebView) {
         pendingFocus = true
         guard terminalReady else { return }
@@ -84,6 +96,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         case "running":
             terminalReady = true
             loadState.wrappedValue = .loaded
+            if let webView { applyZoom(in: webView) }
             if pendingFocus, let webView { requestFocus(in: webView) }
         case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
         case "exited": loadState.wrappedValue = .ended(body["message"] ?? "Session ended")

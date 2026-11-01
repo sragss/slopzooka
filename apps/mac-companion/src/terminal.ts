@@ -44,6 +44,16 @@ const resizeObserver = new ResizeObserver(() => {
 });
 resizeObserver.observe(mount);
 const reconnect = () => connection?.reconnect();
+// Font zoom preserves the full viewport on visionOS. WKWebView.pageZoom scales
+// the existing canvas without changing its measured viewport or firing resize.
+window.slzSetTerminalZoom = (zoom) => {
+  if (!Number.isFinite(zoom) || zoom < 0.1 || zoom > 2) return;
+  const fontSize = 16 * zoom;
+  if (terminal.options.fontSize === fontSize) return;
+  terminal.options.fontSize = fontSize;
+  cancelAnimationFrame(resizeFrame);
+  resizeFrame = requestAnimationFrame(() => connection?.resize());
+};
 window.addEventListener("online", reconnect);
 function detach() {
   resizeObserver.disconnect();
@@ -62,6 +72,7 @@ declare global {
   interface Window {
     slzFocusTerminal?: () => void;
     slzDetachTerminal?: () => void;
+    slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {
       messageHandlers: {
         terminalState?: { postMessage: (value: unknown) => void };

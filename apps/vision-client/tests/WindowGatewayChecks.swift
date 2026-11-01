@@ -21,11 +21,18 @@ enum CompanionAPI {
     static var loseReply = false
     static var previewPort = 12345
     static var requests: [String] = []
+    static var inputBodies: [Data] = []
+    static var loseInputReply = false
     static func baseURL(host: String) -> URL? { URL(string: host.contains("://") ? host : "http://\(host)") }
     static func pair(base: URL, code: String) async throws {}
     static func request<T: Decodable>(_ type: T.Type, base: URL, path: String,
         method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20) async throws -> T {
         requests.append("\(method) \(path)")
+        if method == "POST", path.hasSuffix("/input") {
+            inputBodies.append(body!)
+            if loseInputReply { loseInputReply = false; throw URLError(.networkConnectionLost) }
+            return APIAcknowledgement(ok: true) as! T
+        }
         if path == "/api/window-layout" {
             let key = base.host!
             if method == "PUT" {
@@ -272,6 +279,32 @@ struct WindowGatewayChecks {
         await until { CompanionAPI.layouts[base.host!]!.windows.isEmpty }
         precondition(CompanionAPI.layouts[otherBase.host!]!.windows == [otherWindow], "Closing on one Mac never changes another Mac's layout")
         print("PASS: accepted hosts stay paired with endpoints; stale replies and failures cannot cross hosts")
+
+        // Voice uses the existing gateway and stable session ID, including retries.
+        let voiceStore = WindowPersistence(defaults: defaults)
+        try voiceStore.set(reference, isOpen: true)
+        let voiceGateway = WindowGateway(persistence: voiceStore)
+        await voiceGateway.launcher.onSessionSnapshot?([session], target)
+        voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        voiceGateway.updateTerminalLoadState(id: terminal.id, loadState: .loaded)
+        precondition(voiceGateway.canReceiveVoice(terminal.id))
+        let input = TerminalVoiceCommand(targetID: terminal.id, commandID: UUID().uuidString, text: "hello")
+        CompanionAPI.loseInputReply = true
+        try await voiceGateway.submitVoiceInput(input)
+        precondition(CompanionAPI.inputBodies.count == 2 && CompanionAPI.inputBodies[0] == CompanionAPI.inputBodies[1])
+        let body = try JSONSerialization.jsonObject(with: CompanionAPI.inputBodies[0]) as! [String: Any]
+        precondition(body["commandId"] as? String == input.commandID && body["text"] as? String == "hello")
+        precondition(body["sendReturn"] as? Bool == true)
+        precondition(CompanionAPI.requests.last == "POST /api/sessions/\(terminal.id)/input")
+        voiceGateway.observe(id: terminal.id, isPresented: false, isFocused: false)
+        precondition(!voiceGateway.canReceiveVoice(terminal.id))
+        do { try await voiceGateway.submitVoiceInput(input); preconditionFailure("Disconnected scenes cannot receive voice") }
+        catch {}
+        precondition(CompanionAPI.inputBodies.count == 2)
+        voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        voiceGateway.close(reference, dismiss: false)
+        precondition(!voiceGateway.canReceiveVoice(terminal.id), "Close intent takes effect before native disappearance")
+        print("PASS: voice input resolves through the gateway, retries identical commands, and respects scene availability and close intent")
     }
 
     @MainActor

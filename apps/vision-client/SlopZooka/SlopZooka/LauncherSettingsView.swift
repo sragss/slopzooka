@@ -4,12 +4,23 @@ struct LauncherSettingsView: View {
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var state: LauncherState
     @EnvironmentObject private var workspace: ImmersiveWorkspaceState
+    @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.dismiss) private var dismiss
     @AppStorage("wristMenuHand") private var wrist: Wrist = .left
 
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    Toggle("Persistent voice input", isOn: $voice.conversationEnabled)
+                    if voice.targetID != nil {
+                        Button("Stop Voice Input", role: .destructive) { voice.stop() }
+                    }
+                } header: {
+                    Text("Voice")
+                } footer: {
+                    Text("Pinch the microphone orb at a terminal’s bottom right to start. Pauses keep your draft; tap Send to submit and keep listening. Works in either workspace mode. Off restores one-shot dictation.")
+                }
                 Section {
                     ImmersiveWorkspaceControl()
                     if workspace.isPresented {

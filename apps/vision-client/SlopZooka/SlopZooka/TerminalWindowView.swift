@@ -6,19 +6,14 @@ struct TerminalWindowView: View {
     @EnvironmentObject private var windows: WindowGateway
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var debugLog = AppDebugLog.shared
-    @StateObject private var speechCapture = SpeechCaptureController()
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
     @State private var confirmEndSession = false
     @State private var isSessionDetailsExpanded = false
-    @State private var isSpeechPanelExpanded = false
-    @State private var isSubmittingSpeech = false
-    @State private var speechSubmitError: String?
-    @State private var speechOrbPulse = false
+    @State private var isActionsPresented = false
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
     @SceneStorage("terminalZoomSteps") private var terminalZoomSteps = -2
-    @State private var speechCommandID = UUID().uuidString
 
     var body: some View {
         Group {
@@ -30,10 +25,6 @@ struct TerminalWindowView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onAppear { syncScenePhase(scenePhase) }
-        .onDisappear {
-            speechCapture.onFinished = nil
-            speechCapture.stopListening()
-        }
         .onChange(of: scenePhase) { _, newPhase in
             syncScenePhase(newPhase)
         }
@@ -86,46 +77,7 @@ struct TerminalWindowView: View {
                     WorkspaceFrontendButton(baseURL: payload.url, workspaceId: payload.workspaceId)
 
                     Button {
-                        if isSpeechPanelExpanded {
-                            speechCapture.stopListening()
-                            isSpeechPanelExpanded = false
-                        } else {
-                            speechSubmitError = nil
-                            speechCommandID = UUID().uuidString
-                            isSpeechPanelExpanded = true
-                            Task {
-                                await speechCapture.startListening()
-                            }
-                        }
-                    } label: {
-                        Image(systemName: speechCapture.isListening ? "mic.circle.fill" : "mic.circle")
-                            .font(.title3)
-                            .foregroundStyle(speechCapture.isListening ? .red : .primary)
-                    }
-                    .buttonStyle(.plain)
-                    .padding(10)
-                    .background(.regularMaterial, in: Circle())
-                    .help("Dictation").accessibilityLabel("Dictate to terminal")
-                    .disabled(!canSubmitSpeech || isSubmittingSpeech)
-
-                    Menu {
-                        Section("Zoom (\(100 + terminalZoomSteps * 10)%)") {
-                            Button("Zoom In", systemImage: "plus.magnifyingglass") { terminalZoomSteps += 1 }
-                                .disabled(terminalZoomSteps >= 10)
-                            Button("Zoom Out", systemImage: "minus.magnifyingglass") { terminalZoomSteps -= 1 }
-                                .disabled(terminalZoomSteps <= -5)
-                            Button("Reset Zoom (80%)") { terminalZoomSteps = -2 }
-                                .disabled(terminalZoomSteps == -2)
-                        }
-                        Button("New Shell", systemImage: "terminal") { Task { await newShell(payload: payload) } }
-                        Button("Reload Content", systemImage: "arrow.clockwise") { windows.reload(id: payload.id) }
-                        Button("Open Launcher", systemImage: "square.grid.2x2") { windows.openLauncher() }
-                        Button("Session Details", systemImage: "info.circle") {
-                            isUtilitiesExpanded.toggle()
-                            isSessionDetailsExpanded = isUtilitiesExpanded
-                        }
-                        Divider()
-                        Button("End Session…", role: .destructive) { confirmEndSession = true }
+                        isActionsPresented.toggle()
                     } label: {
                         Image(systemName: "ellipsis").font(.title3)
                             .frame(width: 44, height: 44)
@@ -135,6 +87,9 @@ struct TerminalWindowView: View {
                     .buttonStyle(.plain)
                     .buttonBorderShape(.circle)
                     .accessibilityLabel("Session actions")
+                    .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
+                        terminalActions(payload: payload)
+                    }
 
                     Button {
                         interruptRequestToken += 1
@@ -164,32 +119,51 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .overlay(alignment: .center) {
-            if isSpeechPanelExpanded {
-                speechPanel(payloadID: payload.id)
-                    .frame(width: 460)
-                    .transition(.opacity)
-            }
-        }
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech,
+            onSent: { focusRequestToken += 1 }))
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {
             Text("This stops the terminal and its attached dev servers. Close the window to keep them running.")
         }
         .onAppear {
-            speechCapture.onFinished = {
-                guard isSpeechPanelExpanded, !isSubmittingSpeech else { return }
-                Task { await submitSpeechTranscript(payloadID: payload.id) }
-            }
             slzLog("terminal scene appeared \(payload.id)")
-            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                speechOrbPulse = true
-            }
         }
         .onChange(of: loadState) { _, newLoadState in
             windows.updateTerminalLoadState(id: payload.id, loadState: newLoadState)
-            if !canSubmitSpeech { speechCapture.stopListening() }
         }
+    }
+
+    private func terminalActions(payload: TerminalWindowPayload) -> some View {
+        VStack(spacing: 0) {
+            TerminalZoomControls(steps: $terminalZoomSteps)
+            Divider()
+            Button("New Shell", systemImage: "terminal") {
+                isActionsPresented = false
+                Task { await newShell(payload: payload) }
+            }
+            Button("Reload Content", systemImage: "arrow.clockwise") {
+                isActionsPresented = false
+                windows.reload(id: payload.id)
+            }
+            Button("Open Launcher", systemImage: "square.grid.2x2") {
+                isActionsPresented = false
+                windows.openLauncher()
+            }
+            Button("Session Details", systemImage: "info.circle") {
+                isActionsPresented = false
+                isUtilitiesExpanded.toggle()
+                isSessionDetailsExpanded = isUtilitiesExpanded
+            }
+            Divider()
+            Button("End Session…", role: .destructive) {
+                isActionsPresented = false
+                confirmEndSession = true
+            }
+        }
+        .buttonStyle(TerminalMenuButtonStyle())
+        .frame(width: 360)
+        .clipShape(RoundedRectangle(cornerRadius: 20))
     }
 
     private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
@@ -220,81 +194,6 @@ struct TerminalWindowView: View {
         }
         .padding(14)
         .frame(maxWidth: 520, alignment: .leading)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-    }
-
-    private func speechPanel(payloadID: String) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 12) {
-                Circle()
-                    .fill(speechCapture.isListening ? .red.opacity(0.9) : .secondary.opacity(0.45))
-                    .frame(width: 18, height: 18)
-                    .scaleEffect(speechCapture.isListening && speechOrbPulse ? 1.18 : 0.92)
-                    .overlay {
-                        Circle()
-                            .strokeBorder(.white.opacity(0.3), lineWidth: 1)
-                    }
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text("Voice Input")
-                        .font(.subheadline.weight(.semibold))
-
-                    Text(isSubmittingSpeech ? "Sending…" : speechCapture.statusText)
-                        .font(.caption)
-                        .foregroundStyle(speechCapture.isListening ? .red : .secondary)
-                }
-
-                Spacer()
-            }
-
-            ScrollView {
-                Text(speechCapture.transcript.isEmpty ? speechPlaceholderText : speechCapture.transcript)
-                    .font(.body)
-                    .foregroundStyle(speechCapture.transcript.isEmpty ? .tertiary : .primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
-            .frame(minHeight: 88, maxHeight: 148)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
-            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-            HStack(spacing: 10) {
-                Button("Cancel") {
-                    speechCapture.stopListening()
-                    speechCapture.clearTranscript()
-                    isSpeechPanelExpanded = false
-                }
-                .buttonStyle(.bordered)
-                .disabled(isSubmittingSpeech)
-                Spacer()
-                if speechCapture.isListening {
-                    Button("Send Now") { speechCapture.finishListening() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(submissionTranscript.isEmpty)
-                } else if !isSubmittingSpeech && speechCapture.state != .preparing && speechCapture.state != .finishing {
-                    if !submissionTranscript.isEmpty {
-                        Button(speechSubmitError == nil ? "Send" : "Retry") {
-                            Task { await submitSpeechTranscript(payloadID: payloadID) }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!canSubmitSpeech)
-                    } else {
-                        Button("Try Again") {
-                            Task { await speechCapture.startListening() }
-                        }
-                        .disabled(!canSubmitSpeech)
-                    }
-                }
-            }
-
-            if let speechSubmitError {
-                Text(speechSubmitError)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        }
-        .padding(14)
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
@@ -354,67 +253,13 @@ struct TerminalWindowView: View {
         }
     }
 
-    private var submissionTranscript: String {
-        let trimmed = speechCapture.transcript.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return ""
-        }
-
-        return trimmed.replacingOccurrences(of: "\r\n", with: "\n")
-            .replacingOccurrences(of: "\r", with: "\n")
-            .replacingOccurrences(of: "\u{2028}", with: "\n")
-    }
-
     private var canSubmitSpeech: Bool {
         if case .loaded = loadState { return payload != nil && scenePhase == .active }
         return false
     }
 
-    private var speechPlaceholderText: String {
-        "Speak naturally. Your words will send automatically after a short pause."
-    }
-
     private func syncScenePhase(_ phase: ScenePhase) {
         if phase == .active { focusRequestToken += 1 }
-        else { speechCapture.stopListening() }
-    }
-
-    private func submitSpeechTranscript(payloadID: String) async {
-        let text = submissionTranscript
-        guard !text.isEmpty, !isSubmittingSpeech, isSpeechPanelExpanded else { return }
-        guard canSubmitSpeech else {
-            speechSubmitError = "Terminal is not connected. Reconnect, then retry."
-            return
-        }
-
-        guard let payload,
-            let inputURL = surfaceInputURL(for: payload)
-        else {
-            speechSubmitError = "Terminal input route is unavailable."
-            slzLog("terminal speech submit missing route \(payloadID)")
-            return
-        }
-
-        speechCapture.stopListening()
-        speechSubmitError = nil
-        isSubmittingSpeech = true
-
-        defer {
-            isSubmittingSpeech = false
-        }
-
-        do {
-            try await submitSurfaceInput(text: text, to: inputURL)
-
-            speechCapture.clearTranscript()
-            isSpeechPanelExpanded = false
-            focusRequestToken += 1
-            slzLog("terminal speech submitted \(payloadID)")
-        } catch {
-            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-            speechSubmitError = message
-            slzLog("terminal speech submit failed \(payloadID): \(message)")
-        }
     }
 
     private func newShell(payload: TerminalWindowPayload) async {
@@ -425,36 +270,5 @@ struct TerminalWindowView: View {
     private func endSession(payload: TerminalWindowPayload) async {
         do { try await windows.endSession(id: payload.id) }
         catch { loadState = .failed(error.localizedDescription) }
-    }
-
-    private func surfaceInputURL(for payload: TerminalWindowPayload) -> URL? {
-        guard let baseURL = payload.url,
-            var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)
-        else {
-            return nil
-        }
-
-        components.path = "/api/sessions/\(payload.id)/input"
-        components.query = nil
-        components.fragment = nil
-        return components.url
-    }
-
-    private func submitSurfaceInput(text: String, to inputURL: URL) async throws {
-        // Retrying a lost response uses the same command ID; the host deduplicates it.
-        let body = try JSONSerialization.data(withJSONObject: [
-            "commandId": speechCommandID, "text": text, "sendReturn": true,
-        ])
-        for attempt in 0..<2 {
-            do {
-                _ = try await CompanionAPI.request(
-                    APIAcknowledgement.self, base: inputURL, path: inputURL.path, method: "POST", body: body)
-                return
-            } catch let error as URLError
-                where attempt == 0 && [.timedOut, .networkConnectionLost].contains(error.code)
-            {
-                try await Task.sleep(for: .milliseconds(300))
-            }
-        }
     }
 }

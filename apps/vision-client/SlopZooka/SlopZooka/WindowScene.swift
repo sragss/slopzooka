@@ -135,7 +135,21 @@ private struct SceneIdentity: UIViewRepresentable {
 }
 
 final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
-    let windows = WindowGateway()
+    let windows: WindowGateway
+    let voice: TerminalVoiceController
+
+    override init() {
+        let windows = WindowGateway()
+        self.windows = windows
+        voice = TerminalVoiceController(capture: SpeechCaptureController(),
+            isAvailable: { [weak windows] in windows?.canReceiveVoice($0) == true },
+            deliver: { [weak windows] command in
+                guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
+                try await windows.submitVoiceInput(command)
+            })
+        super.init()
+    }
+
     func application(_ application: UIApplication, didDiscardSceneSessions sessions: Set<UISceneSession>) {
         // Discard is permanent scene closure. Disconnect/background/onDisappear are not.
         // UIKit may deliver this on the next launch, so read the identity from the session.

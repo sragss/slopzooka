@@ -27,6 +27,10 @@ Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the hea
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
+Terminal zoom ranges from **10% to 200%**, with an **80%** reset. The actions menu groups zoom out, zoom in, and reset into one row of magnifying-glass icons, with the percentage at the far right. Full button cells share their tap and hover bounds; zoom actions keep the popover open for repeated adjustments. Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. It remains a per-scene preference. At extreme zoom, the emulator and PTY share the protocol’s bounded grid.
+
+**Settings → Persistent voice input** is off by default. Turn it on, then look at the mint microphone button at the terminal’s bottom right and pinch to start. A small transcript dock beside the button and a listening border mark the destination. The listening waveform follows microphone energy and settles during silence; no audio is retained for this visual feedback. Pauses keep your draft; **Send** submits it with Return and starts listening for the next message. Select another terminal’s microphone to switch when the draft is empty, or send/discard the draft first. **Stop** releases the microphone and discards the draft. The same explicit selection works in normal and immersive workspaces; there is no automatic head or eye targeting. Turning the setting off restores one-shot dictation, which sends after a short pause. Listening never restores on launch. Losing the connection or scene activity pauses capture and keeps the draft; reconnecting requires **Resume** or **Retry**. Retry preserves the command ID to avoid duplicate input after an uncertain acknowledgement.
+
 **Settings → Immersive workspace** adds an optional wrist menu at runtime. It opens the launcher and up to three recent terminals through the same window gateway. Choose either wrist; exit from Settings or the wrist menu. Your room and SlopZooka windows remain visible while other apps are hidden. Immersion starts off on each launch. The simulator shows a stationary version of the same menu; physical wrist tracking and comfort require Vision Pro validation. See [.plans/2026-10-31-immersive-workspace.md](.plans/2026-10-31-immersive-workspace.md) for architecture, scope, and device checks.
 
 
@@ -185,6 +189,7 @@ See [AGENTS.md](AGENTS.md) for the architecture rules and verification expectati
 pnpm typecheck
 pnpm test
 pnpm test:vision-state
+pnpm test:terminal-keyboard
 pnpm format:check
 pnpm build:harness
 xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
@@ -197,3 +202,5 @@ Integration tests use temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSoc
 Before relying on a headset release, exercise these on physical Vision Pro: pair; open an agent and a shell in one workspace; close/reopen a window; sleep/wake the headset during output; dictate once while interrupting the connection; and open Next.js/Vite apps with HMR, auth, and cross-service requests. LAN certificate trust and framework origin policies require real-device verification.
 
 `pnpm test:vision-state` runs the launcher state regression checks on macOS: dismissing repository creation immediately unlocks controls, stale responses cannot launch terminals or reset newer operations, and pairing submits only once. Closing creation stops waiting; it does not undo a repository already created on GitHub.
+
+Voice state checks also cover explicit sending versus recognition finalization, shared microphone ownership, terminal switching, draft retention on disconnect, immutable retries, late acknowledgements, and cancelled permission requests. On Vision Pro, verify long dictation across pauses, repeated sends, switching terminals, permission denial, background/sleep and reconnect, and stopping capture from Settings in both workspace modes. Simulator compilation does not validate microphone behavior or comfort.
