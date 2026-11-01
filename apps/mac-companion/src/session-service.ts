@@ -74,6 +74,7 @@ async function main() {
       runtimeId,
       pid: process.pid,
       sessions: manager.summaries(),
+      capabilities: ["rename-session"],
     } satisfies ServiceInfo),
   );
   app.post("/sessions", (req, res) => {
@@ -97,6 +98,9 @@ async function main() {
     if (manager.summaries().some((session) => session.id === req.params.id))
       manager.terminate(req.params.id);
     res.json({ ok: true });
+  });
+  app.patch("/sessions/:id", (req, res) => {
+    res.json(manager.rename(req.params.id, req.body?.name));
   });
   app.post("/sessions/:id/input", (req, res) => {
     const { commandId, text, sendReturn } = req.body ?? {};
@@ -147,6 +151,7 @@ async function main() {
         type: "service-ready",
         version: SESSION_SERVICE_VERSION,
         instanceId,
+        supportsTakeControl: true,
         sessions: manager.summaries(),
       }),
     );
@@ -164,6 +169,9 @@ async function main() {
             break;
           case "detach":
             manager.detach(ws, message.sessionId);
+            break;
+          case "take-control":
+            manager.takeControl(ws, message.sessionId);
             break;
           case "input":
             manager.input(ws, message.sessionId, message.data);

@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import { spawn } from "node:child_process";
 import { WebSocket, WebSocketServer } from "ws";
 import { SessionServiceClient } from "../src/session-service-client.js";
+import { SESSION_SERVICE_VERSION } from "../src/session-service-protocol.js";
 
 const delay = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
 async function until<T>(run: () => T | Promise<T>): Promise<NonNullable<T>> {
@@ -116,6 +117,10 @@ test(
     ]);
     assert.deepEqual(sessions[0], sessions[1]);
     assert.equal((await client.info()).sessions.length, 1);
+    await client.rename("same-session", "  Shared terminal  ");
+    const named = (await peer.info()).sessions[0];
+    assert.equal(named.name, "Shared-terminal");
+    assert.equal(named.title, sessions[0].title);
     let host = await gateway(client);
     t.after(async () => host.stop());
     const a = await viewer(host.url);
@@ -124,7 +129,17 @@ test(
       a.ws.terminate();
       b.ws.terminate();
     });
+    assert.equal(
+      a.messages.find((m) => m.type === "hello").supportsTakeControl,
+      true,
+    );
     a.attach();
+    b.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
+    );
+    await until(() =>
+      b.messages.some((m) => m.type === "error" && m.code === "403"),
+    );
     b.attach();
     await until(() =>
       a.messages.some((message) => message.type === "attached"),
@@ -140,12 +155,61 @@ test(
       b.messages.find((message) => message.type === "attached").writable,
       false,
     );
-    a.ws.terminate();
-    await until(() =>
-      b.messages.some(
-        (message) => message.type === "ownership" && message.writable,
-      ),
+    const owner = (page: typeof a) =>
+      page.messages.filter((m) => m.type === "ownership").at(-1)?.writable;
+    b.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
     );
+    await until(() => owner(a) === false && owner(b) === true);
+    a.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "touch rejected-input\r",
+      }),
+    );
+    a.ws.send(
+      JSON.stringify({
+        type: "resize",
+        sessionId: "same-session",
+        cols: 99,
+        rows: 33,
+      }),
+    );
+    await until(
+      () =>
+        a.messages.filter((m) => m.type === "error" && m.code === "403")
+          .length === 2,
+    );
+    await assert.rejects(
+      fs.access(path.join(home, "rejected-input")),
+      /ENOENT/,
+    );
+    b.ws.send(
+      JSON.stringify({
+        type: "resize",
+        sessionId: "same-session",
+        cols: 100,
+        rows: 30,
+      }),
+    );
+    await until(async () => (await client.info()).sessions[0]?.cols === 100);
+    b.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "echo $$ > takeover-pid\r",
+      }),
+    );
+    const takeoverPID = await until(() =>
+      fs.readFile(path.join(home, "takeover-pid"), "utf8").catch(() => ""),
+    );
+    a.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
+    );
+    await until(() => owner(a) === true && owner(b) === false);
+    a.ws.terminate();
+    await until(() => owner(b) === true);
     const command =
       "echo $$ > shell-pid; printf 'ONCE\\n' >> commands; printf 'BEFORE_%s\\n' RESTART";
     await client.paste("same-session", "once", command, true);
@@ -153,6 +217,11 @@ test(
     await until(() => b.output().includes("BEFORE_RESTART"));
     const pid = await until(() =>
       fs.readFile(path.join(home, "shell-pid"), "utf8").catch(() => ""),
+    );
+    assert.equal(
+      pid,
+      takeoverPID,
+      "taking control preserves the same shell process",
     );
     await host.stop();
     await client.paste(
@@ -165,6 +234,11 @@ test(
     const recovered = await recoveredClient.connectOrStart();
     assert.equal(recovered.instanceId, first.instanceId);
     assert.equal(recovered.pid, first.pid);
+    assert.equal(
+      recovered.sessions[0].name,
+      "Shared-terminal",
+      "Names survive companion restarts with the existing session",
+    );
     host = await gateway(recoveredClient);
     const c = await viewer(host.url);
     t.after(() => c.ws.terminate());
@@ -228,11 +302,10 @@ test(
     );
     const client = await SessionServiceClient.forHome(home);
     let respond = true;
+    let version = 999;
     const server = http.createServer((_req, res) => {
       if (respond)
-        res.end(
-          JSON.stringify({ version: 999, sessions: [{ id: "keep-me" }] }),
-        );
+        res.end(JSON.stringify({ version, sessions: [{ id: "keep-me" }] }));
     });
     server.listen(client.socketPath);
     await once(server, "listening");
@@ -246,6 +319,9 @@ test(
       await fs.rm(home, { recursive: true, force: true });
     });
     await assert.rejects(client.connectOrStart(), /explicit update/);
+    version = SESSION_SERVICE_VERSION;
+    assert.equal((await client.info()).sessions[0].id, "keep-me");
+    await assert.rejects(client.rename("keep-me", "Name"), /explicit update/);
     respond = false;
     await assert.rejects(client.connectOrStart(), /timed out/);
     assert.equal(
@@ -336,6 +412,11 @@ test("the bounded relay accepts a large screen checkpoint without introducing an
     page.messages.some((message) => message.type === "attached"),
   );
   assert.equal(page.output(), snapshot);
+  assert.equal(
+    page.messages.find((m) => m.type === "hello").supportsTakeControl,
+    false,
+    "older services remain usable without advertising takeover",
+  );
 });
 
 test(

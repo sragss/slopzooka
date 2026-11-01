@@ -203,6 +203,19 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
     sendWorkspaceError(res, error, "Could not create session");
   }
 });
+app.patch("/api/sessions/:sessionId", async (req, res) => {
+  try {
+    if (!validId(req.params.sessionId))
+      throw new ServiceError("Valid sessionId required", 400);
+    const session = await sessionService.rename(
+      req.params.sessionId,
+      req.body?.name,
+    );
+    res.json({ session });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not rename session");
+  }
+});
 app.delete("/api/sessions/:sessionId", async (req, res) => {
   try {
     await sessionService.end(req.params.sessionId);

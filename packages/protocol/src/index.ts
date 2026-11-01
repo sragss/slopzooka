@@ -5,6 +5,8 @@ export type SessionSummary = {
   workspaceId: string;
   profile: TuiProfile | null;
   title: string;
+  /** User-assigned name; title remains the original fallback. */
+  name?: string;
   cwd: string;
   cols: number;
   rows: number;
@@ -15,6 +17,7 @@ export type ClientMessage =
   | { type: "hello"; version: number }
   | { type: "attach"; sessionId: string; cursor?: number }
   | { type: "detach"; sessionId: string }
+  | { type: "take-control"; sessionId: string }
   | { type: "input"; sessionId: string; data: string }
   | { type: "resize"; sessionId: string; cols: number; rows: number }
   | { type: "ack"; sessionId: string; cursor: number };
@@ -25,6 +28,7 @@ export type ServerMessage =
       version: number;
       hostId: string;
       serviceInstanceId?: string;
+      supportsTakeControl?: boolean;
       sessions: SessionSummary[];
     }
   | {
@@ -59,6 +63,7 @@ export function isClientMessage(value: unknown): value is ClientMessage {
     case "attach":
       return m.cursor === undefined || cursor(m.cursor);
     case "detach":
+    case "take-control":
       return true;
     case "ack":
       return cursor(m.cursor);

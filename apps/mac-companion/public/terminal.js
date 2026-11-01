@@ -9166,6 +9166,7 @@ var TerminalConnection = class {
   running = false;
   attached = false;
   lostConnection = false;
+  supportsTakeControl = false;
   connect() {
     if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
       return;
@@ -9236,6 +9237,10 @@ var TerminalConnection = class {
       rows
     });
   }
+  takeControl() {
+    if (this.attached && this.running && !this.writable && this.supportsTakeControl)
+      this.send({ type: "take-control", sessionId: this.sessionId });
+  }
   reconnect() {
     if (this.stopped) return;
     this.socket?.close();
@@ -9267,10 +9272,7 @@ var TerminalConnection = class {
       case "ownership":
         if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
         this.writable = m.writable;
-        this.status(
-          this.running ? "Connected" : "Session ended",
-          this.running ? "running" : "exited"
-        );
+        this.publishOwnership();
         this.resize();
         break;
       case "hello":
@@ -9278,6 +9280,7 @@ var TerminalConnection = class {
         if (m.serviceInstanceId && this.serviceInstanceId && m.serviceInstanceId !== this.serviceInstanceId)
           this.cursor = void 0;
         this.serviceInstanceId = m.serviceInstanceId;
+        this.supportsTakeControl = m.supportsTakeControl === true;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -9309,11 +9312,7 @@ var TerminalConnection = class {
         this.writable = m.writable;
         this.attached = true;
         this.lostConnection = false;
-        this.status(
-          this.running ? m.writable ? "Connected" : "Connected \u2022 read only" : "Session ended",
-          this.running ? "running" : "exited",
-          this.running && !m.writable
-        );
+        this.publishOwnership();
         this.resize();
         break;
       case "output":
@@ -9328,6 +9327,10 @@ var TerminalConnection = class {
         break;
       case "error":
         if (!this.isCurrent(ws2)) return;
+        if (m.code === "403" && this.attached && this.running && !this.writable) {
+          this.publishOwnership();
+          break;
+        }
         this.status(
           m.code === "404" ? `This session is no longer available. Open a new terminal from the dashboard. (${m.code}: ${m.message})` : `${m.message} (${m.code})`,
           "failed"
@@ -9335,6 +9338,15 @@ var TerminalConnection = class {
         if (m.code === "404") this.detach();
         break;
     }
+  }
+  publishOwnership() {
+    const readOnly = this.running && !this.writable;
+    this.status(
+      this.running ? readOnly ? "Connected \u2022 read only" : "Connected" : "Session ended",
+      this.running ? "running" : "exited",
+      readOnly,
+      readOnly && this.supportsTakeControl
+    );
   }
   write(data) {
     return new Promise((resolve) => this.terminal.write(data, resolve));
@@ -9358,6 +9370,7 @@ var messageLabel = document.querySelector(
 );
 var guidance = document.querySelector("#connection-guidance");
 var readOnlyBadge = document.querySelector("#read-only");
+var takeControlButton = document.querySelector("#take-control");
 var terminal = new Dl({
   cursorBlink: true,
   fontSize: 16,
@@ -9384,12 +9397,13 @@ var sessionId = new URLSearchParams(location.search).get("sessionId");
 var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
-  (message, state, readOnly = false) => {
+  (message, state, readOnly = false, canTakeControl = false) => {
     overlay.hidden = state === "running";
     messageLabel.textContent = message;
     guidance.hidden = state !== "disconnected";
     overlay.classList.toggle("error", state === "failed");
     readOnlyBadge.hidden = !readOnly;
+    takeControlButton.hidden = !canTakeControl;
     window.webkit?.messageHandlers?.terminalState?.postMessage({
       state,
       message
@@ -9400,6 +9414,10 @@ var connection = sessionId ? new TerminalConnection(
 document.title = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
 if (!sessionId) messageLabel.textContent = "Missing terminal session";
 connection?.connect();
+takeControlButton.addEventListener("click", () => {
+  connection?.takeControl();
+  terminal.focus();
+});
 var resizeFrame = 0;
 var resizeObserver = new ResizeObserver(() => {
   cancelAnimationFrame(resizeFrame);

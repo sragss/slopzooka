@@ -53,6 +53,12 @@ Portless is optional. The registry adapter is tested against the Portless 0.14 s
 
 Agent commands use their normal permission behavior.
 
+## Browser terminal control
+
+One viewer controls a terminal's keyboard and size. Other views show **Read only**. Click **Take Control** in a browser terminal to move control to that tab; the previous viewer stays connected and becomes read-only. This preserves the session and shell process, including when recovering after a companion restart. Closing the controlling view still transfers control automatically.
+
+The button is hidden on Vision Pro. It requires an updated session service; updating the companion alone leaves older services and their sessions running. Use the Mac menu's explicit session-service restart when ready to end those sessions and load the new runtime.
+
 ## Shutdown and launch retries
 
 HTTP companion shutdown closes public admission, viewer connections, and frontend gateways without stopping terminal ownership. Session-service shutdown closes its own admission before terminating session descendants. An in-flight launch may have succeeded even if an HTTP reply was lost; retry with the same session ID instead of launching another agent.

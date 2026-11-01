@@ -24,6 +24,10 @@ Zoom changes the terminal font size and explicitly refits the emulator and PTY w
 
 ## Dictation
 
+Choose **Rename** next to **Interrupt** to start voice naming. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes: “Fix the login flow” becomes **Fix-the-login-flow**. The same name appears above the window and in the companion dashboard, launcher, and wrist menu. Unnamed terminals keep their original labels.
+
+Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. **Stop** cancels; failed saves keep the draft for retry. Send, save, or discard an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
+
 **Settings → Persistent voice input** is off by default. Turn it on, then look at the mint microphone button at the terminal’s bottom right and pinch to start. A small transcript dock beside the button and a listening border mark the destination. The listening waveform follows microphone energy and settles during silence; no audio is retained for this visual feedback. Pauses and long recordings keep appending to the same draft; **Send** submits it with Return and starts listening for the next message. Select another terminal’s microphone to switch when the draft is empty, or send/discard the draft first. **Stop** releases the microphone and discards the draft.
 
 The same explicit selection works in normal and immersive workspaces; there is no automatic head or eye targeting. Turning the setting off restores one-shot dictation, which sends after a short pause.

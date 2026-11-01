@@ -40,11 +40,16 @@ const logger = {
 };
 
 test("protocol rejects malformed dimensions, identifiers, payloads and versions", () => {
+  assert.equal(
+    isClientMessage({ type: "take-control", sessionId: "session-1" }),
+    true,
+  );
   for (const value of [
     null,
     {},
     { type: "hello", version: 2 },
     { type: "input", sessionId: "x", data: 1 },
+    { type: "take-control", sessionId: "../x" },
     { type: "resize", sessionId: "x", cols: Infinity, rows: 40 },
     { type: "resize", sessionId: "x", cols: 999999, rows: 40 },
     { type: "ack", sessionId: "../x", cursor: 1 },
@@ -158,6 +163,16 @@ test(
         }
       });
       assert.equal((await api("/api/sessions")).status, 401);
+      assert.equal(
+        (
+          await api(
+            "/api/sessions/terminal-1",
+            { name: "Unauthorized" },
+            "PATCH",
+          )
+        ).status,
+        401,
+      );
       const favicon = await fetch(base + "/favicon.png");
       assert.equal(favicon.status, 200, "favicon is available before pairing");
       assert.match(favicon.headers.get("content-type") ?? "", /image\/png/);
@@ -254,6 +269,61 @@ test(
         profile: null,
       });
       assert.equal((await api("/api/sessions")).body.sessions.length, 2);
+      const nameContract = JSON.parse(
+        await fs.readFile(
+          new URL(
+            "../../../packages/protocol/fixtures/session-names.v1.json",
+            import.meta.url,
+          ),
+          "utf8",
+        ),
+      );
+      const originalTitle = launches[0].body.session.title;
+      const renamed = await api(
+        "/api/sessions/terminal-1",
+        { name: "  Fix\tthe\nlogin flow  " },
+        "PATCH",
+      );
+      assert.equal(renamed.status, 200);
+      assert.equal(renamed.body.session.name, nameContract.sessions[0].name);
+      assert.equal(
+        renamed.body.session.title,
+        originalTitle,
+        "The original title remains the fallback",
+      );
+      const namedSessions = (await api("/api/sessions")).body.sessions;
+      assert.equal(
+        namedSessions.find((s: any) => s.id === "terminal-1").name,
+        nameContract.sessions[0].name,
+      );
+      assert.equal(
+        namedSessions.find((s: any) => s.id === "terminal-2").name,
+        undefined,
+      );
+      for (const name of ["", "   ", 42, "x".repeat(121), "invalid\0name"]) {
+        assert.equal(
+          (await api("/api/sessions/terminal-1", { name }, "PATCH")).status,
+          400,
+        );
+      }
+      assert.equal(
+        (await api("/api/sessions/missing", { name: "Missing" }, "PATCH"))
+          .status,
+        404,
+      );
+      const cleared = await api(
+        "/api/sessions/terminal-1",
+        { name: null },
+        "PATCH",
+      );
+      assert.equal(cleared.status, 200);
+      assert.equal(cleared.body.session.name, undefined);
+      assert.equal(cleared.body.session.title, originalTitle);
+      assert.equal(
+        (await api("/api/sessions")).body.sessions.length,
+        2,
+        "Rename cannot create a process",
+      );
       const layoutHeaders = {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",

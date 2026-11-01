@@ -85,6 +85,9 @@
       }
 
       #read-only {
+        display: flex;
+        align-items: center;
+        gap: 10px;
         position: fixed;
         top: 14px;
         left: 14px;
@@ -94,6 +97,21 @@
         color: var(--muted);
         font-size: 13px;
         pointer-events: none;
+      }
+
+      #take-control {
+        pointer-events: auto;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 4px 8px;
+        background: transparent;
+        color: var(--text);
+        font: inherit;
+        cursor: pointer;
+      }
+
+      [data-native-terminal] #take-control {
+        display: none;
       }
 
       .error {
@@ -114,7 +132,10 @@
         <p id="connection-guidance" hidden>Reopen SlopZooka on your Mac.</p>
       </div>
     </div>
-    <div id="read-only" hidden>Read only</div>
+    <div id="read-only" hidden>
+      Read only
+      <button id="take-control" type="button" hidden>Take Control</button>
+    </div>
     <script type="module" src="/terminal.js"></script>
   </body>
 </html>

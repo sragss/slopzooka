@@ -26,11 +26,17 @@ struct TerminalVoiceCommand: Equatable {
     let text: String
 }
 
+enum WindowName {
+    static func normalized(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: "-")
+    }
+}
+
 /// Owns transient voice intent only. WindowGateway resolves IDs and delivers input.
 /// One-shot dictation and persistent voice share capture, draft, and delivery.
 @MainActor
 final class TerminalVoiceController: ObservableObject {
-    enum Mode { case dictation, conversation }
+    enum Mode { case dictation, conversation, rename }
 
     @Published var conversationEnabled: Bool {
         didSet {
@@ -50,6 +56,7 @@ final class TerminalVoiceController: ObservableObject {
     private let capture: any SpeechCapturing
     private let isAvailable: (String) -> Bool
     private let deliver: (TerminalVoiceCommand) async throws -> Void
+    private let rename: (String, String) async throws -> Void
     private var committedText = ""
     private var pendingCommand: TerminalVoiceCommand?
     private var captureTask: Task<Void, Never>?
@@ -59,11 +66,13 @@ final class TerminalVoiceController: ObservableObject {
 
     init(capture: any SpeechCapturing, defaults: UserDefaults = .standard,
         isAvailable: @escaping (String) -> Bool,
+        rename: @escaping (String, String) async throws -> Void,
         deliver: @escaping (TerminalVoiceCommand) async throws -> Void) {
         self.capture = capture
         self.defaults = defaults
         self.isAvailable = isAvailable
         self.deliver = deliver
+        self.rename = rename
         conversationEnabled = defaults.bool(forKey: "conversationVoiceEnabled")
         capture.onUpdate = { [weak self] in self?.captureUpdated() }
         capture.onFinished = { [weak self] in self?.captureFinished() }
@@ -76,28 +85,40 @@ final class TerminalVoiceController: ObservableObject {
     var needsRetry: Bool { pendingCommand != nil && !isSubmitting }
 
     var statusText: String {
-        if isSubmitting { return "Sending…" }
+        if isSubmitting { return mode == .rename ? "Saving name…" : "Sending…" }
         if let error { return error }
         switch captureState {
         case .preparing: return "Preparing microphone…"
         case .finishing: return "Finishing transcription…"
-        case .listening: return mode == .dictation ? "Pause briefly to send" : "Listening · Tap Send when ready"
+        case .listening:
+            if mode == .rename { return "Say a window name · Pause to save" }
+            return mode == .dictation ? "Pause briefly to send" : "Listening · Tap Send when ready"
         case let .failed(message), let .unavailable(message): return message
         case .idle:
-            return hasText ? "Draft kept · Send or discard" : "Microphone paused"
+            if !hasText { return "Microphone paused" }
+            return mode == .rename ? "Name kept · Save or discard" : "Draft kept · Send or discard"
         }
     }
 
     /// Explicit terminal selection works identically in shared and immersive space.
     func activateTerminal(_ id: String) {
+        if mode == .rename && targetID == id { stop(); return }
+        activate(id, mode: conversationEnabled ? .conversation : .dictation)
+    }
+
+    func activateRename(_ id: String) {
+        activate(id, mode: .rename)
+    }
+
+    private func activate(_ id: String, mode requestedMode: Mode) {
         guard !isSubmitting, isAvailable(id) else { return }
-        if mode != nil && targetID == id { stop(); return }
+        if mode == requestedMode && targetID == id { stop(); return }
         guard !hasText && pendingCommand == nil else {
-            error = "Send or discard the current draft before switching terminals."
+            error = "Send, save, or discard the current draft before switching voice input."
             return
         }
         stop()
-        mode = conversationEnabled ? .conversation : .dictation
+        mode = requestedMode
         targetID = id
         startCapture()
     }
@@ -156,7 +177,7 @@ final class TerminalVoiceController: ObservableObject {
         guard let id = targetID, isAvailable(id), mode != nil, !isSubmitting, !isSuspended else { return }
         captureTask?.cancel()
         let token = generation
-        let finishOnPause = mode == .dictation
+        let finishOnPause = mode != .conversation
         captureTask = Task { [weak self] in
             guard let self, self.generation == token, !Task.isCancelled else { return }
             await self.capture.startListening(finishOnPause: finishOnPause)
@@ -175,7 +196,7 @@ final class TerminalVoiceController: ObservableObject {
         guard mode != nil else { return }
         committedText = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         capture.clearTranscript()
-        if submitWhenFinished || mode == .dictation {
+        if submitWhenFinished || mode != .conversation {
             submitWhenFinished = false
             if hasText { submit() }
         } else {
@@ -205,6 +226,26 @@ final class TerminalVoiceController: ObservableObject {
     private func submit() {
         guard let id = targetID, hasText, !isSubmitting else { return }
         guard isAvailable(id) else { targetUnavailable(id); return }
+        if mode == .rename {
+            let name = WindowName.normalized(transcript)
+            stopCaptureKeepingDraft()
+            error = nil
+            isSubmitting = true
+            let token = generation
+            Task { [weak self] in
+                guard let self, self.generation == token else { return }
+                do {
+                    try await self.rename(id, name)
+                    guard self.generation == token else { return }
+                    self.stop()
+                } catch {
+                    guard self.generation == token else { return }
+                    self.isSubmitting = false
+                    self.error = "\(error.localizedDescription) Tap Save Name to retry."
+                }
+            }
+            return
+        }
         let command = pendingCommand ?? TerminalVoiceCommand(targetID: id, commandID: UUID().uuidString,
             text: transcript.trimmingCharacters(in: .whitespacesAndNewlines)
                 .replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
