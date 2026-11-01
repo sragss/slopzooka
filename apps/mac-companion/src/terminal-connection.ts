@@ -57,7 +57,7 @@ export class TerminalConnection {
     const ws = new WebSocket(url);
     this.socket = ws;
     this.handshake = setTimeout(() => {
-      if (this.socket === ws && !this.attached) ws.close();
+      if (this.socket === ws && !this.attached) this.retryConnection(ws);
     }, 10_000);
     ws.onmessage = (event) => {
       if (this.socket !== ws) return;
@@ -77,23 +77,27 @@ export class TerminalConnection {
       }
     };
     ws.onclose = () => {
-      if (this.socket !== ws || this.stopped) return;
-      this.clearTimers();
-      this.attached = false;
-      this.writable = false;
-      this.lostConnection = true;
-      this.status("Lost companion connection.", "disconnected");
-      this.retry = setTimeout(
-        () => this.connect(),
-        Math.min(10000, 300 * 2 ** this.attempts++) + Math.random() * 300,
-      );
+      this.retryConnection(ws);
     };
     ws.onerror = () => {
-      if (this.isCurrent(ws)) {
-        this.lostConnection = true;
-        this.status("Lost companion connection.", "disconnected");
-      }
+      this.retryConnection(ws);
     };
+  }
+  private retryConnection(ws: WebSocket): void {
+    if (this.socket !== ws || this.stopped) return;
+    this.clearTimers();
+    // WebKit may never deliver close after an interrupted handshake. Retire
+    // the transport before closing it, so retries never depend on that event.
+    this.socket = undefined;
+    this.attached = false;
+    this.writable = false;
+    this.lostConnection = true;
+    this.status("Lost companion connection.", "disconnected");
+    ws.close();
+    this.retry = setTimeout(
+      () => this.connect(),
+      Math.min(10000, 300 * 2 ** this.attempts++) + Math.random() * 300,
+    );
   }
   resize(): void {
     if (!this.attached || !this.writable || !this.running) return;

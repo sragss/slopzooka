@@ -185,6 +185,84 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
   }
 });
 
+test("handshake timeout retries without waiting for a stalled close event", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const originalSocket = globalThis.WebSocket;
+  const originalLocation = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "location",
+  );
+  const sockets: StalledSocket[] = [];
+  class StalledSocket {
+    static OPEN = 1;
+    static CLOSING = 2;
+    readyState = 0;
+    onclose?: () => void;
+    onerror?: () => void;
+    constructor() {
+      sockets.push(this);
+    }
+    close() {
+      this.readyState = 2;
+    }
+    send() {}
+  }
+  globalThis.WebSocket = StalledSocket as any;
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { href: "http://host/terminal", protocol: "http:" },
+  });
+  const states: string[] = [];
+  const connection = new TerminalConnection(
+    { onData: () => ({ dispose() {} }) } as any,
+    "s1",
+    (_message, state) => states.push(state),
+    () => {},
+  );
+  try {
+    connection.connect();
+    t.mock.timers.tick(10_000);
+    assert.equal(states.at(-1), "disconnected");
+    t.mock.timers.tick(1000);
+    assert.equal(sockets.length, 2, "closing transport cannot strand retries");
+    sockets[0]!.onclose?.();
+    t.mock.timers.tick(1000);
+    assert.equal(sockets.length, 2, "late close cannot retire its replacement");
+    t.mock.timers.tick(10_000);
+    t.mock.timers.tick(1500);
+    assert.equal(
+      sockets.length,
+      3,
+      "repeated stalls keep retrying with backoff",
+    );
+    sockets[2]!.onerror?.();
+    t.mock.timers.tick(3000);
+    assert.equal(
+      sockets.length,
+      4,
+      "connection errors retry without a close event",
+    );
+    sockets[2]!.onerror?.();
+    sockets[2]!.onclose?.();
+    t.mock.timers.tick(3000);
+    assert.equal(
+      sockets.length,
+      4,
+      "retired events cannot disrupt the new attempt",
+    );
+    connection.detach();
+    t.mock.timers.tick(60_000);
+    assert.equal(sockets.length, 4, "detach cancels stalled-handshake retries");
+  } finally {
+    connection.detach();
+    t.mock.timers.reset();
+    globalThis.WebSocket = originalSocket;
+    if (originalLocation)
+      Object.defineProperty(globalThis, "location", originalLocation);
+    else delete (globalThis as any).location;
+  }
+});
+
 test("stalled attachments retry once, explicit reconnect retires old timers, and detach releases input", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const originalSocket = globalThis.WebSocket;

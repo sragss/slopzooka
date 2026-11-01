@@ -49,6 +49,7 @@ Listening never restores on launch. Losing the connection or scene activity paus
 - Sessions reappear in the launcher after restarting the headset app. Reopening restores the current screen, including the alternate screen used by TUIs.
 - **New Shell** adds a terminal to the same workspace. **End Session** explicitly stops the process and its current descendants. Ending an already exited session removes its retained screen.
 - Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
+- Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or the launcher’s reload button; these preserve running sessions.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
 
 ## Window recovery
