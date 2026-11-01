@@ -162,6 +162,20 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       undefined,
       "a new session-service instance cannot reuse an old screen cursor",
     );
+    restartedService.receive({
+      type: "attached",
+      session,
+      cursor: 0,
+      writable: false,
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const sentBefore = restartedService.sent.length;
+    connection.takeControl();
+    assert.equal(
+      restartedService.sent.length,
+      sentBefore,
+      "takeover is not sent to older session services",
+    );
   } finally {
     connection.detach();
     globalThis.WebSocket = originalSocket;
@@ -209,10 +223,13 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   let fittedSize = { cols: 80, rows: 24 };
   const status: string[] = [];
   const states: string[] = [];
+  const ownership: { readOnly?: boolean; canTakeControl?: boolean }[] = [];
+  let input: (data: string) => void;
   const terminal = {
     cols: 80,
     rows: 24,
-    onData() {
+    onData(callback: (data: string) => void) {
+      input = callback;
       return {
         dispose() {
           disposals++;
@@ -231,7 +248,8 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   const connection = new TerminalConnection(
     terminal as any,
     "s1",
-    (message, state) => {
+    (message, state, readOnly, canTakeControl) => {
+      ownership.push({ readOnly, canTakeControl });
       status.push(message);
       states.push(state);
     },
@@ -263,7 +281,7 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     connection.reconnect();
     assert.equal(sockets.length, 3);
     const current = sockets[2]!;
-    current.receive({ type: "hello", version: 1 });
+    current.receive({ type: "hello", version: 1, supportsTakeControl: true });
     current.receive({
       type: "attached",
       session: { id: "s1", cols: 80, rows: 24, status: "running" },
@@ -300,6 +318,43 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     connection.resize();
     assert.equal(terminal.cols, 80, "Zooming back in restores the fitted grid");
     assert.equal(terminal.rows, 24);
+    current.receive({ type: "ownership", sessionId: "s1", writable: false });
+    await flush();
+    assert.deepEqual(ownership.at(-1), {
+      readOnly: true,
+      canTakeControl: true,
+    });
+    const sent = current.sent.length;
+    input!("blocked");
+    connection.resize();
+    assert.equal(
+      current.sent.length,
+      sent,
+      "revoked viewers cannot send input or resize",
+    );
+    connection.takeControl();
+    assert.deepEqual(current.sent.at(-1), {
+      type: "take-control",
+      sessionId: "s1",
+    });
+    input!("still blocked");
+    assert.equal(
+      current.sent.length,
+      sent + 1,
+      "claiming control waits for the service's confirmation",
+    );
+    current.receive({ type: "ownership", sessionId: "s1", writable: true });
+    await flush();
+    assert.deepEqual(ownership.at(-1), {
+      readOnly: false,
+      canTakeControl: false,
+    });
+    input!("allowed");
+    assert.deepEqual(current.sent.at(-1), {
+      type: "input",
+      sessionId: "s1",
+      data: "allowed",
+    });
     current.receive({
       type: "error",
       code: "404",

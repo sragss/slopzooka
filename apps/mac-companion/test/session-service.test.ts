@@ -124,7 +124,17 @@ test(
       a.ws.terminate();
       b.ws.terminate();
     });
+    assert.equal(
+      a.messages.find((m) => m.type === "hello").supportsTakeControl,
+      true,
+    );
     a.attach();
+    b.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
+    );
+    await until(() =>
+      b.messages.some((m) => m.type === "error" && m.code === "403"),
+    );
     b.attach();
     await until(() =>
       a.messages.some((message) => message.type === "attached"),
@@ -140,12 +150,61 @@ test(
       b.messages.find((message) => message.type === "attached").writable,
       false,
     );
-    a.ws.terminate();
-    await until(() =>
-      b.messages.some(
-        (message) => message.type === "ownership" && message.writable,
-      ),
+    const owner = (page: typeof a) =>
+      page.messages.filter((m) => m.type === "ownership").at(-1)?.writable;
+    b.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
     );
+    await until(() => owner(a) === false && owner(b) === true);
+    a.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "touch rejected-input\r",
+      }),
+    );
+    a.ws.send(
+      JSON.stringify({
+        type: "resize",
+        sessionId: "same-session",
+        cols: 99,
+        rows: 33,
+      }),
+    );
+    await until(
+      () =>
+        a.messages.filter((m) => m.type === "error" && m.code === "403")
+          .length === 2,
+    );
+    await assert.rejects(
+      fs.access(path.join(home, "rejected-input")),
+      /ENOENT/,
+    );
+    b.ws.send(
+      JSON.stringify({
+        type: "resize",
+        sessionId: "same-session",
+        cols: 100,
+        rows: 30,
+      }),
+    );
+    await until(async () => (await client.info()).sessions[0]?.cols === 100);
+    b.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "echo $$ > takeover-pid\r",
+      }),
+    );
+    const takeoverPID = await until(() =>
+      fs.readFile(path.join(home, "takeover-pid"), "utf8").catch(() => ""),
+    );
+    a.ws.send(
+      JSON.stringify({ type: "take-control", sessionId: "same-session" }),
+    );
+    await until(() => owner(a) === true && owner(b) === false);
+    a.ws.terminate();
+    await until(() => owner(b) === true);
     const command =
       "echo $$ > shell-pid; printf 'ONCE\\n' >> commands; printf 'BEFORE_%s\\n' RESTART";
     await client.paste("same-session", "once", command, true);
@@ -153,6 +212,11 @@ test(
     await until(() => b.output().includes("BEFORE_RESTART"));
     const pid = await until(() =>
       fs.readFile(path.join(home, "shell-pid"), "utf8").catch(() => ""),
+    );
+    assert.equal(
+      pid,
+      takeoverPID,
+      "taking control preserves the same shell process",
     );
     await host.stop();
     await client.paste(
@@ -336,6 +400,11 @@ test("the bounded relay accepts a large screen checkpoint without introducing an
     page.messages.some((message) => message.type === "attached"),
   );
   assert.equal(page.output(), snapshot);
+  assert.equal(
+    page.messages.find((m) => m.type === "hello").supportsTakeControl,
+    false,
+    "older services remain usable without advertising takeover",
+  );
 });
 
 test(

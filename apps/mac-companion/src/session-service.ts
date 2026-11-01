@@ -147,6 +147,7 @@ async function main() {
         type: "service-ready",
         version: SESSION_SERVICE_VERSION,
         instanceId,
+        supportsTakeControl: true,
         sessions: manager.summaries(),
       }),
     );
@@ -164,6 +165,9 @@ async function main() {
             break;
           case "detach":
             manager.detach(ws, message.sessionId);
+            break;
+          case "take-control":
+            manager.takeControl(ws, message.sessionId);
             break;
           case "input":
             manager.input(ws, message.sessionId, message.data);
