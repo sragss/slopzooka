@@ -40,12 +40,9 @@ struct SlopZookaApp: App {
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)
 
-        WindowGroup("Palm Spike", id: "palm-spike") {
-            HandLauncherSpikeView()
+        ImmersiveSpace(id: ImmersiveWorkspaceState.sceneID) {
+            ImmersiveWorkspaceScene(windows: appDelegate.windows)
         }
-        .defaultSize(width: 640, height: 520)
-        .windowStyle(.plain)
-        .windowResizability(.contentSize)
-        .defaultLaunchBehavior(.suppressed)
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
 }

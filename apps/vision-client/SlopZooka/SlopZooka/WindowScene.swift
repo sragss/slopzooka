@@ -6,17 +6,40 @@ struct WindowScene<Content: View>: View {
     @ObservedObject var windows: WindowGateway
     var id: String? = nil
     @ViewBuilder var content: () -> Content
+
+    var body: some View {
+        content()
+            .background(SceneIdentity(reference: id.flatMap { windows.reference(for: $0) }, onRestore: windows.remember))
+            .modifier(SceneActions(windows: windows, id: id))
+    }
+}
+
+struct ImmersiveWorkspaceScene: View {
+    @ObservedObject var windows: WindowGateway
+
+    var body: some View {
+        WristWorkspaceView()
+            .modifier(SceneActions(windows: windows))
+            .onAppear { windows.immersiveWorkspace.observe(isPresented: true) }
+            .onDisappear { windows.immersiveWorkspace.observe(isPresented: false) }
+    }
+}
+
+/// Both scene types can present windows, even after the launcher has been closed.
+private struct SceneActions: ViewModifier {
+    @ObservedObject var windows: WindowGateway
+    var id: String? = nil
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var phase
     @State private var presenterID = UUID()
 
-    var body: some View {
-        content()
+    func body(content: Content) -> some View {
+        content
             .environmentObject(windows)
             .environmentObject(windows.launcher)
             .environmentObject(windows.discovery)
-            .background(SceneIdentity(reference: id.flatMap { windows.reference(for: $0) }, onRestore: windows.remember))
+            .environmentObject(windows.immersiveWorkspace)
             .onAppear { update(); windows.start() }
             .onChange(of: phase) { _, _ in update() }
             .onDisappear {
@@ -32,6 +55,44 @@ struct WindowScene<Content: View>: View {
             if opening {
                 if let value { openWindow(id: kind, value: value) } else { openWindow(id: kind) }
             } else if let value { dismissWindow(id: kind, value: value) }
+        }
+    }
+}
+
+/// Native immersive actions stay in this scene adapter, shared by Settings and the wrist.
+struct ImmersiveWorkspaceControl: View {
+    var exitOnly = false
+    @EnvironmentObject private var windows: WindowGateway
+    @EnvironmentObject private var workspace: ImmersiveWorkspaceState
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+
+    var body: some View {
+        Group {
+            if exitOnly {
+                Button("Exit Immersive Workspace", systemImage: "arrow.uturn.backward") { changeMode(false) }
+            } else {
+                Toggle("Immersive workspace", isOn: Binding(
+                    get: { workspace.isPresented }, set: changeMode))
+            }
+        }
+        .disabled(workspace.isTransitioning)
+    }
+
+    private func changeMode(_ enabled: Bool) {
+        Task {
+            await workspace.setEnabled(enabled, open: {
+                switch await openImmersiveSpace(id: ImmersiveWorkspaceState.sceneID) {
+                case .opened: return .opened
+                case .userCancelled: return .cancelled
+                case .error: return .failed
+                @unknown default: return .failed
+                }
+            }, dismiss: {
+                // Keep a way back when the wrist is the last remaining scene.
+                windows.openLauncher()
+                await dismissImmersiveSpace()
+            })
         }
     }
 }

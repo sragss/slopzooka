@@ -33,6 +33,10 @@ final class LauncherState: ObservableObject {
     private var connecting = false
     private var refreshing = false
     private var pendingHosts: [String] = []
+    var isReady: Bool {
+        if case .success = healthState { return !needsPairing }
+        return false
+    }
     var normalizedHost: String { host.trimmingCharacters(in: .whitespacesAndNewlines) }
     var isMutatingWorkspace: Bool {
         busyRepoID != nil || busyWorkspaceID != nil || mutatingWorkspaceID != nil || isCreatingRepo
