@@ -95,14 +95,15 @@ installWindowLayoutRoutes(
   app,
   new WindowLayoutStore(workspacePaths().slopzookaHome),
 );
-app.use(express.static(path.join(import.meta.dirname, "..", "public")));
+const publicRoot = path.join(import.meta.dirname, "..", "public");
+app.use(express.static(publicRoot));
 
 app.get("/dashboard", async (_req, res) => {
   res.redirect(302, await dashboardAddress.destination());
 });
 
 app.get("/terminal", (_req, res) => {
-  res.sendFile(path.join(import.meta.dirname, "..", "public", "terminal.html"));
+  res.sendFile("terminal.html", { root: publicRoot });
 });
 
 app.get("/health", (_req, res) => {

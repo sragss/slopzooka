@@ -166,10 +166,29 @@ test("HTTPS origin trust is restricted to the registered dashboard, loopback, an
 });
 
 test(
-  "real companion pairs, serves terminals, and upgrades WebSockets through an HTTPS dashboard proxy",
+  "real companion in a hidden checkout pairs, serves terminals, and upgrades WebSockets through an HTTPS dashboard proxy",
   { timeout: 20000 },
   async () => {
     const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-dashboard-tls-"));
+    const checkout = path.join(home, ".checkout");
+    for (const entry of [
+      "apps/mac-companion/src",
+      "apps/mac-companion/public",
+      "apps/mac-companion/package.json",
+      "packages/protocol",
+    ]) {
+      await fs.cp(
+        path.resolve(import.meta.dirname, "../../..", entry),
+        path.join(checkout, entry),
+        { recursive: true },
+      );
+    }
+    const companionRoot = path.join(checkout, "apps/mac-companion");
+    await fs.symlink(
+      path.resolve(import.meta.dirname, "../node_modules"),
+      path.join(companionRoot, "node_modules"),
+      "dir",
+    );
     execFileSync(
       "openssl",
       [
@@ -228,7 +247,7 @@ test(
       process.execPath,
       ["--import", "tsx", "src/server.ts"],
       {
-        cwd: path.resolve(import.meta.dirname, ".."),
+        cwd: companionRoot,
         env: {
           ...process.env,
           SLOPZOOKA_HOME: home,
