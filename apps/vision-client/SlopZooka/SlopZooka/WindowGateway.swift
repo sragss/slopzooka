@@ -58,9 +58,15 @@ final class WindowGateway: ObservableObject {
             self.endpoints[hostID] = base
             if let instance = snapshot.companionInstanceId {
                 if let previous = self.companionInstances[hostID], previous != instance {
-                    for (id, reference) in self.references where reference.hostID == hostID && reference.window.kind == .preview {
-                        self.refreshPreviews.insert(id)
-                        self.resolvingPreviews[id]?.cancel()
+                    for (id, reference) in self.references where reference.hostID == hostID {
+                        if reference.window.kind == .preview {
+                            self.refreshPreviews.insert(id)
+                            self.resolvingPreviews[id]?.cancel()
+                        } else if self.presence[id]?.isPresented == true {
+                            // Refresh the authenticated document and its WebSocket,
+                            // keeping the native scene and Mac session unchanged.
+                            self.reloads[id, default: 0] += 1
+                        }
                     }
                 }
                 self.companionInstances[hostID] = instance

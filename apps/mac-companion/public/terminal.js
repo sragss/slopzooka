@@ -9182,7 +9182,7 @@ var TerminalConnection = class {
     const ws2 = new WebSocket(url);
     this.socket = ws2;
     this.handshake = setTimeout(() => {
-      if (this.socket === ws2 && !this.attached) ws2.close();
+      if (this.socket === ws2 && !this.attached) this.retryConnection(ws2);
     }, 1e4);
     ws2.onmessage = (event) => {
       if (this.socket !== ws2) return;
@@ -9199,23 +9199,25 @@ var TerminalConnection = class {
       }
     };
     ws2.onclose = () => {
-      if (this.socket !== ws2 || this.stopped) return;
-      this.clearTimers();
-      this.attached = false;
-      this.writable = false;
-      this.lostConnection = true;
-      this.status("Lost companion connection.", "disconnected");
-      this.retry = setTimeout(
-        () => this.connect(),
-        Math.min(1e4, 300 * 2 ** this.attempts++) + Math.random() * 300
-      );
+      this.retryConnection(ws2);
     };
     ws2.onerror = () => {
-      if (this.isCurrent(ws2)) {
-        this.lostConnection = true;
-        this.status("Lost companion connection.", "disconnected");
-      }
+      this.retryConnection(ws2);
     };
+  }
+  retryConnection(ws2) {
+    if (this.socket !== ws2 || this.stopped) return;
+    this.clearTimers();
+    this.socket = void 0;
+    this.attached = false;
+    this.writable = false;
+    this.lostConnection = true;
+    this.status("Lost companion connection.", "disconnected");
+    ws2.close();
+    this.retry = setTimeout(
+      () => this.connect(),
+      Math.min(1e4, 300 * 2 ** this.attempts++) + Math.random() * 300
+    );
   }
   resize() {
     if (!this.attached || !this.writable || !this.running) return;

@@ -248,16 +248,22 @@ struct WindowGatewayChecks {
         precondition(!String(decoding: encoded, as: UTF8.self).contains("transient-secret"))
         print("PASS: late preview resolution cannot resurrect a closed window")
 
-        // A successful snapshot from a new HTTP process refreshes preview routing,
-        // preserving desired windows and the existing terminal process identity.
+        // A new HTTP process refreshes preview routing and presented terminal
+        // documents, preserving desired windows and terminal process identity.
         CompanionAPI.layouts[base.host!] = WindowLayout(windows: [terminal, preview])
         let restarted = WindowGateway(persistence: WindowPersistence(defaults: defaults))
-        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session], companionInstanceId: "before"), target)
+        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session, closedSession], companionInstanceId: "before"), target)
+        restarted.observe(id: terminal.id, isPresented: true, isFocused: true)
+        precondition(restarted.reloadToken(for: terminal.id) == 0)
         await until { restarted.previewPayload(for: preview.id) != nil }
         CompanionAPI.previewPort = 23456
-        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session], companionInstanceId: "after"), target)
+        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session, closedSession], companionInstanceId: "after"), target)
         await until { restarted.previewPayload(for: preview.id)?.urlString.contains(":23456/") == true }
         precondition(restarted.terminalPayload(for: session.id) != nil)
+        precondition(restarted.reloadToken(for: terminal.id) == 1, "A new HTTP process refreshes terminal authentication and transport in the same scene")
+        precondition(restarted.reloadToken(for: closedSession.id) == 0, "Detached sessions must not load content or launch processes")
+        await restarted.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session], companionInstanceId: "after"), target)
+        precondition(restarted.reloadToken(for: terminal.id) == 1, "Repeated snapshots cannot keep reloading a healthy terminal")
         precondition(CompanionAPI.layouts[base.host!]!.windows.count == 2)
         try accept(target, in: restarted.launcher.connection)
         CompanionAPI.beforeSessions = { throw CompanionError(message: "Session service unavailable", statusCode: 503) }
