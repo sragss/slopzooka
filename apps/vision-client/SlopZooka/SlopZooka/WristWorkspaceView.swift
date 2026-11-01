@@ -92,11 +92,8 @@ private struct WristLauncherControl: View {
                 }
             }
             .frame(width: 120, height: 120)
-            .contentShape(Circle())
-            .glassBackgroundEffect(in: Circle())
         }
-        .buttonStyle(.plain)
-        .hoverEffect(.highlight)
+        .buttonStyle(WristControlStyle(shape: Circle()))
         .accessibilityLabel("Open Launcher")
     }
 }
@@ -131,10 +128,8 @@ private struct WristTerminalControl: View {
                     .padding(14).frame(width: 132, height: 132, alignment: .topLeading)
                     .background(.cyan.opacity(session.isFocused ? 0.13 : 0.04),
                         in: RoundedRectangle(cornerRadius: 22))
-                    .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 22))
                 }
-                .buttonStyle(.plain)
-                .hoverEffect(.highlight)
+                .buttonStyle(WristControlStyle(shape: RoundedRectangle(cornerRadius: 22)))
                 .accessibilityLabel("Open terminal, \(session.payload.title)")
                 if let error {
                     Text(error).font(.caption2).foregroundStyle(.orange).frame(width: 160)
@@ -142,5 +137,29 @@ private struct WristTerminalControl: View {
             }
             .onChange(of: session.id) { _, _ in error = nil }
         }
+    }
+}
+
+/// One shape owns the glass, hit target, and gaze feedback, including rounded corners.
+private struct WristControlStyle<S: InsettableShape>: ButtonStyle {
+    let shape: S
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .contentShape([.interaction, .hoverEffect], shape)
+            .glassBackgroundEffect(in: shape)
+            .overlay {
+                shape.fill(.cyan.opacity(0.12))
+                    .overlay { shape.strokeBorder(.cyan.opacity(0.9), lineWidth: 2) }
+                    .hoverEffect { effect, isActive, _ in
+                        effect.opacity(isActive ? 1 : 0)
+                    }
+                    .allowsHitTesting(false)
+            }
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .hoverEffect { effect, isActive, _ in
+                effect.scaleEffect(isActive ? 1.035 : 1)
+            }
+            .hoverEffectGroup()
     }
 }

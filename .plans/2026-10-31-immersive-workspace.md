@@ -39,6 +39,9 @@ One `AnchorEntity` holds a menu entity with separate SwiftUI attachments for the
 circular launcher control, up to three terminal tiles, an empty-state hint, and
 exit. The terminal tiles form a shallow arc; the launcher sits above and forward
 of them. The controls have independent depth, orientation, and hit surfaces.
+Each custom button uses the same shape for its glass, hit target, and cyan hover
+outline. A grouped hover effect reveals the outline and gently scales the whole
+control together; it does not add a separate system highlight with another shape.
 Changing wrist changes the anchor target and local transform, preserving these
 entities and their SwiftUI state. RealityKit owns
 tracking; there is no raw hand-data access, ARKit provider, or smoothing loop.
@@ -62,7 +65,8 @@ and persistence tests continue to protect window intent and session lifetime.
 
 On November 1, the user verified pairing, Settings, immersive entry, and all wrist
 menu actions on a physical Vision Pro, then reported that the revised position
-and floating layout felt better. Check both wrists, targeting and overlay clearance,
+and floating layout felt better. After aligning the hover surfaces, the user
+confirmed the revised controls worked well. Check both wrists, targeting and overlay clearance,
 loss/recovery of tracking, repeated mode switches, system dismissal,
 reopening windows with only the wrist visible, exit with no regular windows, and
 Mac disconnect/reconnect. Compilation does not establish these guarantees.
