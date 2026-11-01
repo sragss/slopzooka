@@ -2,7 +2,7 @@ import Foundation
 
 enum TerminalZoom {
     static let defaultStepsKey = "defaultTerminalZoomSteps"
-    static let initialDefaultSteps = -4
+    static let initialDefaultSteps = -2
     static let stepRange = -9...10
 
     static func resolvedSteps(scene: Int?, defaultSteps: Int) -> Int {

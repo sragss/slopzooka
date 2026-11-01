@@ -8,8 +8,8 @@ struct TerminalZoomChecks {
         defer { defaults.removePersistentDomain(forName: name) }
         let preference = AppStorage(wrappedValue: TerminalZoom.initialDefaultSteps,
             TerminalZoom.defaultStepsKey, store: defaults)
-        precondition(TerminalZoom.percent(steps: preference.wrappedValue) == 60)
-        precondition(TerminalZoom.scale(steps: preference.wrappedValue) == 0.6)
+        precondition(TerminalZoom.percent(steps: preference.wrappedValue) == 80)
+        precondition(TerminalZoom.scale(steps: preference.wrappedValue) == 0.8)
         preference.wrappedValue = -3
         let reopened = AppStorage(wrappedValue: TerminalZoom.initialDefaultSteps,
             TerminalZoom.defaultStepsKey, store: defaults)
@@ -21,6 +21,6 @@ struct TerminalZoomChecks {
         precondition(TerminalZoom.resolvedSteps(scene: nil, defaultSteps: preference.wrappedValue) == -4)
         precondition(TerminalZoom.resolvedSteps(scene: nil, defaultSteps: -100) == -9)
         precondition(TerminalZoom.resolvedSteps(scene: 100, defaultSteps: -4) == 10)
-        print("PASS: 60% initial zoom, persistent default changes, scene overrides, and zoom bounds")
+        print("PASS: 80% initial zoom, persistent default changes, scene overrides, and zoom bounds")
     }
 }

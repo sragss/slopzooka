@@ -175,13 +175,13 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
-                quickWorkspaceContent
+                sectionHeading("Start from a repository", count: state.filteredRepos.count)
+                quickRepoContent
             }
             Divider()
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Start from a repository", count: state.filteredRepos.count)
-                quickRepoContent
+                sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
+                quickWorkspaceContent
             }
         }
     }

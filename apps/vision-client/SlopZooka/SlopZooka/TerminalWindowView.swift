@@ -87,6 +87,15 @@ struct TerminalWindowView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 10) {
+                    Button {
+                        voice.activateRename(payload.id)
+                    } label: {
+                        Label("Rename", systemImage: "pencil")
+                    }
+                    .buttonStyle(.bordered)
+                    .disabled(!canSubmitSpeech || voice.isSubmitting)
+                    .help("Speak a name for this window")
+
                     if let statusText = terminalStatusText {
                         Text(statusText)
                             .font(.caption.weight(.semibold))
@@ -120,6 +129,7 @@ struct TerminalWindowView: View {
                     } label: {
                         Label("Keyboard", systemImage: "keyboard")
                     }
+                    .labelStyle(.iconOnly)
                     .buttonStyle(.bordered)
                     .disabled(!canSubmitSpeech)
                     .help("Type in the terminal")
@@ -132,15 +142,6 @@ struct TerminalWindowView: View {
                     .buttonStyle(.bordered)
                     .disabled(!canSubmitSpeech)
                     .help("Send Escape to the terminal")
-
-                    Button {
-                        voice.activateRename(payload.id)
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!canSubmitSpeech || voice.isSubmitting)
-                    .help("Speak a name for this window")
 
                     Button {
                         windows.close(id: payload.id)

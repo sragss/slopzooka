@@ -114,31 +114,55 @@ struct FrontendListView: View {
         }
         .onChange(of: frontends) { _, _ in updatedFrontends = nil }
         .onChange(of: baseURL) { _, _ in updatedFrontends = nil; error = nil }
-        .padding(16)
+        .padding(workspaceId == nil ? 0 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
     }
 
     @ViewBuilder
     private func frontendRow(_ frontend: FrontendSummary) -> some View {
-        Button {
-            Task { await open(frontend) }
-        } label: {
-            HStack {
-                VStack(alignment: .leading) {
-                    Text(frontend.displayTitle).lineLimit(1)
-                    if frontend.status == "starting" || frontend.status == "stopped" {
-                        Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
-                            .font(.caption).foregroundStyle(.orange)
+        HStack(spacing: 0) {
+            Button {
+                Task { await open(frontend) }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "globe")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 40, height: 40)
+                        .background(.quaternary, in: Circle())
+                        .accessibilityHidden(true)
+
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(frontend.displayTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        if frontend.status == "starting" || frontend.status == "stopped" {
+                            Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
+                                .font(.caption).foregroundStyle(.orange)
+                        } else {
+                            Text(frontend.source == "local" ? frontend.hostname : (frontend.project ?? (frontend.transport == "direct" ? "Web" : "On your Mac")))
+                                .font(.caption).foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    if opening == frontend.id {
+                        ProgressView()
                     } else {
-                        Text(frontend.source == "local" ? frontend.hostname : (frontend.project ?? (frontend.transport == "direct" ? "Web" : "On your Mac")))
-                            .font(.caption).foregroundStyle(.secondary)
+                        Image(systemName: "arrow.up.forward")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
                     }
                 }
-                Spacer()
-                if opening == frontend.id { ProgressView() } else { Image(systemName: "arrow.up.right.square") }
-            }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .hoverEffectDisabled()
         }
+        .modifier(LauncherRowSurface())
         .disabled(opening != nil || frontend.status == "stopped")
         .contextMenu {
             if frontend.source == "manual" {
