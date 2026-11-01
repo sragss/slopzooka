@@ -14,6 +14,7 @@ struct TerminalSessionState: Identifiable {
 /// Views never persist payloads or call native window actions directly.
 @MainActor
 final class WindowGateway: ObservableObject {
+    let immersiveWorkspace = ImmersiveWorkspaceState()
     let launcher = LauncherState()
     let discovery = CompanionDiscovery()
     private let persistence: WindowPersistence

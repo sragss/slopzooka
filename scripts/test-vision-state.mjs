@@ -41,6 +41,7 @@ try {
       "-parse-as-library",
       ...[
         "WindowGateway",
+        "ImmersiveWorkspaceState",
         "WindowPersistence",
         "LauncherState",
         "HostConnection",
@@ -49,6 +50,27 @@ try {
         path.join(root, `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`),
       ),
       path.join(root, "apps/vision-client/tests/WindowGatewayChecks.swift"),
+      "-o",
+      binary,
+    ],
+    { stdio: "inherit", timeout: 60_000 },
+  );
+  execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
+  execFileSync(
+    "xcrun",
+    [
+      "swiftc",
+      "-swift-version",
+      "5",
+      "-parse-as-library",
+      path.join(
+        root,
+        "apps/vision-client/SlopZooka/SlopZooka/ImmersiveWorkspaceState.swift",
+      ),
+      path.join(
+        root,
+        "apps/vision-client/tests/ImmersiveWorkspaceChecks.swift",
+      ),
       "-o",
       binary,
     ],

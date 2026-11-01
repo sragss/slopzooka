@@ -5,23 +5,19 @@ struct ContentView: View {
 
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var state: LauncherState
-    @EnvironmentObject private var discovery: CompanionDiscovery
     @AppStorage("launcherSection") private var section: LauncherSection = .projects
     private enum Sheet: String, Identifiable {
-        case connection, newRepo
+        case settings, newRepo
         var id: String { rawValue }
     }
     @State private var activeSheet: Sheet?
     @State private var createRepoTask: Task<Void, Never>?
-    @State private var showManualAddress = false
-    @FocusState private var pairingCodeFocused: Bool
     @FocusState private var projectSearchFocused: Bool
-    @State private var connectionHost = ""
 
     var body: some View {
         VStack(spacing: 16) {
             launcherHeader
-            if isReady {
+            if state.isReady {
                 HStack(spacing: 4) {
                     ForEach(LauncherSection.allCases) { item in
                         Button { section = item } label: {
@@ -51,16 +47,8 @@ struct ContentView: View {
             state.cancelRepoCreation()
         }) { sheet in
             switch sheet {
-            case .connection:
-                NavigationStack {
-                    ScrollView { connectionContent.padding(24) }
-                        .navigationTitle("Your Mac")
-                        .toolbar {
-                            ToolbarItem(placement: .confirmationAction) {
-                                Button("Done") { activeSheet = nil }
-                            }
-                        }
-                }.frame(width: 520, height: 440)
+            case .settings:
+                LauncherSettingsView()
             case .newRepo:
                 NewRepoSheetView(
                     owners: state.availableOwners,
@@ -78,12 +66,6 @@ struct ContentView: View {
                 }
             }
         }
-        .onChange(of: state.host) { old, new in
-            if connectionHost.isEmpty || connectionHost == old { connectionHost = new }
-        }
-        .onChange(of: isReady) { _, ready in
-            if ready && activeSheet == .connection { activeSheet = nil }
-        }
         .onChange(of: state.selectedTool) { _, _ in
             state.persistSelectedTool()
         }
@@ -96,23 +78,22 @@ struct ContentView: View {
         var id: String { rawValue }
     }
 
-    private var isReady: Bool {
-        if case .success = state.healthState { return !state.needsPairing }
-        return false
-    }
-
     private var launcherHeader: some View {
         HStack {
             Text("SlopZooka").font(.title2.weight(.semibold))
             Spacer()
-            if isReady {
-                Button { windows.reload() } label: {
-                    Image(systemName: "arrow.clockwise")
-                }.help("Reload window content").accessibilityLabel("Reload window content")
-                Button { activeSheet = .connection } label: {
-                    Label("Mac", systemImage: "desktopcomputer").font(.subheadline)
-                }.buttonStyle(.bordered)
+            Image(systemName: "desktopcomputer")
+                .foregroundStyle(state.isReady ? Color.green : Color.secondary)
+                .accessibilityLabel(state.isReady ? "Mac connected" : "Mac disconnected")
+                .help(state.isReady ? "Mac connected" : "Mac disconnected")
+            Button { activeSheet = .settings } label: {
+                Image(systemName: "gearshape")
+                    .frame(width: 44, height: 44)
             }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .accessibilityLabel("Settings")
+            .help("Settings")
         }
     }
 
@@ -122,8 +103,8 @@ struct ContentView: View {
             if let error = windows.persistenceError {
                 Text(error).font(.footnote).foregroundStyle(.orange)
             }
-            if !isReady {
-                if activeSheet != .connection { connectionContent }
+            if !state.isReady {
+                if activeSheet != .settings { MacConnectionView() }
             } else {
                 switch section {
                 case .sessions:
@@ -219,98 +200,6 @@ struct ContentView: View {
             Spacer()
             if count > 0 { Text(count, format: .number).font(.caption).foregroundStyle(.secondary) }
         }
-    }
-
-    private var selectedMacName: String {
-        discovery.companions.first(where: { $0.candidateHosts.contains(state.normalizedHost) })?.name
-            ?? state.connection.endpoint?.host() ?? "your Mac"
-    }
-
-    private var connectionContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            if state.needsPairing {
-                Text("Connect to \(selectedMacName)").font(.title3.weight(.semibold))
-                Text("Enter the six-digit code displayed on your Mac.")
-                    .foregroundStyle(.secondary)
-                TextField("6-digit code", text: $state.pairingCode)
-                    .font(.system(size: 32, weight: .medium, design: .monospaced))
-                    .keyboardType(.numberPad).textContentType(.oneTimeCode)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .focused($pairingCodeFocused)
-                    .disabled(state.isPairing)
-                    .onChange(of: state.pairingCode) { _, value in
-                        let digits = String(value.filter { $0 >= "0" && $0 <= "9" }.prefix(6))
-                        if value != digits { state.pairingCode = digits; return }
-                        if digits.count == 6 { Task { await state.pair() } }
-                    }
-                    .task(id: state.normalizedHost) {
-                        await Task.yield()
-                        pairingCodeFocused = true
-                        await state.showConnectionCode()
-                    }
-                    .onChange(of: state.isPairing) { _, pairing in
-                        if !pairing { pairingCodeFocused = true }
-                    }
-                if state.isPairing { ProgressView("Connecting…") }
-                if let error = state.pairingError {
-                    Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
-                }
-                Text("You can also find it in the Mac’s bazooka menu → Show Connection Code.")
-                    .font(.caption).foregroundStyle(.secondary)
-            } else if isReady {
-                Label(selectedMacName, systemImage: "desktopcomputer").font(.title3.weight(.semibold))
-                Text("Connected").foregroundStyle(.secondary)
-            } else {
-                Text("Find your Mac").font(.title3.weight(.semibold))
-                Text("Open SlopZooka on your Mac and use the same Wi-Fi network.")
-                    .foregroundStyle(.secondary)
-                if case .failure(let message) = state.healthState {
-                    Text("Couldn’t reach your Mac.").foregroundStyle(.orange)
-                    DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
-                    Button("Try Again") { Task { await state.connectAndRefresh() } }
-                } else if case .failed(let message) = discovery.state {
-                    Text("Mac discovery is unavailable.").foregroundStyle(.orange)
-                    DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
-                } else {
-                    ProgressView("Looking for your Mac…")
-                }
-            }
-            if discovery.companions.count > 1 {
-                Menu("Choose another Mac") {
-                    ForEach(discovery.companions) { companion in
-                        Button(companion.name) { selectMac(companion.host) }
-                    }
-                }.disabled(state.isPairing || state.isMutatingWorkspace)
-            }
-            if isReady, case .success(let health) = state.healthState {
-                DisclosureGroup("Technical details") {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Address: \(health.controlOrigin)")
-                        Text("Logs: \(health.logFilePath)")
-                    }.font(.caption).foregroundStyle(.secondary).textSelection(.enabled)
-                }
-            }
-            Button(showManualAddress ? "Hide manual address" : "Enter address manually") {
-                showManualAddress.toggle()
-            }.font(.subheadline)
-            if showManualAddress {
-                HStack {
-                    TextField("MacName.local:7777", text: $connectionHost)
-                        .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    Button("Find Mac") { selectMac(connectionHost) }
-                        .disabled(state.isPairing || state.isMutatingWorkspace || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-            }
-        }
-        .onAppear { connectionHost = state.host }
-    }
-
-    private func selectMac(_ host: String) {
-        connectionHost = host
-        state.host = host
-        state.pairingCode = ""
-        state.pairingError = nil
-        Task { await state.connectAndRefresh() }
     }
 
     @ViewBuilder
