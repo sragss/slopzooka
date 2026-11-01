@@ -214,37 +214,7 @@ struct ContentView: View {
                             do { try windows.open(id: session.id) }
                             catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
                         } label: {
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    HStack(spacing: 8) {
-                                        Text(session.payload.title)
-                                            .font(.subheadline.weight(.semibold))
-                                            .lineLimit(1)
-
-                                        if session.isFocused {
-                                            Text("Active")
-                                                .font(.caption2.weight(.semibold))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                                .background(.green.opacity(0.18), in: Capsule())
-                                        }
-                                    }
-
-                                    Text(sessionStateSummary(session))
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                        .lineLimit(1)
-                                }
-
-                                Spacer()
-
-                                Image(systemName: "arrow.up.forward")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(14)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
+                            TerminalRowView(session: session)
                         }
                         .buttonStyle(.plain)
                         .hoverEffectDisabled()
@@ -422,23 +392,5 @@ struct ContentView: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-    }
-
-    private func sessionStateSummary(_ session: TerminalSessionState) -> String {
-        switch session.loadState {
-        case .ended:
-            return "Session ended"
-        case .failed:
-            return session.isPresented ? "Connection needs attention" : "Reopen to reconnect"
-        case .disconnected:
-            return "Mac companion disconnected"
-        case .loading:
-            return session.isPresented ? "Connecting…" : "Reopen to connect"
-        case .idle, .loaded:
-            if session.isFocused {
-                return "Receiving input"
-            }
-            return session.isPresented ? "Window open" : "Ready to reopen"
-        }
     }
 }

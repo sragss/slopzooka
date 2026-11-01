@@ -12,6 +12,8 @@ The display dismisses after 45 seconds, successful pairing, or an authenticated 
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
+Terminal rows match project rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
+
 ## Keyboard and zoom
 
 Tap inside a terminal to focus input and type with a connected keyboard. Use **Interrupt** in the terminal toolbar to send Escape.
