@@ -1,0 +1,9 @@
+{
+  "name": "shared-window-probe-tooling",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "appium": "3.9.0",
+    "appium-xcuitest-driver": "12.22.4"
+  }
+}

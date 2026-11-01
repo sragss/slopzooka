@@ -1,0 +1,113 @@
+# From an agent request to a live, controllable Vision window
+
+Status: proposed integration architecture, November 1, 2026. No production implementation or new live test is claimed. This is the current focus, ahead of the [handoff UX exercise](shared-control-ux-spike.md). The user wants the concrete execution and presentation path designed: “I need an iOS simulator, stream it, then click through login.” The [completed media probe](shared-window-live-results.md) supplies the provider evidence.
+
+Source baseline: this planning checkout is `bcf17af`; production code below was inspected read-only from local `main` at `a1e1541`. Earlier exploration pinned `8b68f3e`; its references remain historical evidence. The newer main uses `SessionServiceClient` for terminal operations. Build on main's current services and gateway, not this older worktree's architecture.
+
+## Recommended placement
+
+Run the ephemeral Pi coordinator **inside the existing Mac TypeScript companion**. Model inference runs at the selected model provider; the tool loop and executors run locally. Vision supplies voice, current workspace/window context and native presentation. The signed Swift Mac companion supplies platform capture/accessibility. Simulator automation uses the device provider running on the same Mac.
+
+For a literal GPT Realtime + Pi pairing, Vision connects its audio to Realtime, and the Mac attaches an outbound sideband WebSocket to that same call. Realtime delegates a task to Pi; Pi owns the task's observe/act loop. The Mac is the sole executor of those delegation calls. Vision can receive conversation events without also executing them. OpenAI documents this client-plus-server arrangement and server handling of function calls. [Realtime server controls](https://developers.openai.com/api/docs/guides/voice-server-controls?api=realtime).
+
+This requires implementing the native voice connection, call setup and sideband attachment; those are not existing SlopZooka features. The companion brokers setup and retains server credentials. Attach the tool handler before enabling action-taking conversation. If the voice API choice remains Poncho2's GPT-Live, use its client-delegation adapter instead; retain the same Pi task entry point. Poncho2's inspected checkout uses GPT-Live, not literal Realtime. [Existing Poncho2 findings](orchestrator-tools.md#2-what-poncho2-actually-does).
+
+```mermaid
+flowchart TB
+    V[Vision: voice and current workspace] <-->|audio| R[Realtime model]
+    R <-->|outbound sideband: delegation and results| P[Mac companion: ephemeral Pi loop]
+    V <-->|paired app control connection| P
+    P <-->|tool calls and observations| M[Pi's selected model]
+    P --> T[Shared application tool handlers on Mac]
+    C[Terminal Codex] -->|local MCP adapter| T
+    T --> D[Device provider: simctl and Appium / WDA]
+    T --> N[Swift native provider: capture and AX]
+    T -->|presentation request| G[Vision WindowGateway]
+    G --> S[SwiftUI scene and stream receiver]
+    D -->|device frames directly to Vision| S
+    N -->|encoded window video directly to Vision| S
+    S -->|scene and frame status| T
+```
+
+These are components and connections, not separate new services. In particular, no additional orchestration daemon, persistent task database or cloud Mac-control server is required. All OpenAI connections can be outbound; OpenAI does not need network access to a localhost MCP endpoint. Realtime function tools execute in application code; remote MCP tools are a different arrangement in which the API connects to a reachable MCP server. Use function delegation here. [Realtime tool execution](https://developers.openai.com/api/docs/guides/realtime-mcp).
+
+## One complete request
+
+Example: **“Launch Poncho2 in a new worktree, with iOS open. Get through login and leave me on Settings.”** These are illustrative calls and messages, not a frozen public tool catalog or an app-specific scripted recipe.
+
+1. **Capture the request and context.** Vision sends the selected host/client, originating workspace/window, current visible surfaces and a context revision over its app connection. Capture the origin before opening the wrist menu changes focus. The Mac already has the project/workspace catalog. Realtime's delegation identifies the request; the companion binds it to authenticated client context, rather than trusting a model-invented target or assuming the newest focused window is the intended one. If the referenced context has not arrived, resolve that before acting.
+
+2. **Let Pi choose the setup.** Pi invokes existing workspace/session operations to create the worktree and actual terminal Codex session, assigns a useful display name, reads project instructions and starts the relevant build/dev processes. Shell execution remains an ordinary tool for project-specific work. Simulator lifecycle operations return the exact UDID and app identity; no ambiguous “first booted simulator.” Existing services own workspaces and sessions. A longer build can return an operation handle and progress while voice stays responsive.
+
+3. **Bind a controllable surface.** After starting or attaching the simulator, the host provider returns a `surfaceId` tied to that device, workspace and provider generation. It reports available capture and control capabilities separately. Starting a simulator does not itself establish an automation session or stream. The device provider starts/attaches its Appium/WDA session and obtains a real observation. For native Simulator-window video, the capture binding must additionally identify the matching window/PID; a matching title alone is insufficient.
+
+4. **Ask Vision to present it.** Pi calls the presentation operation for that `surfaceId` and initiating client. The Mac sends a correlated `presentation.open` request over the app control connection. Vision passes it to `WindowGateway`, which records normal open intent, resolves the preview payload and asks its scene adapter to open the preview window. The stream receiver connects directly to the Mac media source. Opening this preview is app behavior; it does not require the model to click the Vision launcher.
+
+5. **Navigate through actual tools on the Mac.** Pi calls `observe(surfaceId)` and receives a fresh screenshot plus available device elements. Its model selects a field or a point and emits a tool call. Pi's local handler resolves the surface, checks that its observation/provider generation is current, and invokes the corresponding WDA/Appium operation on that exact UDID. WDA uses the simulator's automation runtime to perform the input. For a native Mac app, the analogous handler calls the signed Swift process over private IPC, which performs AX/native input. For a managed browser, the browser provider acts on its explicit page/session. The command never needs to travel through the streamed video or xterm.
+
+6. **Observe and report the result.** Input changes the running app. Its next frames independently reach Vision. The tool returns an execution result, and Pi observes again to determine whether login succeeded and Settings is actually visible. Vision separately reports scene/receiver state. Only then can the coordinator accurately say the requested screen is open in the headset. An accepted input or functioning encoder does not establish either claim.
+
+Pi's custom tool contract is a local `execute(toolCallId, params, signal, onUpdate)` handler. Its tool result can carry text and images back to the model. This is the concrete bridge from a cloud model's proposed action to Mac code: register the handler in Pi, call the provider inside it, return the observation. Preserve screenshots as image content; a local pathname alone is not an observation a remote model can see. [Pi tools, pinned v1.4.0](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/README.md#tools), [result and execution types](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/src/types.ts).
+
+The model figures out login/navigation from observations. The application handles target identity, lifecycle and transport. There should be no `loginToPonchoAndOpenSettings` product API.
+
+## The three connections to build
+
+### 1. Pi / MCP → Mac providers
+
+One set of application handlers resolves resources, enforces scope and dispatches operations. Register thin Pi tools around them. Expose the same handlers through a local MCP adapter for terminal Codex. Pi does not need to make an MCP round trip to functions already in its process.
+
+The provider boundary is specific to capability, not a universal mouse abstraction:
+
+| Target | Control execution | Observation / media |
+| --- | --- | --- |
+| iOS simulator | Host lifecycle commands plus local Appium/WDA bound to UDID | Device screenshots/tree; tested device JPEG stream, or separately verified native Simulator-window capture |
+| Mac application/window | Signed Swift companion's AX/native operations | AX/screenshot observations; ScreenCaptureKit and VideoToolbox stream |
+| Managed Mac browser | Browser automation attached to the same profile/page | DOM/screenshot observations; selected capture provider for that same page/window |
+| Terminal Codex session | Existing session service's task/input API | Existing terminal transport and session state |
+
+The current Swift menu app already launches the bundled Node companion and has private parent/child pipes. Extend that narrow bridge with correlated native-operation requests/replies. For example, Node sends a typed native request on its existing parent-facing pipe; Swift replies on the child's input pipe. Existing status messages are not already a CUA RPC protocol. Keep controls bounded and separate from bulk images/video; obtain observations through the provider's bounded image endpoint. Keep native permission ownership stable in the signed app. A Node-only development host should report native capabilities unavailable if that app bridge is absent. [Mac supervision and pipes](https://github.com/sragss/slopzooka/blob/a1e1541/apps/mac-menu/Sources/CompanionModel.swift), [current desktop protocol](https://github.com/sragss/slopzooka/blob/a1e1541/apps/mac-companion/src/server.ts).
+
+Reuse the tested capture/device pieces; do not transplant the whole experimental host, pairing scheme and diagnostic UI. General Mac pointer/key injection and production browser attachment are still provider work; the probe only implemented a subset of native AX operations. The device login path can use its tested device automation without depending on a generic desktop driver.
+
+“Codex uses CUA” does not mean the packaged tool in this conversation is an SDK Pi can import. Official documentation establishes external MCP support for terminal Codex; the reviewed Computer Use documentation does not establish an embeddable copy of this conversation's CUA runtime. Configure the real terminal CLI to connect to our scoped provider adapter. If a supported existing CUA integration is available, connect it behind the same boundary rather than requiring it for the architecture. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp), [packaged Computer Use](https://learn.chatgpt.com/docs/computer-use).
+
+For Codex, the path is therefore **model → Codex CLI's MCP client → local adapter → the same provider → actual app**. Its workspace/session identity comes from adapter configuration or connection credentials. It can discover a surface the coordinator already opened and continue operating it without creating another simulator/browser. It can also request presentation through the same client gateway. Multiple possible headset clients require explicit routing context rather than broadcasting a window to everyone.
+
+### 2. Mac presentation request → Vision scene
+
+This connection is genuinely missing in production. Main's `/ws` is a terminal relay through `SessionServiceClient`, not a generic application command channel. Main's window layout API is GET/PUT desired state, not a presentation acknowledgement. The gateway currently polls host state and restores windows; neither mechanism alone means a model can synchronously request a new stream and learn that it appeared. [Server](https://github.com/sragss/slopzooka/blob/a1e1541/apps/mac-companion/src/server.ts), [layout store](https://github.com/sragss/slopzooka/blob/a1e1541/apps/mac-companion/src/window-layout.ts).
+
+Add a small app-level control WebSocket on the existing paired companion server, illustratively `/ws/control`, connected by the native Vision app for its app lifetime. Keep it independent of any terminal WebView. Reuse pairing authentication; client ID selects the presentation destination but is not authentication. Its initial messages only need request/result correlation, current context, presentation intent and observed presentation status. This is a new endpoint/protocol, not an existing capability.
+
+For the first integration, route an agent's open/close request **through the existing Vision `WindowGateway`**, exactly as a UI action does. That gateway writes the existing intent outbox and synchronizes the companion's existing per-client layout store. The Mac presentation handler should not simultaneously make a second independent layout mutation. This preserves one presentation-intent path and the existing conflict/reconnect behavior. If Vision is disconnected, report that presentation is pending/unavailable; don't create another durable command queue. Once the gateway has accepted/persisted intent, ordinary restoration can recover it.
+
+Extend preview content with a host-stream variant. Retain the existing `WindowGroup("Preview", id: "preview", for: String.self)` and stable window ID where practical; a preview container chooses web content or stream content. Add a gateway entry for an attached surface and a resolver for its stream payload. `WindowScene` remains the only place that executes SwiftUI's `openWindow`. Mac tools cannot directly call that native Vision API. The immersive wrist scene already supplies a presenter when the launcher is closed. [Gateway](https://github.com/sragss/slopzooka/blob/a1e1541/apps/vision-client/SlopZooka/SlopZooka/WindowGateway.swift), [scene adapter](https://github.com/sragss/slopzooka/blob/a1e1541/apps/vision-client/SlopZooka/SlopZooka/WindowScene.swift), [scene declarations](https://github.com/sragss/slopzooka/blob/a1e1541/apps/vision-client/SlopZooka/SlopZooka/SlopZookaApp.swift), [existing persistence](https://github.com/sragss/slopzooka/blob/a1e1541/apps/vision-client/SlopZooka/SlopZooka/WindowPersistence.swift).
+
+Keep these observations distinct: request accepted, desired layout saved, scene observed, receiver obtained/decoded a fresh frame, content verified by the agent. Report the strongest measured state, including errors or absence of an active presenter. Receiver telemetry does not prove the user is looking at the window. Placement may be a supported relative-placement hint; arbitrary Vision window movement is not implied by this architecture.
+
+### 3. Mac media → Vision receiver
+
+Media goes directly from the Mac capture/device provider to the Vision stream view using the proven bounded transport for the first integration. It bypasses Pi, Realtime and the control-message queue. The agent requests selected fresh observations as needed; it does not consume every video frame. Thus model latency does not set the preview frame rate, and changing the model/harness does not require changing the media transport.
+
+The prototype already demonstrates native H.264 and device JPEG reception. It does **not** demonstrate production `WindowGateway` integration: its viewer opens selected probe targets through its own UI/launch path. The next work is to put that receiver capability behind the production preview resolver and existing pairing identity, with observed status returned through the control connection. [Probe implementation](../experiments/shared-window-probe/README.md), [live evidence and limits](shared-window-live-results.md).
+
+## The shared identity that keeps the paths together
+
+Use an application-owned `surfaceId` that binds workspace, exact target, capture provider and control provider. A model sees a stable handle and capabilities; it does not supply arbitrary private provider endpoints. A Vision window ID identifies presentation, while a simulator UDID or browser-page handle identifies the app. Those are related identities, not interchangeable strings.
+
+The minimal transient binding can carry `surfaceId`, `workspaceId`, target identity, provider generation and capabilities. Stream payloads are resolved separately so credentials/URLs do not enter persisted window layouts. Reuse workspace metadata and existing window persistence; keep running driver sessions, native handles, current observations and controller state in the owning providers. This runtime binding is needed to share the exact app; it is not another workspace database.
+
+Provider replacement invalidates old observations/actions. A switch from native capture to device capture can preserve the logical surface while updating its capture generation and capabilities. Verify that both refer to the same simulator; the probe's manual target selection did not establish automatic association. Mac lock state disables the desktop route and informs the model, while the already-tested device route can remain available independently. Neither route claims to work through whole-system sleep or logout.
+
+For a first simulator integration, using device observations, device input and device frames together avoids the extra native-window association step. Native capture can then improve the viewing path once that association is verified. This is a provider choice, not a hardcoded login workflow or a permanent JPEG transport decision.
+
+Stop and competing input are enforced at the shared handler/provider boundary. Pi's abort alone cannot revoke a queued MCP call from another agent. Native focus-dependent operations may need a Mac-wide input lock; independent device/page operations can use their own target lock. Keep this bounded and in memory. It does not need a durable coordinator, and it cannot claim control over unrelated automation that bypasses the boundary.
+
+## Smallest useful architectural integration
+
+Build one traceable path in the real application: **typed task → Mac Pi → simulator provider → presentation request → existing Vision gateway → stream view → observe/act result**. Use an existing workspace and a prepared development build initially. The model chooses navigation from observations; no scripted screen sequence. Typed entry isolates the execution/presentation architecture before adding the voice connection, without changing the handler interface. Add the terminal MCP caller against that same surface, then connect the chosen voice delegation adapter.
+
+The key evidence is one correlated trace showing the model-selected operation, actual provider/target, Vision scene/receiver acknowledgement and verified app result. No new broad screen-sharing feasibility matrix is needed to answer this architectural question. Cold builds/launches, spatial grouping and broader handoff UI can follow on the same boundaries. The prior [shared-control cases](shared-control-ux-spike.md) remain useful subsequent tests, not the immediate design focus.
+
+Maintainability check: application services continue owning workspaces/sessions; providers own running apps and capture/control; `WindowGateway` owns presentation intent; SwiftUI owns native scene mechanics; Pi owns only reasoning. The additions are narrow adapters and a necessary cross-device control protocol. Avoid a second window registry, a universal UI action language, model-specific media paths, or a custom recipe engine. The provider packaging and lifecycle are real engineering work, so this is not merely “add MCP”; the existing boundaries keep that work from spreading into every caller.

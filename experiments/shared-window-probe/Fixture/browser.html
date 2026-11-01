@@ -1,0 +1,32 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Shared window probe · browser fixture</title>
+<style>
+body{font:18px system-ui;margin:40px;max-width:1000px;background:#f7f7f5;color:#182431}
+button,input{font:inherit;padding:10px;margin:5px}section{padding:18px;background:white;border:1px solid #ccc;margin:20px 0}
+pre{font-size:12px;line-height:1.6;white-space:pre-wrap}canvas{width:100%;height:80px;background:#182431}
+</style>
+<h1>Browser fixture</h1>
+<p id="identity"></p><p id="clock"></p>
+<section>
+<label>Draft <input id="draft" value="Unfinished browser draft"></label>
+<button id="increment">Increment</button> <output id="counter">0</output>
+<button id="show">Show dialog</button>
+<label><input type="checkbox">Test setting</label>
+</section>
+<canvas width="1000" height="80" id="motion"></canvas>
+<button id="animate">Start animation</button>
+<p id="size"></p><pre id="text"></pre>
+<dialog id="dialog">Browser modal, same document. <button id="close">Close</button></dialog>
+<script>
+const byId=id=>document.getElementById(id);
+byId('identity').textContent='Page instance nonce: '+crypto.randomUUID();
+byId('increment').onclick=()=>byId('counter').value=String(Number(byId('counter').value)+1);
+byId('show').onclick=()=>byId('dialog').showModal();
+byId('close').onclick=()=>byId('dialog').close();
+byId('text').textContent=Array.from({length:100},(_,i)=>`${i}: Fine text ABCDEFG 0123456789 · red green blue · readable at normal size?`).join('\n');
+setInterval(()=>{byId('clock').textContent=new Date().toISOString();byId('size').textContent=`Viewport ${innerWidth} × ${innerHeight} · scale ${devicePixelRatio}`},250);
+let active=false;
+byId('animate').onclick=()=>{active=!active;byId('animate').textContent=active?'Stop animation':'Start animation';if(active)requestAnimationFrame(frame)};
+function frame(t){const ctx=byId('motion').getContext('2d');ctx.clearRect(0,0,1000,80);ctx.fillStyle='#49dbc0';ctx.fillRect((t/5)%950,10,50,60);if(active)requestAnimationFrame(frame)}
+</script>
