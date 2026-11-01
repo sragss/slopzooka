@@ -46,7 +46,11 @@ try {
       ],
       { stdio: "inherit", timeout: 60_000 },
     );
-    execFileSync(binary, [], { stdio: "inherit", timeout: 10_000 });
+    const args =
+      suite === "WindowGatewayChecks"
+        ? [path.join(root, "packages/protocol/fixtures/window-layout.v1.json")]
+        : [];
+    execFileSync(binary, args, { stdio: "inherit", timeout: 10_000 });
   }
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });

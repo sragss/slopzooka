@@ -51,10 +51,12 @@ private struct SceneActions: ViewModifier {
         // Register observed scenes before reconciling, avoiding duplicate restore requests.
         windows.observe(id: id, isPresented: phase != .background, isFocused: phase == .active)
         if phase != .active { windows.detachPresenter(presenterID); return }
-        windows.attachPresenter(presenterID) { kind, value, opening in
-            if opening {
-                if let value { openWindow(id: kind, value: value) } else { openWindow(id: kind) }
-            } else if let value { dismissWindow(id: kind, value: value) }
+        windows.attachPresenter(presenterID) { command in
+            switch command {
+            case .open(let window): openWindow(id: window.kind.rawValue, value: window.id)
+            case .close(let window): dismissWindow(id: window.kind.rawValue, value: window.id)
+            case .openLauncher: openWindow(id: "launcher")
+            }
         }
     }
 }

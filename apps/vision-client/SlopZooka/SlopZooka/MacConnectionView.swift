@@ -10,7 +10,7 @@ struct MacConnectionView: View {
 
     private var selectedMacName: String {
         discovery.companions.first(where: { $0.candidateHosts.contains(state.normalizedHost) })?.name
-            ?? state.connection.endpoint?.host() ?? "your Mac"
+            ?? state.connection.current?.endpoint.host() ?? "your Mac"
     }
 
     var body: some View {

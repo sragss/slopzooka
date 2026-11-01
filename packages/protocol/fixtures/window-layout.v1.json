@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "revision": 0,
+  "windows": [
+    { "id": "terminal-1", "kind": "terminal", "targetID": "terminal-1" },
+    { "id": "host-1:web", "kind": "preview", "targetID": "web" }
+  ]
+}
