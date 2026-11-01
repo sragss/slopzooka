@@ -16,6 +16,7 @@ final class SpeechCaptureController: NSObject, SpeechCapturing {
     private var recognitionTask: SFSpeechRecognitionTask?
     private var captureID: UUID?
     private var endpoint = SpeechEndpoint()
+    private var segment = SpeechRecognitionSegment()
     private var endpointTask: Task<Void, Never>?
     private var finalResultTask: Task<Void, Never>?
     private var hasTap = false
@@ -139,6 +140,7 @@ final class SpeechCaptureController: NSObject, SpeechCapturing {
         }
 
         endpoint = SpeechEndpoint()
+        segment = SpeechRecognitionSegment()
         let request = SFSpeechAudioBufferRecognitionRequest()
         request.shouldReportPartialResults = true
         request.taskHint = .dictation
@@ -184,11 +186,15 @@ final class SpeechCaptureController: NSObject, SpeechCapturing {
 
             Task { @MainActor in
                 guard self.captureID == id else { return }
-                if let result {
-                    self.transcript = result.bestTranscription.formattedString
+                let finished = self.segment.receive(result?.bestTranscription.formattedString ?? "",
+                    isFinal: result?.isFinal == true, hasUtteranceMetadata: result?.speechRecognitionMetadata != nil,
+                    isFinishing: self.state == .finishing, hasError: error != nil)
+                self.transcript = self.segment.transcript
+                if let result, !result.bestTranscription.formattedString.isEmpty {
                     self.endpoint.received(self.transcript, at: ProcessInfo.processInfo.systemUptime)
-                    if result.isFinal { self.complete(); return }
                 }
+                // Commit before on-device recognition silently starts another utterance.
+                if finished { self.complete(); return }
                 if let error {
                     self.stopListening()
                     self.state = .failed(error.localizedDescription)
@@ -196,12 +202,14 @@ final class SpeechCaptureController: NSObject, SpeechCapturing {
             }
         }
         state = .listening
-        guard finishOnPause else { return }
+        let startedAt = ProcessInfo.processInfo.systemUptime
         endpointTask = Task { [weak self] in
             while !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(200))
                 guard !Task.isCancelled, let self, self.captureID == id, self.isListening else { return }
-                if self.endpoint.shouldFinish(at: ProcessInfo.processInfo.systemUptime) {
+                let now = ProcessInfo.processInfo.systemUptime
+                if (self.finishOnPause && self.endpoint.shouldFinish(at: now))
+                    || (!self.finishOnPause && SpeechRecognitionSegment.shouldRotate(elapsed: now - startedAt)) {
                     self.finishListening()
                     return
                 }
