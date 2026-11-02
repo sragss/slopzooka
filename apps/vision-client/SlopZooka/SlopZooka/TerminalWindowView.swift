@@ -188,17 +188,27 @@ struct TerminalWindowView: View {
         }
         .simultaneousGesture(TapGesture().onEnded { windows.readTerminalNotifications(id: payload.id) })
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
-            Text(payload.title)
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .multilineTextAlignment(.center)
-                .lineLimit(2)
-                .minimumScaleFactor(0.5)
-                .padding(.horizontal, 28)
-                .padding(.vertical, 14)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
-                .frame(maxWidth: 1000)
-                .padding(.bottom, 20)
-                .accessibilityAddTraits(.isHeader)
+            Button {
+                voice.activateRename(payload.id)
+            } label: {
+                Text(payload.title)
+                    .font(.system(size: 48, weight: .bold, design: .rounded))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.5)
+                    .padding(.horizontal, 28)
+                    .padding(.vertical, 14)
+                    .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+                    .contentShape([.interaction, .hoverEffect], RoundedRectangle(cornerRadius: 24))
+            }
+            .buttonStyle(.plain)
+            .hoverEffect(.highlight)
+            .disabled(!canSubmitSpeech || voice.isSubmitting)
+            .frame(maxWidth: 1000)
+            .padding(.bottom, 20)
+            .accessibilityLabel("Rename \(payload.title)")
+            .accessibilityHint("Start voice naming for this terminal")
+            .accessibilityAddTraits(.isHeader)
         }
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }

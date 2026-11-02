@@ -1,6 +1,8 @@
 import RealityKit
 import SwiftUI
 
+private let wristAccent = Color("AccentHighlight")
+
 enum Wrist: String, CaseIterable { case left, right }
 
 struct WristWorkspaceView: View {
@@ -79,11 +81,11 @@ private struct WristLauncherControl: View {
         Button(action: windows.openLauncher) {
             ZStack {
                 Circle()
-                    .fill(RadialGradient(colors: [.cyan.opacity(0.65), .blue.opacity(0.25), .clear],
+                    .fill(RadialGradient(colors: [wristAccent.opacity(0.3), wristAccent.opacity(0.1), .clear],
                         center: .topLeading, startRadius: 0, endRadius: 120))
                     .padding(8)
                 Circle().trim(from: 0.08, to: 0.92)
-                    .stroke(AngularGradient(colors: [.cyan.opacity(0.1), .cyan, .white, .cyan.opacity(0.1)],
+                    .stroke(AngularGradient(colors: [wristAccent.opacity(0.1), wristAccent, .white, wristAccent.opacity(0.1)],
                         center: .center), style: StrokeStyle(lineWidth: 2, lineCap: .round))
                     .rotationEffect(.degrees(90)).padding(5)
                 VStack(spacing: 7) {
@@ -113,7 +115,7 @@ private struct WristTerminalControl: View {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack {
                             Image(systemName: "terminal.fill").font(.title3)
-                                .foregroundStyle(session.isFocused ? .green : .cyan)
+                                .foregroundStyle(session.isFocused ? .green : wristAccent)
                             Spacer()
                             Image(systemName: "arrow.up.right").font(.caption2)
                                 .foregroundStyle(.secondary)
@@ -126,7 +128,7 @@ private struct WristTerminalControl: View {
                             .tracking(1.5).foregroundStyle(.secondary)
                     }
                     .padding(14).frame(width: 132, height: 132, alignment: .topLeading)
-                    .background(.cyan.opacity(session.isFocused ? 0.13 : 0.04),
+                    .background(wristAccent.opacity(session.isFocused ? 0.13 : 0.04),
                         in: RoundedRectangle(cornerRadius: 22))
                 }
                 .buttonStyle(WristControlStyle(shape: RoundedRectangle(cornerRadius: 22)))
@@ -149,8 +151,8 @@ private struct WristControlStyle<S: InsettableShape>: ButtonStyle {
             .contentShape([.interaction, .hoverEffect], shape)
             .glassBackgroundEffect(in: shape)
             .overlay {
-                shape.fill(.cyan.opacity(0.12))
-                    .overlay { shape.strokeBorder(.cyan.opacity(0.9), lineWidth: 2) }
+                shape.fill(wristAccent.opacity(0.12))
+                    .overlay { shape.strokeBorder(wristAccent.opacity(0.9), lineWidth: 2) }
                     .hoverEffect { effect, isActive, _ in
                         effect.opacity(isActive ? 1 : 0)
                     }
