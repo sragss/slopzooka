@@ -10,6 +10,8 @@ The display dismisses after 45 seconds, successful pairing, or an authenticated 
 
 ## Launcher
 
+The app uses a graphite and silver palette. Listening indicators and app icons use soft silver; native controls and the Mac companion dashboard use graphite shades to keep button labels readable. The microphone uses native visionOS glass with a neutral icon when idle and a silver waveform while listening. Motion and status text distinguish listening from idle.
+
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. **Start from a repository** appears first to create a new workspace; **Continue a workspace** appears below it to reopen an existing one. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and ending a session live under the actions menu.
 
 Terminal rows match project rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
@@ -28,11 +30,11 @@ Zoom changes the terminal font size and explicitly refits the emulator and PTY w
 
 ## Dictation
 
-Choose **Rename** at the far left of the terminal toolbar to start voice naming. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes: “Fix the login flow” becomes **Fix-the-login-flow**. The same name appears above the window and in the companion dashboard, launcher, and wrist menu. Unnamed terminals keep their original labels.
+Look at the title above a terminal window and pinch to start voice naming. The title highlights under gaze; selecting it opens the centered glass rename overlay. **Rename** at the far left of the terminal toolbar starts the same flow. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes: “Fix the login flow” becomes **Fix-the-login-flow**. The same name appears above the window and in the companion dashboard, launcher, and wrist menu. Unnamed terminals keep their original labels.
 
 Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. **Stop** cancels; failed saves keep the draft for retry. Send, save, or discard an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
 
-**Settings → Persistent voice input** is off by default. Turn it on, then look at the mint microphone button at the terminal’s bottom right and pinch to start. A small transcript dock beside the button and a listening border mark the destination. The listening waveform follows microphone energy and settles during silence; no audio is retained for this visual feedback. Pauses and long recordings keep appending to the same draft; **Send** submits it with Return and starts listening for the next message. Select another terminal’s microphone to switch when the draft is empty, or send/discard the draft first. **Stop** releases the microphone and discards the draft.
+**Settings → Persistent voice input** is off by default. Turn it on, then look at the glass microphone button at the terminal’s bottom right and pinch to start. A glass transcript overlay centered in the terminal and a listening border mark the destination. The microphone stays at the bottom right while the overlay remains centered in dictation, conversation, and rename modes. The listening waveform follows microphone energy and settles during silence; no audio is retained for this visual feedback. Pauses and long recordings keep appending to the same draft; **Send** submits it with Return and starts listening for the next message. Select another terminal’s microphone to switch when the draft is empty, or send/discard the draft first. **Stop** releases the microphone and discards the draft.
 
 The same explicit selection works in normal and immersive workspaces; there is no automatic head or eye targeting. Turning the setting off restores one-shot dictation, which sends after a short pause.
 

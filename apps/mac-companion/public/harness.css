@@ -13,8 +13,8 @@
   --line: #e5e5e8;
   --control: #fff;
   --hover: #ededf0;
-  --selected: #e3eaf7;
-  --accent: #006be6;
+  --selected: #e7e7e7;
+  --accent: #505050;
   --danger: #b4232c;
 }
 @media (prefers-color-scheme: dark) {
@@ -26,8 +26,8 @@
     --line: #3a3a3e;
     --control: #353538;
     --hover: #3e3e42;
-    --selected: #35435a;
-    --accent: #0a84ff;
+    --selected: #3b3b3b;
+    --accent: #606060;
     --danger: #ff777f;
   }
 }
