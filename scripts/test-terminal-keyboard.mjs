@@ -43,6 +43,7 @@ window.runKeyboardChecks = async () => {
       ['Tab', 'Tab', 9, '\\t'],
       ['Escape', 'Escape', 27, '\\x1b'],
       ['ArrowLeft', 'ArrowLeft', 37, '\\x1b[D'],
+      ['ArrowUp', 'ArrowUp', 38, '\\x1b[1;3A', {altKey: true}],
       ['Backspace', 'Backspace', 8, '\\b', {ctrlKey: true}],
       ['Backspace', 'Backspace', 8, '\\x1b\\x7f', {altKey: true}],
     ]) {
@@ -53,7 +54,37 @@ window.runKeyboardChecks = async () => {
       input.dispatchEvent(new KeyboardEvent('keyup', options));
       check([expected], key + ' in inputmode=' + mode);
     }
+    for (const [direction, suffix] of [['Up', 'A'], ['Down', 'B'], ['Right', 'C'], ['Left', 'D']]) {
+      for (const key of ['UIKeyInput' + direction + 'Arrow', 'Arrow' + direction]) {
+        for (const keyCode of [0, 229]) {
+          for (const [modifiers, parameter] of [[{altKey: true}, '3'], [{}, ''], [{ctrlKey: true}, '5'], [{shiftKey: true, altKey: true}, '4'], [{ctrlKey: true, altKey: true}, '7']]) {
+            const options = {key, code: 'Arrow' + direction, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+            input.dispatchEvent(new KeyboardEvent('keydown', options));
+            input.dispatchEvent(new KeyboardEvent('keyup', options));
+            check(['\\x1b[' + (parameter ? '1;' + parameter : '') + suffix], key + ' modifiers=' + parameter + ' keyCode=' + keyCode + ' in inputmode=' + mode);
+          }
+        }
+      }
+    }
   }
+  const arrow = (target = input, extra = {}) => target.dispatchEvent(new KeyboardEvent('keydown', {
+    key: 'UIKeyInputUpArrow', keyCode: 0, altKey: true, bubbles: true, cancelable: true, ...extra
+  }));
+  await new Promise(resolve => terminal.write('\\x1b[?1h', resolve));
+  arrow(); check(['\\x1b[1;3A'], 'Alt+Up in application cursor mode');
+  arrow(input, {altKey: false}); check(['\\x1bOA'], 'plain Up must retain application cursor mode');
+  await new Promise(resolve => terminal.write('\\x1b[?1l', resolve));
+  arrow(); arrow(input, {repeat: true});
+  check(['\\x1b[1;3A', '\\x1b[1;3A'], 'held Alt+Up must emit once per keydown');
+  arrow(input, {keyCode: 229, isComposing: true});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  check([], 'composing arrow must not be converted into a shortcut');
+  arrow(input, {metaKey: true}); check([], 'Command must not be dropped from arrow shortcuts');
+  if (!arrow(document.getElementById('other'))) throw Error('other fields must retain native arrow behavior');
+  check([], 'other fields must not send arrow shortcuts');
+  const handledArrow = new KeyboardEvent('keydown', {key: 'UIKeyInputUpArrow', keyCode: 0, altKey: true, bubbles: true, cancelable: true});
+  handledArrow.preventDefault(); input.dispatchEvent(handledArrow);
+  check([], 'already handled arrow must not emit input');
   edit('deleteContentBackward'); check(['\\x7f'], 'editing-only Backspace');
   edit('deleteContentForward'); check(['\\x1b[3~'], 'editing-only Delete');
   for (const keyCode of [0, 229]) {
@@ -228,8 +259,18 @@ window.runViewportChecks = async () => {
     if (terminal.rows < MAX_TERMINAL_DIMENSION) check(screen.height >= viewport.height - screen.height / terminal.rows - 1, 'Bottom gap at zoom ' + zoom);
   }
   const button = document.getElementById('take-control');
+  const beforeShortcut = inputs().length;
+  for (const showKeyboard of [false, true]) {
+    window.slzFocusTerminal(showKeyboard);
+    hardwareKey('UIKeyInputUpArrow', '', 0, {altKey: true});
+    check(isFocused() && terminal.textarea.inputMode === (showKeyboard ? 'text' : 'none'), 'Alt+Up must preserve focus and keyboard mode');
+  }
+  check(JSON.stringify(inputs().slice(beforeShortcut)) === JSON.stringify(['\\x1b[1;3A', '\\x1b[1;3A']), 'Alt+Up must reach the production PTY transport exactly once in each keyboard mode');
   viewportSocket.receive({type: 'ownership', sessionId, writable: false});
   await until(() => !button.hidden);
+  const beforeReadOnlyShortcut = inputs().length;
+  hardwareKey('UIKeyInputUpArrow', '', 0, {altKey: true});
+  check(inputs().length === beforeReadOnlyShortcut, 'Normalized arrow shortcuts must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
   document.documentElement.dataset.nativeTerminal = 'true';
