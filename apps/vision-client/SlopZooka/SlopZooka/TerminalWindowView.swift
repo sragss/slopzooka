@@ -90,15 +90,8 @@ struct TerminalWindowView: View {
             }
 
             VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 10) {
-                    Button {
-                        voice.activateRename(payload.id)
-                    } label: {
-                        Label("Rename", systemImage: "pencil")
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(!canSubmitSpeech || voice.isSubmitting)
-                    .help("Speak a name for this window")
+                HStack(spacing: 16) {
+                    WorkspaceFrontendButton(baseURL: payload.url, workspaceId: payload.workspaceId)
 
                     if let statusText = terminalStatusText {
                         Text(statusText)
@@ -111,51 +104,54 @@ struct TerminalWindowView: View {
 
                     Spacer(minLength: 0)
 
-                    WorkspaceFrontendButton(baseURL: payload.url, workspaceId: payload.workspaceId)
+                    HStack(spacing: 12) {
+                        Button {
+                            isActionsPresented.toggle()
+                        } label: {
+                            Image(systemName: "ellipsis")
+                                .font(.title3.weight(.medium))
+                                .frame(width: 60, height: 60)
+                        }
+                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+                        .accessibilityLabel("Session actions")
+                        .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
+                            terminalActions(payload: payload)
+                        }
 
-                    Button {
-                        isActionsPresented.toggle()
-                    } label: {
-                        Image(systemName: "ellipsis").font(.title3)
-                            .frame(width: 44, height: 44)
-                            .background(.regularMaterial, in: Circle())
-                            .contentShape(.hoverEffect, Circle())
-                    }
-                    .buttonStyle(.plain)
-                    .buttonBorderShape(.circle)
-                    .accessibilityLabel("Session actions")
-                    .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
-                        terminalActions(payload: payload)
-                    }
+                        Button {
+                            focusRequestToken += 1
+                        } label: {
+                            Image(systemName: "keyboard")
+                                .font(.title3.weight(.medium))
+                                .frame(width: 60, height: 60)
+                        }
+                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+                        .disabled(!canSubmitSpeech)
+                        .accessibilityLabel("Show terminal keyboard")
 
-                    Button {
-                        focusRequestToken += 1
-                    } label: {
-                        Label("Keyboard", systemImage: "keyboard")
-                    }
-                    .labelStyle(.iconOnly)
-                    .buttonStyle(.bordered)
-                    .disabled(!canSubmitSpeech)
-                    .help("Type in the terminal")
+                        Button {
+                            interruptRequestToken += 1
+                        } label: {
+                            Label("Interrupt", systemImage: "escape")
+                                .font(.body.weight(.medium))
+                                .padding(.horizontal, 20)
+                                .frame(minHeight: 60)
+                        }
+                        .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
+                        .disabled(!canSubmitSpeech)
+                        .accessibilityHint("Send Escape to the terminal")
 
-                    Button {
-                        interruptRequestToken += 1
-                    } label: {
-                        Label("Interrupt", systemImage: "escape")
+                        Button(role: .destructive) {
+                            confirmEndSession = true
+                        } label: {
+                            Image(systemName: "stop.fill")
+                                .font(.title3.weight(.medium))
+                                .frame(width: 60, height: 60)
+                        }
+                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+                        .accessibilityLabel("End session")
+                        .accessibilityHint("Confirm before stopping the terminal and its attached dev servers")
                     }
-                    .buttonStyle(.bordered)
-                    .disabled(!canSubmitSpeech)
-                    .help("Send Escape to the terminal")
-
-                    Button {
-                        windows.close(id: payload.id)
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.headline.weight(.semibold))
-                    }
-                    .buttonStyle(.plain)
-                    .padding(12)
-                    .background(.regularMaterial, in: Circle())
                 }
 
                 if isUtilitiesExpanded {
@@ -198,11 +194,8 @@ struct TerminalWindowView: View {
                     .minimumScaleFactor(0.5)
                     .padding(.horizontal, 28)
                     .padding(.vertical, 14)
-                    .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
-                    .contentShape([.interaction, .hoverEffect], RoundedRectangle(cornerRadius: 24))
             }
-            .buttonStyle(.plain)
-            .hoverEffect(.highlight)
+            .buttonStyle(TerminalGlassControlStyle(shape: RoundedRectangle(cornerRadius: 24, style: .continuous)))
             .disabled(!canSubmitSpeech || voice.isSubmitting)
             .frame(maxWidth: 1000)
             .padding(.bottom, 20)
@@ -245,9 +238,9 @@ struct TerminalWindowView: View {
                 isSessionDetailsExpanded = isUtilitiesExpanded
             }
             Divider()
-            Button("End Session…", role: .destructive) {
+            Button("Close Window", systemImage: "xmark") {
                 isActionsPresented = false
-                confirmEndSession = true
+                windows.close(id: payload.id)
             }
         }
         .buttonStyle(TerminalMenuButtonStyle())

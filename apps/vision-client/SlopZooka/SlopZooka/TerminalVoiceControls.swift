@@ -13,9 +13,9 @@ struct TerminalVoiceButton: View {
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
                 audioLevels: voice.audioLevels)
-                .frame(width: 64, height: 64)
-                .glassBackgroundEffect(in: Circle())
                 .frame(width: 88, height: 88)
+                .glassBackgroundEffect(in: Circle())
+                .frame(width: 120, height: 120)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -45,22 +45,22 @@ private struct VoiceOrb: View {
                     let angle = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
                         .truncatingRemainder(dividingBy: 1) * 360
                     Circle().trim(from: 0.12, to: 0.85)
-                        .stroke(voiceAccent, style: StrokeStyle(lineWidth: 2, lineCap: .round))
-                        .frame(width: 21, height: 21)
+                        .stroke(voiceAccent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .frame(width: 28, height: 28)
                         .rotationEffect(.degrees(angle))
                 }
             } else if isListening {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     ForEach(audioLevels.indices, id: \.self) { index in
                         Capsule().fill(voiceAccent)
-                            .frame(width: 3, height: 4 + 20 * audioLevels[index])
+                            .frame(width: 4, height: 6 + 28 * audioLevels[index])
                     }
                 }
-                .frame(width: 29, height: 29)
+                .frame(width: 40, height: 40)
                 .animation(reduceMotion ? nil : .linear(duration: 0.05), value: audioLevels)
             } else {
                 Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: 23, weight: .medium))
+                    .font(.system(size: 30, weight: .medium))
                     .foregroundStyle(isSelected ? voiceAccent : .white)
             }
         }
