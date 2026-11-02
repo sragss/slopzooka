@@ -26,6 +26,8 @@ Terminal input stays focused and editable for a connected physical keyboard. Aut
 
 Use **Interrupt** in the terminal toolbar to send Escape without changing keyboard focus. The toolbar’s **Stop** button asks for confirmation before ending the session and its attached dev servers. **Close Window** in the actions menu dismisses the window immediately and keeps the session running. WebKit editing events for Return, Backspace, and Delete are routed through the terminal's key handling. Update both apps for separate floating-keyboard control; older companions retain typing focus but may also show the floating keyboard.
 
+Hardware arrow shortcuts preserve Option/Alt, Control, and Shift, including **Option+Up (Alt+Up)** in Codex. Update the headset app for the WebKit arrow-event fix; this also applies when your keyboard is shared from the Mac through Mac Virtual Display.
+
 Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom** starts at **80%** and persists across app launches. Terminals without a custom zoom follow that default; existing scene zoom preferences are preserved. Reset Zoom applies the current saved default. Use the zoom controls in the actions menu; it stays open for repeated adjustments.
 
 Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. Older Mac companions without the font-zoom bridge use a scaled logical viewport so their resize observer still refits the terminal. Update both apps for the bounded emulator/PTY grid at extreme zoom.
