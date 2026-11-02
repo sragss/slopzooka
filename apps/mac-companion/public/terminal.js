@@ -9143,11 +9143,13 @@ var MAX_TERMINAL_DIMENSION = 500;
 
 // src/terminal-connection.ts
 var TerminalConnection = class {
-  constructor(terminal2, sessionId2, status, fit2) {
+  constructor(terminal2, sessionId2, status, fit2, notification = () => {
+  }) {
     this.terminal = terminal2;
     this.sessionId = sessionId2;
     this.status = status;
     this.fit = fit2;
+    this.notification = notification;
     this.inputSubscription = terminal2.onData((data) => {
       if (this.attached && this.writable && this.running)
         this.send({ type: "input", sessionId: sessionId2, data });
@@ -9157,6 +9159,7 @@ var TerminalConnection = class {
   renderTail = Promise.resolve();
   cursor;
   serviceInstanceId;
+  lastNotification;
   retry;
   handshake;
   inputSubscription;
@@ -9316,11 +9319,14 @@ var TerminalConnection = class {
         this.lostConnection = false;
         this.publishOwnership();
         this.resize();
+        this.reportNotification(m.notificationSequence, false);
         break;
       case "output":
         if (m.sessionId !== this.sessionId) return;
         await this.write(m.data);
         this.ack(ws2, m.cursor);
+        if (this.isCurrent(ws2))
+          this.reportNotification(m.notificationSequence, true);
         break;
       case "exited":
         if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
@@ -9349,6 +9355,14 @@ var TerminalConnection = class {
       readOnly,
       readOnly && this.supportsTakeControl
     );
+  }
+  reportNotification(sequence, audible) {
+    if (!Number.isSafeInteger(sequence) || sequence < 0) return;
+    const instance = this.serviceInstanceId ?? "legacy";
+    if (this.lastNotification?.instance === instance && sequence <= this.lastNotification.sequence)
+      return;
+    this.lastNotification = { sequence, instance };
+    this.notification(sequence, instance, audible);
   }
   write(data) {
     return new Promise((resolve) => this.terminal.write(data, resolve));
@@ -9411,7 +9425,15 @@ var connection = sessionId ? new TerminalConnection(
       message
     });
   },
-  () => fit.fit()
+  () => fit.fit(),
+  (sequence, serviceInstanceId, audible) => {
+    window.webkit?.messageHandlers?.terminalNotification?.postMessage({
+      kind: "alert",
+      sequence,
+      serviceInstanceId,
+      audible
+    });
+  }
 ) : void 0;
 document.title = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
 if (!sessionId) messageLabel.textContent = "Missing terminal session";
@@ -9450,6 +9472,12 @@ window.slzFocusTerminal = focusTerminal;
 window.slzInterruptTerminal = () => terminal.input("\x1B", true);
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
+var selectTerminal = () => window.webkit?.messageHandlers?.terminalNotification?.postMessage({
+  kind: "selected"
+});
+mount.addEventListener("pointerdown", selectTerminal, true);
+mount.addEventListener("keydown", selectTerminal, true);
+mount.addEventListener("beforeinput", selectTerminal, true);
 /*! Bundled license information:
 
 @xterm/addon-fit/lib/addon-fit.mjs:

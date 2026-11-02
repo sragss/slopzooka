@@ -10,10 +10,16 @@ import type {
   TuiProfile,
 } from "../../../packages/protocol/src/index.js";
 import { ServiceError } from "./errors.js";
+import { observeTerminalNotifications } from "./terminal-notifications.js";
 
 const REPLAY_LIMIT = 512 * 1024;
 const WINDOW = 128 * 1024;
-type Frame = { cursor: number; data: string; bytes: number };
+type Frame = {
+  cursor: number;
+  data: string;
+  bytes: number;
+  notificationSequence: number;
+};
 type Attachment = {
   sent: number;
   ack: number;
@@ -26,6 +32,7 @@ type Session = {
   screen: InstanceType<typeof headless.Terminal>;
   serialize: InstanceType<typeof serialize.SerializeAddon>;
   cursor: number;
+  notificationSequence: number;
   replay: Frame[];
   replayBytes: number;
   clients: Map<WebSocket, Attachment>;
@@ -153,6 +160,7 @@ export class SessionManager {
       screen,
       serialize: serializer,
       cursor: 0,
+      notificationSequence: 0,
       replay: [],
       replayBytes: 0,
       clients: new Map(),
@@ -161,6 +169,9 @@ export class SessionManager {
       paused: false,
       ending: false,
     };
+    observeTerminalNotifications(screen, () => {
+      s.notificationSequence += 1;
+    });
     this.sessions.set(id, s);
     term.onData((data) => {
       const bytes = Buffer.byteLength(data);
@@ -168,7 +179,12 @@ export class SessionManager {
       this.flow(s);
       screen.write(data, () => {
         s.pendingBytes -= bytes;
-        const frame = { cursor: ++s.cursor, data, bytes };
+        const frame = {
+          cursor: ++s.cursor,
+          data,
+          bytes,
+          notificationSequence: s.notificationSequence,
+        };
         s.replay.push(frame);
         s.replayBytes += bytes;
         while (s.replayBytes > REPLAY_LIMIT && s.replay.length > 1)
@@ -208,6 +224,7 @@ export class SessionManager {
       cursor: start,
       snapshot,
       writable: s.writer === ws,
+      notificationSequence: s.notificationSequence,
     });
     this.pump(s, ws);
   }
@@ -369,6 +386,7 @@ export class SessionManager {
         sessionId: s.summary.id,
         cursor: f.cursor,
         data: f.data,
+        notificationSequence: f.notificationSequence,
       });
       a.sent = f.cursor;
       a.bytes += f.bytes;

@@ -57,7 +57,11 @@ struct TerminalWindowView: View {
                     isActive: scenePhase == .active,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
-                    zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue)
+                    zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue),
+                    onNotification: { sequence, instance in
+                        windows.receiveTerminalNotification(id: payload.id, sequence: sequence, serviceInstanceID: instance)
+                    },
+                    onSelect: { windows.readTerminalNotifications(id: payload.id) }
                 )
                 .id(payload.id)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -163,6 +167,26 @@ struct TerminalWindowView: View {
             .padding(14)
         }
         .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech))
+        .overlay {
+            if windows.hasUnreadNotification(payload.id) {
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .strokeBorder(.orange, lineWidth: 5)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            if windows.hasUnreadNotification(payload.id) {
+                Label("Unread notification", systemImage: "bell.badge.fill")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .padding(12)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(14)
+                    .allowsHitTesting(false)
+            }
+        }
+        .simultaneousGesture(TapGesture().onEnded { windows.readTerminalNotifications(id: payload.id) })
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
             Button {
                 voice.activateRename(payload.id)
