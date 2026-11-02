@@ -10,6 +10,8 @@ struct CompanionWebView: UIViewRepresentable {
     let focusRequestToken: Int
     let interruptRequestToken: Int
     let zoom: Double
+    var onNotification: (Int, String) -> Bool = { _, _ in false }
+    var onSelect: () -> Void = {}
 
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
@@ -20,6 +22,9 @@ struct CompanionWebView: UIViewRepresentable {
         configuration.userContentController.addUserScript(WKUserScript(
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
+        configuration.userContentController.add(context.coordinator, name: "terminalNotification")
+        context.coordinator.onNotification = onNotification
+        context.coordinator.onSelect = onSelect
         let webView = WKWebView(frame: .zero, configuration: configuration)
         context.coordinator.requestZoom(zoom, in: webView)
         webView.navigationDelegate = context.coordinator
@@ -32,6 +37,8 @@ struct CompanionWebView: UIViewRepresentable {
     }
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
+        context.coordinator.onNotification = onNotification
+        context.coordinator.onSelect = onSelect
         context.coordinator.updateActivity(isActive, in: webView)
         let reload = context.coordinator.reloadToken != reloadToken
         context.coordinator.reloadToken = reloadToken
@@ -47,7 +54,10 @@ struct CompanionWebView: UIViewRepresentable {
         }
     }
     static func dismantleUIView(_ webView: WKWebView, coordinator: TerminalSessionController) {
+        coordinator.onNotification = { _, _ in false }
+        coordinator.onSelect = {}
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalState")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalNotification")
         webView.evaluateJavaScript("window.slzDetachTerminal?.()")
         webView.navigationDelegate = nil
         webView.stopLoading()
@@ -63,6 +73,11 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     var focusToken = 0
     var interruptToken = 0
     var reloadToken = 0
+    var onNotification: (Int, String) -> Bool = { _, _ in false }
+    var onSelect: () -> Void = {}
+    #if os(visionOS)
+    private let notificationSound = TerminalNotificationSound()
+    #endif
     private var requestedURL: URL?
     private weak var webView: WKWebView?
     private var terminalReady = false
@@ -118,7 +133,29 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         webView.load(CompanionAPI.authorized(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)))
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
-        guard message.frameInfo.isMainFrame, let body = message.body as? [String: String] else { return }
+        guard message.frameInfo.isMainFrame, message.webView === webView else { return }
+        if message.name == "terminalNotification" {
+            guard let body = message.body as? [String: Any] else { return }
+            if body["kind"] as? String == "selected" {
+                onSelect()
+            } else if body["kind"] as? String == "alert",
+                let value = body["sequence"] as? NSNumber,
+                CFGetTypeID(value) != CFBooleanGetTypeID(),
+                value.doubleValue.isFinite, value.doubleValue >= 0,
+                value.doubleValue <= 9_007_199_254_740_991,
+                value.doubleValue.rounded() == value.doubleValue,
+                let instance = body["serviceInstanceId"] as? String {
+                let isNew = onNotification(value.intValue, instance)
+                #if os(visionOS)
+                if isNew, body["audible"] as? Bool == true,
+                    let sceneID = webView?.window?.windowScene?.session.persistentIdentifier {
+                    notificationSound.play(sceneID: sceneID)
+                }
+                #endif
+            }
+            return
+        }
+        guard message.name == "terminalState", let body = message.body as? [String: String] else { return }
         terminalReady = body["state"] == "running"
         switch body["state"] {
         case "running":

@@ -37,6 +37,7 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     configurable: true,
     value: { href: "http://host:7777/terminal", protocol: "http:" },
   });
+  const notifications: unknown[] = [];
   const operations: string[] = [];
   let rendered = "";
   const term = {
@@ -65,6 +66,7 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     "s1",
     () => {},
     () => {},
+    (...notification) => notifications.push(notification),
   );
   const session = { id: "s1", cols: 80, rows: 24, status: "running" };
   try {
@@ -76,19 +78,38 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       session,
       cursor: 0,
       snapshot: "A",
+      notificationSequence: 3,
       writable: true,
     });
-    ws.receive({ type: "output", sessionId: "s1", cursor: 1, data: "B" });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 1,
+      data: "B",
+      notificationSequence: 4,
+    });
     ws.receive({
       type: "attached",
       session,
       cursor: 2,
       snapshot: "C",
+      notificationSequence: 4,
       writable: true,
     });
-    ws.receive({ type: "output", sessionId: "s1", cursor: 3, data: "D" });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 3,
+      data: "D",
+      notificationSequence: 5,
+    });
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(rendered, "CD");
+    assert.deepEqual(notifications, [
+      [3, "first", false],
+      [4, "first", true],
+      [5, "first", true],
+    ]);
     assert.deepEqual(operations, [
       "reset",
       "resize",
@@ -124,6 +145,7 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       session,
       cursor: 4,
       snapshot: "slow-checkpoint",
+      notificationSequence: 6,
       writable: true,
     });
     reconnected.receive({ type: "ownership", sessionId: "s1", writable: true });
@@ -136,6 +158,11 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       replacement.sent,
       [],
       "retired sockets must not resize or activate their replacement",
+    );
+    assert.equal(
+      notifications.length,
+      3,
+      "retired sockets cannot notify their replacement",
     );
     replacement.receive({
       type: "hello",

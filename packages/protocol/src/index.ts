@@ -37,8 +37,16 @@ export type ServerMessage =
       cursor: number;
       snapshot?: string;
       writable: boolean;
+      /** Monotonic alert count, retained independently of screen replay. */
+      notificationSequence?: number;
     }
-  | { type: "output"; sessionId: string; cursor: number; data: string }
+  | {
+      type: "output";
+      sessionId: string;
+      cursor: number;
+      data: string;
+      notificationSequence?: number;
+    }
   | { type: "exited"; sessionId: string; exitCode: number | null }
   | { type: "error"; message: string; code: string };
 export const validId = (value: unknown): value is string =>

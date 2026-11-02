@@ -55,6 +55,14 @@ const connection = sessionId
         });
       },
       () => fit.fit(),
+      (sequence, serviceInstanceId, audible) => {
+        window.webkit?.messageHandlers?.terminalNotification?.postMessage({
+          kind: "alert",
+          sequence,
+          serviceInstanceId,
+          audible,
+        });
+      },
     )
   : undefined;
 document.title = sessionId
@@ -100,6 +108,14 @@ window.slzFocusTerminal = focusTerminal;
 window.slzInterruptTerminal = () => terminal.input("\u001b", true);
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
+// Only user interaction acknowledges an alert; programmatic focus/reconnect does not.
+const selectTerminal = () =>
+  window.webkit?.messageHandlers?.terminalNotification?.postMessage({
+    kind: "selected",
+  });
+mount.addEventListener("pointerdown", selectTerminal, true);
+mount.addEventListener("keydown", selectTerminal, true);
+mount.addEventListener("beforeinput", selectTerminal, true);
 declare global {
   interface Window {
     slzFocusTerminal?: (showKeyboard?: boolean) => void;
@@ -109,6 +125,7 @@ declare global {
     webkit?: {
       messageHandlers?: {
         terminalState?: { postMessage: (value: unknown) => void };
+        terminalNotification?: { postMessage: (value: unknown) => void };
       };
     };
   }
