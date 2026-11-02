@@ -43,6 +43,8 @@ The companion connects to the existing session service or launches it under macO
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
 
+The session service detects BEL, OSC 9, and OSC 777 notifications through the same headless parser. Optional `notificationSequence` counters accompany output frames and attachment checkpoints so alert state survives replay eviction. `TerminalConnection` forwards advancing counters through the WebView bridge; `WindowGateway` owns per-window unread acknowledgements. Native selection clears the indicator, and each terminal controller anchors its chime to its native scene using the player’s [scene-anchored spatial experience](https://developer.apple.com/documentation/audiotoolbox/spatializing-sound-from-a-uiscene). Reattachment restores unread state silently.
+
 Dictation carries a command ID. A retried request is deduplicated within the most recent 1,000 input commands for that session. IDs cannot be reused with different text.
 
 ## Vision client ownership

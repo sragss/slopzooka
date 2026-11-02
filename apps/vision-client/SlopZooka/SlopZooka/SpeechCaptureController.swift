@@ -149,7 +149,8 @@ final class SpeechCaptureController: NSObject, SpeechCapturing {
         }
 
         let session = AVAudioSession.sharedInstance()
-        try session.setCategory(.record, mode: .measurement, options: [.duckOthers])
+        // Terminal notification chimes must remain audible during persistent dictation.
+        try session.setCategory(.playAndRecord, mode: .measurement, options: [.duckOthers])
         try session.setActive(true, options: .notifyOthersOnDeactivation)
 
         let inputNode = audioEngine.inputNode

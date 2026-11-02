@@ -26,6 +26,14 @@ Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom*
 
 Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. Older Mac companions without the font-zoom bridge use a scaled logical viewport so their resize observer still refits the terminal. Update both apps for the bounded emulator/PTY grid at extreme zoom.
 
+## Terminal notifications
+
+Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Tap or pinch inside the window, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Automatic keyboard focus and content reloads do not mark notifications read.
+
+New alerts play a short chime anchored to the terminal window's position in the room. Bursts are limited to one chime per second per window. Reconnecting recovers missed notifications silently; replaying output or reloading content does not repeat a chime. Unread state stays with the window during the headset app's lifetime, including content reloads and reconnects.
+
+This handles alerts emitted by the terminal program; it does not infer completion from output text or a process exit. Enable terminal notifications in your coding agent if they are disabled. Update both apps and restart an older Mac session service after ending its sessions to enable alert detection. Test the path from a shell with `printf '\a'`.
+
 ## Dictation
 
 Choose **Rename** at the far left of the terminal toolbar to start voice naming. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes: “Fix the login flow” becomes **Fix-the-login-flow**. The same name appears above the window and in the companion dashboard, launcher, and wrist menu. Unnamed terminals keep their original labels.

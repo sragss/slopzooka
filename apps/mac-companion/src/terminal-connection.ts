@@ -11,6 +11,7 @@ export class TerminalConnection {
   private renderTail: Promise<void> = Promise.resolve();
   private cursor?: number;
   private serviceInstanceId?: string;
+  private lastNotification?: { sequence: number; instance: string };
   private retry?: ReturnType<typeof setTimeout>;
   private handshake?: ReturnType<typeof setTimeout>;
   private readonly inputSubscription: { dispose(): void };
@@ -31,6 +32,11 @@ export class TerminalConnection {
       canTakeControl?: boolean,
     ) => void,
     private readonly fit: () => void,
+    private readonly notification: (
+      sequence: number,
+      serviceInstanceId: string,
+      audible: boolean,
+    ) => void = () => {},
   ) {
     this.inputSubscription = terminal.onData((data) => {
       if (this.attached && this.writable && this.running)
@@ -210,11 +216,14 @@ export class TerminalConnection {
         this.lostConnection = false;
         this.publishOwnership();
         this.resize();
+        this.reportNotification(m.notificationSequence, false);
         break;
       case "output":
         if (m.sessionId !== this.sessionId) return;
         await this.write(m.data);
         this.ack(ws, m.cursor);
+        if (this.isCurrent(ws))
+          this.reportNotification(m.notificationSequence, true);
         break;
       case "exited":
         if (!this.isCurrent(ws) || m.sessionId !== this.sessionId) return;
@@ -256,6 +265,21 @@ export class TerminalConnection {
       readOnly && this.supportsTakeControl,
     );
   }
+  private reportNotification(
+    sequence: number | undefined,
+    audible: boolean,
+  ): void {
+    if (!Number.isSafeInteger(sequence) || sequence! < 0) return;
+    const instance = this.serviceInstanceId ?? "legacy";
+    if (
+      this.lastNotification?.instance === instance &&
+      sequence! <= this.lastNotification.sequence
+    )
+      return;
+    this.lastNotification = { sequence: sequence!, instance };
+    this.notification(sequence!, instance, audible);
+  }
+
   private write(data: string): Promise<void> {
     return new Promise((resolve) => this.terminal.write(data, resolve));
   }
