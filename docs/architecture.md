@@ -21,6 +21,7 @@ Paths below are relative to `apps/mac-companion/src`.
 | File                                     | Responsibility                                                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `server.ts`                              | HTTP routes, authenticated WebSocket transport, discovery, and shutdown                                                           |
+| `bonjour.ts`                             | Service registration through macOS DNS-SD; macOS owns hostname/address records, and a private pipe bounds registration to the HTTP companion lifetime |
 | `sessions.ts`                            | `SessionManager`: PTYs, screen state, replay, resize ownership, and input deduplication; instantiated only by the session service |
 | `session-service.ts`                     | Private service entry point, terminal dispatch, shutdown, and lock-protected socket/runtime cleanup                               |
 | `session-service-client.ts`              | Connect-or-start, retained runtime installation, HTTP control, and bounded viewer relay; no session registry                      |

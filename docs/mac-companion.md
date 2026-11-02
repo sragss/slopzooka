@@ -65,6 +65,8 @@ HTTP companion shutdown closes public admission, viewer connections, and fronten
 
 ## Authentication and network access
 
+The companion registers its `_slopzooka._tcp` service through macOS's built-in DNS-SD service. macOS owns the hostname and network address records; SlopZooka does not publish competing host records or rename the Mac. The registration ends when the HTTP companion exits, including after a crash. Restarting discovery does not restart the session service.
+
 Opening the dashboard from the menu uses a single-use sign-in link, issued through the private app/companion pipe and valid for 60 seconds at the selected dashboard origin. The browser removes the link's fragment and exchanges it for an HttpOnly session cookie; the PIN and reusable credentials are never placed in the URL.
 
 Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints require authentication; browser requests and WebSocket upgrades also enforce the companion origin. Connection codes contain six digits, expire after five minutes, and rotate on host restart. Pairing is limited to ten attempts per minute across the host; paired credentials persist.
