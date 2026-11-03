@@ -13,29 +13,25 @@ struct WorkspaceFrontendButton: View {
             Image(systemName: "globe")
                 .font(.system(size: 26, weight: .medium))
                 .frame(width: 72, height: 72)
-                .overlay(alignment: .topTrailing) {
-                    ZStack {
-                        if isLoading {
-                            ProgressView().controlSize(.mini).tint(.black)
-                                .frame(width: 12, height: 12)
-                        } else if warning != nil {
-                            Image(systemName: "exclamationmark")
-                                .font(.caption2.weight(.bold))
-                        } else {
-                            Text(frontends.count > 99 ? "99+" : "\(frontends.count)")
-                                .font(.caption2.weight(.semibold).monospacedDigit())
-                        }
-                    }
+        }
+        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+        // The badge has its own foreground plane, outside the globe's glass.
+        .overlay(alignment: .topTrailing) {
+            if !frontends.isEmpty {
+                Text(frontends.count > 99 ? "99+" : "\(frontends.count)")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
                     .foregroundStyle(.black)
                     .padding(.horizontal, 6)
                     .frame(minWidth: 24, minHeight: 24)
-                    .background(warning == nil ? Color("AccentHighlight") : .orange, in: Capsule())
+                    .background(Color("AccentHighlight"), in: Capsule())
+                    .compositingGroup()
+                    .clipShape(Capsule())
                     .offset(x: -2, y: 2)
+                    .offset(z: 1)
                     .allowsHitTesting(false)
                     .accessibilityHidden(true)
-                }
+            }
         }
-        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
         .disabled(baseURL == nil)
         .accessibilityLabel("Show workspace frontends")
         .accessibilityValue(accessibilityStatus)
