@@ -10,30 +10,35 @@ struct WorkspaceFrontendButton: View {
 
     var body: some View {
         Button { expanded.toggle() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "globe").font(.title2.weight(.medium))
-                Text("Frontends").font(.body.weight(.medium))
-                if isLoading {
-                    ProgressView().controlSize(.small)
-                        .frame(width: 24, height: 24)
-                } else {
-                    Text("\(frontends.count)")
-                        .font(.body.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .frame(minWidth: 24)
+            Image(systemName: "globe")
+                .font(.system(size: 26, weight: .medium))
+                .frame(width: 72, height: 72)
+                .overlay(alignment: .topTrailing) {
+                    ZStack {
+                        if isLoading {
+                            ProgressView().controlSize(.mini).tint(.black)
+                                .frame(width: 12, height: 12)
+                        } else if warning != nil {
+                            Image(systemName: "exclamationmark")
+                                .font(.caption2.weight(.bold))
+                        } else {
+                            Text(frontends.count > 99 ? "99+" : "\(frontends.count)")
+                                .font(.caption2.weight(.semibold).monospacedDigit())
+                        }
+                    }
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(warning == nil ? Color("AccentHighlight") : .orange, in: Capsule())
+                    .offset(x: -2, y: 2)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
                 }
-                if warning != nil {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.caption).foregroundStyle(.orange)
-                }
-            }
-            .padding(.horizontal, 20)
-            .frame(minWidth: 208, minHeight: 72)
         }
-        .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
+        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
         .disabled(baseURL == nil)
         .accessibilityLabel("Show workspace frontends")
-        .accessibilityValue(baseURL == nil ? "Unavailable" : (isLoading ? "Searching" : "\(frontends.count) available"))
+        .accessibilityValue(accessibilityStatus)
         .popover(isPresented: $expanded, arrowEdge: .top) {
             ScrollView {
                 FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL, workspaceId: workspaceId)
@@ -60,6 +65,13 @@ struct WorkspaceFrontendButton: View {
                 try? await Task.sleep(for: .seconds(3))
             }
         }
+    }
+
+    private var accessibilityStatus: String {
+        guard baseURL != nil else { return "Unavailable" }
+        if isLoading { return "Searching" }
+        if warning != nil { return "\(frontends.count) frontends, discovery notice" }
+        return "\(frontends.count) frontends"
     }
 }
 
