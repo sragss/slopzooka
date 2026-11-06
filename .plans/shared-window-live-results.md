@@ -4,7 +4,7 @@ Status: live feasibility session completed and owned resources stopped, November
 
 ## What the live session has established
 
-Three Mac windows (native fixture, Chrome fixture, and the disposable iPhone Simulator window) can be shared independently to physical Vision Pro. The user described these streams as looking good. The native path is ScreenCaptureKit → hardware-required VideoToolbox H.264 → pinned TLS → native visionOS video rendering. Configured bounds are 30 fps, 1920×1440, and 8 Mbps per encoder; these are configuration limits, not measured headset delivery rates.
+Three Mac windows (native fixture, Chrome fixture, and the disposable iPhone Simulator window) can be shared independently to physical Vision Pro. The user described these streams as looking good. The native path is ScreenCaptureKit → hardware-required VideoToolbox H.264 → pinned TLS → native visionOS video rendering. Capture is configured for up to 30 fps and 1920×1440, with an 8 Mbps average bitrate target per encoder. These are settings, not measured headset delivery rates; the bitrate target is not a hard bandwidth ceiling.
 
 There is also a working independent simulator path: WDA screenshots and interaction through Appium. After fixing a transport bug, the user confirmed the continuous JPEG viewer was stable while unlocked. The host relay measured about **14 fps** with 15 fps requested. At 60% source scale (702×1520) and JPEG quality 25, observed bandwidth was roughly **15–20 Mbps**, varying with content. An earlier 75% scale / quality 40 sample was about 27 Mbps. Those rates are host measurements, not headset-presented fps or glass-to-glass latency.
 

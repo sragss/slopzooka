@@ -1,6 +1,6 @@
 # Agent orchestration and shared surfaces: reading guide
 
-Research and live discovery from October 31–November 1, 2026. These documents distinguish proposed architecture, source inspection and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
+Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6. These documents distinguish proposed architecture, source inspection and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
 
 ## Start here
 
@@ -8,6 +8,7 @@ Research and live discovery from October 31–November 1, 2026. These documents 
 2. [Live findings](shared-window-live-results.md): what the physical Mac/Vision Pro experiment established, failures and fixes, lock/unlock evidence, cleanup and remaining limits.
 3. [Coordinator and tool responsibilities](orchestrator-tools.md): ephemeral Pi, voice delegation, shared providers, context, workspace naming and actual Poncho2 findings.
 4. [Implementation and rollout sequence](orchestrator-execution-path.md#implementation-testing-and-rollout-sequence): extend the existing gateway, integrate one controllable preview, connect the real agents, then expand workspace launch, voice and opt-in use. Each stage has an observed completion criterion.
+5. [Streaming strategy clarification](macos-window-streaming.md#8-streaming-strategy-review-november-6-2026): tested H.264/native rendering, the HEVC comparison, simulator JPEG transcoding, direct LAN versus peer-to-peer Wi-Fi, and why Foveated Streaming is a different workload.
 
 ## Supporting research
 
