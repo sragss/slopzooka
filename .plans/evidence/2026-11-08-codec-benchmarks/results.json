@@ -1,0 +1,6105 @@
+{
+  "manifest": {
+    "schema": 1,
+    "startedAt": "20261108T170346Z",
+    "sourceSHA256": "2e12b5de8c634d1cdfad9d4386f968ac2fc6da54e872c97545072abe04733a53",
+    "runnerSHA256": "84353c4a1ee669f14bf6d8cb0cc8acf0e2d7be86ffa8e0c79a80cd165e2f0f4e",
+    "baseCommit": "b8e7cb18b9f97b8cfb8692b1cad97ef0bf0eb639",
+    "macOS": "ProductName:\t\tmacOS\nProductVersion:\t\t26.5.2\nBuildVersion:\t\t25F84",
+    "hardwareModel": "Mac16,6",
+    "cpu": "Apple M4 Max",
+    "memoryBytes": 137438953472,
+    "xcode": "Xcode 26.3\nBuild version 17C529",
+    "compiler": "Apple Swift version 6.2.4 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)\nTarget: arm64-apple-macosx26.0",
+    "orderSeed": 8,
+    "warmupSeconds": 2,
+    "measurementSeconds": 6,
+    "caveats": [
+      "Synthetic 60-frame cyclic corpus; static repeats one frame.",
+      "No ScreenCaptureKit, transport, Vision Pro, or system power measurement.",
+      "Mac hardware decode included in local roundtrip and process CPU.",
+      "Process CPU excludes system media services and does not measure hardware energy.",
+      "Peak memory includes precomputed fixtures; not incremental encoder memory.",
+      "Text luma PSNR is a diagnostic, not a perceptual readability verdict.",
+      "JPEG inputs use ImageIO quality 0.25, not actual WDA captures.",
+      "Other user workloads were not stopped; load/thermal state recorded."
+    ],
+    "followupRationale": "Compare ordinary real-time HEVC against low-latency HEVC after static capability results showed better text fidelity at similar latency."
+  },
+  "cases": [
+    {
+      "actualMbpsTotal": 2.0217308228082467,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.00194137527078,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 2,
+        "mode": "lowlatency",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 1,
+        "width": 1920
+      },
+      "decodedFrames": 60,
+      "decodeMS": {
+        "count": 60,
+        "max": 2.4885833263397217,
+        "mean": 0.9382534694547454,
+        "p50": 0.8344166562892497,
+        "p95": 1.4387916307896376
+      },
+      "encodedFrames": 60,
+      "encodeMS": {
+        "count": 60,
+        "max": 5.876791663467884,
+        "mean": 5.682172221713699,
+        "p50": 5.69187494693324,
+        "p95": 5.8068750076927245
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 60,
+        "max": 0.04129164153710008,
+        "mean": 0.028327777787732582,
+        "p50": 0.029499991796910763,
+        "p95": 0.03816664684563875
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 53.6875,
+      "inputPreparationMS": {
+        "count": 60,
+        "max": 0.0005416804924607277,
+        "mean": 0.00015902818025400242,
+        "p50": 8.335337042808533e-05,
+        "p95": 0.00045832712203264236
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.853707074956418,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 2,
+      "loadAverageAfter": [
+        110.52978515625,
+        40.31591796875,
+        17.80322265625
+      ],
+      "loadAverageBefore": [
+        105.87548828125,
+        38.22802734375,
+        16.94189453125
+      ],
+      "localRoundtripMS": {
+        "count": 60,
+        "max": 8.408499998040497,
+        "mean": 6.647552773938514,
+        "p50": 6.551624974235892,
+        "p95": 7.118833309505135
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 1.9998705833568238,
+      "payloadBytes": 505400,
+      "peakRSSMiB": 53.6875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.6525569341855397,
+      "requestedFrames": 60,
+      "sampledLumaPSNRdB": {
+        "count": 2,
+        "max": 50.289325497148376,
+        "mean": 50.19961892419872,
+        "p50": 50.109912351249065,
+        "p95": 50.289325497148376
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 2,
+        "max": 52.43237955499965,
+        "mean": 52.42693029498511,
+        "p50": 52.42148103497057,
+        "p95": 52.43237955499965
+      },
+      "scheduleLatenessMS": {
+        "count": 60,
+        "max": 10.025833325926214,
+        "mean": 7.688718756738429,
+        "p50": 9.577541670296341,
+        "p95": 10.021249996498227
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:03:49Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "cap-h264-lowlatency",
+      "caseWallSeconds": 3.4620930420351215
+    },
+    {
+      "actualMbpsTotal": 1.6884452116499236,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.106650929528186,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 2,
+        "mode": "realtime",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 1,
+        "width": 1920
+      },
+      "decodedFrames": 60,
+      "decodeMS": {
+        "count": 60,
+        "max": 3.2472499879077077,
+        "mean": 1.080926390325961,
+        "p50": 1.044666685629636,
+        "p95": 1.4530832995660603
+      },
+      "encodedFrames": 60,
+      "encodeMS": {
+        "count": 60,
+        "max": 11.628291627857834,
+        "mean": 9.465951386179464,
+        "p50": 10.81612496636808,
+        "p95": 11.440791713539511
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 60,
+        "max": 1.2508333311416209,
+        "mean": 0.28878749678066623,
+        "p50": 0.2658333396539092,
+        "p95": 0.40095829172059894
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.avc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 50.921875,
+      "inputPreparationMS": {
+        "count": 60,
+        "max": 0.0008749775588512421,
+        "mean": 0.00014375254977494478,
+        "p50": 8.335337042808533e-05,
+        "p95": 0.00045832712203264236
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.954409185153285,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 2,
+      "loadAverageAfter": [
+        110.52978515625,
+        40.31591796875,
+        17.80322265625
+      ],
+      "loadAverageBefore": [
+        110.52978515625,
+        40.31591796875,
+        17.80322265625
+      ],
+      "localRoundtripMS": {
+        "count": 60,
+        "max": 14.105083362665027,
+        "mean": 10.579342363053001,
+        "p50": 11.97879167739302,
+        "p95": 12.671458360273391
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 1.9929151249816641,
+      "payloadBytes": 420616,
+      "peakRSSMiB": 50.921875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.0847928107424498,
+      "requestedFrames": 60,
+      "sampledLumaPSNRdB": {
+        "count": 2,
+        "max": 46.46941761766677,
+        "mean": 46.26795880316098,
+        "p50": 46.066499988655195,
+        "p95": 46.46941761766677
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 2,
+        "max": 46.54344652884006,
+        "mean": 46.11789780233846,
+        "p50": 45.69234907583686,
+        "p95": 46.54344652884006
+      },
+      "scheduleLatenessMS": {
+        "count": 60,
+        "max": 10.029374971054494,
+        "mean": 7.8210110795528935,
+        "p50": 10.008250013925135,
+        "p95": 10.023249953519553
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:03:52Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "cap-h264-realtime",
+      "caseWallSeconds": 3.1585556250065565
+    },
+    {
+      "actualMbpsTotal": 1.8418261533341858,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.024552577826448,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 2,
+        "mode": "lowlatency",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 1,
+        "width": 1920
+      },
+      "decodedFrames": 60,
+      "decodeMS": {
+        "count": 60,
+        "max": 1.3665416627191007,
+        "mean": 0.7348868045179794,
+        "p50": 0.680500001180917,
+        "p95": 1.0795000125654042
+      },
+      "encodedFrames": 60,
+      "encodeMS": {
+        "count": 60,
+        "max": 6.631000025663525,
+        "mean": 5.892638193715054,
+        "p50": 5.8850416680797935,
+        "p95": 5.9950833092443645
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 60,
+        "max": 0.037791673094034195,
+        "mean": 0.020433332732257743,
+        "p50": 0.019249971956014633,
+        "p95": 0.029124959837645292
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 53.8125,
+      "inputPreparationMS": {
+        "count": 60,
+        "max": 0.00045838532969355583,
+        "mean": 5.8335717767477036e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.00020832521840929985
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.875452901567876,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 2,
+      "loadAverageAfter": [
+        109.7666015625,
+        41.3232421875,
+        18.29052734375
+      ],
+      "loadAverageBefore": [
+        110.52978515625,
+        40.31591796875,
+        17.80322265625
+      ],
+      "localRoundtripMS": {
+        "count": 60,
+        "max": 8.03308334434405,
+        "mean": 6.650852782574172,
+        "p50": 6.589208322111517,
+        "p95": 6.883166672196239
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 1.9983645000029355,
+      "payloadBytes": 460080,
+      "peakRSSMiB": 53.8125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.2077876683640314,
+      "requestedFrames": 60,
+      "sampledLumaPSNRdB": {
+        "count": 2,
+        "max": 54.53934473700592,
+        "mean": 54.53934473700592,
+        "p50": 54.53934473700592,
+        "p95": 54.53934473700592
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 2,
+        "max": 52.80512275595187,
+        "mean": 52.80512275595187,
+        "p50": 52.80512275595187,
+        "p95": 52.80512275595187
+      },
+      "scheduleLatenessMS": {
+        "count": 60,
+        "max": 10.015958338044584,
+        "mean": 8.104102066135965,
+        "p50": 10.007208329625428,
+        "p95": 10.013583349063993
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:03:55Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "cap-hevc-lowlatency",
+      "caseWallSeconds": 3.343278124986682
+    },
+    {
+      "actualMbpsTotal": 1.8052336372692135,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 29.891339377102284,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 2,
+        "mode": "realtime",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 1,
+        "width": 1920
+      },
+      "decodedFrames": 60,
+      "decodeMS": {
+        "count": 60,
+        "max": 1.824958308134228,
+        "mean": 0.7349791626135508,
+        "p50": 0.6917082937434316,
+        "p95": 0.8340000058524311
+      },
+      "encodedFrames": 60,
+      "encodeMS": {
+        "count": 60,
+        "max": 6.41679170075804,
+        "mean": 6.1742965306621045,
+        "p50": 6.1812083586119115,
+        "p95": 6.360291677992791
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 60,
+        "max": 0.2734583686105907,
+        "mean": 0.20149791574416062,
+        "p50": 0.1981667010113597,
+        "p95": 0.23283332120627165
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 51.5,
+      "inputPreparationMS": {
+        "count": 60,
+        "max": 0.0004166504368185997,
+        "mean": 5.9726880863308907e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.00020832521840929985
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.747338036461823,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 2,
+      "loadAverageAfter": [
+        106.1015625,
+        41.69970703125,
+        18.55810546875
+      ],
+      "loadAverageBefore": [
+        109.7666015625,
+        41.3232421875,
+        18.29052734375
+      ],
+      "localRoundtripMS": {
+        "count": 60,
+        "max": 7.252625015098602,
+        "mean": 6.931765973179911,
+        "p50": 6.893166690133512,
+        "p95": 7.116166700143367
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 2.007270374975633,
+      "payloadBytes": 452949,
+      "peakRSSMiB": 51.5,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 0.6948740027197046,
+      "requestedFrames": 60,
+      "sampledLumaPSNRdB": {
+        "count": 2,
+        "max": 58.0256905231131,
+        "mean": 56.707167074138866,
+        "p50": 55.38864362516463,
+        "p95": 58.0256905231131
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 2,
+        "max": 56.64650564442301,
+        "mean": 55.38370856666623,
+        "p50": 54.12091148890946,
+        "p95": 56.64650564442301
+      },
+      "scheduleLatenessMS": {
+        "count": 60,
+        "max": 10.013333288952708,
+        "mean": 8.306787490922337,
+        "p50": 10.00841666245833,
+        "p95": 10.01270831329748
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:03:59Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "cap-hevc-realtime",
+      "caseWallSeconds": 3.180987500003539
+    },
+    {
+      "actualMbpsTotal": 9.380108636168998,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 60.05679913454401,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 60,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "motion",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 1080,
+      "decodeMS": {
+        "count": 1080,
+        "max": 3.4572500153444707,
+        "mean": 0.8189462182970062,
+        "p50": 0.7076666806824505,
+        "p95": 1.1293749557808042
+      },
+      "encodedFrames": 1080,
+      "encodeMS": {
+        "count": 1080,
+        "max": 14.325833297334611,
+        "mean": 6.959708410216047,
+        "p50": 5.593625013716519,
+        "p95": 9.759458305779845
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 1080,
+        "max": 0.03374996595084667,
+        "mean": 0.008717285473486063,
+        "p50": 0.0065416679717600346,
+        "p95": 0.019458297174423933
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.078125,
+      "inputPreparationMS": {
+        "count": 1080,
+        "max": 0.0007500057108700275,
+        "mean": 5.293167541148486e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0001666485331952572
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 181.718493526283,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        101.92919921875,
+        41.90380859375,
+        18.765625
+      ],
+      "loadAverageBefore": [
+        106.1015625,
+        41.69970703125,
+        18.55810546875
+      ],
+      "localRoundtripMS": {
+        "count": 1080,
+        "max": 15.257291670423001,
+        "mean": 7.799069096789161,
+        "p50": 6.6422916715964675,
+        "p95": 10.524458310101181
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.994325458363164,
+      "payloadBytes": 7028428,
+      "peakRSSMiB": 63.078125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 6.691845526010771,
+      "requestedFrames": 1080,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 50.037856928633445,
+        "mean": 49.46572627574287,
+        "p50": 50.037856928633445,
+        "p95": 50.037856928633445
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.350725201406945,
+        "mean": 52.32537168412864,
+        "p50": 52.350725201406945,
+        "p95": 52.350725201406945
+      },
+      "scheduleLatenessMS": {
+        "count": 360,
+        "max": 8.27158335596323,
+        "mean": 4.9107651834169195,
+        "p50": 5.4804167011752725,
+        "p95": 7.531916664447635
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:02Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-motion-1080p60-3x-8m",
+      "caseWallSeconds": 8.825036416004878
+    },
+    {
+      "actualMbpsTotal": 1.838533929232597,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.011741051679085,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 1.5567500377073884,
+        "mean": 0.854570600656896,
+        "p50": 0.8152083610184491,
+        "p95": 1.2203333899378777
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.628666713368148,
+        "mean": 6.087272222309063,
+        "p50": 6.099999998696148,
+        "p95": 6.239833310246468
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.07970834849402308,
+        "mean": 0.02615995181258768,
+        "p50": 0.024458335246890783,
+        "p95": 0.03995833685621619
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 53.84375,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0007916823960840702,
+        "mean": 0.00019166586247997152,
+        "p50": 0.000125030055642128,
+        "p95": 0.000500003807246685
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.86313169814922,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        92.7822265625,
+        41.9228515625,
+        19.04248046875
+      ],
+      "loadAverageBefore": [
+        101.92919921875,
+        41.90380859375,
+        18.765625
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 7.630833308212459,
+        "mean": 6.972512962723461,
+        "p50": 6.96124997921288,
+        "p95": 7.307249994482845
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.997652708319947,
+      "payloadBytes": 1378361,
+      "peakRSSMiB": 53.84375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.6376073236743423,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.53934473700592,
+        "mean": 54.429740013549235,
+        "p50": 54.53934473700592,
+        "p95": 54.53934473700592
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.80512275595187,
+        "mean": 52.70271962413565,
+        "p50": 52.80512275595187,
+        "p95": 52.80512275595187
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.03479171777144,
+        "mean": 8.052109256580783,
+        "p50": 10.00787498196587,
+        "p95": 10.01912500942126
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:11Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-static-1080p30-1x-8m",
+      "caseWallSeconds": 8.37473958398914
+    },
+    {
+      "actualMbpsTotal": 6.98782752837126,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 29.998492575910735,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 1.555666676722467,
+        "mean": 0.8634972214672921,
+        "p50": 0.8366666734218597,
+        "p95": 1.2136666919104755
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.32929167477414,
+        "mean": 6.084084259540153,
+        "p50": 6.106958317104727,
+        "p95": 6.2237916281446815
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.048625050112605095,
+        "mean": 0.0244969919246311,
+        "p50": 0.023083295673131943,
+        "p95": 0.03791670314967632
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.203125,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0007500057108700275,
+        "mean": 0.00012291744092686308,
+        "p50": 8.335337042808533e-05,
+        "p95": 0.0003332970663905144
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.87220117204767,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        84.5673828125,
+        41.841796875,
+        19.28076171875
+      ],
+      "loadAverageBefore": [
+        92.7822265625,
+        41.9228515625,
+        19.04248046875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 7.554583309683949,
+        "mean": 6.979697916863693,
+        "p50": 6.97808334371075,
+        "p95": 7.190583331976086
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.000301499967463,
+      "payloadBytes": 5241134,
+      "peakRSSMiB": 63.203125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.707514197420838,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.35354589398838,
+        "mean": 53.932858271629414,
+        "p50": 53.95086303356464,
+        "p95": 54.35354589398838
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.77862579654527,
+        "mean": 52.4770308749298,
+        "p50": 52.59428588051553,
+        "p95": 52.77862579654527
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.023791692219675,
+        "mean": 7.905833770443375,
+        "p50": 10.008041630499065,
+        "p95": 10.018041648436338
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:19Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-1080p30-1x-8m",
+      "caseWallSeconds": 8.835907291970216
+    },
+    {
+      "actualMbpsTotal": 6.59747739655068,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.008715239479297,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.7029166813008487,
+        "mean": 1.1871474539576512,
+        "p50": 1.1422500247135758,
+        "p95": 1.4928333112038672
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 5.9329167124815285,
+        "mean": 5.6793576384532365,
+        "p50": 5.68275002297014,
+        "p95": 5.832875031046569
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.04566670395433903,
+        "mean": 0.02467106484497587,
+        "p50": 0.02341665094718337,
+        "p95": 0.03837497206404805
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.125,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0006249756552278996,
+        "mean": 0.00011967527421398295,
+        "p50": 8.335337042808533e-05,
+        "p95": 0.0002916785888373852
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.882040026394062,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        76.203125,
+        41.45263671875,
+        19.40576171875
+      ],
+      "loadAverageBefore": [
+        84.5673828125,
+        41.841796875,
+        19.28076171875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.588750031776726,
+        "mean": 6.897849305338847,
+        "p50": 6.855416635517031,
+        "p95": 7.240874983835965
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.998257458326407,
+      "payloadBytes": 4946671,
+      "peakRSSMiB": 63.125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.668651282399712,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 53.016122114360556,
+        "mean": 51.23768603135926,
+        "p50": 50.603596312945676,
+        "p95": 53.016122114360556
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 54.846215613730905,
+        "mean": 54.77389486238471,
+        "p50": 54.71568889423943,
+        "p95": 54.846215613730905
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.029666649643332,
+        "mean": 8.061458090540125,
+        "p50": 10.00766665674746,
+        "p95": 10.017833323217928
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:28Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-1080p30-1x-8m-repeat",
+      "caseWallSeconds": 8.795665291021578
+    },
+    {
+      "actualMbpsTotal": 6.9901866948675115,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.008620392937676,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 9.074916655663401,
+        "mean": 1.0549479157715622,
+        "p50": 0.7886666571721435,
+        "p95": 1.547749969176948
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 14.013083302415907,
+        "mean": 6.185785647701575,
+        "p50": 6.03545835474506,
+        "p95": 6.488708313554525
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.19979168428108096,
+        "mean": 0.032121297812813684,
+        "p50": 0.02675002906471491,
+        "p95": 0.04841666668653488
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.109375,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0005416804924607277,
+        "mean": 6.411961900691192e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0002500019036233425
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.881948740859524,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        71.6220703125,
+        41.07958984375,
+        19.4033203125
+      ],
+      "loadAverageBefore": [
+        76.203125,
+        41.45263671875,
+        19.40576171875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 22.8029583231546,
+        "mean": 7.385732405236922,
+        "p50": 6.872958329040557,
+        "p95": 8.38954164646566
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.998276416677982,
+      "payloadBytes": 5241134,
+      "peakRSSMiB": 63.109375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.6469897873548367,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.35354589398838,
+        "mean": 53.932858271629414,
+        "p50": 53.95086303356464,
+        "p95": 54.35354589398838
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.77862579654527,
+        "mean": 52.4770308749298,
+        "p50": 52.59428588051553,
+        "p95": 52.77862579654527
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 12.449125002603978,
+        "mean": 6.488268290478219,
+        "p50": 7.448374992236495,
+        "p95": 10.016916668973863
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:37Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-1080p30-1x-8m-repeat",
+      "caseWallSeconds": 8.825177083024755
+    },
+    {
+      "actualMbpsTotal": 3.999351467454104,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.00150632574895,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.161458309274167,
+        "mean": 0.9370444449208056,
+        "p50": 0.890458351932466,
+        "p95": 1.1410416918806732
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.301208341028541,
+        "mean": 5.567803934617485,
+        "p50": 5.554583331104368,
+        "p95": 5.655416694935411
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.08691666880622506,
+        "mean": 0.025103934523132112,
+        "p50": 0.024124979972839355,
+        "p95": 0.03016670234501362
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 64.65625,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0004166504368185997,
+        "mean": 4.0740188625123766e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0001666485331952572
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.875101770849128,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        78.52734375,
+        43.62890625,
+        20.56494140625
+      ],
+      "loadAverageBefore": [
+        71.6220703125,
+        41.07958984375,
+        19.4033203125
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.022749971132725,
+        "mean": 6.53455208230298,
+        "p50": 6.476041686255485,
+        "p95": 6.898333318531513
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.999698749976233,
+      "payloadBytes": 2999363,
+      "peakRSSMiB": 64.65625,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.466640304237752,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 47.755716319442605,
+        "mean": 46.16668622247303,
+        "p50": 44.57765612550346,
+        "p95": 47.755716319442605
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 46.23046878016754,
+        "mean": 46.16985739376497,
+        "p50": 46.10924600736241,
+        "p95": 46.23046878016754
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.511583357583731,
+        "mean": 7.182345821961968,
+        "p50": 8.733374939765781,
+        "p95": 10.01420832471922
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:45Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-1080p30-1x-4m",
+      "caseWallSeconds": 9.213817917043343
+    },
+    {
+      "actualMbpsTotal": 3.9334884601308415,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 14.999457727931741,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 15,
+        "height": 1520,
+        "input": "jpeg",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 702
+      },
+      "decodedFrames": 90,
+      "decodeMS": {
+        "count": 90,
+        "max": 1.4761249767616391,
+        "mean": 0.8883777753605197,
+        "p50": 0.8536250097677112,
+        "p95": 1.2107916409149766
+      },
+      "encodedFrames": 90,
+      "encodeMS": {
+        "count": 90,
+        "max": 7.730416662525386,
+        "mean": 4.760146758700204,
+        "p50": 4.517041670624167,
+        "p95": 7.525624998379499
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 90,
+        "max": 0.12354168575257063,
+        "mean": 0.06559721853894492,
+        "p50": 0.06595830200240016,
+        "p95": 0.08525000885128975
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 55.296875,
+      "inputPreparationMS": {
+        "count": 90,
+        "max": 8.943125023506582,
+        "mean": 6.109708333517322,
+        "p50": 6.1218333430588245,
+        "p95": 8.069291652645916
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 14.64912106024225,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 6,
+        "max": 28.506063135985432,
+        "mean": 28.467990034049063,
+        "p50": 28.48163837707448,
+        "p95": 28.506063135985432
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        76.5400390625,
+        44.34912109375,
+        21.08984375
+      ],
+      "loadAverageBefore": [
+        78.52734375,
+        43.62890625,
+        20.56494140625
+      ],
+      "localRoundtripMS": {
+        "count": 90,
+        "max": 16.796833311673254,
+        "mean": 11.789319906125051,
+        "p50": 11.644333368167281,
+        "p95": 15.861874970141798
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.00021691666916,
+      "payloadBytes": 2950223,
+      "peakRSSMiB": 188.765625,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 7.46758002623567,
+      "requestedFrames": 90,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 30.319457040015514,
+        "mean": 30.297427007871004,
+        "p50": 30.30196496793048,
+        "p95": 30.319457040015514
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 28.759224639666954,
+        "mean": 28.722406047476355,
+        "p50": 28.712284535055414,
+        "p95": 28.759224639666954
+      },
+      "scheduleLatenessMS": {
+        "count": 90,
+        "max": 10.187791660428047,
+        "mean": 7.856328263490771,
+        "p50": 9.664624987635761,
+        "p95": 10.029916651546955
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:04:55Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-portrait15-1x-4m-jpeg",
+      "caseWallSeconds": 8.739024958980735
+    },
+    {
+      "actualMbpsTotal": 3.889025782483723,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 15.000006875055501,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 15,
+        "height": 1520,
+        "input": "jpeg",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 702
+      },
+      "decodedFrames": 90,
+      "decodeMS": {
+        "count": 90,
+        "max": 1.9942083163186908,
+        "mean": 1.2183944455399696,
+        "p50": 1.164000015705824,
+        "p95": 1.822124992031604
+      },
+      "encodedFrames": 90,
+      "encodeMS": {
+        "count": 90,
+        "max": 7.152375008445233,
+        "mean": 5.636578246614793,
+        "p50": 5.722291709389538,
+        "p95": 7.056583359371871
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 90,
+        "max": 0.12074998812749982,
+        "mean": 0.0732601878957616,
+        "p50": 0.0720833195373416,
+        "p95": 0.10091665899381042
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 54.796875,
+      "inputPreparationMS": {
+        "count": 90,
+        "max": 8.413625007960945,
+        "mean": 6.600529168240933,
+        "p50": 6.58816663781181,
+        "p95": 8.016000036150217
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 14.649657381144094,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 6,
+        "max": 28.506063135985432,
+        "mean": 28.467990034049063,
+        "p50": 28.48163837707448,
+        "p95": 28.506063135985432
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        70.17529296875,
+        44.05517578125,
+        21.25732421875
+      ],
+      "loadAverageBefore": [
+        76.5400390625,
+        44.34912109375,
+        21.08984375
+      ],
+      "localRoundtripMS": {
+        "count": 90,
+        "max": 16.72183332266286,
+        "mean": 13.488939350807211,
+        "p50": 13.385041675064713,
+        "p95": 16.34983328403905
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.99999724997906,
+      "payloadBytes": 2916768,
+      "peakRSSMiB": 188.09375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 8.207920428658841,
+      "requestedFrames": 90,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 30.016189993868167,
+        "mean": 29.980832813302403,
+        "p50": 29.97443668750503,
+        "p95": 30.016189993868167
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 28.4508406160526,
+        "mean": 28.39366187410239,
+        "p50": 28.391408848080385,
+        "p95": 28.4508406160526
+      },
+      "scheduleLatenessMS": {
+        "count": 90,
+        "max": 10.036666644737124,
+        "mean": 8.425816641344378,
+        "p50": 10.011166625190526,
+        "p95": 10.02716668881476
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:03Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-portrait15-1x-4m-jpeg",
+      "caseWallSeconds": 8.719703540962655
+    },
+    {
+      "actualMbpsTotal": 8.510807742912249,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 59.989321900869555,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 60,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "motion",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 1080,
+      "decodeMS": {
+        "count": 1080,
+        "max": 1.8146249931305647,
+        "mean": 0.7571475302231394,
+        "p50": 0.6887916242703795,
+        "p95": 1.0253750369884074
+      },
+      "encodedFrames": 1080,
+      "encodeMS": {
+        "count": 1080,
+        "max": 11.01924997055903,
+        "mean": 7.569796219575909,
+        "p50": 6.25487498473376,
+        "p95": 10.65441669197753
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 1080,
+        "max": 0.03866670886054635,
+        "mean": 0.010515240029673334,
+        "p50": 0.00904168700799346,
+        "p95": 0.021166633814573288
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.828125,
+      "inputPreparationMS": {
+        "count": 1080,
+        "max": 0.001333362888544798,
+        "mean": 6.446800263667548e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.00016670674085617065
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 181.51432245111175,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        66.7978515625,
+        43.78857421875,
+        21.29638671875
+      ],
+      "loadAverageBefore": [
+        70.17529296875,
+        44.05517578125,
+        21.25732421875
+      ],
+      "localRoundtripMS": {
+        "count": 1080,
+        "max": 11.871583294123411,
+        "mean": 8.348596220161266,
+        "p50": 7.1627500001341105,
+        "p95": 11.40958332689479
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.001067999983206,
+      "payloadBytes": 6384242,
+      "peakRSSMiB": 63.828125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 7.35255791137902,
+      "requestedFrames": 1080,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.563595720260444,
+        "mean": 54.563595720260444,
+        "p50": 54.563595720260444,
+        "p95": 54.563595720260444
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.801668173286615,
+        "mean": 52.80166817328661,
+        "p50": 52.801668173286615,
+        "p95": 52.801668173286615
+      },
+      "scheduleLatenessMS": {
+        "count": 360,
+        "max": 8.316666702739894,
+        "mean": 5.01285474779757,
+        "p50": 5.510625021997839,
+        "p95": 7.2590833296999335
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:12Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-motion-1080p60-3x-8m",
+      "caseWallSeconds": 8.812357833026908
+    },
+    {
+      "actualMbpsTotal": 3.665115710208576,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.000008541685634,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.2569166612811387,
+        "mean": 0.888599534260316,
+        "p50": 0.8493333589285612,
+        "p95": 1.2296666391193867
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 7.129458361305296,
+        "mean": 6.150015279611883,
+        "p50": 6.147458334453404,
+        "p95": 6.382208317518234
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.9000416612252593,
+        "mean": 0.03064166942042195,
+        "p50": 0.0239583314396441,
+        "p95": 0.042708299588412046
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.03125,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0005833571776747704,
+        "mean": 0.00014722237311717536,
+        "p50": 0.00012497184798121452,
+        "p95": 0.0003750319592654705
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.873660220988615,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        61.66845703125,
+        43.44921875,
+        21.4384765625
+      ],
+      "loadAverageBefore": [
+        66.7978515625,
+        43.78857421875,
+        21.29638671875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.992833318188787,
+        "mean": 7.0729437474963355,
+        "p50": 7.031625020317733,
+        "p95": 7.514708326198161
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.99999829166336,
+      "payloadBytes": 2748836,
+      "peakRSSMiB": 63.03125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.81165051581816,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 48.32893028211787,
+        "mean": 47.78846030146112,
+        "p50": 47.583724592532654,
+        "p95": 48.32893028211787
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 46.9346661429762,
+        "mean": 46.296620341926065,
+        "p50": 46.08042807457227,
+        "p95": 46.9346661429762
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.224083322100341,
+        "mean": 8.181428926117304,
+        "p50": 10.009500023443252,
+        "p95": 10.019374953117222
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:21Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-1080p30-1x-4m",
+      "caseWallSeconds": 8.796579000016209
+    },
+    {
+      "actualMbpsTotal": 6.5924724853031895,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 29.985950332925267,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.5719166733324528,
+        "mean": 1.2030671260112689,
+        "p50": 1.1550833005458117,
+        "p95": 1.5091666718944907
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.092374969739467,
+        "mean": 5.690183797398479,
+        "p50": 5.698000022675842,
+        "p95": 5.8539166348055005
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.06408331682905555,
+        "mean": 0.023862270043335028,
+        "p50": 0.022666645236313343,
+        "p95": 0.036958372220396996
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 64.171875,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0007083290256559849,
+        "mean": 0.00011527703868018257,
+        "p50": 8.329516276717186e-05,
+        "p95": 0.00033335527405142784
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.86012982673894,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        59.541015625,
+        43.59716796875,
+        21.748046875
+      ],
+      "loadAverageBefore": [
+        61.66845703125,
+        43.44921875,
+        21.4384765625
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.400958322454244,
+        "mean": 6.925497682985021,
+        "p50": 6.892583332955837,
+        "p95": 7.311708352062851
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.002811249985825,
+      "payloadBytes": 4946671,
+      "peakRSSMiB": 64.171875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.6885588398309095,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 53.016122114360556,
+        "mean": 51.23768603135926,
+        "p50": 50.603596312945676,
+        "p95": 53.016122114360556
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 54.846215613730905,
+        "mean": 54.77389486238471,
+        "p50": 54.71568889423943,
+        "p95": 54.846215613730905
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.02137502655387,
+        "mean": 7.879578730595919,
+        "p50": 10.00883337110281,
+        "p95": 10.017541702836752
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:30Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-1080p30-1x-8m",
+      "caseWallSeconds": 8.80555224994896
+    },
+    {
+      "actualMbpsTotal": 2.0104704571121887,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.005210488139188,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 1,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "static",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.5470416294410825,
+        "mean": 0.8543150444489179,
+        "p50": 0.7293333183042705,
+        "p95": 1.4126250171102583
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.9905000273138285,
+        "mean": 5.51852939857377,
+        "p50": 5.495666642673314,
+        "p95": 5.623041652143002
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.03637495683506131,
+        "mean": 0.021987037164055638,
+        "p50": 0.0211666920222342,
+        "p95": 0.028499984182417393
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 53.953125,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0006666523404419422,
+        "mean": 5.972203022489945e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0002500019036233425
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.856851072337125,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        56.85009765625,
+        43.54443359375,
+        21.984375
+      ],
+      "loadAverageBefore": [
+        59.541015625,
+        43.59716796875,
+        21.748046875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.144541643559933,
+        "mean": 6.398179164130448,
+        "p50": 6.255249958485365,
+        "p95": 7.087374979164451
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.99895808333531,
+      "payloadBytes": 1507591,
+      "peakRSSMiB": 53.953125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.2833561917004779,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 50.109912351249065,
+        "mean": 49.50093751886797,
+        "p50": 50.10613152575228,
+        "p95": 50.109912351249065
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.47411378928116,
+        "mean": 52.45563740132721,
+        "p50": 52.451072424800444,
+        "p95": 52.47411378928116
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.01849997555837,
+        "mean": 7.419539589641823,
+        "p50": 9.572541690431535,
+        "p95": 10.01333334716037
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:39Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-static-1080p30-1x-8m",
+      "caseWallSeconds": 8.349256582965609
+    },
+    {
+      "actualMbpsTotal": 3.8829517160404263,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 14.999947396029564,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 15,
+        "height": 1520,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 702
+      },
+      "decodedFrames": 90,
+      "decodeMS": {
+        "count": 90,
+        "max": 1.7802499933168292,
+        "mean": 0.9330189832124032,
+        "p50": 0.8857500506564975,
+        "p95": 1.4946666778996587
+      },
+      "encodedFrames": 90,
+      "encodeMS": {
+        "count": 90,
+        "max": 7.868541695643216,
+        "mean": 5.9843055567600665,
+        "p50": 6.1823750147596,
+        "p95": 7.785124995280057
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 90,
+        "max": 0.19345834152773023,
+        "mean": 0.07048657862469554,
+        "p50": 0.04995835479348898,
+        "p95": 0.17516670050099492
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 55.09375,
+      "inputPreparationMS": {
+        "count": 90,
+        "max": 0.00045832712203264236,
+        "mean": 6.666523404419422e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0001666485331952572
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 14.649599291347295,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        54.53955078125,
+        43.2861328125,
+        22.01953125
+      ],
+      "loadAverageBefore": [
+        56.85009765625,
+        43.54443359375,
+        21.984375
+      ],
+      "localRoundtripMS": {
+        "count": 90,
+        "max": 9.086124948225915,
+        "mean": 6.950874536738007,
+        "p50": 7.0057500270195305,
+        "p95": 8.93570837797597
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.000021041661967,
+      "payloadBytes": 2912224,
+      "peakRSSMiB": 55.09375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.1126960978374727,
+      "requestedFrames": 90,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 44.34547878424459,
+        "mean": 44.161932761965325,
+        "p50": 44.18466760185752,
+        "p95": 44.34547878424459
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 42.41596169737214,
+        "mean": 42.29797163907241,
+        "p50": 42.410923849223856,
+        "p95": 42.41596169737214
+      },
+      "scheduleLatenessMS": {
+        "count": 90,
+        "max": 10.030791629105806,
+        "mean": 7.437771730797572,
+        "p50": 9.124041651375592,
+        "p95": 10.027749987784773
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:47Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-portrait15-1x-4m-raw",
+      "caseWallSeconds": 8.659083832986653
+    },
+    {
+      "actualMbpsTotal": 19.97900389551466,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 29.990150734728932,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 540,
+      "decodeMS": {
+        "count": 540,
+        "max": 3.3035833621397614,
+        "mean": 1.1845651230369523,
+        "p50": 1.0847499943338335,
+        "p95": 1.610041654203087
+      },
+      "encodedFrames": 540,
+      "encodeMS": {
+        "count": 540,
+        "max": 10.256791661959141,
+        "mean": 7.155249382183818,
+        "p50": 5.811666662339121,
+        "p95": 9.881999983917922
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 540,
+        "max": 0.10845833458006382,
+        "mean": 0.012692977691552153,
+        "p50": 0.008416653145104647,
+        "p95": 0.029458373319357634
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.796875,
+      "inputPreparationMS": {
+        "count": 540,
+        "max": 0.0005833571776747704,
+        "mean": 7.253181172051916e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.00020838342607021332
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 86.59251757421076,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        52.24267578125,
+        43.16162109375,
+        22.22314453125
+      ],
+      "loadAverageBefore": [
+        54.53955078125,
+        43.2861328125,
+        22.01953125
+      ],
+      "localRoundtripMS": {
+        "count": 540,
+        "max": 12.362958339508623,
+        "mean": 8.36827075669404,
+        "p50": 7.305999984964728,
+        "p95": 11.03425002656877
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.001970499986783,
+      "payloadBytes": 14989174,
+      "peakRSSMiB": 63.796875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 4.504503979161432,
+      "requestedFrames": 540,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 53.016122114360556,
+        "mean": 51.23768603135926,
+        "p50": 50.603596312945676,
+        "p95": 53.016122114360556
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 54.846215613730905,
+        "mean": 54.77389486238471,
+        "p50": 54.71568889423943,
+        "p95": 54.846215613730905
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.024083312600851,
+        "mean": 8.25966414090039,
+        "p50": 10.009000019636005,
+        "p95": 10.01870835898444
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:05:56Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-1080p30-3x-8m",
+      "caseWallSeconds": 8.837582541978918
+    },
+    {
+      "actualMbpsTotal": 2.3945591928205525,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.00132630883733,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "motion",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 2.5918333558365703,
+        "mean": 0.9581909692820368,
+        "p50": 0.8454166236333549,
+        "p95": 1.5878749545663595
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 6.075083336327225,
+        "mean": 5.699724768378979,
+        "p50": 5.697916669305414,
+        "p95": 5.846249987371266
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 0.04704162711277604,
+        "mean": 0.024863426289003756,
+        "p50": 0.02404162660241127,
+        "p95": 0.03525003558024764
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 64.9375,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0006666523404419422,
+        "mean": 0.00013935399086525044,
+        "p50": 0.00012497184798121452,
+        "p95": 0.00033335527405142784
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 30.259109705013387,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        49.95947265625,
+        42.97412109375,
+        22.4013671875
+      ],
+      "loadAverageBefore": [
+        52.24267578125,
+        43.16162109375,
+        22.22314453125
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 8.470250002574176,
+        "mean": 6.68736087940892,
+        "p50": 6.6032500471919775,
+        "p95": 7.351999985985458
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.999734749959316,
+      "payloadBytes": 1795840,
+      "peakRSSMiB": 64.9375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.652223042038187,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 50.038718028629674,
+        "mean": 49.015615469810164,
+        "p50": 48.240211868292945,
+        "p95": 50.038718028629674
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.47411378928116,
+        "mean": 52.45267896342199,
+        "p50": 52.43237955499965,
+        "p95": 52.47411378928116
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.022874979767948,
+        "mean": 7.925696502530223,
+        "p50": 10.00841666245833,
+        "p95": 10.019041656050831
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:06:04Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-motion-1080p30-1x-8m",
+      "caseWallSeconds": 8.783486125001218
+    },
+    {
+      "actualMbpsTotal": 20.64866464357479,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.019887550226688,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 540,
+      "decodeMS": {
+        "count": 540,
+        "max": 1.917708315886557,
+        "mean": 0.8541466049522299,
+        "p50": 0.7747083436697721,
+        "p95": 1.2156250304542482
+      },
+      "encodedFrames": 540,
+      "encodeMS": {
+        "count": 540,
+        "max": 10.802958335261792,
+        "mean": 7.675283256793153,
+        "p50": 6.241208349820226,
+        "p95": 10.688124981243163
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 540,
+        "max": 0.041249964851886034,
+        "mean": 0.01309135706698591,
+        "p50": 0.008750008419156075,
+        "p95": 0.03004167228937149
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        }
+      ],
+      "fixtureReadyPeakMiB": 63.140625,
+      "inputPreparationMS": {
+        "count": 540,
+        "max": 0.0005416804924607277,
+        "mean": 8.009212453746134e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0002500019036233425
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 86.6783786204378,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        48.21630859375,
+        42.84033203125,
+        22.5947265625
+      ],
+      "loadAverageBefore": [
+        49.95947265625,
+        42.97412109375,
+        22.4013671875
+      ],
+      "localRoundtripMS": {
+        "count": 540,
+        "max": 11.84120832476765,
+        "mean": 8.55767253055496,
+        "p50": 7.378874986898154,
+        "p95": 11.454541701823473
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.9960251249722205,
+      "payloadBytes": 15476239,
+      "peakRSSMiB": 63.140625,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 4.595194220459117,
+      "requestedFrames": 540,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.35354589398838,
+        "mean": 53.932858271629414,
+        "p50": 53.95086303356464,
+        "p95": 54.35354589398838
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.77862579654527,
+        "mean": 52.4770308749298,
+        "p50": 52.59428588051553,
+        "p95": 52.77862579654527
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.023708338849247,
+        "mean": 7.857496525846525,
+        "p50": 10.009458346758038,
+        "p95": 10.019208304584026
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:06:13Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-scroll-1080p30-3x-8m",
+      "caseWallSeconds": 8.804465500055812
+    },
+    {
+      "actualMbpsTotal": 2.196565845651154,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.021893465922275,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "motion",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 4.446666629519314,
+        "mean": 0.8134071741046177,
+        "p50": 0.7157083018682897,
+        "p95": 1.3466249802149832
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 8.971666684374213,
+        "mean": 5.9921972240166115,
+        "p50": 5.944916629232466,
+        "p95": 6.309333315584809
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 2.819749992340803,
+        "mean": 0.05153935150398562,
+        "p50": 0.024124979972839355,
+        "p95": 0.05774997407570481
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.hevc.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 63,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.0008333008736371994,
+        "mean": 8.680379121667809e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.00037497375160455704
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 30.279853583338863,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        57.16748046875,
+        44.78515625,
+        23.3994140625
+      ],
+      "loadAverageBefore": [
+        48.21630859375,
+        42.84033203125,
+        22.5947265625
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 10.83499996457249,
+        "mean": 6.8362856451939376,
+        "p50": 6.71749998582527,
+        "p95": 7.247000001370907
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.995624499977566,
+      "payloadBytes": 1646223,
+      "peakRSSMiB": 63,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.4216867650787495,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 54.54991033523015,
+        "mean": 54.542453035248485,
+        "p50": 54.53499573526681,
+        "p95": 54.54991033523015
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 52.80993908000631,
+        "mean": 52.805844736667275,
+        "p50": 52.80175039332825,
+        "p95": 52.80993908000631
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 13.631083304062486,
+        "mean": 7.533638884261665,
+        "p50": 9.570750000420958,
+        "p95": 10.020333284046501
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:06:22Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "hevc-motion-1080p30-1x-8m",
+      "caseWallSeconds": 8.801737540983595
+    },
+    {
+      "actualMbpsTotal": 3.99136525123277,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 14.999949583458436,
+      "configuration": {
+        "codec": "h264",
+        "corpusFrames": 60,
+        "fps": 15,
+        "height": 1520,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "lowlatency",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 702
+      },
+      "decodedFrames": 90,
+      "decodeMS": {
+        "count": 90,
+        "max": 2.927583293057978,
+        "mean": 1.2531949045498751,
+        "p50": 1.1969583574682474,
+        "p95": 2.4544166517443955
+      },
+      "encodedFrames": 90,
+      "encodeMS": {
+        "count": 90,
+        "max": 9.682958363555372,
+        "mean": 5.346536111836839,
+        "p50": 5.206541682127863,
+        "p95": 7.340875046793371
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 90,
+        "max": 0.4163750563748181,
+        "mean": 0.06761018303222954,
+        "p50": 0.047041685320436954,
+        "p95": 0.12804166181012988
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.h264.rtvc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": -12900
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 55.828125,
+      "inputPreparationMS": {
+        "count": 90,
+        "max": 0.0004166504368185997,
+        "mean": 7.12933898386028e-05,
+        "p50": 4.1676685214042664e-05,
+        "p95": 0.0002916785888373852
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 14.649601427685218,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        67.2470703125,
+        47.26611328125,
+        24.5244140625
+      ],
+      "loadAverageBefore": [
+        57.16748046875,
+        44.78515625,
+        23.3994140625
+      ],
+      "localRoundtripMS": {
+        "count": 90,
+        "max": 12.647458293940872,
+        "mean": 6.633892126976409,
+        "p50": 6.639958301093429,
+        "p95": 8.952750009484589
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.000020166684408,
+      "payloadBytes": 2993534,
+      "peakRSSMiB": 55.828125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 1.1090129391476755,
+      "requestedFrames": 90,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 45.85986143098762,
+        "mean": 45.326079026473955,
+        "p50": 44.818213651341736,
+        "p95": 45.85986143098762
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 44.369442614862535,
+        "mean": 44.30271025566628,
+        "p50": 44.275320922350716,
+        "p95": 44.369442614862535
+      },
+      "scheduleLatenessMS": {
+        "count": 90,
+        "max": 10.035083338152617,
+        "mean": 7.085018059782063,
+        "p50": 10.006875032559037,
+        "p95": 10.027583339251578
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:06:31Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "exitCode": 0,
+      "case": "h264-scroll-portrait15-1x-4m-raw",
+      "caseWallSeconds": 8.677450332965236
+    },
+    {
+      "actualMbpsTotal": 5.53264240247752,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.03557526172075,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "realtime",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 3.1271667103283107,
+        "mean": 1.7259465287982796,
+        "p50": 1.7356249736621976,
+        "p95": 2.26529169594869
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 14.619666675571352,
+        "mean": 13.30607476993464,
+        "p50": 13.9541249955073,
+        "p95": 14.440041675698012
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 1.2553749838843942,
+        "mean": 0.6507231482020062,
+        "p50": 0.6545416545122862,
+        "p95": 0.7936250185593963
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 60.34375,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.001125037670135498,
+        "mean": 0.0005432876706537274,
+        "p50": 0.0005416804924607277,
+        "p95": 0.0007500057108700275
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.90789159089113,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        28.9521484375,
+        55.046875,
+        37.2685546875
+      ],
+      "loadAverageBefore": [
+        32.5771484375,
+        56.615234375,
+        37.603515625
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 17.49845832819119,
+        "mean": 15.120757411609198,
+        "p50": 15.73899999493733,
+        "p95": 16.41770836431533
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.992893374990672,
+      "payloadBytes": 4144567,
+      "peakRSSMiB": 60.34375,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 2.927066927838892,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 56.43922152724359,
+        "mean": 55.66955651189027,
+        "p50": 56.28169689550652,
+        "p95": 56.43922152724359
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 54.488640902778094,
+        "mean": 53.81457081063537,
+        "p50": 54.32253689036865,
+        "p95": 54.488640902778094
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.076208331156522,
+        "mean": 6.859943272300168,
+        "p50": 8.433208335191011,
+        "p95": 10.030374978668988
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:12:14Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "case": "hevc-realtime-scroll-1080p30-1x-8m",
+      "caseWallSeconds": 8.687554624979384,
+      "exitCode": 0,
+      "phase": "mode-followup"
+    },
+    {
+      "actualMbpsTotal": 3.163222235562619,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.028348220474218,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "realtime",
+        "pattern": "scroll",
+        "streams": 1,
+        "targetMbpsPerStream": 4,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 180,
+      "decodeMS": {
+        "count": 180,
+        "max": 3.070125007070601,
+        "mean": 1.6485344886960875,
+        "p50": 1.683083362877369,
+        "p95": 2.1447500330395997
+      },
+      "encodedFrames": 180,
+      "encodeMS": {
+        "count": 180,
+        "max": 18.785541702527553,
+        "mean": 13.20951203589276,
+        "p50": 13.875416712835431,
+        "p95": 14.37920838361606
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 180,
+        "max": 1.0225416626781225,
+        "mean": 0.6204240754919333,
+        "p50": 0.6380416452884674,
+        "p95": 0.7994166226126254
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 60.296875,
+      "inputPreparationMS": {
+        "count": 180,
+        "max": 0.001125037670135498,
+        "mean": 0.0005439835755775372,
+        "p50": 0.0005416804924607277,
+        "p95": 0.0008333590812981129
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 28.900935888426396,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 6,
+      "loadAverageAfter": [
+        22.56298828125,
+        51.45849609375,
+        36.4892578125
+      ],
+      "loadAverageBefore": [
+        25.2021484375,
+        52.93798828125,
+        36.826171875
+      ],
+      "localRoundtripMS": {
+        "count": 180,
+        "max": 21.041291649453342,
+        "mean": 14.942512268316932,
+        "p50": 15.570541669148952,
+        "p95": 16.223833372350782
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.9943357083247975,
+      "payloadBytes": 2370177,
+      "peakRSSMiB": 60.296875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 2.6387911471212067,
+      "requestedFrames": 180,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 52.49471455860258,
+        "mean": 52.138013539300296,
+        "p50": 52.22589675880307,
+        "p95": 52.49471455860258
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 50.97273390944443,
+        "mean": 50.53415826423157,
+        "p50": 50.57851313206686,
+        "p95": 50.97273390944443
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 11.20937499217689,
+        "mean": 6.5751870314771725,
+        "p50": 6.614583311602473,
+        "p95": 10.02954161958769
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:12:40Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "case": "hevc-realtime-scroll-1080p30-1x-4m",
+      "caseWallSeconds": 8.688108584028669,
+      "exitCode": 0,
+      "phase": "mode-followup"
+    },
+    {
+      "actualMbpsTotal": 16.671889431181512,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 30.02712658949503,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 30,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "realtime",
+        "pattern": "scroll",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 540,
+      "decodeMS": {
+        "count": 540,
+        "max": 5.379583337344229,
+        "mean": 1.6176664362083775,
+        "p50": 1.6163749969564378,
+        "p95": 2.108125016093254
+      },
+      "encodedFrames": 540,
+      "encodeMS": {
+        "count": 540,
+        "max": 23.046374961268157,
+        "mean": 14.826106713951082,
+        "p50": 14.146958303172141,
+        "p95": 22.687666642013937
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 540,
+        "max": 2.1751666790805757,
+        "mean": 0.5164212176438283,
+        "p50": 0.47800003085285425,
+        "p95": 0.831791665405035
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        }
+      ],
+      "fixtureReadyPeakMiB": 60.3125,
+      "inputPreparationMS": {
+        "count": 540,
+        "max": 0.001125037670135498,
+        "mean": 0.0003648166225671216,
+        "p50": 0.00033335527405142784,
+        "p95": 0.0006666523404419422
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 86.69928037050263,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        20.169921875,
+        49.994140625,
+        36.14453125
+      ],
+      "loadAverageBefore": [
+        22.56298828125,
+        51.45849609375,
+        36.4892578125
+      ],
+      "localRoundtripMS": {
+        "count": 540,
+        "max": 25.01937496708706,
+        "mean": 16.52114645166202,
+        "p50": 15.960125019773841,
+        "p95": 24.30591668235138
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 5.994579583348241,
+      "payloadBytes": 12492621,
+      "peakRSSMiB": 60.3125,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 6.8147731516448555,
+      "requestedFrames": 540,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 56.43922152724359,
+        "mean": 55.66955651189027,
+        "p50": 56.28169689550652,
+        "p95": 56.43922152724359
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 54.488640902778094,
+        "mean": 53.81457081063537,
+        "p50": 54.32253689036865,
+        "p95": 54.488640902778094
+      },
+      "scheduleLatenessMS": {
+        "count": 180,
+        "max": 10.051041666883975,
+        "mean": 6.395145398305936,
+        "p50": 7.3025416932068765,
+        "p95": 10.028791730292141
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:12:48Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "case": "hevc-realtime-scroll-1080p30-3x-8m",
+      "caseWallSeconds": 8.693063375016209,
+      "exitCode": 0,
+      "phase": "mode-followup"
+    },
+    {
+      "actualMbpsTotal": 12.198439529522732,
+      "admissionDrops": 0,
+      "completedFPSPerStream": 59.97127334410291,
+      "configuration": {
+        "codec": "hevc",
+        "corpusFrames": 60,
+        "fps": 60,
+        "height": 1080,
+        "input": "raw",
+        "jpegQuality": 0.25,
+        "maxInFlightPerStream": 3,
+        "measurementSeconds": 6,
+        "mode": "realtime",
+        "pattern": "motion",
+        "streams": 3,
+        "targetMbpsPerStream": 8,
+        "warmupSeconds": 2,
+        "width": 1920
+      },
+      "decodedFrames": 1080,
+      "decodeMS": {
+        "count": 1080,
+        "max": 3.2414583256468177,
+        "mean": 1.2694231864534904,
+        "p50": 1.2156666489318013,
+        "p95": 1.7065416323021054
+      },
+      "encodedFrames": 1080,
+      "encodeMS": {
+        "count": 1080,
+        "max": 32.27258333936334,
+        "mean": 10.323233525398084,
+        "p50": 9.919791657011956,
+        "p95": 15.158333349972963
+      },
+      "encoderDrops": 0,
+      "encodeSubmitMS": {
+        "count": 1080,
+        "max": 10.124833323061466,
+        "mean": 0.41324502181615336,
+        "p50": 0.3622916992753744,
+        "p95": 0.7040000054985285
+      },
+      "errors": [],
+      "events": [
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 0
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 1
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 1
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createEncoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "RealTime",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "AverageBitRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "ExpectedFrameRate",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxKeyFrameInterval",
+          "setStatus": 0,
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "requested": 0,
+          "setStatus": -12900,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoEncoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "EncoderID",
+          "readback": {
+            "status": 0,
+            "value": "com.apple.videotoolbox.videoencoder.ave.hevc"
+          },
+          "stream": 2
+        },
+        {
+          "property": "AllowFrameReordering",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "property": "MaxFrameDelayCount",
+          "readback": {
+            "status": 0,
+            "value": "0"
+          },
+          "stream": 2
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 0
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 1
+        },
+        {
+          "hardwareRequired": true,
+          "operation": "createDecoder",
+          "status": 0,
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 0
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 2
+        },
+        {
+          "property": "UsingHardwareAcceleratedVideoDecoder",
+          "readback": {
+            "status": 0,
+            "value": "1"
+          },
+          "stream": 1
+        }
+      ],
+      "fixtureReadyPeakMiB": 60.296875,
+      "inputPreparationMS": {
+        "count": 1080,
+        "max": 0.009624985978007317,
+        "mean": 0.0002666275745637163,
+        "p50": 0.0002500019036233425,
+        "p95": 0.000500003807246685
+      },
+      "jpegCorpusMbpsForAdmittedFrames": 181.45971153955435,
+      "jpegInputTextLumaPSNRdB": {
+        "count": 0
+      },
+      "keyframes": 18,
+      "loadAverageAfter": [
+        19.35546875,
+        49.330078125,
+        35.9912109375
+      ],
+      "loadAverageBefore": [
+        20.169921875,
+        49.994140625,
+        36.14453125
+      ],
+      "localRoundtripMS": {
+        "count": 1080,
+        "max": 33.473416639026254,
+        "mean": 11.651817168307456,
+        "p50": 11.281083337962627,
+        "p95": 16.47850003791973
+      },
+      "lowPowerMode": false,
+      "measurementWallSeconds": 6.002874041616451,
+      "payloadBytes": 9153212,
+      "peakRSSMiB": 60.296875,
+      "pendingFrames": 0,
+      "processCPUPercentOneCore100": 8.704247271850136,
+      "requestedFrames": 1080,
+      "sampledLumaPSNRdB": {
+        "count": 6,
+        "max": 56.865376625496125,
+        "mean": 54.10115635601639,
+        "p50": 54.106216106523576,
+        "p95": 56.865376625496125
+      },
+      "sampledTextLumaPSNRdB": {
+        "count": 6,
+        "max": 55.64008233526198,
+        "mean": 52.81676731119877,
+        "p50": 52.83004409960343,
+        "p95": 55.64008233526198
+      },
+      "scheduleLatenessMS": {
+        "count": 360,
+        "max": 17.323166655842215,
+        "mean": 3.555368994582548,
+        "p50": 3.275749972090125,
+        "p95": 6.993916642386466
+      },
+      "schema": 1,
+      "startedAt": "2026-11-08T17:12:57Z",
+      "status": "ok",
+      "thermalAfter": 0,
+      "thermalBefore": 0,
+      "case": "hevc-realtime-motion-1080p60-3x-8m",
+      "caseWallSeconds": 8.691590957983863,
+      "exitCode": 0,
+      "phase": "mode-followup"
+    }
+  ]
+}

@@ -159,15 +159,17 @@ The initial transport is a framed H.264/TLS LAN probe with bounded queues and re
 
 ## 8. Streaming strategy review, November 6, 2026
 
+**November 8 measurement update:** [26 offline Mac codec cases](2026-11-08-mac-codec-benchmarks.md) passed, including hardware low-latency HEVC on this M4 Max. Keep the existing H.264 path for initial integration. Ordinary real-time HEVC, rather than low-latency HEVC, is the stronger text-bandwidth candidate for a physical comparison; it had higher local delay. Synthetic JPEG→H.264 reduced payload from 14.65 to 3.89 Mbps, but live WDA transcoding to Vision remains untested. These measurements refine the candidates below without settling headset quality, transport or total system cost.
+
 The user's proposed Apple-native pipeline matches the direction and much of the implementation. The production codec and network choice remain measurements to make. This is our composition of Apple's building blocks, not an Apple-prescribed end-to-end screen-sharing architecture.
 
 | Component | Evidence so far | Decision |
 | --- | --- | --- |
 | Per-window ScreenCaptureKit capture | Implemented in `Host/Capture.swift`; three selected native windows streamed to physical Vision Pro. Apple positions the API for high-performance screen sharing. | Keep it as the desktop-window source. [Apple overview](https://developer.apple.com/videos/play/wwdc2022/10156/) |
-| Hardware VideoToolbox encoding | `Shared/Video.swift` requires hardware H.264 and enables low-latency rate control, real-time operation and no frame reordering. A synthetic encode/decode check and the live native streams passed. | Keep H.264 as the measured baseline and supported fallback. Compare hardware HEVC next. |
+| Hardware VideoToolbox encoding | `Shared/Video.swift` requires hardware H.264 and enables low-latency rate control, real-time operation and no frame reordering. The live native streams and November 8 offline codec comparison passed. | Keep H.264 for the first integration. Compare ordinary real-time HEVC on the headset next. |
 | Native Vision video presentation | `Viewer/ViewerApp.swift` embeds `AVSampleBufferDisplayLayer` in a `UIViewRepresentable` and feeds its renderer. The physical viewer used this path. | Reuse the native receiver inside the production preview gateway. Apple's [connected-device sample](https://developer.apple.com/documentation/visionos/displaying-video-from-connected-devices) demonstrates this rendering arrangement; its UVC/Developer Strap input is different from our network input. It is renderer evidence, not a ready-made networking implementation or a requirement for our viewer to use a strap. |
 | Direct local media connection | The probe used Network.framework TLS/TCP on the Mac and a pinned URLSession receiver, with independent streams and bounded queues. | Preserve this working comparison path. Production transport, congestion handling and physical peer-to-peer Wi-Fi remain unselected/unmeasured. |
-| Independent simulator fallback | WDA/Appium input and JPEG frames worked while the desktop was locked. Measured source rate was about 14 fps, with roughly 15–20 Mbps at the final scaling/quality settings. | Keep independent device access. Evaluate hardware video encoding of its frames to reduce headset-link bandwidth. This transcode has not been implemented. |
+| Independent simulator fallback | WDA/Appium input and JPEG frames worked while the desktop was locked. Measured source rate was about 14 fps, with roughly 15–20 Mbps at the final scaling/quality settings. The offline JPEG→video benchmark now exists. | Keep independent device access. Evaluate JPEG→H.264 on the existing live receiver; only synthetic transcoding has been implemented so far. |
 
 ### HEVC candidate and H.264 baseline
 

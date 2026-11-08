@@ -41,6 +41,8 @@ Simulator fallback is independent: explicit-file `simctl` PNG observations, Appi
 
 ## Build and inspect without taking over the desktop
 
+For offline H.264/HEVC and synthetic JPEG-transcode measurements, use the separate [Mac codec benchmark](Benchmarks/README.md). It needs no running probe, capture permissions, simulator or headset. Its [recorded results](../../.plans/2026-11-08-mac-codec-benchmarks.md) distinguish local codec timing from device performance.
+
 From this directory:
 
 ```sh

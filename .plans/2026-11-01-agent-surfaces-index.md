@@ -1,6 +1,6 @@
 # Agent orchestration and shared surfaces: reading guide
 
-Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6. These documents distinguish proposed architecture, source inspection and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
+Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6 and offline Mac codec benchmarks on November 8. These documents distinguish proposed architecture, source inspection, local measurements and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
 
 ## Start here
 
@@ -9,6 +9,7 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 3. [Coordinator and tool responsibilities](orchestrator-tools.md): ephemeral Pi, voice delegation, shared providers, context, workspace naming and actual Poncho2 findings.
 4. [Implementation and rollout sequence](orchestrator-execution-path.md#implementation-testing-and-rollout-sequence): extend the existing gateway, integrate one controllable preview, connect the real agents, then expand workspace launch, voice and opt-in use. Each stage has an observed completion criterion.
 5. [Streaming strategy clarification](macos-window-streaming.md#8-streaming-strategy-review-november-6-2026): tested H.264/native rendering, the HEVC comparison, simulator JPEG transcoding, direct LAN versus peer-to-peer Wi-Fi, and why Foveated Streaming is a different workload.
+6. [Mac codec benchmarks](2026-11-08-mac-codec-benchmarks.md): 26 hardware encode/decode cases, raw evidence and test journal; retain H.264 initially, compare ordinary real-time HEVC on the headset, and test JPEG→H.264 fallback transcoding.
 
 ## Supporting research
 
@@ -30,4 +31,4 @@ The immediate integration is one model-driven simulator request through the real
 
 Native multi-window streaming and independent simulator streaming/input were exercised on a physical Vision Pro. The user confirmed the final locked simulator counter changes and native-view recovery after unlock. These results do not establish full-system sleep support, cold simulator boot while locked, production Pi/MCP integration, automatic exact-window association or direct headset pointer/keyboard interaction. Standalone XCTest failures remain recorded.
 
-The probe is isolated from production sources and build dependencies. Local builds, device recordings/screenshots, logs, connection files, certificates and keys remain ignored; the repository contains the written findings and source needed to reproduce the experiment. Source references in the notes are pinned to the inspected revisions, including older baselines; use the current application architecture when implementing the proposal.
+The probe is isolated from production sources and build dependencies. Local builds, device recordings/screenshots, live-session logs, connection files, certificates and keys remain ignored. The repository contains written findings, reproduction sources, and the synthetic benchmark's credential-free measurement JSON, CSV and journal. Source references in the notes are pinned to the inspected revisions, including older baselines; use the current application architecture when implementing the proposal.
