@@ -110,6 +110,21 @@ There is a documented open-source **App Server** for applications that need stru
 
 This is an optional integration improvement, not a reason to replace Pi or redesign the terminal service before the first preview works. CLI/App Server openness does not include an automatically reusable Mac native driver. The public repository's [Apache-2.0 license](https://github.com/openai/codex/blob/b9796386e5f8fc10087bc4476e30896f97e16e5d/LICENSE) should not be projected onto separately packaged proprietary components.
 
+### Can we reuse the installed Mac runtime directly?
+
+Follow-up investigation, November 8: **not established as a supported drop-in dependency**. Three questions must remain separate: whether a local call can be made, whether its use/distribution is permitted, and whether there is a stable supported interface. Readable files and `private: false` package metadata answer none of those by themselves.
+
+There is a concrete host dependency in the inspected `native-pipe.js`: it rejects use without the trusted `globalThis.nodeRepl` runtime and requires that runtime's native connection facility. Requests carry Codex turn metadata; the policy wrapper resolves app access and can request approval through the host. Native errors include unauthenticated sender and absent active session. These observations establish integration coupling, but do not reveal the full authentication mechanism or prove that every external integration is impossible. No attempt was made to forge a caller/session, bypass a check, or invoke desktop actions.
+
+| Reuse option | Current assessment |
+| --- | --- |
+| Bundle the helper and import its JS from Pi | No published embedding/redistribution grant found; also depends on host facilities and native authorization. Do not select as a shipping dependency on this evidence. |
+| Depend on the user's installed Codex app and call its private runtime | Avoids copying the app, but does not establish permitted use, supported access or compatibility. The same trusted-host/session dependency remains; installation alone is not an API contract. |
+| Delegate to a genuine Codex session using a supported interface | Potential investigation. Public App Server supports structured Codex operation, but the reviewed docs do not promise that an independently started server receives the desktop app's Mac CUA setup. Verify real tool availability, app approvals, identity and cancellation before relying on this route. |
+| Obtain an explicitly supported/licensed Mac driver integration from OpenAI | The most direct way to retain Pi while reusing the native driver, if offered. Ask specifically about third-party callers, app distribution, native permission identity, supported targets, lifecycle and updates. No such offer was established by the reviewed docs. |
+
+Recommendation: keep the native provider replaceable and treat supported runtime access as an open dependency decision. It is worth resolving before reproducing sophisticated background control, but the first integration should not depend on private package paths. If using a genuine Codex agent becomes viable, it would be a delegated agent operation, not a free local driver call from Pi; account for its extra agent loop and target handoff. Continuous Vision streaming and its exact surface association remain SlopZooka responsibilities either way.
+
 ## 7. Narrow changes to our implementation plan
 
 1. **One shared observation/action contract.** Bind exact surface identity and generation; return screenshot plus available semantic state, geometry and capabilities. Permit either form of observation and a full refresh when incremental state is insufficient.
