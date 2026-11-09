@@ -2,7 +2,7 @@
 
 **Prototype update, November 1, 2026:** the [live sharing experiment](shared-window-live-results.md) completed three lock/unlock cycles and verified native multi-window viewing plus independent simulator streaming/input. Production Pi/voice and terminal MCP integration remain unimplemented. The current focus is the [execution/presentation architecture](orchestrator-execution-path.md): model delegation → local Mac provider → Vision gateway/stream receiver → observed result. The shared-control UX cases follow that integration. The temporary CLI is evidence-gathering scaffolding, not a frozen product tool catalog.
 
-Status: revised exploration, not an implemented or approved API specification. November 1, 2026. Supplements [the exploration](agent-managed-surfaces.md). Latest direction: an ephemeral, intelligent coordinator with direct computer use, plus coding-agent MCP access to the same live surfaces. This replaces the earlier ten-tool launch proposal: workflows and project setup should be figured out by the agent, without requiring a predefined launch recipe.
+Status: revised exploration, not an implemented or approved API specification. November 1, updated November 9, 2026. Supplements [the exploration](agent-managed-surfaces.md). An ephemeral coordinator and coding-agent MCP remain candidates; **which agent owns browser/native computer use is unresolved**. Compare [coding-agent control, global-Pi control and shared access](2026-11-09-agent-control-ownership.md) before implementation. The capability catalog below does not automatically grant every capability to Pi. Workflows and project setup should be figured out by the acting model, without requiring a predefined launch recipe.
 
 ## 1. What we know and what remains a choice
 
@@ -16,7 +16,7 @@ There are three layers:
 | Coordinator agent loop | Interpret the request using current context and select tool calls | An in-memory Pi agent on the Mac, with a bounded conversation and explicit tools |
 | Application operations | Create workspaces, manage resources, present/control surfaces, report observed outcomes | Existing companion services plus `WindowGateway` and narrow provider adapters |
 
-**Integration candidate after the completed platform spike:** use a small Pi coordinator with the voice frontend delegating to it. The [execution-path design](orchestrator-execution-path.md) specifies the local tool handlers, native bridge and missing Mac-to-Vision presentation protocol. Give the coordinator direct access to host execution, browser/native computer use, and existing workspace/window operations. Typed commands enter the same coordinator. UI buttons and exact keyboard actions continue to use application operations directly. Within this voice/Pi pairing, the voice frontend delegates actions and communicates verified results. This does not exclude coding agents or the user from controlling shared surfaces; input arbitration belongs at the resource provider.
+**Integration candidate after the completed platform spike:** use a small Pi coordinator with the voice frontend delegating to it. The [execution-path design](orchestrator-execution-path.md) specifies the local tool handlers, native bridge and missing Mac-to-Vision presentation protocol. Pi's minimum proposed role covers workspace/window intent and contextual prompt routing. Direct host execution and browser/native computer use are broader grants to evaluate, not prerequisites for that role. Global typed requests can use the same coordinator entry point; coding prompts can remain directed to their session. UI buttons and exact keyboard actions continue to use application operations directly. The voice frontend communicates verified results, and any shared input arbitration belongs at the resource provider.
 
 Literal Realtime also supports an alternative single-agent layout: Realtime selects the tools directly and the companion executes them. If combining literal Realtime with Pi, expose a bounded delegation function to Realtime and put domain tools on Pi. That is an explicit two-model bridge, not “set Pi's model to Realtime.” OpenAI's Realtime API/Agents SDK supplies the voice session and tool-call protocol, while application functions still need an executor. [Realtime guide](https://developers.openai.com/api/docs/guides/realtime), [Realtime function tools](https://developers.openai.com/api/docs/guides/realtime-mcp).
 
@@ -52,7 +52,7 @@ Pi steering takes effect at loop boundaries and is not a substitute for promptly
 
 ## 4. Capabilities the model can compose
 
-Computer use belongs in the first prototype. The global agent must be able to do “open settings, scroll to the subscription controls, and leave it there” without starting a coding task. Its reasoning loop needs a model that can consume the returned screenshots as well as text. A voice frontend can remain responsive while Pi performs that interaction; choosing a voice API does not supply the computer-use backend.
+The product should support “open settings, scroll to the subscription controls, and leave it there” without requiring the user to invent a code-edit task. Whether Pi performs that interaction or routes it to a coding session is an [open responsibility decision](2026-11-09-agent-control-ownership.md). The acting model needs usable observations, including screenshots where required. Choosing a voice API does not supply the computer-use backend. This table describes capabilities across the system; tool grants depend on the selected responsibility split.
 
 | Capability family | What the agent needs | Existing owner / proposed provider |
 | --- | --- | --- |
@@ -64,7 +64,7 @@ Computer use belongs in the first prototype. The global agent must be able to do
 
 These are families, not five giant tools with arbitrary action strings. Start with a small typed interface and expose only implemented capabilities. Reuse existing higher-level operations where their semantics already exist, such as creating a worktree and its terminal. Do not force the model to reconstruct those invariants with shell commands. Conversely, app-specific setup and navigation should not require a new tool or product-code change.
 
-Host execution is a real coordinator capability. The earlier recommendation to withhold shell/filesystem access and delegate all discovery to terminal agents was too restrictive. The coordinator can inspect the repository, start the relevant development server, read errors, and adapt. It can ask a coding agent for help when useful; that is a reasoning choice, not a prerequisite for operating an app. Normal host permissions and workspace ownership still apply.
+Under the broader-coordinator candidate, Pi can inspect the repository, start a development server, read errors, and adapt. Under the narrower candidate, the coding agent performs that discovery while Pi invokes existing lifecycle operations and routes the task. Compare the context and latency costs before granting Pi general host execution. Neither option requires project-specific launch recipes; normal host permissions and workspace ownership still apply.
 
 Two viable model-facing shapes:
 
@@ -95,13 +95,15 @@ Acceptance cases: a workspace receives a useful name without a naming prompt; tw
 
 ### Example: “Launch Poncho2 in a new worktree, with admin and iOS open”
 
-The coordinator resolves Poncho2 from the catalog, uses the existing worktree/session operation, reads project instructions, and chooses how to launch its apps. It can run commands, inspect failures, choose a simulator, open a browser, inspect the UI, and present the resulting live targets. This is an illustrative possible sequence, not a fixed workflow embedded in a `launch_workspace(targets=[...])` implementation. Missing setup knowledge triggers investigation; it does not automatically block on creating a recipe.
+The coordinator resolves Poncho2 from the catalog and uses the existing worktree/session operation. The assigned agent then reads project instructions, chooses how to launch its apps, inspects failures, chooses a simulator/browser and verifies the UI. That agent might be the new Codex session or Pi; presentation uses the same shared handler either way. This is an illustrative possible sequence, not a fixed workflow embedded in a `launch_workspace(targets=[...])` implementation. Missing setup knowledge triggers investigation; it does not automatically block on creating a recipe.
 
 For “two workspaces, one on settings and one on prompt input,” the model discovers those screens from the running apps, available deep links, or source as appropriate. We should not need to register a `settings` destination or hard-code its route. It verifies the final visible screens and requests supported placement of each pair. visionOS placement limits still apply.
 
 A proven sequence can later become an optional helper, project instruction, or saved setup. That is an optimization after observing repetition, not the initial architecture. Existing scripts are useful evidence, not a mandatory new configuration format.
 
 ## 5. One live app, several authorized controllers
+
+This section describes the shared-access candidate. A coding-agent-only or global-only CUA policy can use the same target/provider boundary; the diagram does not decide which actors receive input tools.
 
 The core shared object is a **live target**: a particular browser page/context, native window/process, or simulator device/app instance. A URL, app name, or screenshot is insufficient identity. A presentation is a view of that target in Vision Pro; it is not another running copy of the app.
 
@@ -174,7 +176,7 @@ Start with explicit lifecycle calls and provider methods. If repetitive agent wo
 
 ## 9. First experiments and candidate prompts
 
-These are proposed tests, not implemented functionality or newly approved product requirements. P01–P18 in the main exploration remain pending approval; P19 is the user's workspace-launch example. Test visible outcomes and resource identity, not one prescribed tool sequence.
+These are proposed tests of the shared-access candidate, not implemented functionality or newly approved product requirements. Compare the [control-ownership alternatives](2026-11-09-agent-control-ownership.md) before making this sequence the production plan. P01–P18 in the main exploration remain pending approval; P19 is the user's workspace-launch example. Test visible outcomes and resource identity, not one prescribed tool sequence.
 
 1. **One shared browser.** The global agent navigates an unfamiliar app to a requested screen without a registered route. Stream that exact page to Vision, retain an unfinished form, let the user change it, and let a terminal agent observe the change through MCP. Neither agent opens a substitute session.
 2. **One shared simulator.** Stream a specific device/app, let the global agent navigate and type, then let the coding agent inspect and act on the same state. Test rotation, software keyboard, app relaunch, and human takeover. Prove capture and automation target the same UDID.
@@ -197,7 +199,7 @@ Measure action-to-visible-response latency, text readability, observation freshn
 Live provider evidence is now recorded in [the November 1 shared-window results](shared-window-live-results.md). Native multi-window viewing, independent simulator streaming/input, actual lock gating, display-sleep behavior and recovery bugs were exercised. These findings refine provider capabilities; they do not commit the production app to the experimental transport or add another durable coordinator.
 
 
-The earlier UX refinement narrowed the actors to terminal Codex plus a companion-hosted CUA global agent. The latest clarification focuses first on the [execution and presentation architecture](orchestrator-execution-path.md); the [handoff walkthrough](shared-control-ux-spike.md) remains a subsequent exercise.
+The earlier UX refinement assumed terminal Codex plus a companion-hosted CUA global agent. The November 9 clarification reopens [which agent should own CUA](2026-11-09-agent-control-ownership.md). The tests above exercise the shared-access candidate; compare the narrower alternatives before production agent integration. The [execution and presentation architecture](orchestrator-execution-path.md) remains useful across those choices.
 
 
 Implementation review also recorded [shared-control tests](shared-control-ux-spike.md#risk-first-test-sequence): actual CUA attachment, exact stream/control identity, competing input and Stop, fresh observations under layout changes, and full agent-loop latency. These do not replace designing the execution path. The probe currently has no general Vision-to-app pointer/keyboard bridge; direct human headset editing must be tested as an additional capability rather than assumed from successful streaming.

@@ -4,6 +4,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 
 ## Start here
 
+**Open decision before agent implementation:** [which agent owns computer use?](2026-11-09-agent-control-ownership.md) Compare coding-agent control, global-Pi control, and shared access with one task owner. The Mac execution/presentation boundary is separate from this choice. Earlier direct-Pi examples below describe a candidate, not a settled responsibility split.
+
 1. [Execution and presentation architecture](orchestrator-execution-path.md): the current design focus. Follow one request from voice/Pi, through local Mac tool execution, into a new streamed Vision window, and back through observed results. Includes the terminal Codex MCP path and the missing production connections.
 2. [Live findings](shared-window-live-results.md): what the physical Mac/Vision Pro experiment established, failures and fixes, lock/unlock evidence, cleanup and remaining limits.
 3. [Coordinator and tool responsibilities](orchestrator-tools.md): ephemeral Pi, voice delegation, shared providers, context, workspace naming and actual Poncho2 findings.
@@ -31,13 +33,13 @@ Guidance is already collected locally: the [guidance audit](2026-11-08-codex-bro
 
 ## Current direction
 
-Use a small Pi coordinator in the existing Mac companion, with the chosen voice frontend delegating tasks. Terminal coding agents access the same application handlers through MCP. Existing services retain workspace/process ownership, providers own capture/control, and Vision's existing `WindowGateway` retains presentation ownership. The model discovers how to launch and navigate an app; application code supplies stable targets and observable effects.
+The proposed global coordinator is a small Pi loop in the existing Mac companion, with the chosen voice frontend delegating tasks. **Whether Pi performs computer use or confines itself to workspace/window management and contextual prompt/input routing remains open.** Coding-agent-owned control and shared access are alternatives to evaluate before implementation. Whichever agent acts, existing services retain workspace/process ownership, shared providers own capture/control, and Vision's existing `WindowGateway` retains presentation ownership. The model discovers how to launch and navigate an app; application code supplies stable targets and observable effects.
 
 The user's current preference is **Codex's installed CUA runtime** rather than starting with an open-source driver. Independent native reuse is demonstrated. The specialized browser provider has a distinct unresolved Codex session/access dependency, but **Chrome also works through native Mac CUA**: a November 9 live test operated page fields, buttons and an iframe without invoking the browser provider. Do not make specialized browser provisioning a prerequisite for the first web demo. Revisit interfaces, operational independence and release terms with the user before making a shipping commitment. Keep the open-source comparison available without implementing multiple providers up front.
 
 The November 9 browser experiments provide working model-free alternatives: Playwright MCP accepted companion-owned browser contexts, Playwriter retained JavaScript page handles over direct CDP, and agent-browser rejected closed pinned targets. These headless local trials do not establish extension takeover, native capture identity or Vision streaming. Browser provider choice can be evaluated separately from native Mac control while retaining the same ownership and presentation boundaries.
 
-The immediate integration is one model-driven simulator request through the real execution and presentation path. The exact tool catalog, voice API choice and larger workflow prompt set remain design work. Broad feasibility retesting and polished handoff UI are not prerequisites for specifying that path.
+Before integrating a production agent, resolve the initial control responsibility through the [focused ownership comparison](2026-11-09-agent-control-ownership.md#decision-before-implementation). The proposed integration remains one model-driven simulator request through the real execution and presentation path, using the chosen controller. The exact tool grants, voice API choice and larger workflow prompt set remain design work. Broad feasibility retesting is not needed to answer this interaction question.
 
 ## Evidence boundaries
 

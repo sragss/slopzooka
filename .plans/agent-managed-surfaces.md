@@ -2,6 +2,8 @@
 
 Status: exploration and preferred direction; not an implementation specification.
 
+**November 9 open decision:** [which agent owns computer use?](2026-11-09-agent-control-ownership.md) The global Pi agent could manage workspace/window intent and prompt routing while terminal Codex owns app navigation. Direct Pi control and shared access remain alternatives. Earlier global-CUA proposals below are historical candidates; resolve this responsibility split before agent implementation. Shared Mac providers and the existing Vision gateway do not determine which model runs the interaction loop.
+
 **Current focus:** the [concrete orchestrator execution and presentation path](orchestrator-execution-path.md): how Pi/voice tool calls execute on the Mac, bind the actual simulator/browser, open a streamed preview through Vision's existing gateway, and return observed results. Latest source inspection uses main `a1e1541`. The [completed streaming discovery](shared-window-live-results.md) supplies provider evidence; the [shared-control UX cases](shared-control-ux-spike.md) are subsequent tests, not the immediate architectural focus.
 
 Explored October 31–November 1, 2026. Last updated November 1, 2026. Repository inspected at `bcf17af`; locally installed Codex CLI reports `0.166.0`. Runtime interfaces and external documentation below are observations at this date, not permanent compatibility guarantees.
@@ -1104,7 +1106,7 @@ The implementation should therefore begin as ordinary modules in the current hos
 
 Added November 1, 2026 following the user's preference: Pi has worked well in Poncho2, but a durable coordinator may be excessive for SlopZooka. The more persistent/proactive alternative remains an optional later direction, not an initial requirement.
 
-The earlier sections established tool families and runtime ownership. The initial ten-tool launch proposal was too prescriptive and has been replaced in [Ephemeral coordinator, composable tools, and shared computer use](orchestrator-tools.md). The revised direction gives the model host execution and direct computer use alongside existing app operations, with scoped MCP access to the same providers. The precise callable API remains open; these tools are not implemented or approved.
+The earlier sections established tool families and runtime ownership. The initial ten-tool launch proposal was too prescriptive and has been replaced in [Ephemeral coordinator, composable tools, and shared computer use](orchestrator-tools.md). The system needs model-driven setup and computer use alongside existing app operations; which capabilities go to Pi versus coding agents is an [open decision](2026-11-09-agent-control-ownership.md). The precise callable API remains open; these tools are not implemented or approved.
 
 ### What Poncho2 contributes
 
@@ -1112,9 +1114,9 @@ The local Poncho2 checkout at `8d52306340092ee3972185de6029a8b939d81fd6` uses **
 
 Adopt that separation with a smaller proposed backend: an in-memory `pi-agent-core` coordinator using SlopZooka's explicit operations. Rebuild context from project/workspace/menu state as needed. Keep submitted host jobs independent of the model turn, but do not promise crash-resumable reasoning or exactly-once effects after losing in-memory receipts. A new conversation can inventory current resources; it must not replay uncertain actions from old speech. [Pi agent core](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/README.md), [OpenAI client delegation](https://developers.openai.com/api/docs/guides/live-delegation#configure-client-delegation).
 
-The global coordinator gets host execution, workspace/session operations, and direct browser/native/simulator computer use. Coding agents receive a scoped MCP view of the shared target providers alongside their existing coding tools. Both can observe and operate the exact Mac target shown in Vision, subject to provider support and shared input ownership. Pi, Realtime, and MCP adapters translate calls/results and do not own duplicate implementations of those operations.
+The broader-coordinator candidate gives Pi host execution and direct browser/native/simulator computer use alongside workspace/session operations. The narrower candidate leaves CUA with coding agents and uses Pi for contextual routing and window/workspace intent. Shared access is a third option. Any authorized actor operates the exact Mac target shown in Vision; Pi, Realtime, and MCP adapters must not duplicate the provider implementation or resource ownership.
 
-For the coupled voice/Pi design, give Pi responsibility for selecting mutating domain actions; the voice frontend delegates and communicates results. Literal Realtime could instead call the domain tools directly, or call one bounded Pi delegation tool. Avoid duplicate dispatch of one voice request. This does not make Pi the exclusive controller of every surface: the human and authorized coding agents can also act, through the same target-level input arbitration. The existence of an SDK conversation/tool loop does not supply SlopZooka's window controls, resource identity, or execution semantics.
+For the coupled voice/Pi design, the voice frontend delegates and communicates results. Pi either performs its granted actions or routes the task to the relevant coding agent. Literal Realtime could instead call domain tools directly, or call one bounded Pi delegation tool. Avoid duplicate dispatch of one voice request. Authorized controllers use the same target-level input arbitration. The existence of an SDK conversation/tool loop does not supply SlopZooka's window controls, resource identity, or execution semantics.
 
 No application code was changed, no dependencies were installed, and no live Poncho2 call or SlopZooka agent integration was exercised during this research. The cited Poncho2 tracked files were inspected read-only and match the pinned commit.
 
@@ -1125,7 +1127,7 @@ Added November 1, 2026 after the user rejected an overly prescriptive launch API
 
 ### Product correction
 
-The global orchestrator should be able to navigate apps on the user's behalf as ordinary work: find a screen, scroll, fill a form, inspect a result, or get the simulator ready. It should not need to issue a coding task or wait for a project-specific recipe. A menu/wrist invocation can start that interaction even when no terminal agent is busy. Coding agents additionally need the same observation/input capabilities when verifying their work.
+The user should be able to request app navigation as ordinary work: find a screen, scroll, fill a form, inspect a result, or get the simulator ready. They should not need to invent a code-edit task or wait for a project-specific recipe. A menu/wrist invocation starts that interaction. Whether Pi performs it directly or routes it to a coding session, and which agent verifies code changes, remain open responsibility questions.
 
 Keep the harness strict about what target an action affects and truthful about the outcome. Leave planning, setup discovery, screen navigation, and adaptation to the model. The smaller capability-based interface in [the revised companion document](orchestrator-tools.md#4-capabilities-the-model-can-compose) replaces the fixed ten-tool proposal. Existing workspace/session invariants stay in their current owners; no new workflow language is implied.
 
@@ -1133,7 +1135,7 @@ Keep the harness strict about what target an action affects and truthful about t
 
 At inspected `main` (`8b68f3e`), `BrowserWindowView` creates a headset-local `WKWebView` with an isolated nonpersistent data store. Controlling a Mac browser at that URL would affect another session. No matching Mac capture/streaming or simulator automation implementation was found in the inspected app/package sources. The earlier sections researched relevant APIs; no live shared-session or streaming performance test has been run. [Pinned browser implementation](https://github.com/sragss/slopzooka/blob/8b68f3e/apps/vision-client/SlopZooka/SlopZooka/BrowserWindowView.swift).
 
-The proposed path is one Mac target with several clients: Vision receives its frames and can return input; the global agent observes and operates it through host providers; a terminal agent gets those same providers through MCP. A browser target includes its actual page/context, not just its URL. A mobile target includes its actual simulator UDID/app, not just a window title. Closing the ephemeral coordinator should not destroy either target.
+The proposed path is one Mac target with authorized clients: Vision receives its frames, and the assigned agent observes and operates it through host providers. A shared-access policy can grant both Pi and terminal MCP access; direct headset input is a separate capability. A browser target includes its actual page/context, not just its URL. A mobile target includes its actual simulator UDID/app, not just a window title. Closing the ephemeral coordinator should not destroy either target.
 
 The available building blocks support investigating this design. Playwright can attach to a Chromium context with documented CDP fidelity limits; ScreenCaptureKit provides per-window frames; Appium documents simulator/device frames and gestures. They do not together constitute a tested SlopZooka implementation. Capture, transport, model observations, and input execution must be connected to the same resource. The [evidence and provider comparison](orchestrator-tools.md#6-how-mac-sharing-could-work-and-what-is-actually-known) records sources and limitations.
 
@@ -1141,7 +1143,7 @@ MCP can make the host backend callable from terminal Codex. It does not automati
 
 ### The experiment that resolves the uncertainty
 
-Use one managed browser and one simulator. Have the global agent navigate each from visual/semantic observations, show its actions in Vision, hand control to the human, and then let a terminal agent inspect the resulting state. Assert target identity and continuity of unfinished input, not just successful tool return values. The simulator test must correlate capture and control with the same device and survive rotation/keyboard changes. Measure latency/readability and human takeover on the physical headset; test foreground contention before claiming concurrent native control.
+Use one managed browser and one simulator. Compare the [candidate responsibility splits](2026-11-09-agent-control-ownership.md) on the same approved prompts before production agent integration. For shared access, include agent/human handoff and continuity of unfinished input. Assert target identity and observed results, not just successful tool return values. The simulator test must correlate capture and control with the same device and survive rotation/keyboard changes. Measure latency/readability and human takeover on the physical headset; test foreground contention before claiming concurrent native control.
 
 The candidate prompts in [the experiment list](orchestrator-tools.md#9-first-experiments-and-candidate-prompts) are pending user review. They test flexible behavior and observed results, rather than requiring a particular call sequence. No application code or dependencies were changed for this refinement.
 
