@@ -1,0 +1,235 @@
+{
+  "date": "2026-11-09",
+  "scope": "Two-agent Chrome control and native focus; read-only documentation/source investigation. No concurrent control test.",
+  "desktopVersion": "26.1023.51421",
+  "extensionVersion": "1.26.1102.11740",
+  "artifacts": [
+    {
+      "id": "nativeClient",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "sha256": "71134f10354fe9f7be23a62df52789908a8592151685286a7965b297a81cef8f",
+      "bytes": 5138
+    },
+    {
+      "id": "nativeApi",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/docs/sky-window-api.md",
+      "sha256": "18d387e9c5d2a131fb697dce038ccd58e78059eb406d010db171e987de1cc6f5",
+      "bytes": 6471
+    },
+    {
+      "id": "nativeMacSkill",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/docs/skills/oai_sky_lib/macos/SKILL.md",
+      "sha256": "3d755c8541af4c6b07995a9e82e29a17cd11ff5189517fbc3e4b78532e032410",
+      "bytes": 7491
+    },
+    {
+      "id": "nativeHelper",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "sha256": "e798d6a292fb5d93536ae9f6954e9809f0833bcf38d1ff50624f1e2268723dea",
+      "bytes": 25117232
+    },
+    {
+      "id": "browserService",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/scripts/browser-service.mjs",
+      "sha256": "0c1cb5b13bbe6ae70cea751740e537885a12d53cd076c864cd9154ef6e86e3bb",
+      "bytes": 2110036
+    },
+    {
+      "id": "tabClaimingGuidance",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/environment-docs/codex-app/tab-claiming-chrome.md",
+      "sha256": "9cd2b24253ff7376e317f39cac4dd8ba276ea2a98385d9d3f7f12349ba5706aa",
+      "bytes": 2170
+    },
+    {
+      "id": "extension",
+      "path": "experiments/codex-runtime-probe/build/extension-inspection/2026-11-09/background.js",
+      "sha256": "3ccdc7a853700c9fdd8acf8356db33ef18615d17c8a6d2b0054cafe65eb6c7b9",
+      "bytes": 546422
+    },
+    {
+      "id": "readableExtension",
+      "path": "experiments/codex-runtime-probe/build/extension-inspection/2026-11-09/background.pretty.js",
+      "sha256": "5022b1ca8cdcd13f10218f77c84ae455d99d83ed9e08d7a73ce58c74e1d7f001",
+      "bytes": 891524
+    }
+  ],
+  "sourceFindings": [
+    {
+      "artifact": "nativeClient",
+      "marker": "ComputerUseIPCAppGetSkyshotRequest",
+      "characterOffsets": [
+        357
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "nativeClient",
+      "marker": "ComputerUseIPCAppPerformActionRequest",
+      "characterOffsets": [
+        430
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "nativeClient",
+      "marker": "CodexComputerUseIPC-5",
+      "characterOffsets": [
+        616
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "function Tt(e)",
+      "characterOffsets": [
+        894580
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "Emulation.setFocusEmulationEnabled",
+      "characterOffsets": [
+        1426064
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "withScreencastLock(r,",
+      "characterOffsets": [
+        1428089
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "Cannot verify browser access without the current turn",
+      "characterOffsets": [
+        1982237
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "The browser access host is unavailable",
+      "characterOffsets": [
+        1982623
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "sessions = new Map();",
+      "characterOffsets": [
+        584181,
+        655714
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "async focusTab(e)",
+      "characterOffsets": [
+        656724
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "async claimUserTab(e, t)",
+      "characterOffsets": [
+        676090
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "async requireOwnedTab(e)",
+      "characterOffsets": [
+        684037
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "async runLifecycle(e)",
+      "characterOffsets": [
+        684254
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "async activateTurnUnlocked(e)",
+      "characterOffsets": [
+        684623
+      ],
+      "evidence": "static source, not executed"
+    },
+    {
+      "artifact": "readableExtension",
+      "marker": "resolveSession(e) {",
+      "characterOffsets": [
+        668014
+      ],
+      "evidence": "static source, not executed"
+    }
+  ],
+  "binaryClues": {
+    "symbols": [
+      "SyntheticAppFocusEnforcer",
+      "SystemFocusStealPreventer",
+      "KeyWindowTracker",
+      "applicationBelievesItHasFocus"
+    ],
+    "interpretation": "Evidence of native focus-management machinery only; symbols do not prove background behavior or concurrency guarantees."
+  },
+  "supplementalGuidance": {
+    "source": "sky/docs/skills/oai_sky_lib/macos/SKILL.md",
+    "localCopy": "experiments/codex-runtime-probe/build/parallel-browser-control/26.1023.51421/sky-macos-SKILL.md",
+    "boundary": "Additional to original 52-file guidance collection; not installed as a skill and not used to run UI actions."
+  },
+  "readOnlyDiagnostics": [
+    {
+      "script": "check-extension-installed.js",
+      "exitCode": 2,
+      "installed": false,
+      "enabled": false
+    },
+    {
+      "script": "check-native-host-manifest.js",
+      "exitCode": 1,
+      "exists": false,
+      "correct": false,
+      "problem": "Native host manifest does not exist"
+    }
+  ],
+  "conclusions": [
+    "Inspected native Mac client sends app-scoped actions, without a separate window selector in this interface.",
+    "Extension has sessions keyed by session_id; each carries currentTurnId, activeTabId and its own lifecycle queue.",
+    "Different-session claims on an already owned tab reject; commands check target ownership.",
+    "Explicit real focusTab selects a tab and focuses its window, separately from logical tab ownership.",
+    "Browser service attempts page focus emulation and addresses CDP commands per tab; screencast locks are keyed by tab.",
+    "Different native/browser trust gates remain; two independent terminal clients are not qualified by these source findings."
+  ],
+  "notEstablished": [
+    "Live two-agent extension control",
+    "Two-window native Mac concurrency",
+    "Terminal CLI authorization to the private browser runtime",
+    "Multiple-profile routing in a live paired task",
+    "Focus-free operation of all dialogs/uploads/IME",
+    "Parallel Vision stream identity and input"
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/whats-new#work-across-browser-tabs-with-the-chrome-extension",
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://learn.chatgpt.com/docs/computer-use",
+    "https://learn.chatgpt.com/docs/browser",
+    "https://developer.chrome.com/docs/extensions/reference/api/debugger",
+    "https://developer.chrome.com/docs/devtools/rendering/apply-effects/#emulate-a-focused-page",
+    "https://developer.apple.com/documentation/applicationservices/1460720-axisprocesstrusted",
+    "https://developer.apple.com/documentation/applicationservices/1462091-axuielementperformaction",
+    "https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/EventOverview/HandlingKeyEvents/HandlingKeyEvents.html"
+  ]
+}

@@ -108,3 +108,65 @@ These checks answer the UX question directly: can the orchestrator operate the c
 ## Verification scope
 
 Read official OpenAI/Chrome documentation, ran the two shipped read-only installation diagnostics, and inspected an official-store CRX without installing or executing it. Recorded package/source hashes, selected runtime call sites and the diagnostic results. Evidence and local documentation checks accompany this change; production, device and extension behavior tests were not rerun. Earlier native Chrome and OSS probe results remain separately labeled execution evidence.
+
+## 6. Two terminal agents controlling two Chrome windows
+
+Follow-up, November 9: the user wants two terminal Codex sessions operating separate browser windows concurrently. **The browser-extension architecture supports distinct tab owners; native app-scoped CUA does not establish that guarantee.** Two independent terminal clients still require a working, legitimately authorized adapter. Neither opening two Chrome windows nor granting Accessibility twice resolves that integration. [Additional source fingerprints and diagnostics](evidence/2026-11-09-browser-runtimes/parallel-control.json).
+
+### What “focused” means
+
+There are several different states: the frontmost macOS application; its key window/first responder; Chrome's selected tab within a window; and the focused element inside a page. An agent's logical active tab is another state. These must not be collapsed into one Boolean.
+
+Ordinary keyboard events are dispatched through the key window to its first responder. Selecting a field and then typing relies on that destination remaining correct. Switching windows between those operations can redirect input. Direct AX actions address an accessibility element instead; they are not inherently equivalent to moving the global mouse. Accessibility permission identifies a trusted client process and does not create a separate input seat for every terminal. [Apple key-event routing](https://developer.apple.com/library/archive/documentation/Cocoa/Conceptual/EventOverview/HandlingKeyEvents/HandlingKeyEvents.html), [AX actions](https://developer.apple.com/documentation/applicationservices/1462091-axuielementperformaction), [process trust](https://developer.apple.com/documentation/applicationservices/1460720-axisprocesstrusted).
+
+It would also be inaccurate to say that all Codex native Mac actions require the real foreground. OpenAI documents Mac background Computer Use. The installed native helper contains names including `SyntheticAppFocusEnforcer`, `SystemFocusStealPreventer`, `KeyWindowTracker` and `applicationBelievesItHasFocus`. These establish that focus management exists, not how every input is delivered or whether two windows in the same app can be controlled concurrently. The earlier successful native Chrome test did not vary focus or use two agents. [OpenAI Computer Use](https://learn.chatgpt.com/docs/computer-use).
+
+The observed foreground behavior is therefore consistent with using the native route, selecting the relevant Chrome window/tab, or entering a native dialog. It is not proof that page-specific browser input needs desktop focus. Determining which happened in a particular task requires its actual tool trace.
+
+### The actual interfaces we inspected
+
+**Native route:** the persistent MCP JavaScript facade exposes `cua.getApp("com.google.Chrome")`, then methods such as `getAXState`, `click`, `setValue`, `typeText` and `pressKey`. Underneath, `@oai/sky` sends `ComputerUseIPCAppGetSkyshotRequest` and `ComputerUseIPCAppPerformActionRequest` through the signed helper's versioned local IPC (`CodexComputerUseIPC-5` in this installation). These requests carry an app identifier. This inspected Mac interface has no separate window-ID parameter; the `{windowId}` form in its shared documentation is for other platforms. Two handles obtained for `com.google.Chrome` are not evidence of two isolated window controllers.
+
+**Browser route:** `cua.getBrowser` / `cua.getTab` expose the browser backend, with additional typed browser APIs supplied by its runtime guidance. The lower browser facade can list browser instances, enumerate user tabs and claim the exact returned tab object:
+
+```javascript
+// Interface illustration after legitimate runtime bootstrap, not a live test.
+const browser = await agent.browsers.get(observedBrowserId);
+const tabs = await browser.user.openTabs();
+const page = await browser.user.claimTab(chosenTabFromThisList);
+await page.playwright.getByRole("button", { name: "Save", exact: true }).click();
+```
+
+The selected browser includes its extension-instance/profile identity. Installed guidance checks the current tab ID, title and URL when claiming a user-mentioned tab, preventing a reused numeric ID from silently targeting a replacement. The service translates operations to tab-targeted CDP, carried through the desktop/native-messaging bridge to `chrome.debugger`. Browser AX/DOM observations are obtained from the page; this is distinct from macOS AX permission. The exact private runtime bootstrap remains the unresolved embedding dependency, rather than a public extension endpoint we can simply address.
+
+The desktop service attempts page-focus emulation during attachment and sends mouse/key commands to the chosen CDP target. Thus, both pages can have independent target-local input and page focus without both being the real foreground window. That statement concerns the mechanism, not universal support for every page feature. Focus emulation changes visibility semantics, so blur/autosave behavior needs testing. [Chrome debugger targets](https://developer.chrome.com/docs/extensions/reference/api/debugger), [focus emulation](https://developer.chrome.com/docs/devtools/rendering/apply-effects/#emulate-a-focused-page).
+
+### Where the runtime can conflict
+
+The additional source inspection found:
+
+- The extension stores **multiple sessions keyed by `session_id`**. Each session has its own `activeTabId`, `currentTurnId` and lifecycle promise queue. The inspected lifecycle queue is per session, not one global browser-work queue; that does not prove all lower-level execution is concurrent.
+- `claimUserTab` rejects another session's already-owned tab; `requireOwnedTab` rejects commands outside the caller's tab set. Separate pages are the intended isolation boundary.
+- A session has one active turn. Reusing one session identity for two independent terminals risks active-turn and cleanup interference even when their pages differ. Assign distinct authorized runtime sessions; do not fabricate identity metadata or duplicate one authorized task's credentials.
+- The explicit `focusTab` operation calls both real tab selection and window focus. This is separate from logical tab ownership. Ordinary background page actions should not routinely invoke that presentation operation.
+- The desktop screenshot/screencast queues are keyed by tab. Two different pages do not share that particular lock. Two independent screencast producers on the same page can still conflict.
+
+| Arrangement | Consequence |
+| --- | --- |
+| Two Chrome windows, both agents using native `getApp("com.google.Chrome")` | Same app identity; exact per-window isolation and native focus arbitration are unproven. Serialize focus-dependent work and re-observe until qualified. |
+| Two distinct tabs/windows, two authorized browser sessions | Intended background-control arrangement; tab leases prevent cross-session claims. Requires the actual two-client integration test. |
+| Two agents sharing one tab | Ownership conflict or explicit handoff, rather than independent concurrent editing. |
+| Two agents sharing one browser-session identity | Active-turn/lifecycle state can interfere; separate REPL variables alone do not fix it. |
+| Separate Chrome profiles/instances | Can separate browser storage, but routing must include the correct extension instance. Does not itself create separate macOS foreground input. |
+
+Two windows in one profile can share login cookies, storage and backend account state. Distinct tab ownership is not account isolation. Creating multiple Chrome processes also does not establish independent input seats, and the app-name/bundle-ID native interface may not distinguish the intended instance. For ordinary page operations, two complete Chrome installations are unnecessary; two correctly owned targets are the useful starting point.
+
+### What remains unproven for terminal Codex
+
+OpenAI documents parallel background tab work in the desktop product, but that does not promise a standalone browser-control SDK for two CLI processes. Its Browser documentation excludes the built-in browser from CLI/IDE. Our installed browser service additionally checks current-turn metadata and desktop-issued access authorization; the [earlier standalone probe](2026-11-09-browser-runtime-options.md#2-what-deeper-codex-inspection-established) failed those prerequisites. Native-runtime reuse succeeding does not establish browser-runtime reuse. [OpenAI parallel tabs](https://learn.chatgpt.com/docs/whats-new#work-across-browser-tabs-with-the-chrome-extension), [Browser availability](https://learn.chatgpt.com/docs/browser).
+
+Both shipped installation diagnostics were repeated read-only: the selected profile still reports the extension not installed/enabled, and the native-messaging manifest is absent. No extension/host was installed, no permissions were changed, and no concurrent input was attempted. The Mac helper's packaged `sky/docs/skills/oai_sky_lib/macos/SKILL.md` was also inspected and cached separately from the earlier 52 guidance files; it confirms the app-scoped API and fresh-observation guidance, not a concurrency guarantee.
+
+The focused acceptance test is **two actual terminal clients → two authorized browser sessions → two owned fixture tabs in separate streamed windows**, while the human types in a third app. Verify each page receives only its own actions, real foreground focus and clipboard remain unchanged, a same-tab claim rejects, and stopping/restarting A leaves B working. If cookies must be isolated, repeat with separate profiles. Add one native-dialog transition and verify it requests shared desktop input ownership instead of racing the other controller. Keep native streaming and browser input measurements separate.
+
+This supports prioritizing the browser-specific provider for the parallel web UX. It does not require an owned Chromium embedder, and it does not settle whether Pi or a coding agent should own a given task. The unresolved issue is qualifying the real runtime/session connection and its behavior, not obtaining a second macOS Accessibility grant.
