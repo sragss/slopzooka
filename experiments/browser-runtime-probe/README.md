@@ -6,6 +6,18 @@ November 9, 2026. [Findings](../../.plans/2026-11-09-browser-runtime-options.md)
 
 ## Prepare and run
 
+For the **Codex desktop/browser-runtime baseline**, use the existing fixture without starting any OSS provider or a second Chrome:
+
+```sh
+node experiments/browser-runtime-probe/serve-fixture.mjs
+```
+
+This dependency-free server binds an ephemeral port on `127.0.0.1` and prints exact `/a`, `/b` and `/events` URLs. It serves the same disposable controls used in the earlier comparison and writes fixture events to an ignored `build/codex-baseline-*/events.jsonl`. It does not install an extension, change browser permissions, open tabs or provision Codex authorization. Keep it running during the browser task; Control-C stops only this server. Use dummy labels only.
+
+First test one page from a legitimately provisioned desktop chat using the browser-specific tool route: open its exact `/a` URL, save `codex-a` as the workspace label, increment twice, open Settings, and verify the rendered result. Inspect `/events` independently; there should be one save, two increments and one settings event for `/a`. A native `getApp("com.google.Chrome")` success does not pass this browser-provider test. Use `/b` with a distinct label for the later second-owner test. These are proposed fixture operations for runtime qualification, not approval of the broader product prompt catalog. See the [gated runbook](../../.plans/2026-11-09-background-browser-control.md#7-runtime-qualification-runbook).
+
+The following original commands run the separate **OSS comparison**, not the Codex authorization experiment.
+
 From the repository root:
 
 ```sh

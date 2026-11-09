@@ -6,6 +6,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 
 **What remains:** the [remaining decisions and validation sequence](#remaining-decisions-and-validation-sequence) consolidates the open items across these studies. Basic capture/control feasibility is established; runtime integration, agent responsibility, exact target sharing and the spatial interaction model remain the priorities.
 
+**Active next investigation:** the [Codex browser-runtime qualification runbook](2026-11-09-background-browser-control.md#7-runtime-qualification-runbook) separates a working desktop baseline, independent caller provisioning, actual Pi/terminal consumers and parallel targets. Current setup gaps were rechecked; a dependency-free local fixture is ready. No Vision Pro is needed for these runtime gates.
+
 **Open decision before agent implementation:** [which agent owns computer use?](2026-11-09-agent-control-ownership.md) Compare coding-agent control, global-Pi control, and shared access with one task owner. The Mac execution/presentation boundary is separate from this choice. Earlier direct-Pi examples below describe a candidate, not a settled responsibility split.
 
 **Spatial-workspace requirement:** [many Vision surfaces without matching Mac desktop windows](2026-11-09-spatial-surfaces-without-desktop-windows.md). Physical display area is not a hard limit for independent-window capture, but desktop hosting has lifecycle/input constraints. Compare managed headless Chromium, Electron/CEF offscreen rendering and headset-local web views before making a native Mac window mandatory for every browser surface. Includes source references, maintenance costs and a narrow scaling experiment; no new live results are claimed.
