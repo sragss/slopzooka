@@ -1,0 +1,486 @@
+{
+  "date": "2026-11-09",
+  "scope": "Background Chrome extension control, rendering and lifecycle source investigation. No extension behavior test.",
+  "extensionDownload": {
+    "sourceUrl": "https://clients2.google.com/service/update2/crx?response=redirect&prodversion=156.0.8078.80&acceptformat=crx2%2Ccrx3&x=id%3Dhehggadaopoacecdllhhajmbjkdcmajg%26installsource%3Dondemand%26uc",
+    "finalUrl": "https://clients2.googleusercontent.com/crx/blobs/ARGaeZKQ-TSsLUcfI15x9vny5YQoE5zPdJ7FwUHklD21sA7GPcHupjAJDETF19auY0iQULqRmjGySLRFBg5uANYAXeTiuJ_wN_Ph1vIzZzUA_d5sSf5XWUffzrCH7jgczT0AxlKa5Z_8HKdJEoZgh3QiC95kYJQM-V2I/HEHGGADAOPOACECDLLHHAJMBJKDCMAJG_1_26_1102_11740.crx",
+    "bytes": 1212544,
+    "sha256": "d8575514d5359df727ef57ca6a0f9818c2426751e4ef150b0804c17f04340566",
+    "crxVersion": 3,
+    "version": "1.26.1102.11740",
+    "name": "ChatGPT",
+    "manifestVersion": 3,
+    "background": {
+      "service_worker": "background.js"
+    },
+    "permissions": [
+      "alarms",
+      "bookmarks",
+      "debugger",
+      "declarativeNetRequestWithHostAccess",
+      "downloads",
+      "favicon",
+      "history",
+      "nativeMessaging",
+      "notifications",
+      "offscreen",
+      "scripting",
+      "sessions",
+      "storage",
+      "tabGroups",
+      "tabs",
+      "topSites",
+      "webNavigation",
+      "contextMenus",
+      "sidePanel"
+    ],
+    "hostPermissions": [
+      "<all_urls>"
+    ],
+    "minimumChromeVersion": "116",
+    "files": 35,
+    "executed": false,
+    "installed": false
+  },
+  "extensionBuild": {
+    "build_flavor": "release",
+    "release_channel": "stable",
+    "sha": "52add2ca490bc0f277acb48337ab808a143436b6",
+    "target": "chrome-production",
+    "store": "chrome-web-store",
+    "store_id": "hehggadaopoacecdllhhajmbjkdcmajg",
+    "extension_id": "hehggadaopoacecdllhhajmbjkdcmajg"
+  },
+  "desktopVersion": "26.1023.51421",
+  "versionBoundary": "Store extension and installed desktop are different release dates; end-to-end compatibility was not tested.",
+  "packageHandling": "Official update-endpoint CRX downloaded and inspected as data. No installation, extension execution, package modification or redistribution. Signature not independently validated; metadata/version matched official store listing.",
+  "manifestSummary": {
+    "manifestVersion": 3,
+    "background": {
+      "service_worker": "background.js"
+    },
+    "permissions": [
+      "alarms",
+      "bookmarks",
+      "debugger",
+      "declarativeNetRequestWithHostAccess",
+      "downloads",
+      "favicon",
+      "history",
+      "nativeMessaging",
+      "notifications",
+      "offscreen",
+      "scripting",
+      "sessions",
+      "storage",
+      "tabGroups",
+      "tabs",
+      "topSites",
+      "webNavigation",
+      "contextMenus",
+      "sidePanel"
+    ],
+    "hostPermissions": [
+      "<all_urls>"
+    ],
+    "minimumChromeVersion": "116",
+    "tabCaptureDeclared": false
+  },
+  "readOnlyDiagnostics": [
+    {
+      "script": "check-extension-installed.js",
+      "arguments": [
+        "--browser",
+        "chrome",
+        "--json"
+      ],
+      "exitCode": 2,
+      "installed": false,
+      "enabled": false,
+      "scope": "Shipped tool selected Chrome profile; no profile names or personal browser contents retained."
+    },
+    {
+      "script": "check-native-host-manifest.js",
+      "arguments": [
+        "--browser",
+        "chrome",
+        "--json"
+      ],
+      "exitCode": 1,
+      "exists": false,
+      "correct": false,
+      "problem": "Native host manifest does not exist",
+      "hostName": "com.openai.codexextension"
+    }
+  ],
+  "priorBoundary": "Earlier session browser route reported The browser access host is unavailable. This is a different dependency from Chrome native-messaging host registration. No fresh browser call or host repair performed in this update.",
+  "artifacts": [
+    {
+      "component": "extension",
+      "relativePath": "background.js",
+      "sha256": "3ccdc7a853700c9fdd8acf8356db33ef18615d17c8a6d2b0054cafe65eb6c7b9",
+      "bytes": 546422
+    },
+    {
+      "component": "extension",
+      "relativePath": "manifest.json",
+      "sha256": "1ddbdf8f0dc8c92392797bfa3dd047dbcb490892e266d871880b37bd10830ea6",
+      "bytes": 3443
+    },
+    {
+      "component": "extension",
+      "relativePath": "content-scripts/codex.js",
+      "sha256": "168b307ff1e936bcfdc9344f4e668b4767cf91b6ac8d7dd868e927c9474c9221",
+      "bytes": 35191
+    },
+    {
+      "component": "extension",
+      "relativePath": "content-scripts/foreign-frame-monitor.js",
+      "sha256": "337ad4ff3ec7846134e5d39528936b1cbb68107de3c4da0e0641c712bda66129",
+      "bytes": 5158
+    },
+    {
+      "component": "extension",
+      "relativePath": "codex/build-info.json",
+      "sha256": "1840c200a9dbe1d44abab94bb2d9598dbbfaadcd886b4b763e35b59f970cf483",
+      "bytes": 284
+    },
+    {
+      "component": "desktop",
+      "relativePath": "scripts/browser-service.mjs",
+      "sha256": "0c1cb5b13bbe6ae70cea751740e537885a12d53cd076c864cd9154ef6e86e3bb",
+      "bytes": 2110036
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/documents.json",
+      "sha256": "6b8d82101e7148c7036529651557f551581ebc3210a8f78f2d53f91f1b362686",
+      "bytes": 4156
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/tab-claiming-chrome.md",
+      "sha256": "9cd2b24253ff7376e317f39cac4dd8ba276ea2a98385d9d3f7f12349ba5706aa",
+      "bytes": 2170
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/tab-cleanup-chrome.md",
+      "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8",
+      "bytes": 1104
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/browser-control-interruption.md",
+      "sha256": "2fd73066304bc822ce3fba35eeba6456a0505f32f2f1364424639a08e49d1d5a",
+      "bytes": 345
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/capabilities/browser/visibility.md",
+      "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08",
+      "bytes": 888
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/capabilities/browser/management.md",
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e",
+      "bytes": 5843
+    },
+    {
+      "component": "desktop",
+      "relativePath": "environment-docs/codex-app/chrome-troubleshooting.md",
+      "sha256": "70b27f1b1331e81653b0bcb0c84b91ee7e884304bb7a2c6d5df60133df482580",
+      "bytes": 5015
+    },
+    {
+      "component": "plugin",
+      "relativePath": "extension-ids.json",
+      "sha256": "7e321e8c9d1ce0310ee144de51198fcb25c0c42c0004c15ad095493dd384630a",
+      "bytes": 11890
+    },
+    {
+      "component": "plugin",
+      "relativePath": "check-extension-installed.js",
+      "sha256": "c25b45762ca649f33a52e690a1500ee7a6307f11b4ff79f9c14ff4f35fab5693",
+      "bytes": 12769
+    },
+    {
+      "component": "plugin",
+      "relativePath": "check-native-host-manifest.js",
+      "sha256": "15a3c021162bd23f367818ac9b4d17f123e745e4902d68f05a17cc410ae9cfd9",
+      "bytes": 11634
+    }
+  ],
+  "sourceFindings": [
+    {
+      "id": "nativeMessaging",
+      "component": "extension",
+      "marker": "chrome.runtime.connectNative",
+      "characterOffsets": [
+        426860
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "debuggerAttach",
+      "component": "extension",
+      "marker": "chrome.debugger.attach",
+      "characterOffsets": [
+        384447,
+        416708,
+        416870
+      ],
+      "matches": 3,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "debuggerCommands",
+      "component": "extension",
+      "marker": "chrome.debugger.sendCommand",
+      "characterOffsets": [
+        387607,
+        423576
+      ],
+      "matches": 2,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "inactiveNewTab",
+      "component": "extension",
+      "marker": "chrome.tabs.create({active:!1,url:or,windowId:e})",
+      "characterOffsets": [
+        418652
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "unfocusedNewWindow",
+      "component": "extension",
+      "marker": "chrome.windows.create({focused:!1",
+      "characterOffsets": [
+        418434
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "logicalActive",
+      "component": "extension",
+      "marker": "tabInfosWithLogicalActive(e)",
+      "characterOffsets": [
+        413237,
+        413420
+      ],
+      "matches": 2,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "sessionOwnership",
+      "component": "extension",
+      "marker": "async requireOwnedTab(e)",
+      "characterOffsets": [
+        414383
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "turnCleanup",
+      "component": "extension",
+      "marker": "async endTurnUnlocked(e)",
+      "characterOffsets": [
+        410779
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "cursorOverlay",
+      "component": "extension",
+      "marker": "readCursorOverlayState(e)",
+      "characterOffsets": [
+        350817,
+        352392
+      ],
+      "matches": 2,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "quietTabs",
+      "component": "extension",
+      "marker": "async function Vu(e)",
+      "characterOffsets": [
+        355985
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "clientHeartbeat",
+      "component": "extension",
+      "marker": "async function Gk(",
+      "characterOffsets": [
+        531164
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "offscreenKernel",
+      "component": "extension",
+      "marker": "js-kernel-offscreen.html",
+      "characterOffsets": [
+        186951
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "kernelFeatureGate",
+      "component": "extension",
+      "marker": "chrome-standalone-js-kernel",
+      "characterOffsets": [
+        539676
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "focusEmulation",
+      "component": "desktop",
+      "marker": "Emulation.setFocusEmulationEnabled",
+      "characterOffsets": [
+        1426064
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "attachFocusStep",
+      "component": "desktop",
+      "marker": "await this.enableFocusEmulation(r,n)",
+      "characterOffsets": [
+        1425598
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "mouseInput",
+      "component": "desktop",
+      "marker": "Input.dispatchMouseEvent",
+      "characterOffsets": [
+        1488897,
+        1827029,
+        1829041,
+        1830997,
+        1831327,
+        1831690
+      ],
+      "matches": 7,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "keyInput",
+      "component": "desktop",
+      "marker": "Input.dispatchKeyEvent",
+      "characterOffsets": [
+        903514,
+        908237,
+        908339,
+        1529801,
+        1531005
+      ],
+      "matches": 5,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "screenshot",
+      "component": "desktop",
+      "marker": "Page.captureScreenshot",
+      "characterOffsets": [
+        1311080,
+        1340834,
+        1341000
+      ],
+      "matches": 3,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "internalScreencast",
+      "component": "desktop",
+      "marker": "withInternalScreencast(",
+      "characterOffsets": [
+        1341297,
+        1421441
+      ],
+      "matches": 2,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "frameFreshness",
+      "component": "desktop",
+      "marker": "Timed out waiting for a viewport screencast frame.",
+      "characterOffsets": [
+        1341458
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "screencastLock",
+      "component": "desktop",
+      "marker": "withScreencastLock(",
+      "characterOffsets": [
+        1411101,
+        1421592,
+        1428089
+      ],
+      "matches": 3,
+      "evidenceKind": "static source, not executed"
+    },
+    {
+      "id": "virtualClipboard",
+      "component": "desktop",
+      "marker": "Native clipboard shortcuts are disabled; use Browser Use virtual clipboard commands instead.",
+      "characterOffsets": [
+        903361
+      ],
+      "matches": 1,
+      "evidenceKind": "static source, not executed"
+    }
+  ],
+  "interpretations": [
+    "Tab-targeted debugger input plus inactive creation and focus emulation explain background operation without desktop focus.",
+    "Logical session active tab can differ from real Chrome selected tab.",
+    "Focus emulation alters visibility semantics; web visibility alone is not a valid external focus measurement.",
+    "Page cursor overlay is not the operating-system pointer.",
+    "Unmarked agent tabs close at turn end; claimed user tabs release; marks preserve relevant results with different lifecycle semantics.",
+    "Native window streaming requires association to the actual selected tab, even when input is addressed to an inactive target.",
+    "Internal screenshot screencast behavior does not establish a reusable continuous video API.",
+    "Offscreen persistent kernel path exists behind a gate, but no public third-party registration interface was established."
+  ],
+  "notEstablished": [
+    "Live extension control or background reliability",
+    "Actual manual-input interruption behavior",
+    "Mac lock/sleep or minimized-window operation",
+    "Vision streaming association and freshness",
+    "Independent Pi/companion integration",
+    "Compatible behavior across the two inspected release versions",
+    "Stable public extension embedding or redistribution contract"
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/whats-new#work-across-browser-tabs-with-the-chrome-extension",
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://chromewebstore.google.com/detail/chatgpt/hehggadaopoacecdllhhajmbjkdcmajg",
+    "https://developer.chrome.com/docs/extensions/reference/api/debugger",
+    "https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging",
+    "https://developer.chrome.com/docs/devtools/rendering/apply-effects/#emulate-a-focused-page",
+    "https://developer.chrome.com/docs/extensions/reference/api/tabCapture",
+    "https://developer.chrome.com/docs/extensions/reference/api/tabs",
+    "https://developer.chrome.com/docs/web-platform/page-lifecycle-api"
+  ]
+}

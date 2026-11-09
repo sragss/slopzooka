@@ -79,6 +79,8 @@ Both should call the same providers. Do not build both interfaces up front. Tool
 
 **Native Chrome correction:** the same follow-up successfully drove a real webpage through `cua.getApp("com.google.Chrome")`, including semantic page/iframe observations and native input. The specialized browser backend's access-host failure does not block this route. Start the Chrome-plus-Simulator demo with the preferred native provider; add a specialized browser provider only for capabilities the chosen workflow needs. Exact window/tab-to-stream association and shared focus arbitration remain required.
 
+**Background Chrome qualification:** [extension source research](2026-11-09-background-browser-control.md) establishes why tab-scoped browser input can avoid taking desktop focus. Qualify this route early for concurrent human/browser work. The extension's logical active tab is not necessarily the physically selected tab; keep control target, presentation and native focus distinct. A selected page in its own unfocused Chrome window is the first candidate for the existing native video path. Retain workspace previews explicitly across turn cleanup. This does not require another coordinator, persistent layout owner or new media transport.
+
 ### Workspace naming
 
 Explicit user requirement: the orchestrator names workspaces automatically so the user can recognize the work without remembering generated worktree names. Manual naming should be optional, not a setup step or a dependency for useful labels.

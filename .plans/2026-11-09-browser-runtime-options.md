@@ -2,6 +2,8 @@
 
 November 9, 2026. Extends the [Codex browser/interface notes](2026-11-08-codex-browser-and-guidance.md). This update adds desktop-host inspection, two additional Codex boundary checks, a pinned OSS source comparison and real local tests of three providers. [Results](evidence/2026-11-09-browser-runtimes/results.json), [34 source fingerprints](evidence/2026-11-09-browser-runtimes/sources.json), [fixture trace](evidence/2026-11-09-browser-runtimes/fixture-trace.jsonl), and [reproduction scaffold](../experiments/browser-runtime-probe/README.md).
 
+**Background-control follow-up:** [the published extension investigation](2026-11-09-background-browser-control.md) traces inactive tab creation, logical tab ownership, CDP focus emulation, native-messaging transport and screenshot/streaming distinctions. This is a valuable capability to qualify early; native Chrome remains the working baseline. Extension source inspection is not a live background-control result.
+
 ## 1. Current conclusion
 
 Keep **Codex reuse as the preferred research direction**, as requested. Its native Mac provider already worked independently. Its specialized browser provider has an additional desktop-owned authorization and session layer that we have now traced to its implementation. Independent reuse of that specialized provider is unresolved. **This does not block controlling Chrome as a native Mac app:** the follow-up below successfully operated a real page through `cua.getApp("com.google.Chrome")` in this chat.
