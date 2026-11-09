@@ -52,6 +52,8 @@ No automatic proactive tasks, permanent coordinator memory, or durable reasoning
 
 Pi steering takes effect at loop boundaries and is not a substitute for promptly revoking input or cancelling a host job. The application must reject stale queued calls after a correction and provide a deterministic Stop action. Pi's tool abort signal can stop work still inside the call; an already-accepted host operation uses its separate cancellation handle. [Pi tool/loop contracts](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/src/types.ts).
 
+The [Opus 5.5 follow-up](2026-11-09-claude-cua-compatibility.md) confirms the same native execution path works with another model provider. Model selection stays separate from CUA backend selection; neither changes process/window ownership or resolves the browser host's authorization contract.
+
 ## 4. Capabilities the model can compose
 
 The product should support “open settings, scroll to the subscription controls, and leave it there” without requiring the user to invent a code-edit task. Whether Pi performs that interaction or routes it to a coding session is an [open responsibility decision](2026-11-09-agent-control-ownership.md). The acting model needs usable observations, including screenshots where required. Choosing a voice API does not supply the computer-use backend. This table describes capabilities across the system; tool grants depend on the selected responsibility split.

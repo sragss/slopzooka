@@ -228,6 +228,7 @@ test("child environment excludes model keys and parent desktop session identity"
       HOME: "/test-home",
       PATH: "/test-bin",
       OPENAI_API_KEY: "do-not-forward",
+      ANTHROPIC_API_KEY: "also-do-not-forward",
       CODEX_THREAD_ID: "parent",
       BROWSER_USE_ACCESS_PIPE_PATH: "/private-pipe",
       BROWSER_USE_ACCESS_EXECUTOR_ID: "parent-executor",

@@ -319,3 +319,7 @@ This update passed exact event/trace reconciliation, visual inspection of both n
 ## 10. Independent Pi harness: native success, browser boundary unchanged
 
 The [new isolated Pi probe](2026-11-09-pi-cua-probe.md) completed a real GPT-driven native Mac task through the installed Codex MCP runtime: text entry, two increments, observed state and a model-visible screenshot. It did not use the desktop composer or create a Codex task. The same Pi loop made one Chrome initialization call and received `Cannot verify browser access without the current turn`, then stopped. This confirms that adding a real external model loop does not supply desktop browser authorization. Keep legitimate browser provisioning as the unresolved gate; it need not block native-only integration. No concurrent-browser, lock or Vision tests were run in this addition.
+
+## 11. Model choice does not provision the browser
+
+[Opus 5.5 now passes native CUA through the same Pi adapter](2026-11-09-claude-cua-compatibility.md), but its one-call Chrome test returns the same missing-current-turn error. The [runtime contract review](2026-11-09-runtime-integration-contract.md) details peer admission, executor/session ownership, account entitlement and site/tab permission as separate gates. It also records native startup/lifecycle findings and the distinction between callable installed software and a supported cross-model shipping contract.

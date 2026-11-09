@@ -3,6 +3,7 @@ import { parseArgs, parseEnv } from "node:util";
 import { fileURLToPath } from "node:url";
 import { createModels } from "@earendil-works/pi-ai";
 import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
 import { StdioTransport } from "@earendil-works/pi-mcp";
 import { connectHarness } from "./harness.mjs";
 import {
@@ -14,7 +15,8 @@ import {
 const { values } = parseArgs({
   options: {
     target: { type: "string", default: "fixture" },
-    model: { type: "string", default: "gpt-6.1-sol" },
+    provider: { type: "string", default: "openai" },
+    model: { type: "string" },
     "key-file": { type: "string" },
     check: { type: "boolean", default: false },
     "allow-fixture": { type: "boolean", default: false },
@@ -22,17 +24,27 @@ const { values } = parseArgs({
 });
 if (!["fixture", "browser", "computer"].includes(values.target))
   throw new Error("Invalid target");
+if (!["openai", "anthropic"].includes(values.provider))
+  throw new Error("Use openai or anthropic");
+const keyName =
+  values.provider === "anthropic" ? "ANTHROPIC_API_KEY" : "OPENAI_API_KEY";
 // Parse, never source, an env file. Only this variable is consumed; never export it.
 const apiKey = values["key-file"]
-  ? parseEnv(await readFile(values["key-file"], "utf8")).OPENAI_API_KEY
-  : process.env.OPENAI_API_KEY;
+  ? parseEnv(await readFile(values["key-file"], "utf8"))[keyName]
+  : process.env[keyName];
 if (!apiKey && !values.check)
   throw new Error(
-    "Set OPENAI_API_KEY or pass --key-file PATH (never paste a key argument)",
+    `Set ${keyName} or pass --key-file PATH (never paste a key argument)`,
   );
 const models = createModels();
-models.setProvider(openaiProvider());
-const model = models.getModel("openai", values.model);
+models.setProvider(
+  values.provider === "anthropic" ? anthropicProvider() : openaiProvider(),
+);
+const model = models.getModel(
+  values.provider,
+  values.model ??
+    (values.provider === "anthropic" ? "claude-opus-5-5" : "gpt-6.1-sol"),
+);
 if (!model) throw new Error("Model is absent from the pinned Pi catalog");
 const config =
   values.target === "fixture"
@@ -73,6 +85,11 @@ const harness = await connectHarness({
 const stop = () => {
   void harness.stop();
 };
+let firstToolDispatchMs;
+harness.agent.subscribe((event) => {
+  if (event.type === "tool_execution_start")
+    firstToolDispatchMs ??= Date.now() - started.getTime();
+});
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);
 try {
@@ -123,6 +140,9 @@ try {
     startedAt: started.toISOString(),
     elapsedMs: Date.now() - started.getTime(),
     model: model.id,
+    provider: values.provider,
+    reasoning: "low",
+    firstToolDispatchMs,
     target: values.target,
     runtime: config.metadata,
     mcp: harness.metadata,
@@ -139,6 +159,13 @@ try {
     toolErrors: messages.filter(
       (message) => message.role === "toolResult" && message.isError,
     ).length,
+    // Keep actual token counts; list-price estimates are not billing receipts.
+    modelRequests: messages
+      .filter((message) => message.role === "assistant")
+      .map((message) => ({
+        stopReason: message.stopReason,
+        usage: message.usage,
+      })),
   };
   const outputDir = new URL("./build/", import.meta.url);
   await mkdir(outputDir, { recursive: true });

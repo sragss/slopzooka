@@ -4,6 +4,8 @@ This isolated experiment runs Pi's in-memory agent loop against the installed Co
 
 **November 9 result:** a live `gpt-6.1-sol` run used the native Mac tools to enter `pi-direct`, increment our disposable app twice, inspect its state and return a screenshot to the model. Both the fixture state file and screenshot confirm the result. Direct Chrome initialization still fails with `Cannot verify browser access without the current turn`. See the [findings and evidence](../../.plans/2026-11-09-pi-cua-probe.md).
 
+The [Opus follow-up](../../.plans/2026-11-09-claude-cua-compatibility.md) also passes the native task with `claude-opus-5-5` using the same adapter. It records current pricing, actual token usage, a transient native capture failure during the GPT comparison, and the remaining runtime contract.
+
 ## Run
 
 Requires Node 22.20+ and the locally installed ChatGPT/Codex runtime for native/browser checks. This experiment has its own pinned dependencies; run from this directory:
@@ -15,6 +17,9 @@ npm test
 # Live model + synthetic image fixture; no desktop control.
 node cli.mjs --target fixture --key-file /path/to/local.env
 
+# Same model/tool loop with Claude Opus 5.5.
+node cli.mjs --provider anthropic --target fixture --key-file /path/to/local.env
+
 # No API credential needed; tests independent Chrome provisioning only.
 node cli.mjs --target browser --check
 
@@ -22,7 +27,7 @@ node cli.mjs --target browser --check
 node cli.mjs --target browser --key-file /path/to/local.env
 ```
 
-The key file must contain `OPENAI_API_KEY` with Responses API access. The CLI parses only that variable; it does not source the file or export its contents. Alternatively provide `OPENAI_API_KEY` in the launching shell. Never put the secret itself in command arguments. The model defaults to `gpt-6.1-sol`; `--model` selects another model in the pinned Pi OpenAI catalog.
+The key file must contain `OPENAI_API_KEY` with Responses API access, or `ANTHROPIC_API_KEY` for `--provider anthropic`. The CLI parses only the selected variable; it does not source the file or export its contents. Alternatively provide the selected variable in the launching shell. Never put the secret itself in command arguments. Defaults are `gpt-6.1-sol` for OpenAI and `claude-opus-5-5` for Anthropic; `--model` selects an explicit model in that provider's pinned Pi catalog. Both use low reasoning effort. Logs include token/cache usage and SDK-estimated costs, not billing receipts.
 
 For a native run, first prepare and launch the [existing disposable native fixture](../codex-runtime-probe/README.md#fixture-and-independent-app-setup-used-in-discovery). It must start with counter 0 and empty input for the live action check. Example using the already built temporary app:
 
@@ -41,6 +46,8 @@ node cli.mjs --target computer --allow-fixture --key-file /path/to/local.env
 Do not launch duplicate instances. After a completed action run, restart only that owned fixture before repeating the counter-2 test. Its state file records its PID; verify the executable before terminating it. The CLI owns and closes its MCP child, not the fixture or shared Codex helper. Exit 0 means execution ended without reported errors; verify the fixture state and screenshot independently before calling the task successful.
 
 `--allow-fixture` answers MCP app-access requests only when the connector is `computer-use` and the requested app is exactly `dev.slopzooka.codex-runtime-fixture`. All other requests are cancelled. This narrowly represents the user's authorization for our test app; it is not a production permission UI or an OS permission bypass. The native runtime must already have working macOS permissions.
+
+After a successful native action run (counter 2 and `pi-direct`), `node check-lifecycle.mjs` performs a read-only two-client check: close A, verify B remains usable, then close B. This tests connection lifetime only, not simultaneous input or helper-crash isolation.
 
 ## Small interface
 

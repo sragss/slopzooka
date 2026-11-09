@@ -536,5 +536,7 @@
     "Vision presentation",
     "Lock behavior"
   ],
-  "credentialHandling": "Existing user-authorized local env file; only OPENAI_API_KEY loaded; value not logged or sent to MCP child."
+  "credentialHandling": "Existing user-authorized local env file; only OPENAI_API_KEY loaded; value not logged or sent to MCP child.",
+  "sourceRevision": "5dd303efed5dd392c6b4de921462025fba03c021",
+  "sourceArtifactNote": "Source hashes refer to this historical revision; later provider/metrics changes are recorded separately."
 }
