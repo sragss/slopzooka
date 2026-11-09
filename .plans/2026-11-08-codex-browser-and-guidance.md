@@ -2,6 +2,8 @@
 
 November 8, 2026. Follow-up to the [working native-runtime experiment](2026-11-08-codex-runtime-reuse.md) and [open-source comparison](2026-11-08-macos-cua-options.md). [Source fingerprints and probe evidence](evidence/2026-11-08-codex-browser-guidance/research.json) distinguish installed documentation, source inspection and execution.
 
+**November 9 follow-up:** [deeper browser research](2026-11-09-browser-runtime-options.md) traced desktop access-host provisioning, tested additional Codex entry points and exercised three OSS providers locally. Independent Codex browser reuse remains unresolved; the new evidence qualifies actual alternatives rather than relying only on feature descriptions.
+
 ## 1. Current preference and the decision to revisit
 
 **Prefer reusing Codex's installed computer-use runtime.** This is the user's current direction: benefit from its existing interaction machinery and guidance, rather than owning an alternative implementation immediately. The successful independent native-app experiment makes this a concrete option. Keep the open-source research as comparison material and a fallback.

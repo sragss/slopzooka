@@ -1,6 +1,6 @@
 # Agent orchestration and shared surfaces: reading guide
 
-Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6, plus offline Mac codec benchmarks and Codex harness inspection on November 8. These documents distinguish proposed architecture, source inspection, local measurements and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
+Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6, offline Mac codec benchmarks and Codex harness inspection on November 8, and browser-host/OSS provider investigation on November 9. These documents distinguish proposed architecture, source inspection, local measurements and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
 
 ## Start here
 
@@ -14,6 +14,7 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 8. [Open-source Mac CUA options](2026-11-08-macos-cua-options.md): comparison/fallback providers, source-level background-input findings, OpenAI custom-tool integration and a local Codex import probe. The later Codex preference below supersedes the initial open-source-first evaluation order.
 9. [Working Codex runtime reuse experiment](2026-11-08-codex-runtime-reuse.md): the bundled MCP launcher successfully drove a disposable Mac app from our own independent launcher, without a new Codex agent or supplied turn metadata. Includes the concrete unstable interface, verified effects and a shortcut that did not produce its intended effect.
 10. [Codex preference, Chrome backend and guidance](2026-11-08-codex-browser-and-guidance.md): prefer the installed Codex runtime, with an interface/tradeoff review before committing to ship it. Browser-specific APIs, local guidance collection, and the standalone browser probe's separate session-authorization failure.
+11. [Deeper browser-runtime investigation](2026-11-09-browser-runtime-options.md): the actual desktop access-host provisioning, additional Codex boundary checks, six OSS options and local Playwright MCP / Playwriter / agent-browser trials. Includes caller-owned context injection, strict tab-closure failure and shared-browser authority limits.
 
 ## Supporting research
 
@@ -30,6 +31,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 Use a small Pi coordinator in the existing Mac companion, with the chosen voice frontend delegating tasks. Terminal coding agents access the same application handlers through MCP. Existing services retain workspace/process ownership, providers own capture/control, and Vision's existing `WindowGateway` retains presentation ownership. The model discovers how to launch and navigate an app; application code supplies stable targets and observable effects.
 
 The user's current preference is **Codex's installed CUA runtime** rather than starting with an open-source driver. Native reuse is demonstrated; browser reuse has a distinct Codex session/access dependency and is not yet demonstrated. Revisit interfaces, operational independence and release terms with the user before making a shipping commitment. Keep the open-source comparison available without implementing multiple providers up front.
+
+The November 9 browser experiments provide working model-free alternatives: Playwright MCP accepted companion-owned browser contexts, Playwriter retained JavaScript page handles over direct CDP, and agent-browser rejected closed pinned targets. These headless local trials do not establish extension takeover, native capture identity or Vision streaming. Browser provider choice can be evaluated separately from native Mac control while retaining the same ownership and presentation boundaries.
 
 The immediate integration is one model-driven simulator request through the real execution and presentation path. The exact tool catalog, voice API choice and larger workflow prompt set remain design work. Broad feasibility retesting and polished handoff UI are not prerequisites for specifying that path.
 

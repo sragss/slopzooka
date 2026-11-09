@@ -1,0 +1,225 @@
+{
+  "date": "2026-11-09",
+  "environment": {
+    "os": "macOS",
+    "chrome": "156.0.8078.80",
+    "node": "24.22.1",
+    "headless": true,
+    "hostFixture": "Loopback HTTP only; unique empty Chrome profile; no account or production data",
+    "modelCalls": 0
+  },
+  "codex": {
+    "appVersion": "26.1023.51421",
+    "inspectedArtifacts": [
+      {
+        "name": "main-UOTY8NmV.js",
+        "bytes": 5250222,
+        "sha256": "ad73b094efd3d5037bceb90b285cb20d6319c4043d3b7f52ee7fade6e3015c7a"
+      },
+      {
+        "name": "browser-client.mjs",
+        "bytes": 170131,
+        "sha256": "c1ca88410dab039d763e668ecc561b4cc1e041bfa289e318a9244c600c373c10"
+      },
+      {
+        "name": "browser-service.mjs",
+        "bytes": 2110036,
+        "sha256": "0c1cb5b13bbe6ae70cea751740e537885a12d53cd076c864cd9154ef6e86e3bb"
+      }
+    ],
+    "probes": [
+      {
+        "interface": "Ordinary Node import of exported setupBrowserRuntime()",
+        "result": "rejected",
+        "error": "Browser use requires a trusted Node REPL browser service"
+      },
+      {
+        "interface": "Normal session-provided mcp__cua_repl.js",
+        "code": "var researchBrowser = await cua.getBrowser({ id: \"chrome\" });",
+        "result": "rejected",
+        "error": "The browser access host is unavailable"
+      },
+      {
+        "interface": "Independent bundled MCP, November 8",
+        "result": "rejected",
+        "error": "Cannot verify browser access without the current turn",
+        "evidence": "../2026-11-08-codex-browser-guidance/browser-discovery.jsonl"
+      }
+    ],
+    "sourceFindings": [
+      "Desktop supplies executor, access-pipe and public verifying identity dynamically, beyond cached plugin manifest.",
+      "Desktop creates Ed25519 keypair and signs browser/access decisions; packaged macOS transport uses native socket-peer authorization.",
+      "Access policy depends on authenticated principal or registered executor and settings. Browser backend commands also carry session/turn identity and turn-ended cleanup.",
+      "Only setupBrowserRuntime is exported by browser-client.mjs; it requires trusted browser RPC."
+    ],
+    "unsupportedActionsPerformed": []
+  },
+  "packages": [
+    {
+      "name": "@playwright/mcp",
+      "version": "0.0.84",
+      "integrity": "sha512-weqLrA7/D8MJzNV9/t3Hnjp100tS2sxFXKeb2gH6Nhktqmdfvx5qRA9AZ5Mhjnre1jY0wltsrRK5VZS5NBgcvw==",
+      "resolved": "https://registry.npmjs.org/@playwright/mcp/-/mcp-0.0.84.tgz",
+      "engines": {
+        "node": ">=18"
+      },
+      "packageJsonSha256": "d060ffefae5e5e4ecff63f3b75d462ae352a24791d42055308955429f6d896d8"
+    },
+    {
+      "name": "playwright",
+      "version": "1.65.0-alpha-2026-10-30",
+      "integrity": "sha512-dmAJMVHKzHvMQjn+XDcaq/pxaZ0W6n8i78rwTM+VGRtQ3WBF5ZiSdB1yL/cyoYUGUMwg3jxN65KqC9cERaCbIg==",
+      "resolved": "https://registry.npmjs.org/playwright/-/playwright-1.65.0-alpha-2026-10-30.tgz",
+      "engines": {
+        "node": ">=20"
+      },
+      "packageJsonSha256": "fe3c6792e66cbf7277d6da6d744afe78db8cfa12138129b6eaa3a83cc1d2da37"
+    },
+    {
+      "name": "playwright-core",
+      "version": "1.65.0-alpha-2026-10-30",
+      "integrity": "sha512-LPMw8B/HRQKMcJeXTqWSrkB/AfCKKmbDQMbu0p7zg8MgibOWaKMjZWR/StAtrQkOxvOmZEju1o1TnPgdoOCwrg==",
+      "resolved": "https://registry.npmjs.org/playwright-core/-/playwright-core-1.65.0-alpha-2026-10-30.tgz",
+      "engines": {
+        "node": ">=20"
+      },
+      "packageJsonSha256": "29b0cb546167aafa439b2a62e4af8caad9f61fce428d34a43b144ce07d69070f"
+    },
+    {
+      "name": "agent-browser",
+      "version": "0.41.2",
+      "integrity": "sha512-/agCKB5rw1EEK8SKWo4zid7a5kOwlclqALC0P3c69buJvKdhrl/dJkKdfLqGGaiNIbWzRdqqT0PxZVkwVEf2fg==",
+      "resolved": "https://registry.npmjs.org/agent-browser/-/agent-browser-0.41.2.tgz",
+      "engines": {
+        "node": ">=24.0.0",
+        "pnpm": ">=11.0.0"
+      },
+      "packageJsonSha256": "cc767c45f80cc6eb8c9e36c92d68338817f993e992ee492a96066f76d8629c27"
+    },
+    {
+      "name": "playwriter",
+      "version": "0.10.0",
+      "integrity": "sha512-UY5GitJSwZvmSnCx3e6vqMadG4pSMURkyIqyIiAhSJaCnfmjjvRw7NPhFkJs3s9mrWbKrPAdSvlvDHzmyvN+uA==",
+      "resolved": "https://registry.npmjs.org/playwriter/-/playwriter-0.10.0.tgz",
+      "engines": null,
+      "packageJsonSha256": "4d8c019c047adc1306ad28d33ba7f52a150b8bf95af39b8e1b818ce306963349"
+    },
+    {
+      "name": "@modelcontextprotocol/sdk",
+      "version": "1.30.0",
+      "integrity": "sha512-xKd8OIzlqNzcqcNumGAa6g+PW2kjD5vrpcKOnfldAUPP3j7lnqMPwlTXQm8gF+UwH72z0lqaRbjr9hqGz0eITA==",
+      "resolved": "https://registry.npmjs.org/@modelcontextprotocol/sdk/-/sdk-1.30.0.tgz",
+      "engines": {
+        "node": ">=18"
+      },
+      "packageJsonSha256": "0690cbe02511a95d1ff199acf20b5a12ac4dfde1bbe30c82a0de73afa92dffc9"
+    }
+  ],
+  "sourcePackageDifferences": [
+    "Reviewed playwright-mcp GitHub head declares Playwright 1.66 alpha; installed npm 0.0.84 resolved 1.65.0-alpha-2026-10-30.",
+    "Reviewed agent-browser GitHub package declares Node >=22; installed npm 0.41.2 declares Node >=24. Tests used Node 24.22.1 (native agent-browser binary)."
+  ],
+  "fixtureResults": [
+    {
+      "case": "Playwright MCP public embedding",
+      "outcome": "pass",
+      "detail": "createConnection(config, contextGetter) served two independently supplied browser contexts through in-memory MCP."
+    },
+    {
+      "case": "Playwright input/iframe/image",
+      "outcome": "pass",
+      "detail": "A saved label MCP A, B incremented only B, iframe button changed; screenshot visually inspected."
+    },
+    {
+      "case": "Playwright disconnect ownership",
+      "outcome": "pass",
+      "detail": "Disconnect A left page A open; B still observed Counter: 1 and listed only its supplied context tab."
+    },
+    {
+      "case": "Playwriter direct-CDP MCP",
+      "outcome": "pass",
+      "detail": "Persistent state.page, semantic fill/click, settings navigation and frame locator worked; fixture server verified actions."
+    },
+    {
+      "case": "Playwriter target scope",
+      "outcome": "observation",
+      "detail": "context.pages() enumerated all six owned test tabs, including pages in the two Playwright contexts. This transport did not enforce per-workspace tab scope."
+    },
+    {
+      "case": "Playwriter closed handle",
+      "outcome": "expected-error",
+      "detail": "Closed state.page returned isError true with closed-page warning; no new fixture increment."
+    },
+    {
+      "case": "agent-browser two pinned sessions",
+      "outcome": "pass",
+      "detail": "Distinct target IDs; A saved Pinned A, B incremented only B; B screenshot saved."
+    },
+    {
+      "case": "agent-browser closed pinned target",
+      "outcome": "expected-error",
+      "detail": "A returned exit 1 / code tab_gone, preserving its former target ID; B retained Counter: 1."
+    }
+  ],
+  "cleanup": {
+    "agentSessions": "Only two named probe sessions closed successfully",
+    "ownedChromeExitCode": 0,
+    "sharedCodexHelper": "Untouched",
+    "mainProbe": "Semantic run released all browser/driver resources, then exited zero after terminal EOF. Final scaffold explicitly releases stdin; separate PTY startup/exit smoke completed with exit zero."
+  },
+  "limits": [
+    "No real signed-in profile or browser extension installation/connection was tested.",
+    "No native window capture association, Vision streaming, lock, sleep, human takeover or model task-success benchmark.",
+    "Latencies in trace are incidental single observations, not comparative performance results.",
+    "No product dependencies or global provider settings changed."
+  ],
+  "sourceFiles": [
+    {
+      "path": "experiments/browser-runtime-probe/probe.mjs",
+      "sha256": "9296330b3356f23e786e6ad6736500c379b1fd93580fdac4c64a8ddb3afcdc8d"
+    },
+    {
+      "path": "experiments/browser-runtime-probe/fixture.html",
+      "sha256": "abba6059358fc24b0328564932fcd09a8f77df806a6c6fb78ef2b8d98670c226"
+    }
+  ],
+  "scaffoldVerification": {
+    "semanticRun": "run-oAVQQK",
+    "finalCleanupSmoke": "run-oEnR66",
+    "finalCleanupSmokeExitCode": 0,
+    "sourceChangesAfterSemanticRun": [
+      "Removed unused path import",
+      "Paused/unreferenced stdin after cleanup so an interactive terminal can exit without an extra EOF"
+    ],
+    "semanticRunSourceSha256": "4817b5e291aebd667acf5ae708d3480a164a3d025f978e4903be451071a2eee9"
+  },
+  "screenshots": [
+    {
+      "name": "pw-a.png",
+      "sha256": "338433d00630f170d25aba8f22b58ab172368d32ad2032366d493578374b7bc7",
+      "bytes": 33695,
+      "width": 1280,
+      "height": 720,
+      "committed": false,
+      "visuallyInspected": true
+    },
+    {
+      "name": "agent-b.png",
+      "sha256": "cde6b1dbfa20b43eedd3f6308e88ab64f1afcc26912c99d673547509dae629ad",
+      "bytes": 30068,
+      "width": 756,
+      "height": 469,
+      "committed": false,
+      "visuallyInspected": false
+    }
+  ],
+  "setupCorrections": [
+    "Initial Playwriter implementation-module entry exited without starting MCP; switched to its actual bin.js entry.",
+    "Initial snapshot screenshot used a relative filename and was moved into ignored run output; reproduction guide specifies absolute paths.",
+    "Interactive stdin needed EOF after cleanup; final scaffold releases it and exit smoke passed."
+  ],
+  "officialReferences": [
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://developers.openai.com/codex/app-server"
+  ]
+}

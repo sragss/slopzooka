@@ -75,6 +75,8 @@ Both should call the same providers. Do not build both interfaces up front. Tool
 
 **November 8 preference:** start by exploring Codex's installed MCP/CUA runtime as the control provider. Its persistent JavaScript interface and dynamically supplied guidance are the preferred candidate, following the successful independent native-app experiment. Browser control uses a separate backend with turn-scoped access dependencies; our independent browser discovery failed that check. See [interfaces, collected guidance and the later tradeoff review](2026-11-08-codex-browser-and-guidance.md). Preserve workspace/session and `WindowGateway` ownership; this choice does not require another durable orchestration layer or parallel production drivers.
 
+**November 9 browser evidence:** [local provider trials](2026-11-09-browser-runtime-options.md) demonstrated public Playwright MCP context injection, Playwriter's persistent code interface and agent-browser's strict closed-tab failure. Keep browser lifetime under the companion even when tool clients disconnect. The tests also showed that a browser-wide CDP connection can expose other workspace tabs, and that model observations may be host-local file links. Those ownership and artifact-delivery details belong in the shared adapter; they do not require another coordinator.
+
 ### Workspace naming
 
 Explicit user requirement: the orchestrator names workspaces automatically so the user can recognize the work without remembering generated worktree names. Manual naming should be optional, not a setup step or a dependency for useful labels.
