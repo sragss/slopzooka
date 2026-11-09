@@ -16,6 +16,8 @@ Local source baseline: planning worktree `bcf17af`, with the merged client/gatew
 
 ## 2. Permissions and who should own them
 
+**Default product flow:** after the companion has the required grants, the agent discovers and selects windows/displays programmatically. The user does **not** pick each window in Apple's sharing picker. The picker is an optional manual-sharing route, not a prerequisite for agent-driven capture.
+
 | Capability | Permission or prerequisite | SlopZooka implication |
 | --- | --- | --- |
 | Capture a user-selected window/display with the system picker | `SCContentSharingPicker` provides selection-scoped authorization for the capture session on supported macOS versions | Good manual “share this app” flow; the user still selects content in trusted system UI |
@@ -42,6 +44,35 @@ The existing [`Info.plist`](../apps/mac-menu/Info.plist) declares `com.slopzooka
 Apple lists assistive Accessibility APIs among activities restricted by App Sandbox. That favors the existing separately distributed Mac companion for broad cross-app control; do not assume a sandboxed Mac App Store build can do it just by adding a permission prompt. The Vision app can retain its normal distribution model. [App Sandbox limitations](https://developer.apple.com/documentation/security/protecting-user-data-with-app-sandbox).
 
 Our own capture/input service does not require enabling macOS's built-in Screen Sharing/VNC server. Ordinary capture/control also does not imply Full Disk Access or a root daemon. Apple offers a managed `com.apple.developer.persistent-content-capture` entitlement for VNC applications, requiring Apple's permission. It is a separate possible unattended-access investigation, not an entitlement we can assume or a documented promise of control behind the lock screen. [Persistent capture entitlement](https://developer.apple.com/documentation/bundleresources/entitlements/com.apple.developer.persistent-content-capture).
+
+### Product requirement: clear permission setup and repair
+
+Added November 8 at the user's request. Provide a compact **Screen sharing and control** setup view in the Mac companion, reachable both during onboarding and later from its menu/settings. Show detected status beside each capability and a direct action to open its System Settings page. This is a planned production feature; the probe's existing grants do not implement this onboarding flow.
+
+| Row | Explanation | Action when access is missing |
+| --- | --- | --- |
+| **Screen sharing** | Let SlopZooka show Mac windows in Vision Pro. | **Enable screen sharing**, then **Open Screen Recording Settings** when a settings change is needed |
+| **Control apps** | Let your agents click, type and navigate Mac apps. | **Enable app control**, then **Open Accessibility Settings** when a settings change is needed |
+
+Use clear states such as **Checking**, **Needs access**, and **Allowed**, with a checkmark as well as text. Show **Restart required** only when the granted permission has not become usable and relaunch is actually indicated. The public boolean checks do not distinguish every denial/not-yet-requested condition, so do not invent a more precise authorization history. Permission being allowed is separate from a particular window/stream being ready.
+
+The first enable action requests the relevant OS authorization from the stable signed process that will capture/control apps. Passive status checks must not prompt. For capture, use `CGPreflightScreenCaptureAccess`; for Accessibility use the nonprompting trust check; verify event-posting access separately before exposing generic mouse/keyboard input. Clicking a button or opening Settings never sets the row to Allowed by itself. Apple's AX prompt is asynchronous and does not change the check's return value. [Capture preflight](https://developer.apple.com/documentation/coregraphics/cgpreflightscreencaptureaccess()), [capture request](https://developer.apple.com/documentation/coregraphics/cgrequestscreencaptureaccess()), [AX trust and prompting](https://developer.apple.com/documentation/applicationservices/1459186-axisprocesstrustedwithoptions).
+
+On returning from System Settings, refresh automatically. While the setup view is visible, a modest, nonprompting status refresh can update the checkmarks without requiring a relaunch; also offer **Check again**. Stop that refresh when the view is closed. After a grant, verify the relevant capability on an authorized target before calling an operation ready; do not run unsolicited input against another app just to test a permission. If relaunch is necessary, explain it and offer **Restart companion** through existing supervision, preserving the session service and its PTYs. Do not automatically restart the app because a permission flag changed.
+
+Keep System Settings navigation in one native helper, keyed by permission kind. Candidate pane URLs are `x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture` and `x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility`. These pane identifiers are compatibility details to verify on supported macOS releases, not a guaranteed public navigation contract. If a deep link fails or reaches the wrong page, retain plain instructions for **System Settings → Privacy & Security → Screen & System Audio Recording / Accessibility**, and a way to open System Settings itself. Use the permission label shown on the actual OS. URL-open success only establishes that the request was accepted, not that the correct pane appeared.
+
+The native provider owns permission observations. Expose the same current facts through the existing companion bridge to onboarding, Vision's launcher/wrist UI, and agent/MCP handlers. Do not add independent permission caches or an agent-specific setup wizard. From Vision, the action should say **Open settings on Mac** and identify the paired Mac; it opens that Mac's settings, never a misleading headset settings page. Keep a status result available in Vision while the user completes setup on the Mac.
+
+Missing access should block only the affected capture/control operation and return the actionable setup state to the agent. Existing terminals and unrelated work remain usable. Lock state, missing native provider, disconnected Mac and unavailable target are separate conditions; none should be mislabeled as permission denial. Revocation updates the same state and stops/rejects affected operations. Microphone, Input Monitoring and Automation requests belong only to features that actually need them, rather than this basic two-row setup.
+
+Acceptance checks for the actual signed package:
+
+- Fresh install and partial grant: correct rows/actions; a prompt or settings launch alone never produces a green state.
+- Return from Settings: automatic recheck; grant becoming usable immediately versus requiring a relaunch; existing terminal sessions survive any offered companion restart.
+- Revocation and app update: current status reflects the process that performs the work; stable signing and actual permission attribution are checked. Apple's DTS confirms ad-hoc signing can make rebuilds appear as new apps to privacy controls. [Signing finding](https://developer.apple.com/forums/thread/819406).
+- Settings navigation: both deep links and fallback instructions work on supported OS versions; no prompts recur from passive checks, and no automatic input is used to grant permissions.
+- Vision/agent invocation: the selected Mac receives the setup action; status agrees with the Mac view; locked/disconnected/provider-unavailable states produce the right recovery action.
 
 ## 3. Moving and resizing: three different operations
 
