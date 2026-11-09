@@ -144,6 +144,20 @@ The recommended Pi integration is deliberately small:
 
 This research did not install a new agent skill, modify global Codex settings, alter browser permissions, or change production code. The next product experiment should prove one actual request through the selected provider and our presentation gateway, with the native/browser distinction explicit.
 
+### November 9 audit: desktop runtime versus CLI itself
+
+The research, native Chrome correction, background-extension mechanisms, reuse limits and proposed tests are linked from the [research index](2026-11-01-agent-surfaces-index.md) and included in draft PR #39. The guidance collection is also present, rather than merely proposed: all **52 cached files still match both their manifest and the installed source bytes**. The inspected `browser` and `unified-computer-use` plugin roots contain zero `SKILL.md` files. Their operational guidance arrives through MCP descriptions, first-use results and conditional runtime documents.
+
+To distinguish this from the CLI itself, the audit additionally collected **nine public CLI source/reference files** at the release matching the installed `codex-cli 0.167.0`. GitHub's `rust-v0.167.0` tag resolves to commit `086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a`. The [CLI collection manifest](evidence/2026-11-09-browser-runtimes/cli-guidance.json) records exact paths, source URLs, Git blob SHAs and local hashes. Files are cached under:
+
+```text
+experiments/codex-runtime-probe/build/cli-guidance/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/
+```
+
+That collection includes the real skill-use prompt/catalog renderer, skill context injection, bundled-skill loading, generic base instructions, computer-use configuration/protocol types and the bundled cleanup-hook mapping. The full release tree contains five `SKILL.md` sample paths—image generation, OpenAI docs, review agent, skill creation and skill installation—and no dedicated browser/Mac CUA skill. This is a scoped repository finding, not a claim that no separately distributed OpenAI skill exists. [Release source](https://github.com/openai/codex/tree/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a), [skill-use instructions](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/catalog_prompt.rs), [cleanup hooks](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/plugin/src/bundled_hooks.rs).
+
+The distinction matters when implementing Pi: **the 52 runtime documents and live tool outputs teach the model to operate the CUA provider; the CLI sources explain generic skill loading, policy and lifecycle plumbing.** Neither collection is a finished Pi integration or a newly installed SlopZooka skill. Preserve the provider's current descriptions, first-use guidance, image/text results and turn-end hooks through the small adapter described above. Add our workspace/surface instructions there; do not paste all collected source or every platform's docs into the permanent prompt. OpenAI's public skill guidance likewise describes loading relevant skill bodies on demand. [Official skill authoring guidance](https://learn.chatgpt.com/docs/build-skills).
+
 ## Verification
 
 The collector ran successfully. Python syntax, all 52 source/cache file hashes, inspected runtime artifact hashes, the frozen probe-source hash, JSON/JSONL error and cleanup evidence, local Markdown links/fences and whitespace checks passed. The standalone browser probe is an expected recorded rejection, not a successful browser-control test. Production and headset tests were not rerun for this research-only update.

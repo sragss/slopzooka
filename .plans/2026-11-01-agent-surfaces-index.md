@@ -17,6 +17,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 11. [Deeper browser-runtime investigation](2026-11-09-browser-runtime-options.md): the actual desktop access-host provisioning, additional Codex boundary checks, six OSS options and local Playwright MCP / Playwriter / agent-browser trials. Includes caller-owned context injection, strict tab-closure failure and shared-browser authority limits.
 12. [Background Chrome extension control](2026-11-09-background-browser-control.md): official extension package inspection, tab-targeted CDP, focus emulation, logical versus visibly selected tabs, turn cleanup, and the distinct requirements for streaming the same page without taking desktop focus. Includes a narrow live qualification matrix; no extension was installed or live-tested.
 
+Guidance is already collected locally: the [guidance audit](2026-11-08-codex-browser-and-guidance.md#november-9-audit-desktop-runtime-versus-cli-itself) distinguishes 52 verified installed-runtime documents from nine release-matched public CLI source/reference files. It identifies what a future Pi adapter should load dynamically and what remains implementation work.
+
 ## Supporting research
 
 | Document | Contents |
