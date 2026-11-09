@@ -1,0 +1,295 @@
+{
+  "researchDateLocal": "2026-11-08",
+  "timezone": "America/New_York",
+  "recordedAtUTC": "2026-11-09T02:38:26Z",
+  "method": "Primary-source documentation and selected implementation review through GitHub/OpenAI Docs; one read-only call from ordinary Node to the locally installed Codex JS client.",
+  "scopeLimits": [
+    "Open-source drivers were not installed or executed.",
+    "Upstream live-test and performance reports were not independently reproduced.",
+    "No macOS permission, window, focus, clipboard, app configuration or repository dependency was changed by the compatibility probe.",
+    "Unpinned secondary sources retain their content blob hashes; revision=null is not a pinned tree."
+  ],
+  "repositories": {
+    "openclaw/Peekaboo": "69764083b16397845dc68b5c0ddb4f674290ae70",
+    "trycua/cua": "fd059df668826e0568f9db1c63635d67726b38ed",
+    "vercel-labs/agent-desktop": "b43ac4f6e892ef608f8851428613c4009f0e84c7",
+    "browser-use/macos-harness": "43d9edf8286153482348b15f7d8c22d9e38f6c6b",
+    "munimtechnologies/munim-computer-use": "883a4e181409f203b4b51f8219d88e0af43b1034",
+    "hyprcat/mac-cua": "362393e312de500597146b13b6f5a428462f6ce2",
+    "huytieu/computer-harness": "cea3a9459d08e1eeafefe0fc4b6c2fa39dc31129"
+  },
+  "files": [
+    {
+      "label": "Peekaboo README",
+      "repository": "openclaw/Peekaboo",
+      "path": "README.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "aed9998ae8c1d62592560711ceba58a2cfe6f7ac",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/README.md"
+    },
+    {
+      "label": "Browser Use README",
+      "repository": "browser-use/macos-harness",
+      "path": "README.md",
+      "revision": "43d9edf8286153482348b15f7d8c22d9e38f6c6b",
+      "gitBlobSha": "63928b221d73fc03b9015f16a2c4bec15136ecc3",
+      "url": "https://github.com/browser-use/macos-harness/blob/43d9edf8286153482348b15f7d8c22d9e38f6c6b/README.md"
+    },
+    {
+      "label": "Munim README",
+      "repository": "munimtechnologies/munim-computer-use",
+      "path": "README.md",
+      "revision": "883a4e181409f203b4b51f8219d88e0af43b1034",
+      "gitBlobSha": "979d32dbbdcf5c7aa5d00e4ef71ba8fa0c30535f",
+      "url": "https://github.com/munimtechnologies/munim-computer-use/blob/883a4e181409f203b4b51f8219d88e0af43b1034/README.md"
+    },
+    {
+      "label": "mac-cua README",
+      "repository": "hyprcat/mac-cua",
+      "path": "README.md",
+      "revision": "362393e312de500597146b13b6f5a428462f6ce2",
+      "gitBlobSha": "9cfb651dfc689abc4d201324128ee5e8570b9d81",
+      "url": "https://github.com/hyprcat/mac-cua/blob/362393e312de500597146b13b6f5a428462f6ce2/README.md"
+    },
+    {
+      "label": "computer-harness README",
+      "repository": "huytieu/computer-harness",
+      "path": "README.md",
+      "revision": "cea3a9459d08e1eeafefe0fc4b6c2fa39dc31129",
+      "gitBlobSha": "c6dc90064e77ab2b4de64984248a5ad1ff009d24",
+      "url": "https://github.com/huytieu/computer-harness/blob/cea3a9459d08e1eeafefe0fc4b6c2fa39dc31129/README.md"
+    },
+    {
+      "label": "peekLicense",
+      "repository": "openclaw/Peekaboo",
+      "path": "LICENSE",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "f7b526698bb7ed2d26d96c49f2f32234c88f69bc",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/LICENSE"
+    },
+    {
+      "label": "peekPackage",
+      "repository": "openclaw/Peekaboo",
+      "path": "Package.swift",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "3178e0e44c8691a81b73338f44c2be0168d7972c",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/Package.swift"
+    },
+    {
+      "label": "peekBridge",
+      "repository": "openclaw/Peekaboo",
+      "path": "docs/bridge-host.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "b97b019feb4ce56ab8824494e7dc0095093c2212",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/docs/bridge-host.md"
+    },
+    {
+      "label": "peekTests",
+      "repository": "openclaw/Peekaboo",
+      "path": "docs/testing/background-computer-use.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "fef123ae6081565018d1ed09ead8d9467afff5fc",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/docs/testing/background-computer-use.md"
+    },
+    {
+      "label": "peekPlatform",
+      "repository": "openclaw/Peekaboo",
+      "path": "docs/platform-support.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "c565b044a25860400c80f42429d9565ea3a4042e",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/docs/platform-support.md"
+    },
+    {
+      "label": "peekAutomation",
+      "repository": "openclaw/Peekaboo",
+      "path": "docs/automation.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "01d779b86e997f61bdbbf7f6a131bce3c1eba7ff",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/docs/automation.md"
+    },
+    {
+      "label": "cuaReadmePinned",
+      "repository": "trycua/cua",
+      "path": "README.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "2fd153f7bbd28e26c69dc67bd436393b0e6b6337",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/README.md"
+    },
+    {
+      "label": "cuaDriverPinned",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/README.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "7bfd33af154f1f5e4c92433e3cd74117150e35e1",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/README.md"
+    },
+    {
+      "label": "cuaLicensePinned",
+      "repository": "trycua/cua",
+      "path": "legal/LICENSING.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "dd7415bb1b3352e7b5636b50ba4af5d694538926",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/legal/LICENSING.md"
+    },
+    {
+      "label": "cuaEmbed",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/rust/Skills/cua-driver/EMBEDDING.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "2fa3cf262d11dace273fbde7efd03da113409243",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/rust/Skills/cua-driver/EMBEDDING.md"
+    },
+    {
+      "label": "cuaActions",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/docs/action-support.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "edb288978ccc7ac6ab5f5106bdb55c41dd021705",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/docs/action-support.md"
+    },
+    {
+      "label": "cuaMacInput",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "f9d215a729a73cc3d5db72ed53cf2fae7fc6f135",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/rust/crates/platform-macos/src/input/skylight.rs"
+    },
+    {
+      "label": "cuaPress",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/rust/crates/platform-macos/src/tools/press_key.rs",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "1df0969a23682831b7a897e459b6d17969048ba5",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/rust/crates/platform-macos/src/tools/press_key.rs"
+    },
+    {
+      "label": "cuaMCP",
+      "repository": "trycua/cua",
+      "path": "libs/cua-driver/docs/mcp-protocol-and-skills.md",
+      "revision": "fd059df668826e0568f9db1c63635d67726b38ed",
+      "gitBlobSha": "3852474e02881699f02a9ac2ddcec7ef53ebdae1",
+      "url": "https://github.com/trycua/cua/blob/fd059df668826e0568f9db1c63635d67726b38ed/libs/cua-driver/docs/mcp-protocol-and-skills.md"
+    },
+    {
+      "label": "vercelReadme",
+      "repository": "vercel-labs/agent-desktop",
+      "path": "README.md",
+      "revision": "b43ac4f6e892ef608f8851428613c4009f0e84c7",
+      "gitBlobSha": "32dee9630df91348cb7202f5e4329b30b5237e3c",
+      "url": "https://github.com/vercel-labs/agent-desktop/blob/b43ac4f6e892ef608f8851428613c4009f0e84c7/README.md"
+    },
+    {
+      "label": "vercelLicense",
+      "repository": "vercel-labs/agent-desktop",
+      "path": "LICENSE",
+      "revision": "b43ac4f6e892ef608f8851428613c4009f0e84c7",
+      "gitBlobSha": "d645695673349e3947e8e5ae42332d0ac3164cd7",
+      "url": "https://github.com/vercel-labs/agent-desktop/blob/b43ac4f6e892ef608f8851428613c4009f0e84c7/LICENSE"
+    },
+    {
+      "label": "vercelFAQ",
+      "repository": "vercel-labs/agent-desktop",
+      "path": "docs/faq.md",
+      "revision": "b43ac4f6e892ef608f8851428613c4009f0e84c7",
+      "gitBlobSha": "d2704c3fca7b4f604710b70e40f6941ba425c202",
+      "url": "https://github.com/vercel-labs/agent-desktop/blob/b43ac4f6e892ef608f8851428613c4009f0e84c7/docs/faq.md"
+    },
+    {
+      "label": "vercelOutput",
+      "repository": "vercel-labs/agent-desktop",
+      "path": "docs/json-output.md",
+      "revision": "b43ac4f6e892ef608f8851428613c4009f0e84c7",
+      "gitBlobSha": "03fadda8cd527f4cae6a478a8a22c8928b5f45f8",
+      "url": "https://github.com/vercel-labs/agent-desktop/blob/b43ac4f6e892ef608f8851428613c4009f0e84c7/docs/json-output.md"
+    },
+    {
+      "label": "macHarnessLicense",
+      "repository": "browser-use/macos-harness",
+      "path": "LICENSE",
+      "revision": "43d9edf8286153482348b15f7d8c22d9e38f6c6b",
+      "gitBlobSha": "271d8e2807d0d79aee85a231f5c9dbb007902783",
+      "url": "https://github.com/browser-use/macos-harness/blob/43d9edf8286153482348b15f7d8c22d9e38f6c6b/LICENSE"
+    },
+    {
+      "label": "munimLicense",
+      "repository": "munimtechnologies/munim-computer-use",
+      "path": "LICENSE",
+      "revision": "883a4e181409f203b4b51f8219d88e0af43b1034",
+      "gitBlobSha": "4983aca6f098c1bf96e595f68ce3f5e25566c702",
+      "url": "https://github.com/munimtechnologies/munim-computer-use/blob/883a4e181409f203b4b51f8219d88e0af43b1034/LICENSE"
+    },
+    {
+      "label": "Peekaboo architecture",
+      "repository": "openclaw/Peekaboo",
+      "path": "docs/ARCHITECTURE.md",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "d70d27bb6054a46b5d39731342251c97a3eb2435",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/docs/ARCHITECTURE.md"
+    },
+    {
+      "label": "Peekaboo background driver",
+      "repository": "openclaw/Peekaboo",
+      "path": "Core/PeekabooAutomationKit/Sources/PeekabooAutomationKit/Services/UI/BackgroundInputDriver.swift",
+      "revision": "69764083b16397845dc68b5c0ddb4f674290ae70",
+      "gitBlobSha": "a3043d91c2a96a3b68da0d670d743757833732c0",
+      "url": "https://github.com/openclaw/Peekaboo/blob/69764083b16397845dc68b5c0ddb4f674290ae70/Core/PeekabooAutomationKit/Sources/PeekabooAutomationKit/Services/UI/BackgroundInputDriver.swift"
+    },
+    {
+      "label": "Browser Use event routing",
+      "repository": "browser-use/macos-harness",
+      "path": "src/macos_harness/events.py",
+      "revision": "43d9edf8286153482348b15f7d8c22d9e38f6c6b",
+      "gitBlobSha": "b27391a0db6466c8cb668be19b82301f4a8a67b7",
+      "url": "https://github.com/browser-use/macos-harness/blob/43d9edf8286153482348b15f7d8c22d9e38f6c6b/src/macos_harness/events.py"
+    },
+    {
+      "label": "Mediar wrapper package",
+      "repository": "mediar-ai/mcp-server-macos-use",
+      "path": "Package.swift",
+      "revision": null,
+      "gitBlobSha": "be2f83aa4b1ef8568f7eea848a1ed3d71f6b8d50",
+      "url": "https://github.com/mediar-ai/mcp-server-macos-use/blob/main/Package.swift"
+    },
+    {
+      "label": "Mediar SDK README",
+      "repository": "mediar-ai/MacosUseSDK",
+      "path": "README.md",
+      "revision": null,
+      "gitBlobSha": "09820d974930d6b07aeaa09b5ddefa409dadc67d",
+      "url": "https://github.com/mediar-ai/MacosUseSDK/blob/main/README.md"
+    },
+    {
+      "label": "mac-cua license",
+      "repository": "hyprcat/mac-cua",
+      "path": "LICENSE",
+      "revision": "362393e312de500597146b13b6f5a428462f6ce2",
+      "gitBlobSha": "c50875f8e33d0a442dbbc5a7f615ddef188636b0",
+      "url": "https://github.com/hyprcat/mac-cua/blob/362393e312de500597146b13b6f5a428462f6ce2/LICENSE"
+    }
+  ],
+  "officialDocs": [
+    "https://developers.openai.com/api/docs/guides/tools-computer-use",
+    "https://developers.openai.com/api/docs/guides/tools-computer-use-integration#use-your-own-ui-tools",
+    "https://developers.openai.com/api/docs/guides/tools-computer-use-sdk-drivers",
+    "https://developers.openai.com/api/docs/guides/realtime",
+    "https://developers.openai.com/api/docs/guides/voice-server-controls?api=realtime"
+  ],
+  "localProbe": {
+    "runtime": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+    "client": "@oai/sky@0.7.13",
+    "importPath": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js",
+    "artifactManifest": "../2026-11-08-codex-harness/manifest.json",
+    "operation": "new MacComputerUseClient({timeoutSeconds: 2}).listApps()",
+    "hostRuntimeInjected": false,
+    "turnMetadataSupplied": false,
+    "result": {
+      "probe": "ordinary-node-read-only-listApps",
+      "status": "rejected",
+      "errorName": "SkyComputerUseTransportError",
+      "message": "Sky Computer Use requires the trusted nodeRepl runtime",
+      "elapsedMs": 1
+    },
+    "interpretation": "The installed wrapper rejected ordinary Node before native connection. Native sender authorization, app approval, screenshots and actions were not exercised; this does not prove every third-party integration impossible."
+  }
+}
