@@ -68,6 +68,28 @@ The public CLI's source availability is not a license for the bundled native/bro
 
 Before committing to this runtime for a release, get a concrete answer on calling a user's existing installation from our companion, using non-OpenAI models with it, whether any component may be packaged, and what compatibility/support contract exists. Keep vendor binaries and copied guidance out of the repo/distribution meanwhile; our experiments dynamically use the installed provider. This is an unresolved product-dependency question, not a claim that the experiment established permission to ship.
 
+## An owned Chrome extension is a bounded alternative
+
+**User follow-up:** could we implement the browser capabilities ourselves now that we understand the interface? **Yes, the core looks tractable.** This is an engineering assessment based on public Chrome APIs and our earlier inspection, not a new working extension or a commitment to reproduce every Codex feature.
+
+The proposed path is: **Pi or terminal Codex → companion browser tools → native-messaging bridge → our extension → Chrome's tab-targeted CDP**. The extension needs a small host/browser adapter as well; replacing only the extension underneath Codex's existing service would leave that service's upstream authorization checks intact. Our own path uses our own connection and task ownership, independent of which model acts.
+
+Chrome's debugger API accepts tab-specific commands and exposes the Accessibility, DOM, Runtime, Input, Page, Emulation and Target domains. That supplies the building blocks for page observations, screenshots, navigation and background page input. It also exposes frame/target and detach handling that our adapter must implement correctly. Background operation must be verified against the real selected tab and native focus, not inferred from a page's emulated visibility. [Debugger API](https://developer.chrome.com/docs/extensions/reference/api/debugger).
+
+Keep the implementation boundary narrow:
+
+- **Extension:** target tabs, relay supported CDP commands/events, report detach/closure and show a small control/Stop indicator. Chrome supplies the browser engine, profile and rendering.
+- **Companion browser adapter:** own ephemeral target/session grants, serialize input per target, produce useful element references/AX observations, return images, and stop stale queued work. One implementation serves Pi and coding-agent MCP. Workspace ownership remains in existing Mac services; presentation remains in `WindowGateway`.
+- **Native-messaging bridge:** register our extension's allowed origin and relay to the existing companion rather than start another workspace/session service. Chrome launches the bridge process for the connection; our already-running companion remains the resource owner. [Native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
+
+The maintenance burden is primarily edge behavior: navigation invalidating element references, cross-process iframes, popup ownership, DevTools/debugger detach, browser/bridge restart, same-tab competition and human takeover. A modern active debugger/native-messaging connection can keep the MV3 service worker alive, but restart handling is still required. Native OS dialogs leave this page-control path. Different tabs also share profile cookies unless we deliberately choose separate profiles. [Worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle).
+
+**Control does not settle media.** Our extension can request page screenshots for the agent. For a first Vision demo, retain selected tabs in dedicated unfocused native windows and the existing capture/encoding path, then qualify exact target association. Direct tab video is a separate test: `tabCapture` exposes media but has user-invocation requirements. Do not promise unattended arbitrary-tab streaming, locked operation or unlimited active surfaces from debugger access alone. Continuous video should not ride as a sequence of giant native-messaging JSON messages. [Tab capture](https://developer.chrome.com/docs/extensions/reference/api/tabCapture).
+
+**Smallest discriminating prototype:** our extension plus a bridge, two disposable tabs, one read/act/screenshot loop, and two clients. Verify independent background input while the human uses a third target; reject competing ownership of one tab; Stop A without affecting B; recover from bridge restart and target navigation. Defer video transport, full browser-product UI, arbitrary JavaScript REPLs and native dialogs until the control path works. No extension has been built or installed in this follow-up.
+
+This is now a concrete candidate to compare with further private-runtime integration. It can remove the OpenAI-specific browser authorization and redistribution dependency while retaining the preferred Codex native-Mac path as a separate decision. It does not require a Chromium fork, new durable coordinator or parallel window manager.
+
 ## Small remaining qualification plan
 
 | Gate | Concrete acceptance evidence |
