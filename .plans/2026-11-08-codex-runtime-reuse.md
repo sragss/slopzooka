@@ -107,12 +107,12 @@ The lower native transport is also identifiable: UTF-8 JSON-RPC messages with a 
 
 An experimental **Codex-runtime provider** is now technically plausible: the companion starts the installed launcher, maps Pi tools to its `js` calls, forwards observations, and handles app approvals and cancellation. Terminal agents could reach that same companion-owned provider through our MCP. This would use Codex's native machinery while keeping our own coordinator and surface ownership.
 
-This finding does not choose a shipping dependency. Still unresolved:
+**Subsequent user preference:** use this installed Codex runtime as the preferred direction, with a deliberate interface/tradeoff review before a shipping commitment. The [browser/guidance follow-up](2026-11-08-codex-browser-and-guidance.md) records that decision, collected model guidance and a separate browser discovery failure. Still unresolved:
 
 1. Cold start when the ChatGPT/Codex app is closed; fresh installation, missing permissions, account requirements and a different host identity.
 2. Helper restart, application updates, protocol changes and lifecycle cleanup without a Codex-managed turn.
 3. Exact multi-window control, foreground behavior, human takeover, simultaneous agents and locked-screen behavior.
-4. Browser-provider reuse and its separate profile/access requirements; only the native computer provider was enabled here.
+4. Browser-provider reuse and its separate profile/access requirements; only the native computer provider was enabled here. A later standalone browser-only call initialized successfully but rejected discovery with “Cannot verify browser access without the current turn.” Native success must not be generalized to that provider.
 5. Embedding/distribution terms. The earlier proprietary-component finding is unchanged; local functionality does not create a license grant.
 6. Continuous streaming. This experiment returned observations, not a video stream. Keep our tested media path and associate it with the exact controlled surface.
 

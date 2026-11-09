@@ -11,8 +11,9 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 5. [Streaming strategy clarification](macos-window-streaming.md#8-streaming-strategy-review-november-6-2026): tested H.264/native rendering, the HEVC comparison, simulator JPEG transcoding, direct LAN versus peer-to-peer Wi-Fi, and why Foveated Streaming is a different workload.
 6. [Mac codec benchmarks](2026-11-08-mac-codec-benchmarks.md): 26 hardware encode/decode cases, raw evidence and test journal; retain H.264 initially, compare ordinary real-time HEVC on the headset, and test JPEG→H.264 fallback transcoding.
 7. [Codex Mac CUA harness inspection](2026-11-08-codex-computer-use-harness.md): official docs, pinned CLI source and installed runtime inspection; concrete observations/actions, native IPC, cleanup hooks, identity limits, background/locked behavior and the small pieces worth adopting.
-8. [Open-source Mac CUA options](2026-11-08-macos-cua-options.md): Peekaboo/Cua Driver shortlist, alternative runtimes, source-level background-input findings, OpenAI custom-tool integration, a local Codex import probe and the narrow comparison needed before choosing a provider.
+8. [Open-source Mac CUA options](2026-11-08-macos-cua-options.md): comparison/fallback providers, source-level background-input findings, OpenAI custom-tool integration and a local Codex import probe. The later Codex preference below supersedes the initial open-source-first evaluation order.
 9. [Working Codex runtime reuse experiment](2026-11-08-codex-runtime-reuse.md): the bundled MCP launcher successfully drove a disposable Mac app from our own independent launcher, without a new Codex agent or supplied turn metadata. Includes the concrete unstable interface, verified effects and a shortcut that did not produce its intended effect.
+10. [Codex preference, Chrome backend and guidance](2026-11-08-codex-browser-and-guidance.md): prefer the installed Codex runtime, with an interface/tradeoff review before committing to ship it. Browser-specific APIs, local guidance collection, and the standalone browser probe's separate session-authorization failure.
 
 ## Supporting research
 
@@ -27,6 +28,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 ## Current direction
 
 Use a small Pi coordinator in the existing Mac companion, with the chosen voice frontend delegating tasks. Terminal coding agents access the same application handlers through MCP. Existing services retain workspace/process ownership, providers own capture/control, and Vision's existing `WindowGateway` retains presentation ownership. The model discovers how to launch and navigate an app; application code supplies stable targets and observable effects.
+
+The user's current preference is **Codex's installed CUA runtime** rather than starting with an open-source driver. Native reuse is demonstrated; browser reuse has a distinct Codex session/access dependency and is not yet demonstrated. Revisit interfaces, operational independence and release terms with the user before making a shipping commitment. Keep the open-source comparison available without implementing multiple providers up front.
 
 The immediate integration is one model-driven simulator request through the real execution and presentation path. The exact tool catalog, voice API choice and larger workflow prompt set remain design work. Broad feasibility retesting and polished handoff UI are not prerequisites for specifying that path.
 

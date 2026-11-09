@@ -47,3 +47,9 @@ For an interactive fixture test, run the client with `--fixture`; each input lin
 On completion, close only the owned MCP process group and the fixture PID after verifying its executable path. Normalize `/tmp` and `/private/tmp` when comparing identity. Do not terminate the shared `SkyComputerUseService`, alter its permissions or close the user's Codex application. The test clients do not mutate installed configuration or request persisted app approvals.
 
 The successful smoke tests do not qualify every key chord, background action, permission state or runtime version. In particular, the select-all trial did not establish the requested selection, despite a non-error response. The observed fixture results, including that limitation, are authoritative.
+
+## Local guidance collection
+
+Run `python3 experiments/codex-runtime-probe/collect-guidance.py` to copy documentation from the inspected app version into ignored `build/guidance/26.1023.51421/`. The script verifies the app version and ignored destination, then records source paths, lengths and SHA-256 hashes. It does not launch/control applications or modify Codex configuration. Vendor documentation remains local; the repository contains our summaries and fingerprints. Use live MCP descriptions and first-use documentation when driving the runtime rather than treating this cache as a permanent prompt.
+
+The [browser and guidance follow-up](../../.plans/2026-11-08-codex-browser-and-guidance.md) records the 52-file collection and a read-only browser variant of the native probe. That variant preserved the installed preloader and trusted-service configuration, enabled only `browser`, and called `cua.listBrowsers()`. MCP startup worked; browser discovery rejected missing current-turn authorization. Its output is [recorded separately](../../.plans/evidence/2026-11-08-codex-browser-guidance/browser-discovery.jsonl). This is not evidence of successful browser reuse.

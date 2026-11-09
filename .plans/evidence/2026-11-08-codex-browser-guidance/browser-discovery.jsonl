@@ -1,0 +1,5 @@
+{"stage": "runtime-environment", "inheritedTaskVariables": [], "turnMetadataSent": false}
+{"stage": "initialize", "serverInfo": {"name": "rmcp", "version": "1.5.0"}, "protocolVersion": "2025-06-18", "error": null}
+{"stage": "tools/list", "tools": ["js", "js_add_node_module_dir", "js_reset", "turn_ended"], "error": null}
+{"stage": "listBrowsers", "isError": true, "contentTypes": ["text", "text"], "textBytes": 19087, "errorExcerpts": [], "textSummaries": [{"bytes": 53, "preview": "Cannot verify browser access without the current turn"}, {"bytes": 19034, "preview": "[bootstrap API documentation]"}], "rpcError": null}
+{"stage": "cleanup", "returnCode": 0, "diagnostics": []}
