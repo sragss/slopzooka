@@ -1,0 +1,149 @@
+{
+  "recordedAt": "2026-11-09T21:39:22.996480+00:00",
+  "scope": "One explicitly user-authorized disposable Codex task, started by an independent App Server client, testing the genuine installed browser runtime.",
+  "desktopVersion": "26.1103.60933",
+  "appServerVersion": "0.167.0",
+  "model": "gpt-6.1-sol",
+  "modelOverrideSupplied": false,
+  "userAuthorization": "User approved starting one disposable Codex task scoped to fixture /b.",
+  "configuration": {
+    "clientName": "slz_browser_qualification",
+    "ephemeral": true,
+    "workingDirectory": "new empty temporary directory",
+    "sandbox": {
+      "type": "readOnly",
+      "networkAccess": false
+    },
+    "mcpServer": "slz_browser_probe",
+    "runtime": "genuine installed MCP launcher, browser surface only",
+    "otherTaskIdentityCopied": false,
+    "accessHostPipeOrVerifyingIdentityCopied": false,
+    "personalConfigurationChanged": false
+  },
+  "boundaries": [
+    {
+      "boundary": "App Server connection",
+      "result": "passed"
+    },
+    {
+      "boundary": "server-issued thread/session and turn",
+      "result": "passed"
+    },
+    {
+      "boundary": "genuine MCP startup/catalog",
+      "result": "passed",
+      "toolNames": [
+        "turn_ended",
+        "js_add_node_module_dir",
+        "js",
+        "js_reset"
+      ],
+      "catalogAuthStatus": "unsupported",
+      "catalogAuthStatusMeaning": "MCP OAuth support, not a browser authorization verdict"
+    },
+    {
+      "boundary": "model invocation of browser tool",
+      "result": "executed",
+      "toolCallCount": 1,
+      "arguments": {
+        "code": "await cua.getBrowser({ id: \"chrome\" });",
+        "title": "Initializing Google Chrome"
+      },
+      "status": "failed"
+    },
+    {
+      "boundary": "browser host provisioning",
+      "result": "failed",
+      "message": "The browser access host is unavailable",
+      "hostOrSiteApprovalRequests": 0
+    },
+    {
+      "boundary": "fixture effects",
+      "result": "none",
+      "beforeEvents": 8,
+      "afterEvents": 8,
+      "bEvents": 0,
+      "newEvents": []
+    }
+  ],
+  "completion": {
+    "turnStatus": "completed",
+    "browserQualificationPassed": false,
+    "turnDurationMs": 13381,
+    "performanceBenchmark": false,
+    "modelVerdict": "Chrome initialization failed: \u201cThe browser access host is unavailable\u201d\n\nStopped as instructed. No fixture page was opened or changed, and no screenshot was obtained."
+  },
+  "cleanup": {
+    "threadUnsubscribeSucceeded": true,
+    "clientConnectionClosed": true,
+    "emptyTemporaryDirectoryRemoved": true,
+    "existingDaemonStillRunning": true,
+    "existingDaemonRestartedOrStopped": false
+  },
+  "configurationLimit": "Per-thread MCP configuration merged existing configured servers. Other servers initialized, but the agent called only the intended probe. This is not a hardened tool-isolation test.",
+  "conclusion": "Real current-turn context advances past the model-free missing-turn error, but the static runtime manifest does not provide the desktop browser access host. No signed access decision was obtained.",
+  "nextBoundary": "Legitimate desktop-owned host bootstrap/registration for an outside caller, or a separately evaluated desktop-task delegation path.",
+  "notEstablished": [
+    "independent browser control",
+    "desktop host authorization of this executor",
+    "parallel browser owners",
+    "direct model-free Pi provider reuse",
+    "cold startup",
+    "Locked Use",
+    "Vision streaming"
+  ],
+  "artifacts": [
+    {
+      "id": "clientSource",
+      "path": "experiments/codex-runtime-probe/app-server-task.mjs",
+      "bytes": 9539,
+      "sha256": "0563a89e0a53f634d508345379f2868175c74ce6c47b260c0c8d0230d1366d23"
+    },
+    {
+      "id": "trace",
+      "path": "experiments/codex-runtime-probe/build/app-server-task-DeDObj/trace.jsonl",
+      "bytes": 26566,
+      "sha256": "9a83ce052176b91943c062670d74d9647c9c2f186c4520ea2ddc34a4b7da3058"
+    },
+    {
+      "id": "result",
+      "path": "experiments/codex-runtime-probe/build/app-server-task-DeDObj/result.json",
+      "bytes": 177,
+      "sha256": "e8bb8673e04e46fc2e3605b459c2b566a287827ac1442e407db1b64ea18086a5"
+    },
+    {
+      "id": "catalog",
+      "path": "experiments/codex-runtime-probe/build/app-server-task-DeDObj/mcp-catalog.json",
+      "bytes": 10457,
+      "sha256": "bd1ceead0b4cc493df96e947e5174f05ecc15049816f778f08b5def1ae8467dd"
+    },
+    {
+      "id": "runtimeManifest",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+      "bytes": 7612,
+      "sha256": "71dfeb09c409ff6327604ecdc2407596029d4db5952a00ef1c94bcf1a5856c68"
+    },
+    {
+      "id": "browserService",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/scripts/browser-service.mjs",
+      "bytes": 2131481,
+      "sha256": "7d3557cf45c21d2416fd706d853b953fde355aedccfa8af398979cb4524ae02d"
+    },
+    {
+      "id": "threadStartSchema",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-schema/v2/ThreadStartParams.json",
+      "bytes": 10358,
+      "sha256": "e9c6d3cc18d049bfbc0249add3808fb8e5a27e1a0b5a423767aafbc3859a9428"
+    },
+    {
+      "id": "turnStartSchema",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-schema/v2/TurnStartParams.json",
+      "bytes": 24058,
+      "sha256": "4e25cd48986f73e600d9949a055ddb994a75b4a38790e935274646f0fece00ad"
+    }
+  ],
+  "references": [
+    "https://developers.openai.com/codex/app-server#protocol",
+    "https://learn.chatgpt.com/docs/extend/mcp"
+  ]
+}

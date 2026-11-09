@@ -55,3 +55,21 @@ Run `python3 experiments/codex-runtime-probe/collect-guidance.py` to copy docume
 The [browser and guidance follow-up](../../.plans/2026-11-08-codex-browser-and-guidance.md) records the 52-file collection and a read-only browser variant of the native probe. That variant preserved the installed preloader and trusted-service configuration, enabled only `browser`, and called `cua.listBrowsers()`. MCP startup worked; browser discovery rejected missing current-turn authorization. Its output is [recorded separately](../../.plans/evidence/2026-11-08-codex-browser-guidance/browser-discovery.jsonl). This is not evidence of successful browser reuse.
 
 The November 9 audit separately cached nine public CLI reference files at the release matching installed CLI `0.167.0`, under `build/cli-guidance/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/`. The [manifest](../../.plans/evidence/2026-11-09-browser-runtimes/cli-guidance.json) provides immutable source URLs, blob SHAs and cache hashes. These cover skill-use instructions/loading, native policy types and turn cleanup; they are separate from the desktop provider's operational guidance. No dedicated browser/Mac CUA `SKILL.md` was found in that public release tree. Neither collection installs a skill into Pi or global Codex configuration.
+
+## Owned App Server browser task
+
+`app-server-task.mjs` is the November 9 follow-up for an **explicitly authorized new Codex test task**. Unlike the inventory checks, it starts a model turn and consumes normal Codex usage. It is pinned to desktop `26.1103.60933` and the already-running App Server `0.167.0`; it never starts or restarts the shared daemon. Its WebSocket dependency is the `ws` package already staged by the [browser comparison](../browser-runtime-probe/README.md).
+
+Start `serve-fixture.mjs` from that comparison, then supply its exact loopback `/b` URL:
+
+```sh
+node experiments/codex-runtime-probe/app-server-task.mjs http://127.0.0.1:<fixture-port>/b
+```
+
+The client initializes through the normal App Server Unix-socket WebSocket connection, creates one ephemeral thread in a new empty temporary directory, and registers the genuine installed MCP launcher as `slz_browser_probe`. It supplies only the browser surface, retaining the packaged runtime environment and checks. It does not copy another task's identity or desktop access-host connection. Codex supplies its own task/turn metadata. The model uses the configured default, operates only the dummy fixture if browser initialization succeeds, and reports the exact error otherwise. No native/IAB fallback is allowed by the test instructions.
+
+The working directory is read-only for the agent, and the client never changes personal configuration. **Per-thread MCP configuration merges existing server configuration**: other configured servers can start even though the test agent is instructed to call only the probe server. This is a narrowly instructed experiment, not a hardened tool sandbox. The recorded run made exactly one tool call, to the intended probe. Unexpected host/permission requests are canceled and recorded distinctly; none occurred in this run.
+
+Results, the tool catalog and local trace are written under ignored `build/app-server-task-*`. On completion, the client unsubscribes its own thread, closes its connection and removes only its empty temporary directory. It leaves the shared daemon and user tabs running. Do not blindly rerun after a mutation timeout; first inspect whether the task was created.
+
+**Observed result:** the genuine model turn called the browser tool, which returned “The browser access host is unavailable.” No `/b` events occurred. The turn completed by reporting that failure. This passes task creation/current-turn propagation but does not pass browser provisioning. See the [runbook result](../../.plans/2026-11-09-background-browser-control.md#owned-codex-task-result) and [sanitized evidence](../../.plans/evidence/2026-11-09-browser-runtimes/owned-task.json).
