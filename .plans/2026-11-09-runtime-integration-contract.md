@@ -70,6 +70,8 @@ Before committing to this runtime for a release, get a concrete answer on callin
 
 ## An owned Chrome extension is a bounded alternative
 
+**Implementation follow-up:** the [owned extension prototype](2026-11-09-owned-browser-extension-probe.md) now passes real headed/headless browser tests and concurrent Pi/GPT + Pi/Opus tasks. It uses our own public-API implementation, not Codex browser authorization. The historical proposal below is preserved; its “not built” status describes that earlier review. Target leases/queues ended up with one owner in the extension next to CDP dispatch, while the transient companion bridge assigns client identities and routes requests. No production window/session ownership changed.
+
 **User follow-up:** could we implement the browser capabilities ourselves now that we understand the interface? **Yes, the core looks tractable.** This is an engineering assessment based on public Chrome APIs and our earlier inspection, not a new working extension or a commitment to reproduce every Codex feature.
 
 The proposed path is: **Pi or terminal Codex → companion browser tools → native-messaging bridge → our extension → Chrome's tab-targeted CDP**. The extension needs a small host/browser adapter as well; replacing only the extension underneath Codex's existing service would leave that service's upstream authorization checks intact. Our own path uses our own connection and task ownership, independent of which model acts.
