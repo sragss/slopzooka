@@ -37,6 +37,8 @@ OpenAI's client-delegation documentation supports connecting an application-owne
 
 ## 3. Ephemeral means replaceable reasoning state
 
+**Implemented probe, November 9:** the [small Pi harness](2026-11-09-pi-cua-probe.md) now runs `pi-agent-core` / `pi-ai` / `pi-mcp` 1.4.0 against the installed Codex MCP runtime. A live GPT run controlled the disposable native fixture and received its screenshot. Direct Chrome initialization still fails its current-turn authorization check. This validates the native execution loop without Pi Durable or ChatGPT UI automation; it does not settle global-versus-terminal ownership or implement presentation.
+
 Evaluate `@earendil-works/pi-agent-core` with custom tools and an explicitly selected provider/model. Its versioned source exposes an `Agent`, in-memory message/tool state, events, steering, and abort controls. This is a smaller entry point than adopting Poncho2's durable harness or embedding the whole terminal coding agent. Pin and test an actual version before implementation. [Pi agent core v1.4.0](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/README.md), [Agent implementation](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/src/agent.ts).
 
 Proposed lifetimes:

@@ -1,0 +1,60 @@
+# Ephemeral Pi → Codex CUA probe
+
+This isolated experiment runs Pi's in-memory agent loop against the installed Codex computer-use MCP runtime. It does not automate the ChatGPT composer, create Codex tasks, or change SlopZooka's window/session architecture.
+
+**November 9 result:** a live `gpt-6.1-sol` run used the native Mac tools to enter `pi-direct`, increment our disposable app twice, inspect its state and return a screenshot to the model. Both the fixture state file and screenshot confirm the result. Direct Chrome initialization still fails with `Cannot verify browser access without the current turn`. See the [findings and evidence](../../.plans/2026-11-09-pi-cua-probe.md).
+
+## Run
+
+Requires Node 22.20+ and the locally installed ChatGPT/Codex runtime for native/browser checks. This experiment has its own pinned dependencies; run from this directory:
+
+```sh
+npm ci --ignore-scripts --no-audit --no-fund
+npm test
+
+# Live model + synthetic image fixture; no desktop control.
+node cli.mjs --target fixture --key-file /path/to/local.env
+
+# No API credential needed; tests independent Chrome provisioning only.
+node cli.mjs --target browser --check
+
+# Same Chrome check selected by a live model.
+node cli.mjs --target browser --key-file /path/to/local.env
+```
+
+The key file must contain `OPENAI_API_KEY` with Responses API access. The CLI parses only that variable; it does not source the file or export its contents. Alternatively provide `OPENAI_API_KEY` in the launching shell. Never put the secret itself in command arguments. The model defaults to `gpt-6.1-sol`; `--model` selects another model in the pinned Pi OpenAI catalog.
+
+For a native run, first prepare and launch the [existing disposable native fixture](../codex-runtime-probe/README.md#fixture-and-independent-app-setup-used-in-discovery). It must start with counter 0 and empty input for the live action check. Example using the already built temporary app:
+
+```sh
+open -g -n \
+  --env SLZ_CUA_FIXTURE_STATE=/tmp/slz-codex-runtime-fixture/pi-probe-state.json \
+  '/tmp/slz-codex-runtime-fixture/Slz Runtime Fixture.app'
+
+# Attach and read state, without a model request.
+node cli.mjs --target computer --check --allow-fixture
+
+# Model chooses native actions, then observes the result and screenshot.
+node cli.mjs --target computer --allow-fixture --key-file /path/to/local.env
+```
+
+Do not launch duplicate instances. After a completed action run, restart only that owned fixture before repeating the counter-2 test. Its state file records its PID; verify the executable before terminating it. The CLI owns and closes its MCP child, not the fixture or shared Codex helper. Exit 0 means execution ended without reported errors; verify the fixture state and screenshot independently before calling the task successful.
+
+`--allow-fixture` answers MCP app-access requests only when the connector is `computer-use` and the requested app is exactly `dev.slopzooka.codex-runtime-fixture`. All other requests are cancelled. This narrowly represents the user's authorization for our test app; it is not a production permission UI or an OS permission bypass. The native runtime must already have working macOS permissions.
+
+## Small interface
+
+- `harness.mjs`: one `Agent`, one `McpClient`, allowlisted discovered tools, model-visible text/images/structured results, sequential calls and Stop. The caller supplies a model stream and permission policy.
+- `runtime.mjs`: reads the manifest matching the installed app version and starts its genuine launcher. Keeps the runtime's trusted-service/preloader configuration. Excludes inherited model keys, task identity and browser-host pipe credentials.
+- `cli.mjs`: fixed, disposable test tasks and ignored run summaries/screenshots under `build/`. `--check` bypasses only model inference; it still uses the same MCP adapter. SIGINT/SIGTERM stop the owned connection. A probe limit of eight tool calls bounds these fixtures.
+- `fixture.mjs`: a synthetic image MCP server for isolating image/tool-loop behavior. It is explicitly not a browser or native-control implementation.
+
+Tool descriptions, JSON schemas, initialization instructions and first-use guidance come from the installed runtime. They reach the model through Pi without embedding copied vendor documentation. Only `js` and `js_reset` are model tools; no shell, ChatGPT task creation or package-install tools are exposed. `turn_ended` browser lifecycle integration remains unimplemented because this independent browser connection never obtains a session.
+
+On transport timeout or disconnect, the harness stops further dispatch on that connection. A missing response does not prove an input was not delivered. It does not retry uncertain actions. Stop aborts the Pi loop, rejects queued work and closes the owned MCP process through Pi's transport. It cannot undo input already delivered. Tests cover these adapter semantics, not native-helper interruption latency or another agent's simultaneous control.
+
+## Scope
+
+No durable coordinator, voice layer, alternate CUA provider, production dependencies, window registry or streaming transport is added. The current runtime is unstable and version dependent; successful native reuse does not qualify its shipping terms, independent startup with ChatGPT closed, locked use, browser provisioning, parallel ownership or delivery to Vision. Keep window presentation in the existing `WindowGateway` and process ownership on the Mac.
+
+Pinned sources: [Pi Agent](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/README.md), [Pi MCP](https://github.com/earendil-works/pi/blob/v1.4.0/packages/mcp/README.md), [Pi AI](https://github.com/earendil-works/pi/blob/v1.4.0/packages/ai/README.md), [OpenAI tool calling](https://developers.openai.com/api/docs/guides/tools). All three Pi packages are pinned to `1.4.0` in this directory's lockfile.

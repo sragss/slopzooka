@@ -77,3 +77,7 @@ Results, the tool catalog and local trace are written under ignored `build/app-s
 The [subsequent bootstrap inspection](../../.plans/2026-11-09-background-browser-control.md#8-desktop-bootstrap-traced-after-the-owned-task-failure) locates the missing per-task configuration in the desktop app service. It also distinguishes generic App Server tool calls from desktop task delegation and records an existing SSH-forwarded desktop MCP bridge. These are source findings, not a successful independent browser adapter. Repeating this static-manifest probe without a new provisioning path is not the next test.
 
 The [desktop delegation follow-up](../../.plans/2026-11-09-background-browser-control.md#9-desktop-task-delegation-passed-terminal-delegation-differs) subsequently passed through a user-prepared desktop parent calling `codex_app.create_thread`. Its child completed the Chrome fixture, with independent event and screenshot verification. The terminal-side `codex_tui.create_thread` route failed host provisioning. No new standalone client is claimed; companion enrollment and Stop/reconnect are still open.
+
+## Live Pi consumer
+
+The [Pi probe](../pi-cua-probe/README.md) reuses the current installed MCP launcher with Pi 1.4.0. On November 9 it passed a live GPT-driven native fixture task, including screenshot feedback, without creating a Codex task or driving ChatGPT UI. Direct Chrome initialization still fails current-turn authorization. See the [test log and limits](../../.plans/2026-11-09-pi-cua-probe.md).
