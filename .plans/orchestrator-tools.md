@@ -119,6 +119,8 @@ All controllers may observe a granted target. Serialize actions on that target, 
 
 Semantic browser/device operations can often address a specific target. Native mouse/keyboard fallbacks can depend on Mac foreground focus, so two different window handles do not prove independent input channels. Serialize focus-dependent actions across the host and recheck the destination. Acknowledging this physical limitation is more useful than promising concurrent independent GUI agents.
 
+Per-window streaming itself does not generally require foreground focus. Keep multiple streams running while serializing only the actions that actually share desktop input; see the [capture/control distinction and focused test](macos-window-streaming.md#foreground-requirements-capture-and-input-differ). Codex bringing an app forward is not evidence that ScreenCaptureKit requires it.
+
 Associate coordinate observations with capture geometry and target generation, handling scale, cropping, rotation, and stream delay. Reject input against replaced targets or obsolete geometry; ordinary app animation does not require invalidating every semantic action. Inspect after meaningful actions and report partial/unknown outcomes truthfully.
 
 ## 6. How Mac sharing could work, and what is actually known

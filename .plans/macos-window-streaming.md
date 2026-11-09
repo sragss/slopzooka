@@ -84,6 +84,23 @@ Acceptance checks for the actual signed package:
 
 For Simulator, distinguish changing the Mac Simulator window's zoom/size from changing the simulated device's orientation or screen configuration. Treat resize, capture crop, and device coordinate space as separate facts. Coalesce resize drags and revalidate geometry before input; don't restart the entire app for each frame-size adjustment.
 
+### Foreground requirements: capture and input differ
+
+Clarified November 8 after the user observed Codex bringing controlled apps forward. With a desktop-independent single-window filter, ScreenCaptureKit includes the full window even when it is covered or off-screen; minimizing pauses that stream. This is documented capture behavior, not proof that every app keeps rendering at the desired cadence in the background. [Apple's single-window demonstration](https://developer.apple.com/videos/play/wwdc2022/10155/).
+
+| Operation | Foreground dependency |
+| --- | --- |
+| Per-window video capture | Does not generally need the window frontmost; distinguish covered from minimized |
+| AX observation / supported element actions | Targets a process/element, but background action success is app/action dependent; observe the result |
+| Generic desktop pointer / keyboard input | Treat as potentially requiring activation and the correct window/control focus; serialize shared desktop input |
+| Managed browser protocol or simulator device automation | Can address an explicit page/device without generic desktop input; verify each provider's behavior and capture/control identity |
+
+The current official OpenAI documentation explicitly lists background tasks on **macOS**, while describing **Windows** computer use as foreground takeover. Thus the user's observed Codex foregrounding does not establish that all Mac control requires it. The docs do not expose the native driver's implementation or guarantee background operation for every action; they are not a reusable driver contract for SlopZooka. [OpenAI Computer Use](https://learn.chatgpt.com/docs/computer-use).
+
+Multiple streams can remain visible while one app is activated for a focus-dependent action. All global-agent and terminal-agent requests must use the same Mac input owner for those actions: resolve the target, activate if required, refresh observation/geometry, verify focus, act, then verify the result. Coordinate the whole focus-dependent interaction, not just individual key events. Human takeover cancels queued/stale actions; don't blindly restore an old focus after the user has deliberately changed it. Direct page/device operations need not occupy that desktop input owner when their independence is established. Background browser automation must still operate on the page the user is actually seeing; targeting a hidden tab does not make a native browser-window stream display it.
+
+Add one explicit integration check: keep three streams open, cover an inactive target with another app, perform a supported semantic action, then test the native pointer/keyboard fallback. Record whether capture stays fresh, which actions require activation, whether another agent or human can steal focus, and whether any input reaches the wrong target. Minimized and locked cases are separate. This is planned coverage; the existing multi-window demo does not establish concurrent independent native GUI control.
+
 ## 4. A video path with bounded overhead
 
 Proposed native path:
