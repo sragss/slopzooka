@@ -1,6 +1,6 @@
 # Agent orchestration and shared surfaces: reading guide
 
-Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6 and offline Mac codec benchmarks on November 8. These documents distinguish proposed architecture, source inspection, local measurements and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
+Research and live discovery from October 31–November 1, 2026, with a streaming-strategy reference review on November 6, plus offline Mac codec benchmarks and Codex harness inspection on November 8. These documents distinguish proposed architecture, source inspection, local measurements and observed device behavior. They do not implement the production orchestrator or approve the entire sample-prompt catalog.
 
 ## Start here
 
@@ -10,6 +10,7 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 4. [Implementation and rollout sequence](orchestrator-execution-path.md#implementation-testing-and-rollout-sequence): extend the existing gateway, integrate one controllable preview, connect the real agents, then expand workspace launch, voice and opt-in use. Each stage has an observed completion criterion.
 5. [Streaming strategy clarification](macos-window-streaming.md#8-streaming-strategy-review-november-6-2026): tested H.264/native rendering, the HEVC comparison, simulator JPEG transcoding, direct LAN versus peer-to-peer Wi-Fi, and why Foveated Streaming is a different workload.
 6. [Mac codec benchmarks](2026-11-08-mac-codec-benchmarks.md): 26 hardware encode/decode cases, raw evidence and test journal; retain H.264 initially, compare ordinary real-time HEVC on the headset, and test JPEG→H.264 fallback transcoding.
+7. [Codex Mac CUA harness inspection](2026-11-08-codex-computer-use-harness.md): official docs, pinned CLI source and installed runtime inspection; concrete observations/actions, native IPC, cleanup hooks, identity limits, background/locked behavior and the small pieces worth adopting.
 
 ## Supporting research
 

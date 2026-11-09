@@ -74,6 +74,8 @@ Reuse the tested capture/device pieces; do not transplant the whole experimental
 
 “Codex uses CUA” does not mean the packaged tool in this conversation is an SDK Pi can import. Official documentation establishes external MCP support for terminal Codex; the reviewed Computer Use documentation does not establish an embeddable copy of this conversation's CUA runtime. Configure the real terminal CLI to connect to our scoped provider adapter. If a supported existing CUA integration is available, connect it behind the same boundary rather than requiring it for the architecture. [Codex MCP](https://learn.chatgpt.com/docs/extend/mcp), [packaged Computer Use](https://learn.chatgpt.com/docs/computer-use).
 
+The [November 8 harness inspection](2026-11-08-codex-computer-use-harness.md) now identifies the installed JS facade, signed native helper, versioned local request bridge, observation APIs and public cleanup hooks. Borrow their small interface patterns while retaining exact window/device identity; the inspected Mac API is app-scoped at its top level. Public Codex App Server is a later option for structured terminal-agent dispatch/progress, not a prerequisite for this first MCP integration.
+
 For Codex, the path is therefore **model → Codex CLI's MCP client → local adapter → the same provider → actual app**. Its workspace/session identity comes from adapter configuration or connection credentials. It can discover a surface the coordinator already opened and continue operating it without creating another simulator/browser. It can also request presentation through the same client gateway. Multiple possible headset clients require explicit routing context rather than broadcasting a window to everyone.
 
 ### 2. Mac presentation request → Vision scene

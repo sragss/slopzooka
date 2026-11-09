@@ -1,0 +1,125 @@
+{
+  "inspectedAt": "2026-11-08",
+  "method": "Read-only installed documentation, JavaScript wrappers, package metadata, Mach-O linkage/imports and selected static symbols. No native helper invocation or desktop interaction.",
+  "appVersion": "26.1023.51421",
+  "appBuild": "22530",
+  "shellCLIVersion": "0.167.0",
+  "bundledCLIVersion": "0.165.0-alpha.1.2",
+  "packages": {
+    "@oai/cua": "0.2.6",
+    "@oai/cua-repl": "0.1.2",
+    "@oai/sky": "0.7.13"
+  },
+  "nativeHelper": {
+    "bundleIdentifier": "com.openai.sky.CUAService",
+    "version": "26.1022.1001641",
+    "build": "1001641",
+    "minimumMacOS": "14.4",
+    "architecture": "arm64"
+  },
+  "publicCodexSourceRevision": "b9796386e5f8fc10087bc4476e30896f97e16e5d",
+  "evidenceBoundaries": [
+    "Installed artifact observations are version-specific, not a published SDK guarantee.",
+    "No proprietary implementation or full binary/string dump is copied into this repository.",
+    "The public source revision, shell CLI and bundled desktop CLI are different snapshots.",
+    "User credentials, chat history and privacy databases were not inspected."
+  ],
+  "artifacts": [
+    {
+      "label": "cua-repl README",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/cua-repl/README.md",
+      "bytes": 5759,
+      "sha256": "d2e6abfd3ea3e5b6b0f36c93a937eb107147758ad1b9a0c44c67ae7fddc9c889"
+    },
+    {
+      "label": "Mac CUA API and guidance",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/cua/docs/tinysky-alt-core-cua-repl-mac.md",
+      "bytes": 14357,
+      "sha256": "b936a61951eeb1c6c9bd4557a263bac268f890dbe4f85a8dd0aaffc6b5c23e75"
+    },
+    {
+      "label": "Sky Mac API",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/docs/sky-window-api.md",
+      "bytes": 6471,
+      "sha256": "18d387e9c5d2a131fb697dce038ccd58e78059eb406d010db171e987de1cc6f5"
+    },
+    {
+      "label": "Sky Windows API",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/docs/sky-window2-api.md",
+      "bytes": 8047,
+      "sha256": "85fa55b935d78ce65381bfb316a2e7db7ae1927fc0eed96f8faf0543c9701cec"
+    },
+    {
+      "label": "Mac request bridge",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "bytes": 5138,
+      "sha256": "71134f10354fe9f7be23a62df52789908a8592151685286a7965b297a81cef8f"
+    },
+    {
+      "label": "Native pipe transport",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+      "bytes": 8829,
+      "sha256": "51a1138a0f0d7f01fe5d4d0a4f0753c67b2c3f3ed55c7540c26d182274e116f4"
+    },
+    {
+      "label": "Native error taxonomy",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/errors.js",
+      "bytes": 1049,
+      "sha256": "9dd27e4cf0ea4456b3ad472fab8cbbe093ad1184d0cb25a8c05e738ee00cfd43"
+    },
+    {
+      "label": "Observation result wrapper",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/window_result.js",
+      "bytes": 1408,
+      "sha256": "9169daf53e7516eecd2ba8680e990bc6570d16d955f0ffed183572202c5d5448"
+    },
+    {
+      "label": "Native helper metadata",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/Info.plist",
+      "bytes": 2475,
+      "sha256": "18678afd27ff4cef1d0ea4bb42df9a8ef9df1539ab3d82e0f52e2ff970f0a677"
+    },
+    {
+      "label": "Native helper executable",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+      "bytes": 25117232,
+      "sha256": "e798d6a292fb5d93536ae9f6954e9809f0833bcf38d1ff50624f1e2268723dea"
+    },
+    {
+      "label": "Bundled CLI version",
+      "path": "<app>/Contents/Resources/codex-cli/codex-package.json",
+      "bytes": 210,
+      "sha256": "02baec201dd2a5b6851a4ca88bfe4bf758492f0b04be1d645024b13061a91e8a"
+    },
+    {
+      "label": "Unified plugin declaration",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/unified-computer-use/26.1023.51421/.codex-plugin/plugin.json",
+      "bytes": 1398,
+      "sha256": "ec12e0499a334bd19e992c763a8b6b53a021ebd9ce9f97289f8003b7f0031984"
+    },
+    {
+      "label": "Native plugin license declaration",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/computer-use/1.0.1001641/.codex-plugin/plugin.json",
+      "bytes": 1502,
+      "sha256": "1a0d1f27114f5f7402c33833f20481882356a2613bbe75e67ac490a23df42840"
+    },
+    {
+      "label": "Browser identity guidance",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/browser/26.1023.51421/docs/tab-claiming-chrome.md",
+      "bytes": 2170,
+      "sha256": "9cd2b24253ff7376e317f39cac4dd8ba276ea2a98385d9d3f7f12349ba5706aa"
+    },
+    {
+      "label": "Browser interruption guidance",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/browser/26.1023.51421/docs/browser-control-interruption.md",
+      "bytes": 345,
+      "sha256": "2fd73066304bc822ce3fba35eeba6456a0505f32f2f1364424639a08e49d1d5a"
+    },
+    {
+      "label": "Browser management capability",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/browser/26.1023.51421/docs/capabilities/browser/management.md",
+      "bytes": 5843,
+      "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e"
+    }
+  ]
+}
