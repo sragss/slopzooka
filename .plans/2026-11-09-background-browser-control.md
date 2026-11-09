@@ -280,10 +280,38 @@ The local `codex app --help` and [official command description](https://learn.ch
 
 ### Narrow next experiment and stopping rule
 
-**Test a desktop-delegated fixture task next, rather than repeating the static-manifest experiment.** Use the actual desktop task-creation surface with its normal configuration generation, one owned disposable task and the same `/b` objective. Record task identity, actual Chrome-specific tool calls, independent fixture events and a screenshot. The existing fresh-chat baseline already passes; this next test must specifically establish programmatic dispatch, observation and completion through the desktop task interface. Test Stop separately once basic dispatch passes.
+**Proposed experiment, now run in [section 9](#9-desktop-task-delegation-passed-terminal-delegation-differs): a desktop-delegated fixture task.** Use the actual desktop task-creation surface with its normal configuration generation, one owned disposable task and the same `/b` objective. Record task identity, actual Chrome-specific tool calls, independent fixture events and a screenshot. The existing fresh-chat baseline already passes; this next test must specifically establish programmatic dispatch, observation and completion through the desktop task interface. Test Stop separately once basic dispatch passes.
 
 That result would qualify a useful candidate: **Pi requests a browser objective; a desktop Codex task performs navigation; the Mac companion captures the resulting window and presents it through the existing gateway.** It adds a second model task, desktop lifecycle dependence and progress/approval routing. It does not settle whether Pi should instead own each browser action, and it does not yet qualify an outside companion's access to the task interface.
 
 For direct Pi actions, continue only when there is a concrete way for the desktop to issue configuration and lifecycle ownership to our caller. If no such route emerges, keep the direct-browser adapter unresolved and make the delegation-versus-separate-browser-provider decision explicit. Recreating the desktop's account mapping, signing host, plugin configuration, frontend service bridge and lifecycle machinery would be substantial maintenance work; the research does not justify adopting that architecture.
 
 Keep SlopZooka's boundary small in either case: workspace/surface identity, requested operation, fresh observation, cancellation, and delivery to the existing window gateway. Native Mac CUA reuse and the ScreenCaptureKit/video path remain separate evidence. No production rearchitecture, new persistence owner, second media stack, parallel browser qualification or locked-use claim follows from this source inspection.
+
+## 9. Desktop task delegation passed; terminal delegation differs
+
+The user authorized the next experiment. **A desktop parent successfully created a child using `codex_app.create_thread`, and that child used Chrome through the extension to complete fixture `/b`.** We verified the parent/child tool traces, independent HTTP fixture events, completed turns and the saved screenshot. This establishes programmatic task creation and browser execution **inside the desktop-owned delegation path**. It does not establish an independent companion/Pi client's connection to that path. [Sanitized results and artifact hashes](evidence/2026-11-09-browser-runtimes/desktop-delegation.json).
+
+Three attempts must remain distinct:
+
+| Entry point | Result | Evidence |
+| --- | --- | --- |
+| This conversation's `codex_tui.create_thread` | Task creation worked; its Chrome initialization failed with “The browser access host is unavailable.” | One failed browser initialization call, one completion-summary call, completed diagnostic turn, no new fixture events. This was terminal-side delegation, not the desktop `codex_app` service. Our initial description of this attempt as desktop dispatch was incorrect. |
+| User-created fresh desktop task | Chrome fixture passed with label `codex-b`. | Events 9–12: save at 0, increment to 1, increment to 2, Settings. Screenshot independently viewed; final turn completed. This repeats the desktop baseline, not programmatic creation. |
+| Desktop parent → `codex_app.create_thread` → child | **Delegated Chrome fixture passed** with label `desktop-delegated-b`. | Parent called the real desktop tool with `target: {type: "projectless"}` and no model override. The distinct child called `cua.createBrowserTab("chrome", ...)`, used browser AX controls, marked its tab as a deliverable and captured a screenshot. Events 13–16 contain exactly its four expected actions. Parent and child completed. |
+
+The parent performed no browser actions in its delegation turn. The child's screenshot shows Workspace `/b`, `desktop-delegated-b`, Counter 2 and Settings. `/a` remained unchanged. The two successful `/b` tasks used new tabs; no native Mac or built-in-browser fallback was used. Tabs and user-owned tasks remain available, and the existing loopback fixture server was left running for review.
+
+Manual setup was necessary: this conversation's `cua.getApp("ChatGPT")` failed with **“Sky Computer Use native pipe startup failed.”** Its cause is not established. The user could not find the terminal-created task in the desktop UI, so created a fresh desktop task, ran the fixture, then sent the explicit child-task request there. We did not automate those two composer submissions. Consequently this is not yet an unattended external orchestrator demo, and the native runtime is still not requalified on the updated desktop build.
+
+### Observation and lifecycle caveat
+
+The terminal-side `read_thread` interface retrieved the desktop tasks' transcripts and final screenshot paths, which we inspected on the Mac. During execution, an early snapshot reported the desktop task as `notLoaded` with an `interrupted` turn and no completion time; a later read showed the final answer and `completed` status. The same transient pattern occurred while observing the child. We did not interrupt either desktop task. **Do not use that early cross-client snapshot alone to infer cancellation, completion or safe retry.** The underlying cause and whether these clients share a live task owner remain unqualified; visibility of a saved transcript is not proof of shared execution ownership.
+
+### What to test next
+
+The immediate question is now **how the Mac companion obtains an authorized connection to the working desktop task interface**. Test that registration and a fixture-scoped request, then Stop and reconnect, without duplicating the desktop's configuration/authentication services. The manual desktop setup must disappear before calling this a companion integration pass. Preserve the distinction between `codex_app` and `codex_tui` in any adapter and evidence.
+
+This makes desktop Codex delegation a demonstrated candidate for navigation reasoning. Direct model-free Pi browser actions, two concurrent browser owners, precise tab-to-native-window capture association, restart recovery, Stop guarantees, Locked Use and Vision streaming remain separate qualification work. No production code or architecture changed in this test.
+
+This update passed exact event/trace reconciliation, visual inspection of both new fixture screenshots, twelve artifact hashes, sixty local documentation links/anchors, Markdown fences and whitespace checks. Raw traces and screenshots remain ignored. Production, parallel-browser, Stop, lock and headset tests were not run; the earlier unrelated WebKit verification failure remains unresolved.
