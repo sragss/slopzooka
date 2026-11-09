@@ -77,6 +77,8 @@ Both should call the same providers. Do not build both interfaces up front. Tool
 
 **November 9 browser evidence:** [local provider trials](2026-11-09-browser-runtime-options.md) demonstrated public Playwright MCP context injection, Playwriter's persistent code interface and agent-browser's strict closed-tab failure. Keep browser lifetime under the companion even when tool clients disconnect. The tests also showed that a browser-wide CDP connection can expose other workspace tabs, and that model observations may be host-local file links. Those ownership and artifact-delivery details belong in the shared adapter; they do not require another coordinator.
 
+**Native Chrome correction:** the same follow-up successfully drove a real webpage through `cua.getApp("com.google.Chrome")`, including semantic page/iframe observations and native input. The specialized browser backend's access-host failure does not block this route. Start the Chrome-plus-Simulator demo with the preferred native provider; add a specialized browser provider only for capabilities the chosen workflow needs. Exact window/tab-to-stream association and shared focus arbitration remain required.
+
 ### Workspace naming
 
 Explicit user requirement: the orchestrator names workspaces automatically so the user can recognize the work without remembering generated worktree names. Manual naming should be optional, not a setup step or a dependency for useful labels.

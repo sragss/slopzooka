@@ -4,11 +4,32 @@ November 9, 2026. Extends the [Codex browser/interface notes](2026-11-08-codex-b
 
 ## 1. Current conclusion
 
-Keep **Codex reuse as the preferred research direction**, as requested. Its native Mac provider already worked independently. Its browser provider has an additional desktop-owned authorization and session layer that we have now traced to its implementation. We still have no successful independent browser integration, and even this chat's normal CUA browser entry point currently lacks the required access host.
+Keep **Codex reuse as the preferred research direction**, as requested. Its native Mac provider already worked independently. Its specialized browser provider has an additional desktop-owned authorization and session layer that we have now traced to its implementation. Independent reuse of that specialized provider is unresolved. **This does not block controlling Chrome as a native Mac app:** the follow-up below successfully operated a real page through `cua.getApp("com.google.Chrome")` in this chat.
 
 There are credible model-free OSS fallbacks. We ran Playwright MCP, Playwriter and agent-browser against an owned Chrome and local fixtures without starting another model or reasoning loop. For SlopZooka, **Playwright MCP's public context-injection API is the most useful newly verified integration point**: the companion can retain browser/context ownership and supply that context to the tool server. **Playwriter is the closest interaction-style comparison to Codex**, with persistent JavaScript and page handles. **agent-browser provides a useful terminal interface and demonstrated strict tab retention**.
 
 These are recommendations for the later interface review, not three production dependencies or a change to the chosen streaming architecture. The important choice is the browser instance, profile and target the provider controls, plus who owns their lifetime. MCP, CLI and a JavaScript tool are alternative ways to expose those mechanics to Pi and terminal agents.
+
+### Correction: Chrome also works through native Mac CUA
+
+The user correctly pointed out that Codex already controls foreground Chrome without the Chrome plugin. Our earlier phrase “browser reuse remains unresolved” was too broad: it referred to the specialized `browser-desktop` provider, not every way of operating a browser. There are two distinct routes:
+
+| Route | Observation/control | Evidence |
+| --- | --- | --- |
+| `cua.getApp("com.google.Chrome")` | Native Mac app observation, page semantics exposed through macOS accessibility, screenshots, element/coordinate actions and keyboard input | **Worked live in this session** on a disposable local webpage. Earlier independent native reuse was demonstrated against a separate Mac fixture. |
+| `cua.getBrowser(...)` / `cua.getTab(...)` | Browser-specific profile/tab connection, DOM/Playwright/CDP capabilities and browser lifecycle | This session's entry point rejected a missing browser access host; the independent MCP probe rejected missing current-turn authorization. |
+
+Chrome exposes web content through the operating system's accessibility API. Chromium documents its macOS `NSAccessibility`/`AXWebArea` implementation, semantic tree, actions and renderer-to-browser accessibility cache. This supplies more than a screenshot: a native client can observe named page fields/buttons and request actions without a browser extension providing the page representation. It is still an accessibility representation, not arbitrary DOM/JavaScript access. [Chromium accessibility architecture](https://chromium.googlesource.com/chromium/src/+/3376a4f83a973d9804e861d79cf43ae93e35feec/docs/accessibility/overview.md).
+
+The installed Codex call chain confirms the distinction. `create_tinysky_alt.js` routes macOS `getApp` to `get_app_state`; `bind_mac_app.js` routes observation and input to the native computer adapter. The native client sends `ComputerUseIPCAppGetSkyshotRequest` and `ComputerUseIPCAppPerformActionRequest` through its Mac native-pipe transport. Its policy wrapper specifically emits `codex/computerUseChrome` metadata for `com.google.Chrome`. These calls follow the native app policy and helper path, not the browser-service access-host path above. [Installed source fingerprints and live evidence](evidence/2026-11-09-browser-runtimes/native-chrome.json).
+
+**Live check:** attached to Chrome through the normal CUA native-app API; opened one disposable window at a loopback fixture using native keyboard input; observed page and iframe controls; typed `Native Mac route`; saved it; incremented the counter; opened Settings; and clicked the iframe button. Three independent HTTP fixture events confirmed save, increment and Settings. The AX result confirmed `Counter: 1`, `Settings page`, and `Frame clicked`. Closed the test window through its observed native close control and stopped the fixture server.
+
+No browser-provider call, CDP connection, extension installation, alternate automation library or new model session was used for those actions. We did not inventory the user's installed extensions, so this is proof of the native execution path, not an audit of extension absence. We also did not run this Chrome-specific sequence from the independent launcher; that remains a smaller follow-up to the already successful native fixture experiment.
+
+**Foreground behavior:** the user's observation is consistent with native window/tab selection and focus-sensitive input. This test did not systematically vary foreground, occlusion, minimization or simultaneous human input, so it does not establish that every native action requires foreground. OpenAI documents both Mac background Computer Use and separate extension-based browser control; do not replace one overly broad claim with a universal foreground requirement. [OpenAI Computer Use](https://learn.chatgpt.com/docs/computer-use), [browser extension setup](https://learn.chatgpt.com/docs/chrome-extension).
+
+**Plan adjustment:** use the preferred native Codex provider for the first Chrome-plus-Simulator control/streaming slice. Specialized browser integration is optional capability work for exact tab ownership, DOM locators, debugging or more independent browser operation. Its unresolved access host should not block basic web navigation in the demo. Keep a single shared native control path initially; verify the selected Chrome window/tab matches the streamed surface and coordinate focus with human/agent input. The earlier headless OSS results remain useful alternatives, not a requirement to add another provider now.
 
 ## 2. What deeper Codex inspection established
 
@@ -137,7 +158,7 @@ The guidance strategy remains version-matched: use current MCP descriptions/cond
 
 ### Streaming stays a separate decision
 
-These tests used headless Chrome, so they establish neither a native window identity nor a Vision stream. For the initial ScreenCaptureKit path, we need a headed browser and a verified association between the controlled page, its host window and the capture target. Browser tab IDs, CDP target IDs and native capture IDs are different identifiers.
+The OSS tests used headless Chrome, so they establish neither a native window identity nor a Vision stream. The later native Chrome check above operated a real window, but did not associate it with ScreenCaptureKit or Vision. For the initial streaming path, we still need that verified association between the controlled page, its host window and the capture target. Browser tab IDs, CDP target IDs and native capture IDs are different identifiers.
 
 Some providers expose browser screencasts, JPEG/WebSocket streams or recording features. Those can be useful development references, but this experiment does not establish their latency, text quality, lock behavior or power use. Retain the existing hardware-video strategy pending a specific measurement. A page screenshot supplied to a model is not the user's continuous preview stream.
 
@@ -151,4 +172,4 @@ For Codex, first resolve legitimate desktop browser host provisioning. At the la
 
 ## Verification scope
 
-The completed run has 32 trace rows, six independent fixture events, verified expected stale-target failures and owned Chrome exit zero. The final scaffold also passed a separate startup/exit smoke check. Evidence JSON/JSONL, source/artifact hashes, JavaScript syntax, local Markdown links/fences and whitespace checks accompany this update. No production dependency/source or global browser setting changed; production and headset suites were not rerun for this isolated research.
+The completed OSS run has 32 trace rows, six independent fixture events, verified expected stale-target failures and owned Chrome exit zero. The final scaffold also passed a separate startup/exit smoke check. The subsequent native Chrome test has three additional fixture events and semantic UI verification, recorded separately. Evidence JSON/JSONL, source/artifact hashes, JavaScript syntax, local Markdown links/fences and whitespace checks accompany this update. No production dependency/source or global browser setting changed; production and headset suites were not rerun for this isolated research.

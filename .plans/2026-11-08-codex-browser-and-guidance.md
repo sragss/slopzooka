@@ -2,7 +2,7 @@
 
 November 8, 2026. Follow-up to the [working native-runtime experiment](2026-11-08-codex-runtime-reuse.md) and [open-source comparison](2026-11-08-macos-cua-options.md). [Source fingerprints and probe evidence](evidence/2026-11-08-codex-browser-guidance/research.json) distinguish installed documentation, source inspection and execution.
 
-**November 9 follow-up:** [deeper browser research](2026-11-09-browser-runtime-options.md) traced desktop access-host provisioning, tested additional Codex entry points and exercised three OSS providers locally. Independent Codex browser reuse remains unresolved; the new evidence qualifies actual alternatives rather than relying only on feature descriptions.
+**November 9 follow-up and correction:** [deeper browser research](2026-11-09-browser-runtime-options.md) traced desktop access-host provisioning and exercised three OSS providers. A subsequent live test also controlled a webpage and iframe through `cua.getApp("com.google.Chrome")`, the native Mac route. Independent reuse of the specialized `browser-desktop` provider remains unresolved; that limitation does not prevent native Chrome control and should not block the first web demo.
 
 ## 1. Current preference and the decision to revisit
 
