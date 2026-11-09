@@ -4,6 +4,8 @@ Status: proposed integration architecture, November 1, 2026. No production imple
 
 **November 9 decision update:** [computer-use responsibility is open](2026-11-09-agent-control-ownership.md). The global agent might only manage workspace/window intent and prompt routing, with terminal Codex owning navigation; Pi-owned and shared-access control are alternatives. The direct-Pi sequence and diagram below describe one candidate. They specify how commands can reach the Mac and Vision, not which model must choose those commands. Decide the initial split before production agent integration.
 
+**Browser rendering is also open:** the user wants [many spatial surfaces without matching Mac desktop windows](2026-11-09-spatial-surfaces-without-desktop-windows.md). A browser target may provide offscreen frames or render in the headset; it need not bind to a native Mac window. Existing window capture remains a source adapter. Keep target identity, media production and Vision presentation separate, and qualify the selected browser-control adapter against the chosen renderer.
+
 Source baseline: this planning checkout is `bcf17af`; production code below was inspected read-only from local `main` at `a1e1541`. Earlier exploration pinned `8b68f3e`; its references remain historical evidence. The newer main uses `SessionServiceClient` for terminal operations. Build on main's current services and gateway, not this older worktree's architecture.
 
 ## Recommended placement

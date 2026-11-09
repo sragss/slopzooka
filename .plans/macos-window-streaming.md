@@ -2,6 +2,8 @@
 
 Research date: November 1, 2026. Supplements [the main exploration](agent-managed-surfaces.md) and [the coordinator/tool design](orchestrator-tools.md). This records documented behavior, source inspection, and proposed experiments separately. The original research was read-only. Subsequent [live experiments](shared-window-live-results.md) now establish narrower, machine-specific results; consult that evidence separately.
 
+**November 9 scope clarification:** these native-window findings do not require every Vision surface to have a visible Mac window. The [spatial-workspace investigation](2026-11-09-spatial-surfaces-without-desktop-windows.md) compares offscreen Chromium and headset-local rendering with desktop capture. Covered/offscreen capture removes a simple screen-area limit; it does not prove arbitrary geometry, independent input or many-window capacity. Keep frame sources separate from encoding/presentation.
+
 **Streaming strategy clarification, November 6, 2026:** we already implemented and tested ScreenCaptureKit → hardware VideoToolbox H.264 → direct TLS/TCP → `AVSampleBufferDisplayLayer` on physical Vision Pro. HEVC is the next codec comparison, not an already-selected or measured default. JPEG was the independent simulator fallback. The [strategy review below](#8-streaming-strategy-review-november-6-2026) records the Apple references, the distinction between direct local transport and peer-to-peer Wi-Fi, and the narrow measurements needed to choose the production codec/transport.
 
 ## 1. Current answer and implementation boundary
