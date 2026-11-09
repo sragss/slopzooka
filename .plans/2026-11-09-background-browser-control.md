@@ -235,3 +235,55 @@ If direct browser reuse cannot pass B, explicitly choose whether the additional 
 ### Preparation verification
 
 The new fixture server passed JavaScript syntax and an HTTP-only smoke check: both pages serve, a dummy event is persisted, invalid origin/target events reject, and its owned process exits cleanly. These HTTP requests are not browser actions or a passed runtime gate. Build/log output remains ignored. No model invocation, external-client browser authorization, parallel extension operation or Vision test was performed in this preparation step.
+
+## 8. Desktop bootstrap traced after the owned-task failure
+
+**The missing step is now located in the desktop's task-configuration path.** This follow-up inspected the installed `26.1103.60933` bundle and the public CLI source at `rust-v0.167.0`, matching our App Server. It did not start another task, invoke browser control, inspect another process's environment, or change settings. The [bootstrap evidence](evidence/2026-11-09-browser-runtimes/host-bootstrap.json) records source markers, artifact hashes and the inspected protocol inventory. These are source findings; the live result remains the host-unavailable failure above.
+
+### What the desktop adds
+
+The renderer calls `appServices.threadConfiguration.readMcpConfig({cwd, hostId, context})`. Its main-process implementation calls `buildMcpCodexConfig`, which selects the enabled runtime and generates per-task overrides. For the local host, it obtains the authenticated principal and injects three browser values: `BROWSER_USE_ACCESS_EXECUTOR_ID`, `BROWSER_USE_ACCESS_PIPE_PATH`, and `BROWSER_USE_ACCESS_VERIFYING_IDENTITY`. The last is an Ed25519 **public verification key**, not the signing private key. Its role is to verify the access host's response; a pipe address or public key alone does not grant access.
+
+There is explicit handling for the shared local App Server daemon: the generated overrides can include the unified CUA MCP server as well as `node_repl`. This is significant because the daemon need not inherit the desktop process's current environment. The static plugin manifest we used contains the launcher and tool guidance, but not this generated desktop configuration.
+
+```mermaid
+sequenceDiagram
+    participant UI as Desktop task creation
+    participant Config as Desktop configuration service
+    participant AS as App Server
+    participant CUA as Packaged CUA runtime
+    participant Host as Desktop browser access host
+    UI->>Config: readMcpConfig(cwd, hostId, context)
+    Config-->>UI: Runtime configuration + host connection + executor identity
+    UI->>AS: thread/start with generated overrides
+    AS->>CUA: Start MCP; invoke tool with actual turn context
+    CUA->>Host: browser/access for executor, session, turn and nonce
+    Host-->>CUA: Signed access decision
+    CUA->>CUA: Verify decision before browser discovery
+```
+
+The desktop creates the access host during startup, holds its signing key, publishes its connection information internally, and removes it on disposal. On the packaged macOS path, the host transport calls a native socket-peer authorizer. Its decision also consults the desktop's session/executor registry and account/Work access state. We inspected the authorizer call site, not a full proof of its native implementation or allowed identities.
+
+`readMcpConfig` is exposed as a desktop app service, not as a method in the installed App Server's 106-method `ClientRequest` schema. We found no external enrollment/bootstrap contract in that schema or the official pages consulted. That is a scoped negative finding, not proof that no other private interface exists. Ordinary client initialization identifies an integration; it does not document browser-host provisioning. [Official initialization contract](https://learn.chatgpt.com/docs/app-server#initialization).
+
+### Two useful interfaces, with different limits
+
+| Interface found | What it offers | What it does not establish |
+| --- | --- | --- |
+| App Server `mcpServer/tool/call` | Calls a loaded thread's configured MCP tool directly, returning MCP content and structured output. This is a documented, model-free transport operation. | It does not generate the desktop configuration. In the inspected CLI call chain it adds thread-ID metadata and forwards caller metadata, rather than creating a model turn and its browser session/turn context. It is not by itself a qualified Pi browser provider. |
+| Packaged `codex-app-tools` MCP | Dynamically lists desktop tools and forwards calls/cancellation to the desktop. Its catalog includes `create_thread`, `send_message_to_thread`, `read_thread` and `wait_threads`. | It needs its own desktop host connection and caller context. Copying this second plugin manifest does not solve external provisioning either. It is a task-delegation interface, not low-level browser actions. |
+| Desktop's remote-host MCP bridge | The inspected SSH transport creates a scoped, authenticated loopback Streamable HTTP MCP endpoint and forwards it to the remote host. It revokes the session on disposal and restricts the advertised tools for remote tasks. | This is evidence that desktop-tool delegation across a process/host boundary is implemented. It is not a generic local Pi registration API or proof that a remote task inherits local browser CUA. We did not create an SSH connection or use this bridge. |
+
+The generic tool-call behavior is documented in the [App Server API overview](https://learn.chatgpt.com/docs/app-server#api-overview). Its pinned implementation is traceable through [the request handler](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server/src/request_processors/mcp_processor.rs#L738), [the thread facade](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/codex_thread.rs#L1351), [MCP runtime dispatch](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/runtime.rs#L771) and [connection dispatch](https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/connection_manager.rs#L1337). We reviewed these sources and their fixture test; we did not run the Rust test suite. Supplying arbitrary `_meta` is not a substitute for qualifying a real owner and turn lifecycle.
+
+The local `codex app --help` and [official command description](https://learn.chatgpt.com/docs/developer-commands#codex-app) expose opening the desktop app at a workspace path. They do not provide a browser-host bootstrap or a headless desktop-task dispatch flag. Browser documentation still directs CLI/IDE users to the desktop product; it does not promise standalone reuse of the Chrome backend. [Browser availability](https://learn.chatgpt.com/docs/browser).
+
+### Narrow next experiment and stopping rule
+
+**Test a desktop-delegated fixture task next, rather than repeating the static-manifest experiment.** Use the actual desktop task-creation surface with its normal configuration generation, one owned disposable task and the same `/b` objective. Record task identity, actual Chrome-specific tool calls, independent fixture events and a screenshot. The existing fresh-chat baseline already passes; this next test must specifically establish programmatic dispatch, observation and completion through the desktop task interface. Test Stop separately once basic dispatch passes.
+
+That result would qualify a useful candidate: **Pi requests a browser objective; a desktop Codex task performs navigation; the Mac companion captures the resulting window and presents it through the existing gateway.** It adds a second model task, desktop lifecycle dependence and progress/approval routing. It does not settle whether Pi should instead own each browser action, and it does not yet qualify an outside companion's access to the task interface.
+
+For direct Pi actions, continue only when there is a concrete way for the desktop to issue configuration and lifecycle ownership to our caller. If no such route emerges, keep the direct-browser adapter unresolved and make the delegation-versus-separate-browser-provider decision explicit. Recreating the desktop's account mapping, signing host, plugin configuration, frontend service bridge and lifecycle machinery would be substantial maintenance work; the research does not justify adopting that architecture.
+
+Keep SlopZooka's boundary small in either case: workspace/surface identity, requested operation, fresh observation, cancellation, and delivery to the existing window gateway. Native Mac CUA reuse and the ScreenCaptureKit/video path remain separate evidence. No production rearchitecture, new persistence owner, second media stack, parallel browser qualification or locked-use claim follows from this source inspection.
