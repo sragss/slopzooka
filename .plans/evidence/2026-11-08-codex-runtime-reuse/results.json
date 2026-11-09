@@ -1,0 +1,123 @@
+{
+  "dateLocal": "2026-11-08",
+  "timezone": "America/New_York",
+  "appVersion": "26.1023.51421",
+  "skyVersion": "0.7.13",
+  "cuaReplVersion": "0.1.2",
+  "nativeProtocol": "CodexComputerUseIPC-5",
+  "MCPProtocol": "2025-06-18",
+  "launcher": {
+    "bundleIdentifier": "dev.slopzooka.codex-runtime-client",
+    "inheritedCodexEnvironmentNames": [],
+    "parentPid": 1,
+    "pid": 12341
+  },
+  "runtimeMetadata": {
+    "inheritedTaskVariables": [],
+    "turnMetadataSent": false,
+    "hostServicesPipeInherited": false,
+    "manifestEnvironmentPreserved": true,
+    "surfaceRestriction": "computer"
+  },
+  "cases": [
+    {
+      "case": "ordinary Node import and listApps",
+      "outcome": "rejected before native connection",
+      "detail": "Sky Computer Use requires the trusted nodeRepl runtime"
+    },
+    {
+      "case": "unsigned direct Unix socket ping",
+      "outcome": "connection closed before complete response",
+      "detail": "Cause not established; no native authentication bypass attempted"
+    },
+    {
+      "case": "bundled launcher MCP discovery",
+      "outcome": "passed",
+      "tools": [
+        "js",
+        "js_add_node_module_dir",
+        "js_reset",
+        "turn_ended"
+      ]
+    },
+    {
+      "case": "bundled launcher app inventory",
+      "outcome": "passed",
+      "detail": "Inventory content omitted from saved evidence"
+    },
+    {
+      "case": "independent clean LaunchServices app: AX and screenshot",
+      "outcome": "passed"
+    },
+    {
+      "case": "independent clean LaunchServices app: click and type",
+      "outcome": "passed",
+      "detail": "Counter and inserted text independently observed in fixture state"
+    },
+    {
+      "case": "Super_L+a before typing",
+      "outcome": "unverified/no desired selection effect",
+      "detail": "Returned without error, but subsequent typing inserted instead of replacing. Cause not established; minimal fixture has no Edit menu."
+    },
+    {
+      "case": "independent clean LaunchServices app: setValue and click",
+      "outcome": "passed",
+      "fixtureState": {
+        "counter": 5,
+        "pid": 10456,
+        "text": "independent-runtime-ok"
+      }
+    },
+    {
+      "case": "owned-process cleanup",
+      "outcome": "passed",
+      "detail": "Probe clients exited 0; exact owned fixture PID/path verified then terminated; shared Codex helper untouched"
+    }
+  ],
+  "approvals": {
+    "scope": "Only dev.slopzooka.codex-runtime-fixture",
+    "basis": "User-authorized experiment on a newly created disposable fixture",
+    "mechanism": "Normal MCP elicitation response; other app requests canceled",
+    "persistentApprovalRequested": false,
+    "OSGrantsChanged": false
+  },
+  "limitations": [
+    "Codex remained installed and running with existing permissions.",
+    "No cold start with Codex closed, fresh machine, other user/account, version upgrade or redistribution test.",
+    "No broad app, multi-window, concurrent input, lock, interruption or Vision streaming validation.",
+    "Observed snapshots included an agent pointer graphic; independent capture composition was not tested.",
+    "No additional agent turn or model API call was launched."
+  ],
+  "sourceHashes": {
+    "experiments/codex-runtime-probe/Fixture.swift": "ee61ee92e325f753a2fff38d6f61cfab627878377f6f02756f9bd4b2b7c349fd",
+    "experiments/codex-runtime-probe/Launcher.swift": "4ca0c2dfd9aad94d29ea2e85c307510ed538d283321ff863042daa5513a53abc",
+    "experiments/codex-runtime-probe/client.py": "d90d0df7442e460c80235fe33ace8e9233f1c7173688269c6774a43df490515e",
+    "experiments/codex-runtime-probe/semantic-commands.jsonl": "961c03104f8447a68e79bf0925e21438e9f979f634b1fea9f299f614e636eb7c"
+  },
+  "installedArtifacts": [
+    {
+      "label": "NodeREPL executable",
+      "path": "<app>/Contents/Resources/cua_node/bin/node_repl",
+      "bytes": 19310480,
+      "sha256": "0148e77c1179060505603c81d30ad4b9c1cd782b977f737eddacf2205275dedd"
+    },
+    {
+      "label": "CUA launcher",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/cua-repl/dist/lib/js/oai_js_cua_repl/src/launch.js",
+      "bytes": 2149,
+      "sha256": "97ce061a09cba0e701e83c2508c276ed573ce864d2478993f873c0650a84e316"
+    },
+    {
+      "label": "MCP launch manifest",
+      "path": "<CODEX_HOME>/plugins/cache/openai-bundled/unified-computer-use/26.1023.51421/.mcp.json",
+      "bytes": 2578,
+      "sha256": "ae0bd5f78305ad1e929f6c869f5e3c5af5df49e2b0375e5f955028afcfb795aa"
+    },
+    {
+      "label": "Mac app policy",
+      "path": "<app>/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js",
+      "bytes": 4838,
+      "sha256": "a00024117e11f2d1e4151e140bede2c0ed7931625aa0f79a427457cb1103524e"
+    }
+  ]
+}

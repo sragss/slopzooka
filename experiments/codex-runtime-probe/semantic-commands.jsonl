@@ -1,0 +1,4 @@
+{"code": "var independentFixture = await cua.getApp('/tmp/slz-codex-runtime-fixture/Slz Runtime Fixture.app');"}
+{"code": "var fresh = await independentFixture.getAXState({emit:false,disableDiffing:true}); var fieldId = Number(fresh.match(/^\\s*(\\d+) text field.*probe-input/m)?.[1]); if (!Number.isInteger(fieldId)) throw new Error('Exact fixture input absent'); await independentFixture.setValue(fieldId,'independent-runtime-ok'); await independentFixture.getAXStateAndScreenshot();"}
+{"code": "var observed = await independentFixture.getAXState({emit:false,disableDiffing:true}); var buttonId = Number(observed.match(/^\\s*(\\d+) button Increment,/m)?.[1]); if (!Number.isInteger(buttonId)) throw new Error('Exact fixture button absent'); await independentFixture.click(buttonId); await independentFixture.getAXStateAndScreenshot();"}
+{"exit": true}

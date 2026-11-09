@@ -2,13 +2,15 @@
 
 Research date: November 8, 2026 (America/New_York). This extends the [Codex runtime inspection](2026-11-08-codex-computer-use-harness.md) and [execution/presentation plan](orchestrator-execution-path.md). This is source review plus one local compatibility probe, **not a live comparison of the open-source drivers**. Source revisions, inspected file hashes and the probe result are in [the evidence record](evidence/2026-11-08-macos-cua-options/research.json).
 
+**Later finding:** [the bundled Codex MCP launcher worked](2026-11-08-codex-runtime-reuse.md) from our own independent Mac application, including real fixture observations/input. The ordinary-import failure below remains valid, but further integration is no longer merely hypothetical. The open-source comparison remains useful; it is not the only technically workable route.
+
 ## Conclusion
 
 Yes: we can build this with OpenAI models without depending on an OpenAI Mac-runtime SDK or a stable third-party driver API. The supported model interface can call our local tools; an open-source driver supplies the Mac mechanics. Pin its revision and keep its changing interface behind a small adapter. That leaves OS compatibility work, but gives us source we can inspect and fix.
 
 **Evaluate Peekaboo and Cua Driver first.** Peekaboo is the strongest apparent fit for our Swift permission host; Cua Driver has the most explicit alternative embedding contract. Vercel's agent-desktop is a useful narrower candidate and an especially good reference for observation identity and honest action results. These are judgments from the reviewed sources, not measured rankings.
 
-Direct reuse of the installed Codex runtime remains an experimental track. The ordinary-Node probe below failed before connecting to its native service. Lack of a stable API is not itself a technical blocker; the concrete extra problem here is the runtime's trusted-host dependency.
+Direct reuse of the installed Codex runtime is also an experimental track. The ordinary-Node probe below failed before connecting to its native service. The later bundled-launcher experiment satisfied that host dependency through the genuine runtime and established local functionality. Lack of a stable API is not itself a technical blocker.
 
 ## 1. Candidates worth knowing
 
@@ -112,9 +114,9 @@ Observed result:
 
 This reproduces the wrapper dependency identified in static inspection: **importing the package from an ordinary Pi/Node process does not provide a working driver**. The check occurs before the native connection, so this did not test native sender authentication, app approval, screenshots or actions. It is not evidence that all external integrations are impossible.
 
-An unsupported interface can be a perfectly reasonable local experiment when we own the adapter and can pin the version. For this particular runtime, a further legitimate experiment would have to establish a real Codex-managed session with the desktop tools and verify target handoff/cancellation. Public App Server documentation alone does not establish that setup. We did not manufacture trusted-runtime state, patch checks or bypass native authorization, and we have not established a redistribution license for the private components.
+An unsupported interface can be a perfectly reasonable local experiment when we own the adapter and can pin the version. The subsequent test established a simpler route than an extra Codex-managed agent: run the genuine bundled MCP launcher and supply the client-side approval handling. It worked without supplied turn metadata. No manufactured trusted-runtime state, patched checks or native authorization bypass was needed. Redistribution terms and lifecycle/target correctness remain separate questions.
 
-The open-source route avoids that unresolved integration dependency altogether. Keep the proprietary-runtime experiment separate from the first shippable path; do not let exploration imply a production dependency decision.
+The open-source route supplies alternatives we can inspect and modify. Keep the working proprietary-runtime experiment separate from a shipping dependency decision; neither local functionality nor source availability alone qualifies all the required behaviors.
 
 ## 6. Keep our architecture small
 

@@ -12,6 +12,7 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 6. [Mac codec benchmarks](2026-11-08-mac-codec-benchmarks.md): 26 hardware encode/decode cases, raw evidence and test journal; retain H.264 initially, compare ordinary real-time HEVC on the headset, and test JPEG→H.264 fallback transcoding.
 7. [Codex Mac CUA harness inspection](2026-11-08-codex-computer-use-harness.md): official docs, pinned CLI source and installed runtime inspection; concrete observations/actions, native IPC, cleanup hooks, identity limits, background/locked behavior and the small pieces worth adopting.
 8. [Open-source Mac CUA options](2026-11-08-macos-cua-options.md): Peekaboo/Cua Driver shortlist, alternative runtimes, source-level background-input findings, OpenAI custom-tool integration, a local Codex import probe and the narrow comparison needed before choosing a provider.
+9. [Working Codex runtime reuse experiment](2026-11-08-codex-runtime-reuse.md): the bundled MCP launcher successfully drove a disposable Mac app from our own independent launcher, without a new Codex agent or supplied turn metadata. Includes the concrete unstable interface, verified effects and a shortcut that did not produce its intended effect.
 
 ## Supporting research
 
