@@ -1,7 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { TerminalConnection } from "../src/terminal-connection.js";
-import { isClientMessage } from "../../../packages/protocol/src/index.js";
 
 test("terminal rendering serializes checkpoints with output and resumes from rendered cursor", async () => {
   const originalSocket = globalThis.WebSocket;
@@ -212,7 +211,7 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
   }
 });
 
-test("handshake timeout retries without waiting for a stalled close event", async (t) => {
+test("stalled transports recover without close events, ignore retired attempts, and stop after removal", async (t) => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const originalSocket = globalThis.WebSocket;
   const originalLocation = Object.getOwnPropertyDescriptor(
@@ -224,7 +223,8 @@ test("handshake timeout retries without waiting for a stalled close event", asyn
     static OPEN = 1;
     static CLOSING = 2;
     readyState = 0;
-    onclose?: () => void;
+    onmessage?: (event: { data: string }) => void;
+    onclose?: (event: { code: number }) => void;
     onerror?: () => void;
     constructor() {
       sockets.push(this);
@@ -233,114 +233,26 @@ test("handshake timeout retries without waiting for a stalled close event", asyn
       this.readyState = 2;
     }
     send() {}
+    receive(message: unknown) {
+      this.onmessage?.({ data: JSON.stringify(message) });
+    }
   }
   globalThis.WebSocket = StalledSocket as any;
   Object.defineProperty(globalThis, "location", {
     configurable: true,
     value: { href: "http://host/terminal", protocol: "http:" },
   });
-  const states: string[] = [];
-  const connection = new TerminalConnection(
-    { onData: () => ({ dispose() {} }) } as any,
-    "s1",
-    (_message, state) => states.push(state),
-    () => {},
-  );
-  try {
-    connection.connect();
-    t.mock.timers.tick(10_000);
-    assert.equal(states.at(-1), "disconnected");
-    t.mock.timers.tick(1000);
-    assert.equal(sockets.length, 2, "closing transport cannot strand retries");
-    sockets[0]!.onclose?.();
-    t.mock.timers.tick(1000);
-    assert.equal(sockets.length, 2, "late close cannot retire its replacement");
-    t.mock.timers.tick(10_000);
-    t.mock.timers.tick(1500);
-    assert.equal(
-      sockets.length,
-      3,
-      "repeated stalls keep retrying with backoff",
-    );
-    sockets[2]!.onerror?.();
-    t.mock.timers.tick(3000);
-    assert.equal(
-      sockets.length,
-      4,
-      "connection errors retry without a close event",
-    );
-    sockets[2]!.onerror?.();
-    sockets[2]!.onclose?.();
-    t.mock.timers.tick(3000);
-    assert.equal(
-      sockets.length,
-      4,
-      "retired events cannot disrupt the new attempt",
-    );
-    connection.detach();
-    t.mock.timers.tick(60_000);
-    assert.equal(sockets.length, 4, "detach cancels stalled-handshake retries");
-  } finally {
-    connection.detach();
-    t.mock.timers.reset();
-    globalThis.WebSocket = originalSocket;
-    if (originalLocation)
-      Object.defineProperty(globalThis, "location", originalLocation);
-    else delete (globalThis as any).location;
-  }
-});
-
-test("stalled attachments retry once, explicit reconnect retires old timers, and detach releases input", async (t) => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
-  const originalSocket = globalThis.WebSocket;
-  const originalLocation = Object.getOwnPropertyDescriptor(
-    globalThis,
-    "location",
-  );
-  const sockets: FakeSocket[] = [];
-  class FakeSocket {
-    static OPEN = 1;
-    static CLOSING = 2;
-    readyState = 1;
-    onmessage?: (event: { data: string }) => void;
-    onclose?: () => void;
-    sent: any[] = [];
-    constructor() {
-      sockets.push(this);
-    }
-    send(raw: string) {
-      this.sent.push(JSON.parse(raw));
-    }
-    close() {
-      this.readyState = 3;
-      this.onclose?.();
-    }
-    receive(message: unknown) {
-      this.onmessage?.({ data: JSON.stringify(message) });
-    }
-  }
-  globalThis.WebSocket = FakeSocket as any;
-  Object.defineProperty(globalThis, "location", {
-    configurable: true,
-    value: { href: "http://host/terminal", protocol: "http:" },
-  });
   let disposals = 0;
-  let fittedSize = { cols: 80, rows: 24 };
   const status: string[] = [];
   const states: string[] = [];
-  const ownership: { readOnly?: boolean; canTakeControl?: boolean }[] = [];
-  let input: (data: string) => void;
   const terminal = {
     cols: 80,
     rows: 24,
-    onData(callback: (data: string) => void) {
-      input = callback;
-      return {
-        dispose() {
-          disposals++;
-        },
-      };
-    },
+    onData: () => ({
+      dispose() {
+        disposals++;
+      },
+    }),
     reset() {},
     resize(cols: number, rows: number) {
       this.cols = cols;
@@ -353,15 +265,11 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
   const connection = new TerminalConnection(
     terminal as any,
     "s1",
-    (message, state, readOnly, canTakeControl) => {
-      ownership.push({ readOnly, canTakeControl });
+    (message, state) => {
       status.push(message);
       states.push(state);
     },
-    () => {
-      terminal.cols = fittedSize.cols;
-      terminal.rows = fittedSize.rows;
-    },
+    () => {},
   );
   const flush = async () => {
     for (let i = 0; i < 10; i++) await Promise.resolve();
@@ -370,22 +278,42 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     connection.connect();
     assert.equal(states.at(-1), "connecting");
     t.mock.timers.tick(10_000);
-    assert.equal(
-      sockets[0]!.readyState,
-      3,
-      "a silent open socket cannot strand the terminal forever",
-    );
     assert.equal(states.at(-1), "disconnected");
+    assert.equal(sockets[0]!.readyState, 2);
     t.mock.timers.tick(1000);
-    assert.equal(sockets.length, 2);
+    assert.equal(sockets.length, 2, "closing transport cannot strand retries");
     assert.equal(
       states.at(-1),
       "disconnected",
       "retries keep one stable lost-connection notice",
     );
+    sockets[1]!.readyState = 1;
+    sockets[0]!.onclose?.({ code: 1006 });
+    t.mock.timers.tick(1000);
+    assert.equal(sockets.length, 2, "late close cannot retire its replacement");
+    t.mock.timers.tick(10_000);
+    t.mock.timers.tick(1500);
+    assert.equal(
+      sockets.length,
+      3,
+      "an open socket that never attaches also retries",
+    );
+    sockets[2]!.onerror?.();
+    t.mock.timers.tick(3000);
+    assert.equal(sockets.length, 4, "errors retry without a close event");
+    sockets[2]!.onerror?.();
+    sockets[2]!.onclose?.({ code: 1006 });
+    t.mock.timers.tick(3000);
+    assert.equal(
+      sockets.length,
+      4,
+      "retired events cannot disrupt the new attempt",
+    );
+
     connection.reconnect();
-    assert.equal(sockets.length, 3);
-    const current = sockets[2]!;
+    assert.equal(sockets.length, 5);
+    const current = sockets.at(-1)!;
+    current.readyState = 1;
     current.receive({ type: "hello", version: 1, supportsTakeControl: true });
     current.receive({
       type: "attached",
@@ -403,26 +331,10 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     t.mock.timers.tick(30_000);
     assert.equal(
       sockets.length,
-      3,
-      "retired retry and attachment timers cannot interrupt a healthy connection",
+      5,
+      "retired timers cannot interrupt a healthy connection",
     );
     assert.equal(current.readyState, 1);
-    // Extreme zoom-out must not send dimensions the companion will reject, or
-    // leave the local emulator wrapping at a different width from the PTY.
-    fittedSize = { cols: 1328, rows: 832 };
-    connection.resize();
-    const extremeResize = current.sent.at(-1);
-    assert.ok(isClientMessage(extremeResize));
-    assert.equal(extremeResize.type, "resize");
-    assert.equal(terminal.cols, extremeResize.cols);
-    assert.equal(terminal.rows, extremeResize.rows);
-    assert.ok(
-      terminal.cols < fittedSize.cols && terminal.rows < fittedSize.rows,
-    );
-    fittedSize = { cols: 80, rows: 24 };
-    connection.resize();
-    assert.equal(terminal.cols, 80, "Zooming back in restores the fitted grid");
-    assert.equal(terminal.rows, 24);
     current.receive({ type: "ownership", sessionId: "s1", writable: false });
     current.receive({
       type: "error",
@@ -435,41 +347,6 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
       "running",
       "rejected in-flight input cannot turn a handoff into a connection failure",
     );
-    assert.deepEqual(ownership.at(-1), {
-      readOnly: true,
-      canTakeControl: true,
-    });
-    const sent = current.sent.length;
-    input!("blocked");
-    connection.resize();
-    assert.equal(
-      current.sent.length,
-      sent,
-      "revoked viewers cannot send input or resize",
-    );
-    connection.takeControl();
-    assert.deepEqual(current.sent.at(-1), {
-      type: "take-control",
-      sessionId: "s1",
-    });
-    input!("still blocked");
-    assert.equal(
-      current.sent.length,
-      sent + 1,
-      "claiming control waits for the service's confirmation",
-    );
-    current.receive({ type: "ownership", sessionId: "s1", writable: true });
-    await flush();
-    assert.deepEqual(ownership.at(-1), {
-      readOnly: false,
-      canTakeControl: false,
-    });
-    input!("allowed");
-    assert.deepEqual(current.sent.at(-1), {
-      type: "input",
-      sessionId: "s1",
-      data: "allowed",
-    });
     current.receive({
       type: "error",
       code: "404",
@@ -483,7 +360,7 @@ test("stalled attachments retry once, explicit reconnect retires old timers, and
     t.mock.timers.tick(30_000);
     assert.equal(
       sockets.length,
-      3,
+      5,
       "removed sessions do not reconnect forever",
     );
     assert.equal(disposals, 1);

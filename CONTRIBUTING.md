@@ -56,6 +56,11 @@ Edit browser sources in `apps/mac-companion/src`, then run `pnpm build:harness`.
 
 Run `pnpm format` for TypeScript formatting. Add regression coverage for behavior changes, especially reconnects, cancellation, persistence, and process lifetime. Document user-facing changes in the relevant guide; keep the README focused on getting started.
 
+Prefer tests through real HTTP, files, PTYs, and WebKit. Substitute external
+services, hardware, or scheduling only where needed to exercise failures and
+races. Avoid homemade DOM replicas and repeated assertions already covered by
+an integration check. Keep regressions for ownership, cancellation, and recovery.
+
 Run `pnpm lint` for both languages, or `pnpm lint:ts` / `pnpm lint:swift`
 individually. CI runs the same checks and fails on warnings. ESLint uses the
 recommended JavaScript and TypeScript correctness rules, with additional promise,
