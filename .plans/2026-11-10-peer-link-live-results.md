@@ -35,6 +35,8 @@ The final LAN check remained slower, supporting the observed direction of the di
 
 ## Implementation decision
 
+**Subsequent architecture review:** the [shared-route note](2026-11-10-shared-peer-route.md) records the travel/all-traffic goal and remaining WebKit/HTTP integration gap. Apple's current guidance says to stop peer-enabled browsing before connecting; this probe kept its browser alive during each trial. Interpret these numbers as the tested configuration, not an optimized discovery/radio implementation.
+
 Keep ScreenCaptureKit → hardware H.264 → native Vision rendering and the current TLS/TCP integration candidate. This experiment is evidence for a useful **direct-link option**, not a codec or media-transport comparison.
 
 Keep ordinary LAN as the first integration default/fallback while implementing previews. Retain peer transport as a measured optimization to expose through the existing native connection owner; neither the agent nor an MCP should manage interfaces. **An `includePeerToPeer` checkbox alone does not deliver “prefer direct.”** Any production selection policy needs explicit candidate/route handling, bounded retries and fallback, and must survive interface changes without hardcoded `en0`/`awdl0` assumptions. The diagnostic listener restriction is not yet that production policy. This is a contained networking follow-up, not a prerequisite for the preview/MCP slice or another coordinator service.

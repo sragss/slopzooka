@@ -31,6 +31,8 @@ Log endpoints/interfaces, discovery/authentication/reconnect time, received good
 
 ### 1. Manual stream previews in the existing product
 
+**Networking guardrail:** resolve new media subscriptions through the paired-host connection boundary. The deferred [shared LAN/peer-route note](2026-11-10-shared-peer-route.md) covers carrying control, terminals and previews over the same selected link for travel use. Preserve that seam; do not add a media-only discovery/pairing manager or make the broader peer upgrade a prerequisite for this step.
+
 Extend the existing frontend catalog and preview resolver to describe web content or a bound stream. A stream is content within the existing Preview scene family, not a new window manager. Keep current web previews working. Use `CompanionClient` for authenticated requests and route revisions, `WindowGateway` for lifecycle/resolution and `WindowScene` for native presentation. Keep stable host/content IDs in layouts; resolve stream endpoints, trust and current target generations on use.
 
 Start with one selected Mac window, then a Simulator window, using the already exercised ScreenCaptureKit/H.264 path. Source enumeration/capture belongs to the signed Mac component and its narrow companion bridge. Do not infer a source by title alone or silently switch to another window when the selected one disappears. A prepared device-frame provider remains a useful subsequent source/fallback; it is not necessary to reproduce the whole WDA experiment before shipping native window sharing.
