@@ -260,6 +260,44 @@ export class GitHubClient {
     return this.getRepo(nameWithOwner);
   }
 
+  async bugReportAccount(): Promise<string> {
+    const data = await this.graphql<{ viewer: { login: string } }>(
+      "query { viewer { login } }",
+      {},
+    );
+    return data.viewer.login;
+  }
+
+  async createBugReport(title: string, body: string): Promise<string> {
+    const token = await this.resolveToken();
+    const response = await fetch(
+      "https://api.github.com/repos/sragss/slopzooka/issues",
+      {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(12_000),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "User-Agent": "slopzooka-mac-companion",
+        },
+        body: JSON.stringify({ title, body }),
+      },
+    );
+    // Never echo GitHub's payload: it may contain the submitted description.
+    if (!response.ok)
+      throw new Error(`GitHub issue request returned HTTP ${response.status}`);
+    const result = (await response.json()) as { html_url?: string };
+    if (
+      !/^https:\/\/github\.com\/sragss\/slopzooka\/issues\/\d+$/.test(
+        result.html_url ?? "",
+      )
+    )
+      throw new Error("GitHub returned an invalid issue URL");
+    return result.html_url!;
+  }
+
   private async graphql<T>(
     query: string,
     variables: Record<string, unknown>,

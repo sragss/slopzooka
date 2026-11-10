@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Report a bug · SlopZooka</title>
+    <link rel="stylesheet" href="/bug-report.css" />
+  </head>
+  <body class="report-page">
+    <main>
+      <header>
+        <a href="/">← Dashboard</a>
+        <h1>Report a bug</h1>
+        <p>
+          Describe the problem, then review your draft on GitHub. Issues in
+          <strong>sragss/slopzooka are public</strong>.
+        </p>
+      </header>
+      <form
+        id="report-form"
+        action="https://github.com/sragss/slopzooka/issues/new"
+        method="get"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        <label for="title">Short summary</label>
+        <input
+          id="title"
+          name="title"
+          required
+          maxlength="120"
+          autocomplete="off"
+          placeholder="What went wrong?"
+        />
+        <label for="description">What happened?</label>
+        <textarea
+          id="description"
+          name="body"
+          required
+          maxlength="4000"
+          placeholder="What were you doing? What did you expect, and what happened instead? Include steps to reproduce if possible."
+        ></textarea>
+        <section class="diagnostics" aria-label="Local diagnostics">
+          <strong>Logs stay on your Mac</strong>
+          <p id="capture-status" role="status">
+            Local diagnostics load here. You can still open a GitHub draft if
+            they are unavailable.
+          </p>
+          <p>
+            Snapshots may contain private paths, repository names, URLs, and
+            error details. Only your summary, description, incident time, report
+            ID, and build fingerprints go into the public draft.
+          </p>
+          <a id="download-report" class="button" hidden download
+            >Download local snapshot</a
+          >
+          <button id="retry-capture" type="button" hidden>
+            Retry local snapshot
+          </button>
+          <p>
+            <a href="/" target="_blank" rel="noopener noreferrer"
+              >Open dashboard to connect this browser</a
+            >
+          </p>
+        </section>
+        <details>
+          <summary>Preview public report</summary>
+          <pre id="public-preview"></pre>
+        </details>
+        <p id="report-error" class="error" role="alert" hidden></p>
+        <div class="report-actions">
+          <button id="review-issue" class="primary" type="submit">
+            Review on GitHub ↗
+          </button>
+        </div>
+        <p>
+          Uses your browser’s GitHub login. Nothing is posted until you submit
+          the issue on GitHub. No logs are uploaded.
+        </p>
+      </form>
+    </main>
+    <script type="module" src="/bug-report.js"></script>
+  </body>
+</html>

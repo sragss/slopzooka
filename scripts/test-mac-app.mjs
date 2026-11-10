@@ -325,6 +325,32 @@ try {
     ).status,
     200,
   );
+  child.stdin.write(
+    JSON.stringify({
+      type: "open-dashboard",
+      requestId: "desktop-report",
+      reportBug: true,
+    }) + "\n",
+  );
+  const reportFrame = await until(() =>
+    output.split("\n").find((line) => {
+      if (!line.startsWith("SLZ_DASHBOARD ")) return false;
+      return (
+        JSON.parse(line.slice("SLZ_DASHBOARD ".length)).requestId ===
+        "desktop-report"
+      );
+    }),
+  );
+  const reportLink = new URL(
+    JSON.parse(reportFrame.slice("SLZ_DASHBOARD ".length)).url,
+  );
+  assert.equal(reportLink.pathname, "/report-bug");
+  assert.ok(new URLSearchParams(reportLink.hash.slice(1)).has("connect"));
+  const reportPage = await fetch(base + "/report-bug");
+  assert.equal(reportPage.status, 200);
+  assert.ok((await reportPage.text()).includes("Logs stay on your Mac"));
+  for (const asset of ["bug-report.js", "bug-report.css"])
+    assert.equal((await fetch(base + "/" + asset)).status, 200);
   const logs = await fs.readFile(health.logFilePath, "utf8");
   assert.ok(!logs.includes(status.code), "pairing code stays off disk logs");
   // A running service must not depend on files being retained in the old .app.

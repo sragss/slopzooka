@@ -211,6 +211,32 @@ final class CompanionClient: NSObject, ObservableObject {
         }
     }
 
+    func captureBugReport(hostID: String, around: String) async throws -> String {
+        await flushDiagnostics()
+        struct Capture: Decodable { let reportId: String }
+        let result: Capture = try await request(hostID: hostID, path: "/api/diagnostics/capture", method: "POST",
+            body: Self.json(["around": around]), timeout: 30)
+        return result.reportId
+    }
+
+    func prepareBugReport(hostID: String, title: String, description: String, around: String, reportID: String?) async throws -> BugReportDraft {
+        var body = ["title": title, "description": description, "around": around]
+        if let reportID { body["reportId"] = reportID }
+        let draft: BugReportDraft = try await request(hostID: hostID, path: "/api/diagnostics/bug-report/prepare", method: "POST",
+            body: Self.json(body), timeout: 30)
+        if let url = draft.browserURL, !BugReportDraft.isComposer(url) { throw URLError(.badURL) }
+        return draft
+    }
+
+    func submitBugReport(hostID: String, draftID: String) async throws -> URL {
+        struct Issue: Decodable { let url: URL }
+        let result: Issue = try await request(hostID: hostID, path: "/api/diagnostics/bug-report/submit", method: "POST",
+            body: Self.json(["draftId": draftID]), timeout: 30)
+        guard result.url.absoluteString.range(of: #"^https://github\.com/sragss/slopzooka/issues/[0-9]+$"#, options: .regularExpression) != nil
+        else { throw URLError(.badURL) }
+        return result.url
+    }
+
     func showConnectionCode() async {
         guard needsPairing, let base = currentRoute?.endpoint else { return }
         // Optional convenience: older companions still expose their code in the menu.

@@ -11,6 +11,7 @@ import express from "express";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
+import { installBugReportRoutes } from "./bug-report-http.js";
 import { GitHubClient } from "./github.js";
 import { createDiagnostics } from "./logger.js";
 import { installDiagnosticsRoutes, logRequests } from "./diagnostics-http.js";
@@ -136,6 +137,7 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
   sessionService.flushLogs(),
 );
@@ -145,6 +147,10 @@ installWindowLayoutRoutes(
 );
 const publicRoot = path.join(import.meta.dirname, "..", "public");
 app.use(express.static(publicRoot));
+
+app.get("/report-bug", (_req, res) => {
+  res.sendFile("bug-report.html", { root: publicRoot });
+});
 
 app.get("/dashboard", async (_req, res) => {
   res.redirect(302, await dashboardAddress.destination());
@@ -844,7 +850,11 @@ if (process.env.SLOPZOOKA_DESKTOP === "1") {
             "SLZ_DASHBOARD " +
               JSON.stringify({
                 requestId: command.requestId,
-                url: pairing.dashboardLink(destination),
+                url: pairing.dashboardLink(
+                  command.reportBug === true
+                    ? new URL("/report-bug", destination).href
+                    : destination,
+                ),
               }),
           );
         });

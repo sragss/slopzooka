@@ -9634,11 +9634,11 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "36682c2779a0abc36de13367164c83e1b807f3c0af5bbbd5dfe6b046573846bb" : "unknown"
+    buildId: true ? "bcbe05ad9ac5053c4608eef8c5ab6b3cd2a6f8ab0d21d68ad136c05b38b98c1c" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
-async function flush() {
+async function flushBrowserLogs() {
   if (sending || !queue.length) return;
   sending = true;
   try {
@@ -9672,8 +9672,8 @@ async function flush() {
     sending = false;
   }
 }
-setInterval(() => void flush(), 2e3);
-window.addEventListener("online", () => void flush());
+setInterval(() => void flushBrowserLogs(), 2e3);
+window.addEventListener("online", () => void flushBrowserLogs());
 window.addEventListener(
   "error",
   (event) => browserLog("browser").error("browser.error", {

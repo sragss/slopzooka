@@ -218,3 +218,25 @@ struct HostSessionsResponse: Decodable {
 }
 struct CreatedSessionResponse: Decodable { let session: HostSession }
 struct APIAcknowledgement: Decodable { let ok: Bool }
+
+/// Public issue projection only; diagnostic events never enter this model.
+struct BugReportDraft: Decodable {
+    let draftId: String?
+    let body: String
+    let account: String?
+    let browserURL: URL?
+
+    static func isComposer(_ url: URL) -> Bool {
+        url.scheme == "https" && url.host == "github.com" && url.port == nil && url.user == nil && url.password == nil
+            && url.path == "/sragss/slopzooka/issues/new" && url.fragment == nil
+    }
+
+    static func offline(title: String, description: String, around: String) -> Self {
+        let body = "## What happened\n\n\(description)\n\n## Incident\n\nTime: \(around)\n\nNo diagnostic snapshot is attached."
+        var url = URLComponents(string: "https://github.com/sragss/slopzooka/issues/new")!
+        url.queryItems = [URLQueryItem(name: "title", value: title), URLQueryItem(name: "body", value: body)]
+        url.percentEncodedQuery = url.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        let destination = url.url.flatMap { $0.absoluteString.count <= 7800 ? $0 : nil }
+        return Self(draftId: nil, body: body, account: nil, browserURL: destination)
+    }
+}

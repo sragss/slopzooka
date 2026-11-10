@@ -180,11 +180,11 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "5aeae31713dd470468681993eb82b7f726c147520631e30a3a6f9b8ea2b50298" : "unknown"
+    buildId: true ? "98e4b0d89465906dfeca00bed5bd853ccbb42c933fa8829cec51455930438dc2" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
-async function flush() {
+async function flushBrowserLogs() {
   if (sending || !queue.length) return;
   sending = true;
   try {
@@ -218,8 +218,8 @@ async function flush() {
     sending = false;
   }
 }
-setInterval(() => void flush(), 2e3);
-window.addEventListener("online", () => void flush());
+setInterval(() => void flushBrowserLogs(), 2e3);
+window.addEventListener("online", () => void flushBrowserLogs());
 window.addEventListener(
   "error",
   (event) => browserLog("browser").error("browser.error", {
@@ -672,6 +672,18 @@ async function refresh() {
   refreshing = false;
   $("refresh").disabled = false;
 }
+$("report-bug").onclick = (event) => {
+  if (!paired) return;
+  event.preventDefault();
+  const around = (/* @__PURE__ */ new Date()).toISOString();
+  void openResult(async () => {
+    await flushBrowserLogs();
+    return `/report-bug?around=${encodeURIComponent(around)}`;
+  }).catch((error) => {
+    failure("notice-message", error, "Allow pop-ups to open the bug report.");
+    $("notice").hidden = false;
+  });
+};
 $("refresh").onclick = () => {
   log2.info("refresh.requested");
   void refresh();

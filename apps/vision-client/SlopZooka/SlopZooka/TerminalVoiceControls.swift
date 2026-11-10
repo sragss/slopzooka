@@ -8,7 +8,21 @@ struct TerminalVoiceButton: View {
     @EnvironmentObject private var voice: TerminalVoiceController
 
     var body: some View {
-        Button { voice.activateTerminal(id) } label: {
+        VoiceInputButton(voice: voice, id: id, label: voice.targetID == id ? "Stop voice input" : "Dictate to terminal") { voice.activateTerminal(id) }
+        .opacity(isAvailable ? 1 : 0.45)
+        .disabled(!isAvailable || voice.isSubmitting)
+    }
+}
+
+/// Shared microphone control for terminal input and native composition.
+struct VoiceInputButton: View {
+    @ObservedObject var voice: TerminalVoiceController
+    let id: String
+    let label: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
             VoiceOrb(isSelected: voice.targetID == id,
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
@@ -22,10 +36,8 @@ struct TerminalVoiceButton: View {
         .buttonBorderShape(.circle)
         .contentShape(.hoverEffect, Circle())
         .hoverEffect(.lift)
-        .accessibilityLabel(voice.targetID == id ? "Stop voice input" : "Dictate to terminal")
+        .accessibilityLabel(label)
         .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
-        .opacity(isAvailable ? 1 : 0.45)
-        .disabled(!isAvailable || voice.isSubmitting)
     }
 }
 

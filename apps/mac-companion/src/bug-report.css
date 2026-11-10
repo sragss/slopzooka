@@ -1,0 +1,58 @@
+@import "./dashboard.css";
+
+.report-page main {
+  margin: 0 auto;
+  max-width: 760px;
+  padding: 40px 24px;
+}
+.report-page header {
+  margin-bottom: 28px;
+}
+.report-page h1 {
+  margin: 18px 0 12px;
+}
+.report-page p {
+  margin: 8px 0 16px;
+  color: var(--muted);
+}
+.report-page label {
+  margin-top: 20px;
+}
+.report-page textarea {
+  font: inherit;
+  width: 100%;
+  min-height: 180px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--control);
+  color: var(--text);
+  resize: vertical;
+}
+.report-page .diagnostics {
+  margin: 24px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+.report-page .diagnostics p {
+  margin-bottom: 8px;
+}
+.report-page .report-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 24px;
+}
+.report-page .primary {
+  background: var(--accent);
+  color: white;
+}
+.report-page details {
+  margin-top: 20px;
+}
+.report-page summary {
+  cursor: pointer;
+  color: var(--muted);
+}

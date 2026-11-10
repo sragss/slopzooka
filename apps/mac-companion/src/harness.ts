@@ -1,5 +1,5 @@
 import "./dashboard.css";
-import { browserLog, loggedFetch } from "./browser-logger.js";
+import { browserLog, loggedFetch, flushBrowserLogs } from "./browser-logger.js";
 import type { SessionSummary } from "../../../packages/protocol/src/index.js";
 import type { Frontend } from "./frontend-discovery.js";
 const log = browserLog("harness");
@@ -451,6 +451,18 @@ async function refresh() {
   refreshing = false;
   $<HTMLButtonElement>("refresh").disabled = false;
 }
+$("report-bug").onclick = (event) => {
+  if (!paired) return;
+  event.preventDefault();
+  const around = new Date().toISOString();
+  void openResult(async () => {
+    await flushBrowserLogs();
+    return `/report-bug?around=${encodeURIComponent(around)}`;
+  }).catch((error) => {
+    failure("notice-message", error, "Allow pop-ups to open the bug report.");
+    $("notice").hidden = false;
+  });
+};
 $("refresh").onclick = () => {
   log.info("refresh.requested");
   void refresh();
