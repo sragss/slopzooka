@@ -103,6 +103,9 @@ struct BugReportView: View {
             if case .unconfirmed = state {
                 Link("Check Existing Issues", destination: URL(string: "https://github.com/sragss/slopzooka/issues")!)
             }
+            if case .rejected = state, let url = draft.browserURL {
+                Link("Review on GitHub", destination: url)
+            }
             if draft.account == nil {
                 Text(draft.browserURL == nil
                     ? "Shorten the description to fit a browser draft link, or copy the report above."

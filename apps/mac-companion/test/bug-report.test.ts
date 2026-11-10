@@ -498,6 +498,7 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
     originalToken = process.env.GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = "test-only-github-token";
   let ok = true;
+  let writeStatus = 403;
   let viewer = "reporter";
   let viewerStatus = 200;
   const requests: { url: string; options: RequestInit }[] = [];
@@ -514,7 +515,7 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
             html_url: "https://github.com/sragss/slopzooka/issues/123",
           })
         : "private submitted description",
-      { status: ok ? 201 : 403 },
+      { status: ok ? 201 : writeStatus },
     );
   };
   try {
@@ -574,13 +575,28 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
     );
     viewerStatus = 200;
     ok = false;
+    for (const status of [401, 403]) {
+      writeStatus = status;
+      await assert.rejects(
+        github.createBugReport(
+          "Summary",
+          "private submitted description",
+          "reporter",
+        ),
+        (error) =>
+          error instanceof ServiceError &&
+          error.statusCode === 409 &&
+          !error.message.includes("private submitted description"),
+      );
+    }
+    writeStatus = 503;
     await assert.rejects(
       github.createBugReport(
         "Summary",
         "private submitted description",
         "reporter",
       ),
-      /^Error: GitHub issue request returned HTTP 403$/,
+      /^Error: GitHub issue request returned HTTP 503$/,
     );
   } finally {
     globalThis.fetch = originalFetch;

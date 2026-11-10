@@ -307,6 +307,11 @@ export class GitHubClient {
         body: JSON.stringify({ title, body }),
       },
     );
+    if (response.status === 401 || response.status === 403)
+      throw new ServiceError(
+        "GitHub rejected authorization for this issue. Refresh your credentials and review again.",
+        409,
+      );
     // Never echo GitHub's payload: it may contain the submitted description.
     if (!response.ok)
       throw new Error(`GitHub issue request returned HTTP ${response.status}`);
