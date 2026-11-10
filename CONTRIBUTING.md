@@ -165,3 +165,19 @@ Simulator compilation and macOS state tests do not establish device behavior. Be
 - Put two terminals on opposite sides of the room; emit `printf '\a'` in each. Check that each chime comes from its own window, its orange border clears when selected, and reconnect/reload does not repeat the sound. Repeat while dictating.
 - In the terminal’s **…** popover, gaze at each row and zoom button, then pinch near its center and edges. Check that highlights stay on one rounded target and neighboring actions do not fire. Open **Report a Bug**, verify voice starts after the popover closes, and cancel without publishing. Repeat in immersive mode and with a disconnected terminal; a terminal on another accepted Mac must capture from its own Mac.
 - Check physical wrist tracking and comfort in immersive mode.
+
+### Native window preview development
+
+The experimental capture provider is built by `pnpm dev:companion` and Mac app
+packaging. Enable it with `SLOPZOOKA_WINDOW_PREVIEWS=1` on an isolated companion
+home/port. Do not run a second companion against your live home. A development
+shell's Screen Recording grant does not establish the final signed app's grant.
+
+`pnpm test:vision-state` includes bounded media protocol and real loopback receiver
+checks. `pnpm test:native-video` additionally exercises hardware H.264 encoding and
+real VideoToolbox decoding across portrait/landscape changes; run it on a Mac with
+an available hardware encoder. These checks do not capture a desktop, open Mac
+permission prompts, or install anything on a headset. See the
+[native preview plan](.plans/2026-11-10-native-preview-implementation.md) for the
+separate signed-app/device gate. Packaging and simulator builds alone cannot
+establish capture permission attribution, perceived latency, or scene sizing.

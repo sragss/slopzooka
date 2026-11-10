@@ -140,7 +140,13 @@ try {
     sessionSocketPath,
     "private status identifies the isolated service endpoint",
   );
-  const health = await (await fetch(base + "/health")).json();
+  // Private status can arrive while the HTTP admission gate is still starting.
+  const health = await until(async () => {
+    const response = await fetch(base + "/health");
+    if (!response.ok) return undefined;
+    const health = await response.json();
+    return health.ok === true ? health : undefined;
+  });
   assert.equal(
     status.sessionLogPath,
     path.join(

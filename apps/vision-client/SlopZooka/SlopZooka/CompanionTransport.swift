@@ -31,6 +31,21 @@ final class CompanionTransportRoute {
         "\(url.scheme?.lowercased() ?? "http")://\(url.host?.lowercased() ?? ""):\(url.port ?? (url.scheme == "https" ? 443 : 80))"
     }
 
+    private var nativeChannels: [UUID: NWConnection] = [:]
+    func windowChannel(id: UUID, sourceID: String) throws -> (NWConnection, Data) {
+        let parts = sourceID.split(separator: ":")
+        guard parts.count == 4, parts[0] == "window", UUID(uuidString: String(parts[1])) != nil,
+              UInt32(parts[2]) != nil, UInt32(parts[3]) != nil else { throw URLError(.badURL) }
+        guard !stopped, nativeChannels.count < 8, let host = endpoint.host,
+              let port = NWEndpoint.Port(rawValue: UInt16(exactly: endpoint.port ?? (endpoint.scheme == "https" ? 443 : 80)) ?? 0),
+              let token = Self.token(for: endpoint) else { throw URLError(.cannotConnectToHost) }
+        let connection = NWConnection(host: NWEndpoint.Host(host), port: port, using: endpoint.scheme == "https" ? .tls : .tcp)
+        nativeChannels[id]?.cancel()
+        nativeChannels[id] = connection
+        let request = "GET /api/window-stream/\(sourceID) HTTP/1.1\r\nHost: \(host):\(port.rawValue)\r\nConnection: Upgrade\r\nUpgrade: slz-window-v1\r\nAuthorization: Bearer \(token)\r\n\r\n"
+        return (connection, Data(request.utf8))
+    }
+    func releaseWindowChannel(id: UUID) { nativeChannels.removeValue(forKey: id)?.cancel() }
     private var stopped = false
     func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
         guard !stopped, let url = request.url, Self.key(url) == Self.key(endpoint) else { throw URLError(.cancelled) }
@@ -43,6 +58,8 @@ final class CompanionTransportRoute {
         guard !stopped else { return }
         stopped = true
         session.invalidateAndCancel()
+        for connection in nativeChannels.values { connection.cancel() }
+        nativeChannels.removeAll()
         // A renewed legacy route may have the same origin as its predecessor.
         // Retiring that predecessor must not revoke the new route's credential.
         if Self.origins[Self.key(endpoint)]?.id == id {

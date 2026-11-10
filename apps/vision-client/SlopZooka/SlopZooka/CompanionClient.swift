@@ -93,6 +93,11 @@ final class CompanionClient: NSObject, ObservableObject {
         guard let route = routes[hostID], route.paired, current?.id != hostID || isReady else {
             return "Reconnect to this Mac before opening a preview."
         }
+        if id.hasPrefix("window:") {
+            guard let catalog = frontendCatalogs[hostID]?.windows else { return "Refresh the Mac window list." }
+            if !catalog.presentation.available { return catalog.presentation.message ?? "Mac window sharing unavailable." }
+            return catalog.sources.contains(where: { $0.id == id }) ? nil : "This source window is no longer available. Select its current window from the launcher."
+        }
         guard let frontend = frontendCatalogs[hostID]?.frontends.first(where: { $0.id == id }) else {
             return "Wait for this connection’s frontend list to refresh."
         }
@@ -511,6 +516,17 @@ final class CompanionClient: NSObject, ObservableObject {
     func openFrontend(hostID: String, id: String) async throws -> OpenFrontendResponse {
         try await request(hostID: hostID, path: "/api/frontends/open", method: "POST",
             body: Self.json(["id": id, "gatewayHostname": try previewHostname(for: hostID)]))
+    }
+    func openWindowPreview(hostID: String, id: String) async throws -> NativeWindowPayload {
+        let route = try route(for: hostID)
+        let result: OpenWindowPreviewResponse = try await request(hostID: hostID, path: "/api/window-previews/open", method: "POST", body: Self.json(["id": id]))
+        guard routes[hostID] == route else { throw URLError(.cancelled) }
+        guard let transport = route.transport else { throw URLError(.notConnectedToInternet) }
+        return NativeWindowPayload(source: result.source, route: transport)
+    }
+    func windowPermission(hostID: String, settings: Bool) async throws {
+        let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/window-previews/permission", method: "POST", body: Self.json(["settings": settings]))
+        await refreshFrontends(hostID: hostID, force: true)
     }
     func addFrontend(hostID: String, url: String) async throws {
         let _: OpenFrontendResponse = try await request(hostID: hostID, path: "/api/frontends", method: "POST",

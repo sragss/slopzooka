@@ -107,3 +107,40 @@ Direct's CA is learned only over an already authenticated Local Network route an
 ## Design history
 
 The [original product brief](archive/PLAN.md) and [v0 implementation plan](archive/EXEC_PLAN.md) record early decisions and superseded terminology. They are historical context. Current behavior is documented here and in the usage guides; feature-specific plans live in [`.plans`](../.plans).
+
+## Native window previews
+
+Experimental window capture reuses the frontend catalog, authenticated companion
+route, Preview scene, `WindowGateway`, and existing layout schema. A preview stores
+an observed source ID; URLs, pairing credentials, media tickets, and geometry never
+enter its durable layout record. Native reload retires the old viewer before
+resolving fresh content. `WindowScene` owns aspect requests and per-scene geometry
+preferences, independently of encoded pixel resolution.
+
+`window-previews.ts` owns a narrowly signed native capture child and its bounded
+control IPC. `WindowHost.swift` enumerates sources and grants short-lived, single-use
+loopback tickets. `WindowCaptureViewer.swift` captures ScreenCaptureKit output and
+hardware H.264 for each independent viewer. It never launches/quits source apps,
+injects input, or owns PTYs. Provider restart invalidates source IDs rather than
+matching by title. Closing the last viewer releases that viewer's capture resources.
+The current implementation has one capture/encoder per viewer, capped at eight;
+hardware capacity at that limit is not qualified.
+
+Control replies use the existing HTTP authentication. One fixed HTTP upgrade
+forwards opaque binary media between the accepted route and native provider, using
+Node stream backpressure; it is not an arbitrary-port proxy or JSON video path.
+`packages/media` supplies the bounded versioned packet parser, frame-credit and
+keyframe rules, VideoToolbox adapter, and native receiver. Each viewer permits two
+outstanding frames and a one-second ACK/encode deadline. Waiting/idle heartbeats
+receive separate acknowledgements, which cannot grant frame credit; silent viewers
+are closed after two seconds even when the source is static. Receiver enqueue acknowledgements
+are not proof of physical display. A stalled renderer drops its old connection
+instead of replaying a backlog. Native flow control stays separate from terminal
+flow control. Direct video remains explicitly unavailable until qualified.
+
+The provider emits bounded lifecycle summaries into the companion's existing
+`window-previews` logger. No image data, window titles, user input, or media tickets
+are logged. `NativePreviewModel` owns only its live receiver/decoder and three bounded
+reconnect attempts. Route retirement cancels its channels. Source/permission failure
+requires the displayed repair action; it does not create another window registry or
+restart policy for the source application.

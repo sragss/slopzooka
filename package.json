@@ -17,7 +17,8 @@
     "build:mac-app": "node scripts/build-mac-app.mjs",
     "test:mac-app": "node scripts/test-mac-app.mjs",
     "test:vision-state": "node scripts/test-vision-state.mjs",
-    "test:terminal-keyboard": "node scripts/test-terminal-keyboard.mjs"
+    "test:terminal-keyboard": "node scripts/test-terminal-keyboard.mjs",
+    "test:native-video": "node scripts/test-native-video.mjs --hardware"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",

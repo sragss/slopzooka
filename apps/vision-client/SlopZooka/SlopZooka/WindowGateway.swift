@@ -33,6 +33,7 @@ private struct WindowState {
     var resolvedPreviewRevision: Int? { if case .preview(_, let revision) = content { return revision }; return nil }
 
     mutating func invalidateContent() {
+        if preview?.nativeWindow != nil { content = nil } // Retire capture before a new resolve; preserve the native scene.
         reloadRevision += 1
         previewRequest?.task.cancel()
         previewRequest = nil
@@ -217,6 +218,12 @@ final class WindowGateway: ObservableObject {
         remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: frontend.id)))
         try open(id: id)
     }
+    func openWindowPreview(_ source: NativeWindowSource, hostID: String) throws {
+        if let message = client.frontendOpenError(id: source.id, hostID: hostID) { throw CompanionError(message: message) }
+        let id = "\(hostID):\(source.id)"
+        remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: source.id)))
+        try open(id: id)
+    }
     func close(id: String) {
         guard let reference = windows[id]?.reference else { return }
         close(reference)
@@ -320,6 +327,10 @@ final class WindowGateway: ObservableObject {
         // Restoration uses the same server-authored capability as the launcher.
         // Expected unavailability is state, not a failing Open every poll. A new
         // catalog/route can make it available again without another window cache.
+        if record.targetID.hasPrefix("window:"), let message = client.frontendOpenError(id: record.targetID, hostID: hostID) {
+            windows[record.id]?.error = message
+            return
+        }
         if let availability = client.frontends(for: hostID).frontends.first(where: { $0.id == record.targetID })?.presentation,
            !availability.available {
             let message = availability.message ?? "Preview unavailable on this connection."
@@ -363,6 +374,10 @@ final class WindowGateway: ObservableObject {
         action(.open(record))
     }
     private func resolvePreview(_ record: WindowRecord, hostID: String) async throws -> PreviewWindowPayload {
+        if record.targetID.hasPrefix("window:") {
+            let native = try await client.openWindowPreview(hostID: hostID, id: record.targetID)
+            return PreviewWindowPayload(nativeWindow: native, id: record.id, title: native.source.title, urlString: "")
+        }
         let result = try await client.openFrontend(hostID: hostID, id: record.targetID)
         guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
         if let port = result.exposedPort, let token = result.accessToken {

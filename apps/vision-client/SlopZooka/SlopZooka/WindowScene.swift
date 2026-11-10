@@ -190,3 +190,54 @@ struct WindowRecoveryView: View {
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 }
+
+/// Source geometry, not encoder pixel size, controls streamed-window aspect.
+/// Later geometry changes preserve the user's current diagonal scale.
+struct PreviewGeometry: UIViewRepresentable {
+    let size: CGSize
+    func makeUIView(context: Context) -> GeometryView { GeometryView() }
+    func updateUIView(_ view: GeometryView, context: Context) { view.sourceSize = size; view.apply() }
+    final class GeometryView: UIView {
+        var sourceSize = CGSize.zero
+        private var lastAspect: CGFloat?
+        private var pendingAspect: CGFloat?
+        private let geometryKey = "SlopZooka.previewAspect.v1"
+        override func layoutSubviews() { super.layoutSubviews(); lockAspectWhenSized() }
+        override func didMoveToWindow() { super.didMoveToWindow(); apply() }
+        func apply() {
+            guard let scene = window?.windowScene, sourceSize.width > 0, sourceSize.height > 0 else { return }
+            let aspect = sourceSize.width / sourceSize.height
+            guard aspect.isFinite, aspect >= 0.1, aspect <= 10, lastAspect != aspect else { return }
+            let prior = lastAspect ?? (scene.session.userInfo?[geometryKey] as? Double).map { CGFloat($0) }
+            lastAspect = aspect
+            let current = scene.effectiveGeometry.coordinateSpace.bounds.size
+            if prior == aspect, current.height > 0, abs(current.width / current.height - aspect) < 0.01 {
+                scene.requestGeometryUpdate(.Vision(resizingRestrictions: .uniform)) { error in
+                    AppLog("window-scene").error("preview.geometry.failed", error: error)
+                }
+                return
+            }
+            let diagonal = prior == nil ? 850 : hypot(current.width, current.height)
+            let height = diagonal / sqrt(aspect * aspect + 1)
+            let target = CGSize(width: height * aspect, height: height)
+            // Establish the new size before uniform resizing freezes its ratio.
+            scene.requestGeometryUpdate(.Vision(size: target, resizingRestrictions: .freeform)) { error in
+                AppLog("window-scene").error("preview.geometry.failed", error: error)
+            }
+            pendingAspect = aspect
+            lockAspectWhenSized()
+        }
+        private func lockAspectWhenSized() {
+            guard let scene = window?.windowScene, let aspect = pendingAspect else { return }
+            let size = scene.effectiveGeometry.coordinateSpace.bounds.size
+            guard size.height > 0, abs(size.width / size.height - aspect) < 0.01 else { return }
+            pendingAspect = nil
+            var info = scene.session.userInfo ?? [:]
+            info[geometryKey] = Double(aspect)
+            scene.session.userInfo = info
+            scene.requestGeometryUpdate(.Vision(resizingRestrictions: .uniform)) { error in
+                AppLog("window-scene").error("preview.geometry.failed", error: error)
+            }
+        }
+    }
+}

@@ -141,3 +141,27 @@ or **Review Again**. Re-review refreshes the account and requires another explic
 uncertain responses keep native resubmission disabled; check existing issues
 before using the browser fallback to avoid duplicates. See [bug reports](mac-companion.md#bug-reports) for privacy,
 local snapshot access, and retention.
+
+## Mac window previews (experimental)
+
+A companion launched with `SLOPZOOKA_WINDOW_PREVIEWS=1` adds **Mac windows** to
+its launcher frontend list. Select a window to share its full content, including
+any Simulator toolbar. The Mac supplies the aspect ratio, so an iPhone Simulator
+can open as a tall preview. Reload and Close use the existing Preview window;
+closing a preview does not quit the source app or end any terminal.
+
+This first version requires Local Network and macOS 14+. It reports Screen
+Recording permission and offers **Allow Screen Recording on Mac** and **Open Mac
+Privacy Settings**. Complete the system prompt on your Mac. The signed provider's
+permission identity still needs final device qualification; development or ad-hoc
+builds may need permission again after rebuilding. Screen capture itself does not
+require Accessibility. Computer-use control has its own permission requirements.
+
+These previews carry video. Interact through the Mac app or an agent's existing
+Mac computer-use tools. A locked Mac, closed source, revoked permission, or stalled
+stream clears the image and reports its state. Temporary stream interruptions get
+three bounded reconnect attempts; Reload remains available. After the capture
+provider restarts, select the current window again: SlopZooka will not silently
+substitute another window with a similar title. Direct video, locked-desktop
+fallbacks, attention-based quality changes, and automatic app launching are later
+steps. The feature stays off by default until the integrated headset test passes.

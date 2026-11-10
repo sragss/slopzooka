@@ -8,6 +8,7 @@ enum Fixture {
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
     static var frontends: [[String: Any]] = []
+    static var nativeWindows: [String: Any]?
     static var beforeFrontends: (() async throws -> Void)?
     static var beforeSessions: (() async throws -> Void)?
     static var sessions: [String: [HostSession]] = [:]
@@ -97,7 +98,13 @@ enum Fixture {
         }
         if path == "/api/frontends" {
             if let callback = beforeFrontends { beforeFrontends = nil; try await callback() }
-            return try json(["frontends": frontends, "warning": "Frontend fixture"], for: request)
+            var result: [String: Any] = ["frontends": frontends, "warning": "Frontend fixture"]
+            if let nativeWindows { result["windows"] = nativeWindows }
+            return try json(result, for: request)
+        }
+        if path == "/api/window-previews/open" {
+            if let callback = beforePreview { beforePreview = nil; await callback() }
+            return try json(["source": (nativeWindows!["sources"] as! [[String: Any]])[0]], for: request)
         }
         if path == "/api/frontends/open" {
             let port = previewPort
@@ -592,6 +599,39 @@ struct WindowGatewayChecks {
         precondition(Fixture.requests.filter { $0 == "POST /api/frontends/open" }.count == opensBefore + 1,
             "A newly available catalog resolves the same saved preview exactly once")
         print("PASS: known unavailable previews retain intent without repeated Open requests, then recover when the catalog permits them")
+
+        let nativeJSON = try Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[3]))
+        Fixture.nativeWindows = try JSONSerialization.jsonObject(with: nativeJSON) as? [String: Any]
+        defer { Fixture.nativeWindows = nil }
+        let nativeClient = Fixture.api
+        let transport = CompanionTransportRoute.legacyLocalNetwork(base, token: "fixture-native-token")
+        try nativeClient.accept(fixtureHealth(hostID, endpoint: base), endpoint: base, authenticated: true, transport: transport)
+        let nativeGateway = WindowGateway(persistence: WindowPersistence(defaults: defaults), client: nativeClient)
+        await nativeClient.refreshFrontends(hostID: hostID)
+        let nativeSource = nativeClient.frontends(for: hostID).windows!.sources[0]
+        try nativeGateway.openWindowPreview(nativeSource, hostID: hostID)
+        let nativeID = "\(hostID):\(nativeSource.id)"
+        await until { nativeGateway.previewPayload(for: nativeID)?.nativeWindow != nil }
+        precondition(nativeGateway.reference(for: nativeID)?.window.kind == .preview)
+        precondition(nativeGateway.previewPayload(for: nativeID)!.nativeWindow!.source.contentWidth == 390)
+        let nativeRecord = nativeGateway.reference(for: nativeID)!
+        let encodedNative = String(data: try JSONEncoder().encode(nativeRecord), encoding: .utf8)!
+        precondition(!encodedNative.contains("token") && !encodedNative.contains("http") && !encodedNative.contains("contentWidth"))
+        let opens = Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count
+        nativeGateway.observe(id: nativeID, isPresented: false, isFocused: false)
+        precondition(nativeGateway.reference(for: nativeID) != nil, "View disconnect is not native preview close")
+        Fixture.nativeWindows!["presentation"] = ["presentation": "window", "available": false, "reasonCode": "desktop_locked", "message": "Unlock Mac", "alternatives": []]
+        await nativeClient.refreshFrontends(hostID: hostID)
+        nativeGateway.reload(id: nativeID)
+        for _ in 0..<20 { await Task.yield() }
+        precondition(Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count == opens,
+            "Known unavailable native windows do not repeatedly request capture")
+        nativeGateway.close(id: nativeID)
+        await until { !Fixture.layouts[base.host!, default: WindowLayout()].windows.contains(where: { $0.id == nativeID }) }
+        precondition(nativeGateway.previewPayload(for: nativeID) == nil)
+        precondition(!Fixture.requests.contains(where: { $0.contains("window-previews/end") }), "Viewer closure never quits a source app")
+        print("PASS: native preview shares the gateway, persists only source identity, respects capture availability, and separates disconnect from close")
+
 
     }
 

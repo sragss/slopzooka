@@ -10,7 +10,10 @@ struct BrowserWindowView: View {
 
     var body: some View {
         Group {
-            if let payload {
+            if let payload, let native = payload.nativeWindow {
+                NativePreviewView(id: payload.id, payload: native, revision: windows.reloadToken(for: payload.id))
+                    .id(payload.id)
+            } else if let payload {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
                         PreviewWebView(url: url, hostID: windows.reference(for: payload.id)?.hostID, certificateAuthority: payload.certificateAuthority,

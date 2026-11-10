@@ -9,9 +9,10 @@
     "dev": "pnpm run start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "tsx --test test/*.test.ts",
-    "start": "pnpm run build:transport && pnpm run build:web && tsx src/server.ts",
+    "start": "pnpm run build:transport && pnpm run build:windows && pnpm run build:web && tsx src/server.ts",
     "dev:watch": "pnpm run build:web && tsx watch src/server.ts",
-    "build:transport": "node scripts/build-transport.mjs"
+    "build:transport": "node scripts/build-transport.mjs",
+    "build:windows": "node scripts/build-windows.mjs"
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

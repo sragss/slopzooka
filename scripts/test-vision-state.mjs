@@ -84,6 +84,7 @@ try {
                 root,
                 "packages/protocol/fixtures/session-names.v1.json",
               ),
+              path.join(root, "packages/protocol/fixtures/native-window.v1.json"),
             ]
           : suite === "CompanionClientChecks"
             ? [path.join(root, "packages/protocol/fixtures/presentation.v1.json")]
@@ -104,3 +105,5 @@ try {
 } finally {
   await fs.rm(temporary, { recursive: true, force: true });
 }
+
+execFileSync(process.execPath, [path.join(root, "scripts/test-native-video.mjs")], { stdio: "inherit", timeout: 60000 });

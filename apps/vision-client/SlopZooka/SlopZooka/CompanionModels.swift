@@ -123,7 +123,25 @@ struct PresentationAvailability: Decodable {
     let message: String?
     let alternatives: [String]
 }
+struct NativeWindowSource: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let application: String
+    let contentWidth: Double
+    let contentHeight: Double
+}
+struct NativeWindowCatalog: Decodable {
+    let sources: [NativeWindowSource]
+    let state: String
+    let presentation: PresentationAvailability
+}
+struct OpenWindowPreviewResponse: Decodable { let source: NativeWindowSource }
+struct NativeWindowPayload {
+    let source: NativeWindowSource
+    let route: CompanionTransportRoute
+}
 struct FrontendCatalog: Decodable {
+    var windows: NativeWindowCatalog? = nil
     let frontends: [FrontendSummary]
     let warning: String?
 
@@ -139,6 +157,7 @@ struct OpenFrontendResponse: Decodable {
     let certificateAuthority: String?
 }
 struct PreviewWindowPayload {
+    var nativeWindow: NativeWindowPayload? = nil
     let id: String
     let title: String
     let urlString: String

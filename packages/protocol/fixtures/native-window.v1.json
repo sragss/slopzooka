@@ -1,0 +1,13 @@
+{
+  "state": "ready",
+  "sources": [
+    {
+      "id": "window:639e03ee-15a5-4bdf-ae6e-e55d4ba13048:42:99",
+      "title": "iPhone Simulator",
+      "application": "Simulator",
+      "contentWidth": 390,
+      "contentHeight": 844
+    }
+  ],
+  "presentation": { "presentation": "window", "available": true, "alternatives": [] }
+}
