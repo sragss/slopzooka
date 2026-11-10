@@ -278,6 +278,46 @@ test(
           "utf8",
         ),
       );
+      assert.equal(launches[0].body.session.title, "terminal");
+      const initial = (await api("/api/sessions")).body.sessions;
+      assert.equal(
+        initial.find((session: any) => session.id === "terminal-2").title,
+        "terminal2",
+      );
+      assert.equal(initial[0].projectName, "project");
+      assert.match(initial[0].workspaceName, /^[a-z]{3}-\d{2}-\d{4}$/);
+      const workspaceRename = await api(
+        "/api/workspaces/workspace-1",
+        { name: "  Shared workspace  " },
+        "PATCH",
+      );
+      assert.equal(workspaceRename.status, 200);
+      assert.equal(workspaceRename.body.workspace.name, "Shared-workspace");
+      assert.equal(
+        workspaceRename.body.workspace.branchName,
+        record.branchName,
+      );
+      assert.equal(workspaceRename.body.workspace.worktreePath, worktree);
+      assert.ok(
+        (await api("/api/sessions")).body.sessions.every(
+          (session: any) => session.workspaceName === "Shared-workspace",
+        ),
+      );
+      assert.equal(
+        (await api("/api/workspaces")).body.workspaces[0].name,
+        "Shared-workspace",
+      );
+      for (const name of ["", " ", 42, "x".repeat(121), "invalid\0name"]) {
+        assert.equal(
+          (await api("/api/workspaces/workspace-1", { name }, "PATCH")).status,
+          400,
+        );
+      }
+      assert.equal(
+        (await api("/api/workspaces/missing", { name: "Missing" }, "PATCH"))
+          .status,
+        404,
+      );
       const originalTitle = launches[0].body.session.title;
       const renamed = await api(
         "/api/sessions/terminal-1",
@@ -995,6 +1035,68 @@ test(
       assert.equal((await service.listWorkspaces(100)).length, 2);
       await fs.access(one.worktreePath);
       await fs.access(two.worktreePath);
+      const summary = (
+        id: string,
+        profile: "codex" | "claude" | null,
+        workspaceId = one.workspaceId,
+      ) => ({
+        id,
+        profile,
+        workspaceId,
+        title: "Legacy title",
+        cwd: one.worktreePath,
+        cols: 80,
+        rows: 24,
+        status: "running" as const,
+        exitCode: null,
+      });
+      const originals = [
+        summary("a", "codex"),
+        summary("b", "codex"),
+        summary("c", "claude"),
+        summary("d", null),
+        summary("e", "codex", two.workspaceId),
+      ];
+      const labels = await service.describeSessions(originals);
+      assert.deepEqual(
+        labels.map((session) => session.title),
+        ["codex", "codex2", "claude", "terminal", "codex"],
+      );
+      const [third, fourth] = await Promise.all([
+        service.describeSessions([summary("f", "codex")]),
+        service.describeSessions([summary("g", "codex")]),
+      ]);
+      assert.deepEqual([third[0].title, fourth[0].title], ["codex3", "codex4"]);
+      const reloaded = new WorkspaceService(logger);
+      assert.equal(
+        (await reloaded.describeSessions([originals[1]]))[0].title,
+        "codex2",
+        "Removal/reordering and companion replacement never renumber labels",
+      );
+      const named = await reloaded.renameWorkspace(
+        one.workspaceId,
+        "  Named\tworkspace  ",
+      );
+      assert.equal(named.name, "Named-workspace");
+      assert.equal(named.branchName, one.branchName);
+      assert.equal(named.worktreePath, one.worktreePath);
+      assert.ok(
+        (await service.describeSessions(originals))
+          .filter((session) => session.workspaceId === one.workspaceId)
+          .every((session) => session.workspaceName === "Named-workspace"),
+      );
+      assert.equal(
+        (
+          await service.describeSessions([{ ...originals[0], name: "Custom" }])
+        )[0].name,
+        "Custom",
+      );
+      assert.equal(
+        (await service.describeSessions([summary("__proto__", "claude")]))[0]
+          .title,
+        "claude2",
+      );
+
       await assert.rejects(
         service.launchWorkspace(
           {

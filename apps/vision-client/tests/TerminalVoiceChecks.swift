@@ -58,16 +58,18 @@ struct TerminalVoiceChecks {
         var available = Set(["a", "b"])
         var commands: [TerminalVoiceCommand] = []
         var renames: [(id: String, name: String)] = []
+        var nameTargets: [TerminalVoiceController.NameTarget] = []
         var delayRename = false
         var renameReply: CheckedContinuation<Void, Error>?
         var completedRenames = 0
         var completedDeliveries = 0
         var reply: CheckedContinuation<Void, Error>?
         let voice = TerminalVoiceController(capture: capture, defaults: defaults,
-            isAvailable: { available.contains($0) },
-            rename: {
+            isAvailable: { id, mode in available.contains(id) || (id == "legacy" && mode == .rename) },
+            rename: { id, name, target in
                 defer { completedRenames += 1 }
-                renames.append(($0, $1))
+                renames.append((id, name))
+                nameTargets.append(target)
                 if delayRename { try await withCheckedThrowingContinuation { renameReply = $0 } }
             }, deliver: { command in
                 defer { completedDeliveries += 1 }
@@ -91,8 +93,8 @@ struct TerminalVoiceChecks {
         precondition(capture.state == .idle, "Enabling the feature does not start the microphone")
         let restoredCapture = FakeSpeechCapture()
         let restored = TerminalVoiceController(capture: restoredCapture, defaults: defaults,
-            isAvailable: { _ in true },
-            rename: { _, _ in preconditionFailure("Restoration cannot rename") },
+            isAvailable: { _, _ in true },
+            rename: { _, _, _ in preconditionFailure("Restoration cannot rename") },
             deliver: { _ in preconditionFailure("Restoration cannot submit input") })
         precondition(restored.conversationEnabled && restored.mode == nil && restoredCapture.starts == 0,
             "Only the preference persists; listening and target selection do not restore")
@@ -185,6 +187,14 @@ struct TerminalVoiceChecks {
         precondition(renames.count == 1 && renames[0].id == "b" && renames[0].name == "Fix-the-login-flow")
         precondition(commands.count == count + 4, "Naming must never deliver terminal input")
 
+        voice.activateRename("a", target: .workspace)
+        await until { capture.state == .listening }
+        capture.finish("Shared workspace")
+        await until { voice.mode == nil }
+        precondition(nameTargets.last == .workspace && renames.last?.name == "Shared-workspace")
+        precondition(commands.count == count + 4, "Workspace naming cannot send terminal input")
+        renames.removeLast()
+
         voice.activateRename("a")
         await until { capture.state == .listening }
         capture.transcript = "partial"
@@ -253,6 +263,17 @@ struct TerminalVoiceChecks {
         precondition(commands.count == count + 4, "Cancellation and target switching must not submit anything")
         precondition(renames.count == renameCount, "Late permission cannot rename a window")
         print("PASS: turning the setting off cancels delayed microphone preparation without sending")
+        voice.stop()
+        capture.delayPermission = false
+        voice.activateTerminal("legacy")
+        precondition(voice.mode == nil, "A disconnected legacy renderer cannot receive dictation")
+        voice.activateRename("legacy", target: .workspace)
+        await until { capture.state == .listening }
+        precondition(voice.targetID == "legacy" && voice.mode == .rename,
+            "Metadata naming must open even when terminal input is unavailable")
+        voice.stop()
+        print("PASS: legacy windows can open metadata naming independently of terminal input readiness")
+
         await checkRecognitionContinuity(defaults: defaults)
     }
 
@@ -261,8 +282,8 @@ struct TerminalVoiceChecks {
         let capture = FakeSpeechCapture()
         var commands: [TerminalVoiceCommand] = []
         let voice = TerminalVoiceController(capture: capture, defaults: defaults,
-            isAvailable: { _ in true },
-            rename: { _, _ in preconditionFailure("Utterance continuity must not rename") },
+            isAvailable: { _, _ in true },
+            rename: { _, _, _ in preconditionFailure("Utterance continuity must not rename") },
             deliver: { commands.append($0) })
         voice.conversationEnabled = true
         voice.activateTerminal("a")

@@ -1,6 +1,6 @@
 import Foundation
 
-/// Normalize WebKit editing and hardware-arrow events for xterm's key handling.
+/// Normalize WebKit editing and hardware shortcut events for xterm's key handling.
 enum TerminalKeyboard {
     static let script = """
     document.addEventListener('keydown', function(event) {
@@ -9,19 +9,23 @@ enum TerminalKeyboard {
             !(input instanceof HTMLTextAreaElement) ||
             !input.classList.contains('xterm-helper-textarea') ||
             (event.keyCode !== 0 && event.keyCode !== 229)) return;
+        const letter = event.ctrlKey && !event.altKey && !event.metaKey
+            ? (/^[a-z]$/i.test(event.key) ? event.key.toUpperCase()
+                : /^Key[A-Z]$/.test(event.code) ? event.code.slice(3) : null)
+            : null;
         const key = {
             ArrowUp: ['ArrowUp', 38], UIKeyInputUpArrow: ['ArrowUp', 38],
             ArrowDown: ['ArrowDown', 40], UIKeyInputDownArrow: ['ArrowDown', 40],
             ArrowLeft: ['ArrowLeft', 37], UIKeyInputLeftArrow: ['ArrowLeft', 37],
             ArrowRight: ['ArrowRight', 39], UIKeyInputRightArrow: ['ArrowRight', 39]
-        }[event.key];
+        }[event.key] ?? (letter ? [letter, letter.charCodeAt(0)] : null);
         if (!key) return;
-        // xterm's UIKit arrow fallback drops modifiers; on Mac it can also
-        // mistake Option + a zero keyCode for character composition.
+        // xterm needs legacy keyCodes for Control letters. Its UIKit arrow
+        // fallback also drops modifiers and mistakes Option for composition.
         event.preventDefault();
         event.stopPropagation();
         input.dispatchEvent(new KeyboardEvent('keydown', {
-            key: key[0], code: key[0], keyCode: key[1], which: key[1],
+            key: key[0], code: letter ? 'Key' + letter : key[0], keyCode: key[1], which: key[1],
             altKey: event.altKey, ctrlKey: event.ctrlKey,
             shiftKey: event.shiftKey, metaKey: event.metaKey,
             repeat: event.repeat, location: event.location,

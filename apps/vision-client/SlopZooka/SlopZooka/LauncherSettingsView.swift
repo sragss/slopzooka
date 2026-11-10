@@ -2,7 +2,7 @@ import SwiftUI
 
 struct LauncherSettingsView: View {
     @EnvironmentObject private var windows: WindowGateway
-    @EnvironmentObject private var state: LauncherState
+    @EnvironmentObject private var client: CompanionClient
     @EnvironmentObject private var workspace: ImmersiveWorkspaceState
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.dismiss) private var dismiss
@@ -60,14 +60,14 @@ struct LauncherSettingsView: View {
                         ScrollView { MacConnectionView().padding(24) }
                             .navigationTitle("Your Mac")
                     } label: {
-                        LabeledContent("Connected Mac", value: state.isReady ? "Connected" : "Not connected")
+                        LabeledContent("Connected Mac", value: client.isReady ? "Connected" : "Not connected")
                     }
                     DisclosureGroup("Troubleshooting") {
                         Button("Reload All Window Content", systemImage: "arrow.clockwise") { windows.reload() }
-                            .disabled(!state.isReady)
+                            .disabled(!client.isReady)
                         Text("Reloads content without ending sessions or moving windows.")
                             .font(.footnote).foregroundStyle(.secondary)
-                        if case .success(let health) = state.healthState {
+                        if case .success = client.healthState, let health = client.health {
                             Text("Address: \(health.controlOrigin)").textSelection(.enabled)
                             Text("Logs: \(health.logFilePath)").textSelection(.enabled)
                         }

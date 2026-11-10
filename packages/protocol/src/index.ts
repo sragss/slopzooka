@@ -7,6 +7,9 @@ export type SessionSummary = {
   title: string;
   /** User-assigned name; title remains the original fallback. */
   name?: string;
+  /** Mac-owned display context; absent on older companions and raw PTY messages. */
+  projectName?: string;
+  workspaceName?: string;
   cwd: string;
   cols: number;
   rows: number;

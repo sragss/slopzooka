@@ -7,7 +7,7 @@ struct WorkspaceRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            avatar
+            RepositoryAvatar(urlString: workspace.repo.owner.avatarUrl)
 
             VStack(alignment: .leading, spacing: 5) {
                 Text(workspace.repo.nameWithOwner)
@@ -15,7 +15,7 @@ struct WorkspaceRowView: View {
                     .lineLimit(1)
 
                 HStack(spacing: 8) {
-                    Text(workspace.branchName)
+                    Text(workspace.name ?? workspace.branchName)
                         .font(.caption)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -37,34 +37,9 @@ struct WorkspaceRowView: View {
                     .scaleEffect(0.8)
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 14)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
-        .accessibilityLabel("Open \(workspace.repo.nameWithOwner), \(workspace.branchName), with \(selectedTool.title)")
-    }
-
-    @ViewBuilder
-    private var avatar: some View {
-        if let url = URL(string: workspace.repo.owner.avatarUrl) {
-            AsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Circle()
-                    .fill(.quaternary)
-                    .overlay {
-                        ProgressView()
-                            .scaleEffect(0.75)
-                    }
-            }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(.quaternary)
-                .frame(width: 40, height: 40)
-        }
+        .accessibilityLabel("Open \(workspace.repo.nameWithOwner), \(workspace.name ?? workspace.branchName), with \(selectedTool.title)")
     }
 }

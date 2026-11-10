@@ -10,6 +10,7 @@ import type {
   TuiProfile,
 } from "../../../packages/protocol/src/index.js";
 import { ServiceError } from "./errors.js";
+import { normalizedName } from "./names.js";
 import { observeTerminalNotifications } from "./terminal-notifications.js";
 
 const REPLAY_LIMIT = 512 * 1024;
@@ -64,16 +65,7 @@ export class SessionManager {
     if (name === null) {
       delete session.summary.name;
     } else {
-      if (typeof name !== "string")
-        throw new ServiceError("A terminal name is required", 400);
-      const normalized = name.trim().replace(/\s+/gu, "-");
-      if (
-        !normalized ||
-        normalized.length > 120 ||
-        /[\x00-\x1f]/u.test(normalized)
-      )
-        throw new ServiceError("Terminal names must be 1–120 characters", 400);
-      session.summary.name = normalized;
+      session.summary.name = normalizedName(name);
     }
     return { ...session.summary };
   }

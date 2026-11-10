@@ -7,23 +7,27 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-vision-state-"));
 const binary = path.join(temporary, "checks");
+const companionSources = [
+  "CompanionClient",
+  "AppDebugLog",
+  "CompanionModels",
+  "WindowPersistence",
+];
 const suites = {
+  CompanionClientChecks: companionSources,
   LauncherStateChecks: [
+    ...companionSources,
     "LauncherState",
-    "HostConnection",
-    "CompanionModels",
     "TerminalNavigation",
     "SpeechEndpoint",
   ],
   WindowGatewayChecks: [
+    ...companionSources,
     "WindowGateway",
     "TerminalNotifications",
     "TerminalVoiceController",
     "ImmersiveWorkspaceState",
-    "WindowPersistence",
     "LauncherState",
-    "HostConnection",
-    "CompanionModels",
   ],
   ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
   TerminalVoiceChecks: ["TerminalVoiceController", "SpeechRecognitionSegment"],
@@ -45,6 +49,14 @@ try {
             `apps/vision-client/SlopZooka/SlopZooka/${name}.swift`,
           ),
         ),
+        ...(sources.includes("CompanionClient")
+          ? [
+              path.join(
+                root,
+                "apps/vision-client/tests/CompanionTestTransport.swift",
+              ),
+            ]
+          : []),
         path.join(root, `apps/vision-client/tests/${suite}.swift`),
         "-o",
         binary,

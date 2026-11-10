@@ -6,6 +6,7 @@ type Workspace = {
   workspaceId: string;
   repo: { nameWithOwner: string };
   branchName: string;
+  name?: string;
   existsOnDisk: boolean;
 };
 const sections = {
@@ -246,9 +247,15 @@ function render(key: Section, force = false) {
   const matches = (text: string) => text.toLowerCase().includes(term);
   if (key === "sessions")
     for (const s of data.sessions) {
-      if (!matches(`${s.name ?? ""} ${s.title} ${s.cwd} ${s.status}`)) continue;
-      const title =
-        s.name ?? (s.cwd.split("/").filter(Boolean).pop() || s.title);
+      if (
+        !matches(
+          `${s.name ?? ""} ${s.title} ${s.projectName ?? ""} ${s.workspaceName ?? ""} ${s.cwd} ${s.status}`,
+        )
+      )
+        continue;
+      const title = [s.projectName, s.workspaceName, s.name ?? s.title]
+        .filter(Boolean)
+        .join(" / ");
       const r = row(
         title,
         `${s.name ?? s.title} · ${s.status === "running" ? "Running" : "Ended"}`,
@@ -285,10 +292,11 @@ function render(key: Section, force = false) {
     }
   if (key === "workspaces")
     for (const w of data.workspaces) {
-      if (!matches(`${w.repo.nameWithOwner} ${w.branchName}`)) continue;
+      if (!matches(`${w.repo.nameWithOwner} ${w.name ?? ""} ${w.branchName}`))
+        continue;
       const r = row(
         w.repo.nameWithOwner,
-        w.existsOnDisk ? w.branchName : "Folder unavailable",
+        w.existsOnDisk ? (w.name ?? w.branchName) : "Folder unavailable",
       );
       action(
         r.actions,

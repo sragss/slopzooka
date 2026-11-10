@@ -3,295 +3,171 @@ import SwiftUI
 
 @MainActor
 final class LauncherState: ObservableObject {
-    let connection = HostConnection()
-    @Published var host = ""
-    @Published var pairingCode = ""
-    @Published var needsPairing = false
-    @Published var isPairing = false
-    @Published var pairingError: String?
-    @Published var healthState: HealthState = .idle
-    @Published var recentRepos: [RecentRepoSummary] = []
-    @Published var recentWorkspaces: [WorkspaceSummary] = []
-    @Published var availableOwners: [RepoOwnerSummary] = []
-    @Published var frontends: [FrontendSummary] = []
-    @Published var frontendWarning: String?
-    @Published var repoState: RepoState = .idle
-    @Published var workspaceState: WorkspaceState = .idle
+    let client: CompanionClient
+
+    init(client: CompanionClient) {
+        self.client = client
+        selectedTool = LaunchTarget(rawValue: UserDefaults.standard.string(forKey: "selectedTool") ?? "") ?? .codex
+        client.onConnected = { [weak self] target in
+            guard let self else { return }
+            self.catalogTask?.cancel()
+            self.availableOwners = []
+            self.repoState = .idle
+            self.workspaceState = .idle
+            self.feedback = nil
+            guard !self.client.needsPairing else { return }
+            self.catalogTask = Task { [weak self] in
+                guard let self else { return }
+                async let workspaces: Void = self.loadWorkspaces(hostID: target.id)
+                async let repositories: Void = self.loadRepositories(hostID: target.id)
+                async let owners: Void = self.loadOwners(hostID: target.id)
+                _ = await (workspaces, repositories, owners)
+            }
+        }
+    }
+    deinit { catalogTask?.cancel() }
+    private var catalogTask: Task<Void, Never>?
+    var recentRepos: [RecentRepoSummary] { repoState.value?.repos ?? [] }
+    var recentWorkspaces: [WorkspaceSummary] { workspaceState.value?.workspaces ?? [] }
+    @Published private(set) var availableOwners: [RepoOwnerSummary] = []
+    @Published private(set) var repoState: CatalogState<RecentReposResponse> = .idle
+    @Published private(set) var workspaceState: CatalogState<RecentWorkspacesResponse> = .idle
     @Published var selectedTool: LaunchTarget = .codex
     @Published var searchText = ""
-    @Published var busyRepoID: String?
-    @Published var busyWorkspaceID: String?
-    @Published var isCreatingRepo = false
     @Published var repoCreationError: String?
-    private var repoCreationID: UUID?
-    @Published var mutatingWorkspaceID: String?
-    @Published var isPruningMissingWorkspaces = false
+    private enum Operation: Equatable {
+        case launchRepo(String)
+        case reopenWorkspace(String)
+        case createRepo(UUID)
+        case archiveWorkspace
+        case pruneWorkspaces
+    }
+    @Published private var operation: Operation?
+    var busyRepoID: String? { if case .launchRepo(let id) = operation { return id }; return nil }
+    var busyWorkspaceID: String? { if case .reopenWorkspace(let id) = operation { return id }; return nil }
+    var isCreatingRepo: Bool { if case .createRepo = operation { return true }; return false }
+    var isPruningMissingWorkspaces: Bool { operation == .pruneWorkspaces }
     @Published var feedback: LaunchFeedback?
-    var launchTerminal: ((String, URL, String?) async throws -> Void)?
-    var onSessionSnapshot: ((HostSessionsResponse, ConnectedHost) async -> Void)?
-
-    private var connecting = false
-    private var refreshing = false
-    private var pendingHosts: [String] = []
-    var isReady: Bool {
-        if case .success = healthState { return !needsPairing }
-        return false
-    }
-    var normalizedHost: String { host.trimmingCharacters(in: .whitespacesAndNewlines) }
-    var isMutatingWorkspace: Bool {
-        busyRepoID != nil || busyWorkspaceID != nil || mutatingWorkspaceID != nil || isCreatingRepo
-            || isPruningMissingWorkspaces
-    }
+    var launchTerminal: ((String, String, String?) async throws -> Void)?
+    var isMutatingWorkspace: Bool { operation != nil }
     var filteredRepos: [RecentRepoSummary] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return query.isEmpty
             ? recentRepos : recentRepos.filter { $0.nameWithOwner.localizedCaseInsensitiveContains(query) }
     }
 
-    func loadSavedPreferences() {
-        host = UserDefaults.standard.string(forKey: "companionHost") ?? ""
-        selectedTool = LaunchTarget(rawValue: UserDefaults.standard.string(forKey: "selectedTool") ?? "") ?? .codex
-    }
     func persistSelectedTool() { UserDefaults.standard.set(selectedTool.rawValue, forKey: "selectedTool") }
     func preferredOwnerLogin() -> String? {
         let saved = UserDefaults.standard.string(forKey: "newRepoOwnerLogin")
         return availableOwners.first(where: { $0.login == saved })?.login ?? availableOwners.first?.login
     }
 
-    func maybeAutoConnect(candidateHosts: [String]) async {
-        let candidates = connecting ? candidateHosts : [normalizedHost] + candidateHosts
-        for candidate in candidates where !candidate.isEmpty && !pendingHosts.contains(candidate) {
-            if connecting && candidate == normalizedHost { continue }
-            pendingHosts.append(candidate)
-        }
-        guard !connecting else { return }
-        connecting = true
-        defer { connecting = false }
-        while !pendingHosts.isEmpty {
-            let candidate = pendingHosts.removeFirst()
-            if connection.current != nil {
-                pendingHosts.removeAll()
-                return
-            }
-            host = candidate
-            if await connectAndRefresh() || host != candidate {
-                pendingHosts.removeAll()
-                return
-            }
-        }
+    private func loadRepositories(hostID: String) async {
+        await load(\.repoState, hostID: hostID, fetch: client.repositories)
     }
-
-    @discardableResult
-    func connectAndRefresh() async -> Bool {
-        guard let base = CompanionAPI.baseURL(host: normalizedHost) else {
-            healthState = .failure("Enter a valid companion host")
-            return false
-        }
-        needsPairing = false
-        pairingError = nil
-        healthState = .checking
+    func loadWorkspaces(hostID: String) async {
+        await load(\.workspaceState, hostID: hostID, fetch: client.workspaces)
+    }
+    private func load<Value>(
+        _ state: ReferenceWritableKeyPath<LauncherState, CatalogState<Value>>,
+        hostID: String, fetch: @MainActor (String) async throws -> Value
+    ) async {
+        guard !Task.isCancelled, let target = client.current, target.id == hostID else { return }
+        let requestID = UUID()
+        self[keyPath: state] = .loading(requestID)
         do {
-            let health = try await CompanionAPI.request(
-                CompanionHealthResponse.self, base: base, path: "/health", timeout: 4)
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return false }
-            try connection.accept(health, endpoint: base)
-            needsPairing = !health.paired
-            healthState = .success(health)
-            UserDefaults.standard.set(normalizedHost, forKey: "companionHost")
-            if needsPairing {
-                recentRepos = []
-                recentWorkspaces = []
-                availableOwners = []
-                frontends = []
-                return true
-            }
-            await refreshHostCatalog()
-            await loadWorkspaces(base: base)
-            await loadRepositories(base: base)
-            await loadOwners(base: base)
-            return true
+            let result = try await fetch(hostID)
+            guard !Task.isCancelled, target == client.current, self[keyPath: state].requestID == requestID else { return }
+            self[keyPath: state] = .loaded(result)
         } catch {
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return false }
-            healthState = .failure("\(base.absoluteString)\n\(error.localizedDescription)")
-            return false
+            guard !Task.isCancelled, target == client.current, self[keyPath: state].requestID == requestID else { return }
+            self[keyPath: state] = .failure(error.localizedDescription)
         }
     }
-
-    func pair() async {
-        guard !isPairing, needsPairing, pairingCode.count == 6,
-            pairingCode.allSatisfy({ $0 >= "0" && $0 <= "9" }),
-            let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
-        isPairing = true
-        pairingError = nil
-        defer { isPairing = false }
+    private func loadOwners(hostID: String) async {
+        guard !Task.isCancelled, let target = client.current, target.id == hostID else { return }
         do {
-            try await CompanionAPI.pair(base: base, code: pairingCode.trimmingCharacters(in: .whitespacesAndNewlines))
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            pairingCode = ""
-            await connectAndRefresh()
-        } catch {
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            pairingCode = ""
-            pairingError = "\(base.absoluteString)\n\(error.localizedDescription)"
-        }
-    }
-
-    func showConnectionCode() async {
-        guard needsPairing, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
-        // Optional convenience: older companions still expose their code in the menu.
-        _ = try? await CompanionAPI.request(APIAcknowledgement.self, base: base,
-            path: "/api/pair/display", method: "POST", timeout: 4)
-    }
-
-    func refreshHostCatalog() async {
-        guard !refreshing, !needsPairing, let target = connection.current else { return }
-        refreshing = true
-        defer { refreshing = false }
-        do {
-            let sessions = try await CompanionAPI.request(HostSessionsResponse.self, base: target.endpoint, path: "/api/sessions")
-            guard !Task.isCancelled, connection.current == target else { return }
-            await onSessionSnapshot?(sessions, target)
-        } catch {
-            guard !Task.isCancelled, connection.current == target else { return }
-            if (error as? CompanionError)?.statusCode == 401 { needsPairing = true }
-        }
-        guard !Task.isCancelled, connection.current == target, !needsPairing else { return }
-        do {
-            let catalog = try await CompanionAPI.request(FrontendCatalog.self, base: target.endpoint, path: "/api/frontends")
-            guard !Task.isCancelled, connection.current == target else { return }
-            frontends = catalog.frontends
-            frontendWarning = catalog.warning
-        } catch {
-            guard !Task.isCancelled, connection.current == target else { return }
-            frontendWarning = error.localizedDescription
-            if (error as? CompanionError)?.statusCode == 401 { needsPairing = true }
-        }
-    }
-
-    private func loadRepositories(base: URL) async {
-        repoState = .loading
-        do {
-            let result = try await CompanionAPI.request(
-                RecentReposResponse.self, base: base, path: "/api/repos/recent?limit=30")
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            recentRepos = result.repos
-            repoState = .loaded(viewerLogin: result.viewerLogin, count: result.repos.count)
-        } catch { repoState = .failure(error.localizedDescription) }
-    }
-    private func loadWorkspaces(base: URL) async {
-        workspaceState = .loading
-        do {
-            let result = try await CompanionAPI.request(
-                RecentWorkspacesResponse.self, base: base, path: "/api/workspaces?limit=100")
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
-            recentWorkspaces = result.workspaces
-            workspaceState = .loaded(count: result.workspaces.count)
-        } catch { workspaceState = .failure(error.localizedDescription) }
-    }
-    private func loadOwners(base: URL) async {
-        do {
-            let result = try await CompanionAPI.request(AvailableOwnersResponse.self, base: base, path: "/api/owners")
-            guard base == CompanionAPI.baseURL(host: normalizedHost) else { return }
+            let result = try await client.owners(hostID: hostID)
+            guard !Task.isCancelled, target == client.current else { return }
             availableOwners = result.owners
-        } catch { feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
+        } catch {
+            guard !Task.isCancelled, target == client.current else { return }
+            feedback = LaunchFeedback(message: error.localizedDescription, style: .error)
+        }
     }
 
     func launch(_ repo: RecentRepoSummary) async {
-        guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
         let profile = selectedTool.queryValue
-        busyRepoID = repo.id
-        defer { busyRepoID = nil }
-        do {
-            let body = try JSONEncoder().encode(
-                LaunchWorkspaceRequest(nameWithOwner: repo.nameWithOwner, profile: profile))
-            let workspace = try await CompanionAPI.request(
-                LaunchWorkspaceResponse.self, base: base, path: "/api/workspaces/launch", method: "POST", body: body,
-                timeout: 300)
-            try await startSession(workspace: workspace, base: base, profile: profile)
-            await loadWorkspaces(base: base)
-        } catch { show(error) }
+        await mutateWorkspace(.launchRepo(repo.id)) { hostID in
+            let workspace = try await client.launchWorkspace(hostID: hostID, nameWithOwner: repo.nameWithOwner, profile: profile)
+            try await startSession(workspace: workspace, hostID: hostID, profile: profile)
+        }
     }
 
     func createRepoAndLaunch(owner: String, repoName: String, isPrivate: Bool) async -> Bool {
-        guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return false }
+        guard !isMutatingWorkspace, let hostID = client.current?.id else { return false }
         let profile = selectedTool.queryValue
-        let operation = UUID()
-        repoCreationID = operation
-        isCreatingRepo = true
+        let creation = Operation.createRepo(UUID())
+        operation = creation
         repoCreationError = nil
         defer {
-            if repoCreationID == operation { repoCreationID = nil; isCreatingRepo = false }
+            if operation == creation { operation = nil }
         }
         do {
-            let body = try JSONEncoder().encode(
-                CreateRepoAndLaunchRequest(
-                    owner: owner, repoName: repoName, visibility: isPrivate ? "private" : "public", profile: profile))
-            let workspace = try await CompanionAPI.request(
-                LaunchWorkspaceResponse.self, base: base, path: "/api/repos/create-and-launch", method: "POST",
-                body: body, timeout: 300)
+            let workspace = try await client.createRepository(hostID: hostID, owner: owner, name: repoName, isPrivate: isPrivate, profile: profile)
             try Task.checkCancellation()
-            guard repoCreationID == operation else { return false }
+            guard operation == creation else { return false }
             UserDefaults.standard.set(owner, forKey: "newRepoOwnerLogin")
-            try await startSession(workspace: workspace, base: base, profile: profile)
-            await loadWorkspaces(base: base)
-            await loadRepositories(base: base)
+            try await startSession(workspace: workspace, hostID: hostID, profile: profile)
+            await loadWorkspaces(hostID: hostID)
+            await loadRepositories(hostID: hostID)
             return true
         } catch {
-            if !Task.isCancelled && repoCreationID == operation { repoCreationError = error.localizedDescription }
+            if !Task.isCancelled && operation == creation { repoCreationError = error.localizedDescription }
             return false
         }
     }
 
     func cancelRepoCreation() {
-        guard repoCreationID != nil else { return }
-        repoCreationID = nil
-        isCreatingRepo = false
+        guard isCreatingRepo else { return }
+        operation = nil
         feedback = LaunchFeedback(message: "Stopped waiting. The repository may still finish creating on your Mac; check your projects before trying again.", style: .neutral)
     }
 
     func reopen(_ workspace: WorkspaceSummary) async {
-        guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
         let profile = selectedTool.queryValue
-        busyWorkspaceID = workspace.id
-        defer { busyWorkspaceID = nil }
-        do {
-            let body = try JSONSerialization.data(withJSONObject: ["profile": profile as Any? ?? NSNull()])
-            let result = try await CompanionAPI.request(
-                LaunchWorkspaceResponse.self, base: base, path: "/api/workspaces/\(workspace.id)/reopen",
-                method: "POST", body: body)
-            try await startSession(workspace: result, base: base, profile: profile)
-            await loadWorkspaces(base: base)
-        } catch { show(error) }
+        await mutateWorkspace(.reopenWorkspace(workspace.id)) { hostID in
+            let result = try await client.reopenWorkspace(hostID: hostID, id: workspace.id, profile: profile)
+            try await startSession(workspace: result, hostID: hostID, profile: profile)
+        }
     }
 
-    private func startSession(workspace: LaunchWorkspaceResponse, base: URL, profile: String?) async throws {
+    private func startSession(workspace: LaunchWorkspaceResponse, hostID: String, profile: String?) async throws {
         try Task.checkCancellation()
         guard let launchTerminal else { throw CompanionError(message: "Window gateway is unavailable") }
-        try await launchTerminal(workspace.workspaceId, base, profile)
+        try await launchTerminal(workspace.workspaceId, hostID, profile)
         feedback = LaunchFeedback(message: "\(workspace.repo.nameWithOwner) • \(workspace.branchName)", style: .success)
     }
 
     func archive(_ workspace: WorkspaceSummary) async {
-        guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
-        mutatingWorkspaceID = workspace.id
-        defer { mutatingWorkspaceID = nil }
-        do {
-            _ = try await CompanionAPI.request(
-                ArchiveWorkspaceResponse.self, base: base, path: "/api/workspaces/\(workspace.id)/archive",
-                method: "POST")
-            await loadWorkspaces(base: base)
-        } catch { show(error) }
+        await mutateWorkspace(.archiveWorkspace) { hostID in
+            try await client.archiveWorkspace(hostID: hostID, id: workspace.id)
+        }
     }
     func pruneMissingWorkspaces() async {
-        guard !isMutatingWorkspace, let base = CompanionAPI.baseURL(host: normalizedHost) else { return }
-        isPruningMissingWorkspaces = true
-        defer { isPruningMissingWorkspaces = false }
-        do {
-            let result = try await CompanionAPI.request(
-                PruneMissingWorkspacesResponse.self, base: base, path: "/api/workspaces/prune-missing", method: "POST")
+        await mutateWorkspace(.pruneWorkspaces) { hostID in
+            let result = try await client.pruneMissingWorkspaces(hostID: hostID)
             feedback = LaunchFeedback(message: "Hidden \(result.archivedCount) missing workspaces", style: .success)
-            await loadWorkspaces(base: base)
-        } catch { show(error) }
+        }
     }
-    private func show(_ error: Error) { feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
+
+    private func mutateWorkspace(_ nextOperation: Operation, action: @MainActor (String) async throws -> Void) async {
+        guard operation == nil, let hostID = client.current?.id else { return }
+        operation = nextOperation
+        defer { operation = nil }
+        do {
+            try await action(hostID)
+            await loadWorkspaces(hostID: hostID)
+        } catch { feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
+    }
 }

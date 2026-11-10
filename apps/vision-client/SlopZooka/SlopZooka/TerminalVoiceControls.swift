@@ -72,6 +72,7 @@ private struct VoiceOrb: View {
 struct TerminalVoiceOverlay: ViewModifier {
     let id: String
     let isAvailable: Bool
+    let canRename: Bool
     @EnvironmentObject private var voice: TerminalVoiceController
 
     func body(content: Content) -> some View {
@@ -95,7 +96,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                     .fixedSize()
                     .padding(20)
             }
-            .onChange(of: isAvailable) { _, available in
+            .onChange(of: voice.mode == .rename ? canRename : isAvailable) { _, available in
                 if !available { voice.targetUnavailable(id) }
             }
             .onDisappear { voice.targetUnavailable(id) }
@@ -108,7 +109,7 @@ private struct TerminalVoiceDraft: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if voice.mode == .rename {
-                Text("Name this window").font(.title2.weight(.semibold))
+                Text("Name this \(voice.renameTarget.rawValue)").font(.title2.weight(.semibold))
             }
             HStack {
                 Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")

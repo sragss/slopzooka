@@ -3,7 +3,7 @@ import SwiftUI
 import WebKit
 
 // Keep authentication out of the local document fixture.
-enum CompanionAPI {
+enum CompanionClient {
     static func authorized(_ request: URLRequest) -> URLRequest { request }
 }
 
