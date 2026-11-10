@@ -2,6 +2,8 @@
 
 November 10, 2026. **Yes: local Codex history can be shared across the CLI, desktop and SlopZooka. Live continuation additionally requires joining the runtime that owns the thread.** SlopZooka currently starts ordinary `codex` in its terminal; it does not create a separate Codex conversation store. An “Open existing Codex thread” launcher action is a reasonable extension of the planned worker adapter, not a reason to build a conversation database.
 
+**User-confirmed priority and shape: P2, with a dedicated thread-list tab or section in the existing launcher.** Native history/catalog/resume capabilities already exist; once the planned worker adapter supports the relevant runtime, the incremental feature is mostly launcher UI and selection-to-session binding. That reuse does not make arbitrary live-runtime adoption automatic. This feature and its desktop interoperability checks do not block the initial orchestrator/streaming rollout.
+
 This investigation used official documentation, read-only installed-build inspection and metadata queries against the already-running local App Server. It did not start a model task, resume another conversation, restart a server or operate the desktop UI. The [evidence manifest](evidence/2026-11-10-thread-handoff/results.json) contains sanitized results and artifact fingerprints. The earlier [worker-delivery experiment](2026-11-10-worker-delivery-results.md) separately established live terminal/controller sharing in an explicitly owned runtime.
 
 ## Three different forms of sharing
@@ -49,9 +51,9 @@ Installed-build inspection found a registered `codex` URL scheme, a parser for `
 4. **Different capabilities.** Conversation history does not transport an app's complete tool environment, CUA provisioning, approvals UI or browser ownership into another harness. Official Appshots documentation explicitly says an existing attachment remains in CLI history although the CLI cannot create a new appshot. Preserve the owning runtime when possible and qualify our scoped MCP/provider tools on resume. [Appshot limitation](https://learn.chatgpt.com/docs/appshots#limits-and-troubleshooting).
 5. **Unavailable project or incompatible provider.** The original worktree may have been removed. Current App Server documentation reports `modelProviderMismatch` when resuming under a different saved provider; history reading and explicitly forking are separate options. Do not silently create a new worktree, switch providers, broaden permissions or fork the task. [Resume semantics](https://learn.chatgpt.com/docs/app-server#start-or-resume-a-thread).
 
-## Proposed launcher flow
+## P2 launcher thread section
 
-Add **Continue Codex thread** within the existing launcher/workspace flow. Show recent title, project/worktree, host and native activity status. Offer project filtering and broader search; load transcript details only when needed. This is a normal menu action that Pi can also invoke, not a capability requiring the coordinator to reason over all personal chat history.
+Add a dedicated **Threads** tab or section to the existing launcher, backed by Codex's native catalog. Show recent title, project/worktree, host and native activity status, with lightweight search/project filtering. Selecting a row performs **Continue Codex thread** through the worker/session adapter. The exact tab-versus-section layout remains a UI choice. A separate transcript viewer is not required for this slice; opening the existing terminal UI supplies the conversation view. Pi can invoke the same selection action without maintaining its own thread catalog.
 
 On selection, the existing Mac session owner resolves the native thread and working directory:
 
@@ -64,7 +66,7 @@ Persist the native thread identifier as part of the session/workspace binding, w
 
 Codex remains authoritative for conversation history, title and task state. SlopZooka keeps its existing ownership of terminals, workspace metadata and desired window layouts. A thread title can seed a useful workspace name, while explicit human workspace names remain protected. There is no new orchestration database, conversation synchronization service or parallel window manager in this proposal.
 
-The reverse action is **Open in Codex desktop** for a bound thread, using the qualified link. Do not equate that action with transferring process ownership or ending the SlopZooka terminal. Viewing/closing a presentation, stopping a turn and ending a worker remain different actions.
+An optional reverse action is **Open in Codex desktop** for a bound thread, using the qualified link. It is not required to ship the launcher thread list. Do not equate that action with transferring process ownership or ending the SlopZooka terminal. Viewing/closing a presentation, stopping a turn and ending a worker remain different actions.
 
 ## Effect on the execution plan
 
@@ -72,9 +74,9 @@ The existing owned-runtime experiment remains a valid demonstration of worker de
 
 Keep runtime selection and compatibility in the Mac worker adapter under the existing session owner. This is a small extension to launch/attach semantics, not a prerequisite networking or window rearchitecture. Do not ship an automatic private-daemon migration or restart policy based only on this investigation.
 
-## Small remaining acceptance test
+## Small P2 acceptance test
 
-No headset is required. Use one clearly marked disposable persistent conversation and the normal user configuration, leaving other workers alone:
+Run with the P2 launcher work, not as another prerequisite to the initial rollout. No headset is required for the interoperability portion. Use one clearly marked disposable persistent conversation and the normal user configuration, leaving other workers alone:
 
 1. Launch through the SlopZooka session service, capture the native thread/runtime binding, then open that exact thread in the desktop. Verify visible history and title, original cwd and one worker. This qualifies the actual sidebar/deep-link path.
 2. Start one bounded task, attach the other client to the same runtime, and verify identical active-turn identity, streamed result and queue/Stop state. Merely seeing matching transcripts does not pass the live test.
