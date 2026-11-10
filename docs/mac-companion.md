@@ -4,12 +4,17 @@
 
 ## Build and install
 
-Build on macOS with Node.js 22+, pnpm 10.28.0, and Xcode:
+Build on macOS with Node.js 22+, pnpm 10.28.0, and Xcode with visionOS support.
+The Mac build needs an Apple Development or Developer ID signing identity; see
+[signing options](#signing-and-distribution) for local test builds.
 
 ```sh
 pnpm install
 pnpm build:mac-app
 ```
+
+Install your preferred agent CLI on the Mac. For GitHub repository browsing, run
+`gh auth login` or set `GITHUB_TOKEN` / `GH_TOKEN`.
 
 Builds stage and verify a complete signed bundle before replacing the last good build. A failed compile leaves the previous app intact. Quit an app running directly from `build/mac-app` before rebuilding; the build refuses to overwrite a live app.
 
