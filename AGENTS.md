@@ -46,8 +46,8 @@ and Swift window schemas compatible. Preserve scene IDs and values when possible
 
 ## Verification
 
-Verify changes with `pnpm test:vision-state`, `pnpm typecheck`, `pnpm test`,
-`pnpm test:terminal-keyboard`, `pnpm format:check`, `pnpm build:harness`, and a
+Verify changes with `pnpm lint`, `pnpm test:vision-state`, `pnpm typecheck`,
+`pnpm test`, `pnpm test:terminal-keyboard`, `pnpm format:check`, `pnpm build:harness`, and a
 visionOS simulator build as documented in [CONTRIBUTING.md](CONTRIBUTING.md#verify).
 Window persistence tests must cover late replies, explicit close versus disconnect,
 recovery without the launcher, and avoiding duplicate process creation.
