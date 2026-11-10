@@ -3,8 +3,10 @@ import { execFile, spawn } from "node:child_process";
 import { once } from "node:events";
 import fs from "node:fs/promises";
 import http from "node:http";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
+import type { Duplex } from "node:stream";
 import { promisify } from "node:util";
 import test from "node:test";
 import express from "express";
@@ -86,6 +88,33 @@ test(
         SLOPZOOKA_CODEX_COMMAND: "/usr/bin/python3 -u ./reader.py",
       },
     );
+    const sibling = sessions.create(
+      "transport",
+      home,
+      "codex",
+      "transport-sibling",
+      {
+        ...process.env,
+        SHELL: "/bin/sh",
+        SLOPZOOKA_CODEX_COMMAND: "/usr/bin/python3 -u ./reader.py",
+      },
+    );
+    const webkitBinary = path.join(home, "webkit-fixture");
+    await exec(
+      "xcrun",
+      [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-strict-concurrency=complete",
+        "-warnings-as-errors",
+        "-parse-as-library",
+        "apps/vision-client/tests/TransportWebKitChecks.swift",
+        "-o",
+        webkitBinary,
+      ],
+      { cwd: root },
+    );
     const pairing = new Pairing(home);
     const app = express();
     app.use(express.json());
@@ -121,6 +150,15 @@ test(
       next();
     });
     app.get("/api/check", (_req, res) => res.json({ ok: true }));
+    const finalResponse =
+      "response-body-".repeat(32768) + "final-response-bytes";
+    // Span several transport buffers; successful delivery includes every byte and EOF.
+    app.get("/api/close-delimited", (_req, res) => {
+      res.shouldKeepAlive = false;
+      res.useChunkedEncodingByDefault = false;
+      res.write(finalResponse);
+      res.end();
+    });
     app.get("/terminal", (_req, res) =>
       res.sendFile(path.join(root, "apps/mac-companion/public/terminal.html")),
     );
@@ -130,6 +168,8 @@ test(
       for (const ws of wss.clients) ws.terminate();
       wss.close();
     });
+    const peers = new Map<WebSocket, { socket: Duplex; sessionId?: string }>();
+    const attachments: string[] = [];
     const server = http.createServer(app);
     server.on("upgrade", (req, socket, head) => {
       if (!pairing.authorized(req) || !pairing.sameOrigin(req)) {
@@ -137,16 +177,31 @@ test(
         return;
       }
       wss.handleUpgrade(req, socket, head, (ws) => {
+        const peer: { socket: Duplex; sessionId?: string } = { socket };
+        peers.set(ws, peer);
+        ws.send(
+          JSON.stringify({
+            type: "hello",
+            version: 1,
+            serviceInstanceId: "fixture",
+          }),
+        );
         ws.on("message", (data) => {
           const message = JSON.parse(data.toString());
-          if (message.type === "attach")
-            sessions.attach(ws, session.id, message.cursor);
-          if (message.type === "input")
-            sessions.input(ws, session.id, message.data);
+          const id = message.sessionId ?? session.id;
+          if (message.type === "attach") {
+            peer.sessionId = id;
+            attachments.push(id);
+            sessions.attach(ws, id, message.cursor);
+          }
+          if (message.type === "input") sessions.input(ws, id, message.data);
           if (message.type === "ack")
-            sessions.acknowledge(ws, session.id, message.cursor);
+            sessions.acknowledge(ws, id, message.cursor);
         });
-        ws.on("close", () => sessions.detach(ws));
+        ws.on("close", () => {
+          peers.delete(ws);
+          sessions.detach(ws);
+        });
       });
     });
     const base = await listen(server);
@@ -299,6 +354,95 @@ test(
         assert.equal(terminal.status, 200);
         assert.match(await terminal.text(), /terminal.js/);
         assert.equal((await fetch(url + "/terminal.js")).status, 200);
+        // A close-delimited HTTP response must deliver all final bytes and EOF.
+        const endpoint = new URL(url);
+        const socket = net.createConnection({
+          host: endpoint.hostname,
+          port: Number(endpoint.port),
+        });
+        let received = "";
+        socket.on("data", (data) => {
+          received += data;
+        });
+        const ended = once(socket, "end", {
+          signal: AbortSignal.timeout(3000),
+        });
+        try {
+          await once(socket, "connect");
+          socket.write(
+            `GET /api/close-delimited HTTP/1.1\r\nHost: ${endpoint.host}\r\nAuthorization: Bearer ${token}\r\nConnection: close\r\n\r\n`,
+          );
+          await ended;
+          assert.ok(
+            received.endsWith(finalResponse),
+            "EOF must follow every final response byte",
+          );
+        } finally {
+          socket.destroy();
+        }
+        const browser = spawn(
+          webkitBinary,
+          [url, token, session.id, sibling.id],
+          { stdio: ["pipe", "pipe", "pipe"] },
+        );
+        let browserOutput = "",
+          browserErrors = "";
+        browser.stdout.on("data", (data) => {
+          browserOutput += data;
+        });
+        browser.stderr.on("data", (data) => {
+          browserErrors = (browserErrors + data).slice(-2000);
+        });
+        const browserClosed = once(browser, "close");
+        try {
+          const reported = (key: string, value: unknown) =>
+            browserOutput.split("\n").some((line) => {
+              try {
+                return JSON.parse(line)[key] === value;
+              } catch {
+                return false;
+              }
+            });
+          await until(() => reported("ready", true));
+          browser.stdin.write("before\n");
+          await until(() => reported("phase", "before"));
+          const before = attachments.length;
+          const retiring = [...peers.values()];
+          assert.equal(
+            retiring.length,
+            2,
+            "Two independent WebKit terminal sockets must be attached",
+          );
+          // Remote FIN without a WebSocket Close frame: leave the native route,
+          // WebViews, and PTYs alive. Reconnection belongs to TerminalConnection.
+          for (const peer of retiring) peer.socket.end();
+          await until(() =>
+            [session.id, sibling.id].every((id) =>
+              attachments.slice(before).includes(id),
+            ),
+          );
+          browser.stdin.write("after\n");
+          await until(() => reported("phase", "after"));
+          assert.deepEqual(
+            attachments.slice(before).sort(),
+            [session.id, sibling.id].sort(),
+            "Each existing terminal must reattach exactly once without replacing its document or process",
+          );
+          console.log(
+            `PASS: ${mode} two real WebKit terminals reconnect after remote EOF and render/acknowledge independent PTY input`,
+          );
+        } catch (error) {
+          throw new Error(
+            `${String(error)}\n${browserErrors}\n${browserOutput}`,
+          );
+        } finally {
+          browser.stdin.end();
+          // Cleanup is bounded even if a WebView has stalled in its own check.
+          const cleanup = setTimeout(() => browser.kill(), 10000);
+          await browserClosed;
+          clearTimeout(cleanup);
+        }
+        await until(() => peers.size === 0);
         const attach = async (endpoint: string) => {
           const ws = new WebSocket(endpoint.replace("http:", "ws:") + "/ws", {
             headers: { ...headers, Origin: endpoint },
@@ -332,7 +476,7 @@ test(
         const disconnected = once(first.ws, "close");
         fixture.stdin.write("stop\n");
         await disconnected;
-        assert.equal(sessions.summaries().length, 1);
+        assert.equal(sessions.summaries().length, 2);
         assert.equal(sessions.summaries()[0].status, "running");
         await assert.rejects(fetch(url + "/api/check", { headers }));
         output = "";
@@ -345,10 +489,13 @@ test(
             .text()
             .includes("RECEIVED:" + Buffer.from("reconnected").toString("hex")),
         );
+        const secondClosed = once(second.ws, "close");
         second.ws.close();
+        await secondClosed;
+        await until(() => peers.size === 0);
         assert.equal(
           sessions.summaries().length,
-          1,
+          2,
           "Route replacement never creates a terminal process",
         );
       } catch (error) {

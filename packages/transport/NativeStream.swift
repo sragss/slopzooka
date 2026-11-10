@@ -72,7 +72,6 @@ nonisolated final class StreamPipe: @unchecked Sendable {
     private var outgoingReady = false
     private var pumping = false
     private var admitted = false
-    private var endedDirections = 0
 
     init(incoming: NWConnection, outgoing: NWConnection,
          readAdmission: Bool = false, writeAdmission: Bool = false,
@@ -170,12 +169,17 @@ nonisolated final class StreamPipe: @unchecked Sendable {
         from.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, end, error in
             guard let self, !self.stopped else { return }
             guard error == nil else { self.stop(stage: "read", error: error); return }
-            to.send(content: data, isComplete: end, completion: .contentProcessed { [weak self] error in
+            // isComplete alone ends a message, not the TCP stream. Forward EOF
+            // with a final context before retiring this HTTP/WebSocket channel.
+            to.send(content: data, contentContext: end ? .finalMessage : .defaultMessage,
+                    isComplete: true, completion: .contentProcessed { [weak self] error in
                 guard let self, !self.stopped else { return }
                 if let error { self.stop(stage: "write", error: error) }
                 else if end {
-                    self.endedDirections += 1
-                    if self.endedDirections == 2 { self.stop() }
+                    // These fixed HTTP/WebSocket routes treat EOF as disconnect,
+                    // not a general-purpose TCP half-close. Release both sides:
+                    // TLS half-close alone can leave the peer and PTY viewer alive.
+                    self.stop()
                 } else { self.copy(from: from, to: to) }
             })
         }

@@ -2,8 +2,7 @@
 
 November 10, 2026. The manual LAN/Direct product path worked on the headset after
 one Mac listener correction. The user confirmed typing, preview gating, method
-switches, and restart persistence. Automatic recovery has a discrepancy between
-the user verdict and the captured logs; it is not yet qualified for every window.
+switches, and restart persistence. The historical recovery verdict and logs differ. The [local follow-up](2026-11-10-transport-recovery-followup.md) reproduced and fixed a two-window disconnect failure; a physical rerun remains the final recovery check.
 
 ## Rig and evidence
 
@@ -88,12 +87,11 @@ the isolated fixture resolved it; this was not a product transport failure.
 
 ## Remaining qualification and rollout
 
-1. Reconcile the helper-recovery discrepancy before declaring automatic recovery
+1. The [local follow-up](2026-11-10-transport-recovery-followup.md) reproduced and fixed a relay EOF failure. Confirm that fix physically before declaring automatic recovery
    of all windows. A focused follow-up should record an independent ACK in each
-   terminal, correlate each connection ID, and leave the method unchanged. Check
-   whether a suspended WebView or a stalled established socket delays reconnect;
-   the current evidence does not distinguish them. Do not add a second retry
-   owner or guess at a fix from the user verdict alone.
+   terminal, correlate each connection ID, and leave the method unchanged. The follow-up establishes the stalled-socket mechanism with real WebKit, while
+   preserving this historical evidence gap. The terminal remains the sole retry
+   owner.
 2. Keep selection manual and Direct experimental. This pass demonstrates an
    admitted peer path while normal Wi-Fi remained available; it does not establish
    cold startup without an access point, hotel/airplane behavior, or offline first

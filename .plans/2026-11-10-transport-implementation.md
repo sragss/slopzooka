@@ -53,7 +53,7 @@ A broad test run initially exposed an assertion counting unrelated frontend-disc
 
 ## Before moving out of draft
 
-The isolated physical-device pass ran on November 10; see [results and evidence limits](2026-11-10-transport-device-results.md). The pass covered the checklist below with the limits in that report. User verdicts passed after correcting the listener restriction, but the helper-recovery log contains only one terminal reattachment before the next manual method switch. Resolve that discrepancy before claiming automatic recovery of every window. Quantitative latency/load and travel qualification remain open.
+The isolated physical-device pass ran on November 10; see [results and evidence limits](2026-11-10-transport-device-results.md). The pass covered the checklist below with the limits in that report. User verdicts passed after correcting the listener restriction, but the helper-recovery log contains only one terminal reattachment before the next manual method switch. The [local follow-up](2026-11-10-transport-recovery-followup.md) reproduced and fixed a two-window EOF stall. Confirm it with one physical rerun before claiming automatic recovery of every window. Quantitative latency/load and travel qualification remain open.
 
 Original acceptance checklist:
 
@@ -124,3 +124,5 @@ were not restarted for these checks.
 Removed only the Mac listener’s extra Wi-Fi interface-type requirement. Physical-adapter exclusion, TLS authentication, scoped link-local Wi-Fi admission, and path revalidation remain. Fresh original/candidate helper swaps reproduced failure and recovery without changing the session service.
 
 Restored previews now consult the existing server-authored frontend capability before resolving. A known unavailable preview retains its desired window and message without making a failing Open request every session poll. A later available catalog resolves that same preview. This stays inside `WindowGateway`, uses its existing error state for deduplication, and adds no cache, retry subsystem, or persistence schema. Missing capability data still permits normal resolution; an initial request can race catalog loading. This post-slot cleanup is covered by native regression checks, not by the headset verdict.
+
+The recovery follow-up keeps the same abstraction: EOF terminates the fixed HTTP/WebSocket channel after final bytes are forwarded. Native connections are released together; `TerminalConnection` alone reconnects. Two real WKWebViews and isolated PTYs now exercise this over LAN and TLS in the companion suite. Independent TCP/TLS half-close tunnels are outside this adapter’s contract.
