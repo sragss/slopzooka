@@ -2,7 +2,7 @@
 
 November 9, 2026. Reviewed after merging upstream `main` through `6d7d26d` into this research branch (`cdd38a5`). Upstream's default branch is `main`, rather than `master`. This updates implementation ordering; it does not claim another physical test. The [physical results](2026-11-09-surface-live-results.md) retain their original tested revision and limits.
 
-**Start implementation on the existing owners. No preliminary window/networking rearchitecture is needed.** The cleanup supplies the shared native client, per-window state and naming operations we wanted. The principal remaining architecture experiment is delivering work into an existing terminal agent, especially while it is busy. Further streaming checks mostly belong with the production integration and supported-feature qualification.
+**Start implementation on the existing owners. No preliminary window/networking rearchitecture is needed.** The cleanup supplies the shared native client, per-window state and naming operations we wanted. The worker-delivery experiment proposed below was completed on November 10 for an explicitly owned Codex runtime and real terminal TUI. [Results and limitations](2026-11-10-worker-delivery-results.md). Further streaming checks mostly belong with the production integration and supported-feature qualification.
 
 ## What the merge removes from our work
 
@@ -25,7 +25,9 @@ The three conflicts were in `WindowGateway.swift`, its tests and the native test
 
 A new regression drives a real probe poll through the injected HTTP exchange, checks its body/status reporting, then replaces the accepted route while a poll is delayed. The old batch is rejected even when the accepted address is unchanged. Existing explicit-close, duplicate, late-resolution, restoration and no-extra-session checks still pass. This is automated integration evidence, not a rerun on the headset.
 
-## The one experiment that can still change the first implementation
+## Worker-delivery experiment: completed for an owned Codex runtime
+
+**Completed follow-up:** native delivery/queue/steer, reconnect, permission wait and interruption were demonstrated. The adapter must reconcile uncertain requests because native queue IDs do not deduplicate, distinguish queue clearing from interruption, and track worker lifetime independently of the TUI. Keep the queue in Codex. The original experiment outline follows for reproducibility; it is no longer a prerequisite research task.
 
 **Use one disposable, real terminal Codex session and submit to that same live agent through a small external adapter.** This can run on the Mac without the Vision Pro. Keep its normal harness/authentication and terminal UI. The independent Pi and `codex exec` fixture runs proved tool usability; they did not prove attachment to an existing interactive session.
 
@@ -41,7 +43,7 @@ Generic native Mac control remains a separate conditional shipping gate: runtime
 
 | Step | Small deliverable | Acceptance that matters |
 | --- | --- | --- |
-| 1. Qualify worker delivery | The adapter experiment above, scoped to one actual Codex session. | Correct native session/turn, grounded queue/steer/status, no shell fallback or duplicate work after a lost reply. |
+| 1. Integrate the qualified worker adapter | Use the tested owned-runtime/TUI arrangement; add bounded request correlation, native queue/history reconciliation and explicit worker lifecycle binding at the existing Mac session owner. | Preserve the native-session/turn and queue/steer/status evidence; reject changed duplicate application requests, avoid blind retry, and distinguish UI exit from worker end. Actual Pi delegation remains the later integration case. |
 | 2. Integrate one manual stream frontend | Register/attach a prepared simulator through the existing Mac frontend owner; shared catalog → Show → gateway → transient stream payload → existing Preview. Use the tested device provider first. | Works with Pi disabled, preserves stable IDs, restores without a launcher, distinguishes source loss from viewer disconnect, rejects stale actions/resolutions. Extend Swift/TypeScript wire fixtures together. |
 | 3. Separate viewing from agent input | Provider owns source lifetime and temporary capture subscriptions; agent connections only own their scoped input authority. Bring the owned-browser path into the same preview flow. | Agent completion, input Stop or one viewer closing leaves another interested viewer alive. Last viewer release can pause capture without killing the source. Restart/reconnect reports accurate availability and rejects old bindings. |
 | 4. Wire ephemeral Pi and scoped worker MCP | Capture host/client/workspace/worker/frontend context before menu focus changes. Pi invokes existing lifecycle, naming and presentation handlers and delivers a bounded task to the real worker. The worker calls the exact provider directly. | One typed request produces the verified change in the matching preview. Stop bypasses reasoning. Closing/resetting Pi does not own resource teardown. No screenshot/click relay through two reasoning loops. |
@@ -56,7 +58,7 @@ Keep the first command path on existing authenticated request/snapshot machinery
 
 | Test | Timing / purpose |
 | --- | --- |
-| Existing-worker idle/busy/queue/steer/exit/lost-reply test | Next architecture experiment; no headset required. Can change the worker adapter and narrow Pi control scope. |
+| Existing-worker idle/busy/queue/steer/exit/lost-reply test | Completed for the owned Codex runtime. See the November 10 ledger. Arbitrary-TUI adoption, backend restart, and real-app navigation while the worker is busy remain separate qualifications. |
 | Capture survives agent completion and input Stop; two viewers release independently | Build with step 3 on the Mac. The current browser probe loses capture on caller exit; the ownership correction is already known. This verifies the correction, rather than reopening architecture discovery. |
 | Short integrated headset check after the production slice | Prepared source, explicit close/reconnect with launcher closed, obvious per-stream identity marker, Stop with live viewing. Include the unresolved browser count comparison. This qualifies changed integration; do not repeat the whole original slot. |
 | Real workspace launch with one partial failure | Step 5. Reveals setup/discovery and retry gaps; existing prepared fixtures cannot establish it. |

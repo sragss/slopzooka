@@ -4,7 +4,9 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 
 ## Start here
 
-**After merging the latest cleanup:** the [updated execution plan](2026-11-09-post-cleanup-execution-plan.md) maps `CompanionClient`, consolidated window state, shared frontend polling and workspace naming to the remaining work. No preliminary rearchitecture or mandatory new control socket is needed. The next architecture experiment is real existing-worker delivery/queue/steer; stream lifetime and recovery checks accompany integration.
+**Existing-worker delivery now tested:** the [November 10 results](2026-11-10-worker-delivery-results.md) demonstrate a real Codex TUI and external controller sharing one owned runtime/thread. Queue/steer, uncertain-reply reconciliation, interruption and native permission waits work. Duplicate queue submissions still execute twice; Stop preserves the queue; TUI exit is distinct from worker exit. Build a small adapter with those semantics, then connect the production preview/Pi path.
+
+**After merging the latest cleanup:** the [updated execution plan](2026-11-09-post-cleanup-execution-plan.md) maps `CompanionClient`, consolidated window state, shared frontend polling and workspace naming to the remaining work. No preliminary rearchitecture or mandatory new control socket is needed. The worker-delivery experiment has since run; its ownership and retry requirements are recorded above. Stream lifetime and recovery checks accompany integration.
 
 **Both core physical experiments have run:** [the results and case ledger](2026-11-09-surface-live-results.md) record real-gateway simulator presentation/control and stable dual background browser streams after a sender-schema fix. Pi/terminal handoff, human typing overlap and operator-driven simulator replacement were observed. Phone aspect ratio, jumpy animation, capture lifetime after caller exit, an inconclusive final browser count comparison and unrun fault cases are explicit. [Launch code](../experiments/surface-live-probe/README.md) remains available; this is prepared-fixture feasibility, not production acceptance.
 

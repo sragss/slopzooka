@@ -1,0 +1,540 @@
+{
+  "recordedAt": "2026-11-10T14:46:59.168180+00:00",
+  "baseRevision": "c5edf3a78e1d77a656b6b406930af0776cf984a4",
+  "scope": "Owned Codex App Server + real remote TUI in actual isolated SlopZooka session service; not arbitrary personal TUI adoption or production Pi integration.",
+  "finalRun": "run-vXdNaG",
+  "version": "codex-cli 0.167.0",
+  "model": "gpt-6.1-sol",
+  "authMode": {
+    "type": "chatgpt",
+    "requiresOpenaiAuth": true
+  },
+  "transport": "Private Unix socket, WebSocket JSON-RPC; two clients of the same runtime/thread",
+  "firstInput": "Normal PTY bootstrap; binding established from its actual native history",
+  "fixtureToolsOnly": true,
+  "stableSchemaMethods": 106,
+  "experimentalSchemaMethods": 180,
+  "queueMethodsExperimental": true,
+  "checks": {
+    "sameThreadAttachment": true,
+    "idleEffectAndTUIResult": true,
+    "queuedWhileBusyThenAutomaticallyDrained": true,
+    "expectedTurnGuardRejectedWrongID": true,
+    "steeringReplacedEffectInActiveTurn": true,
+    "nativeQueueIdempotent": false,
+    "sameRequestIDQueuedEntries": 3,
+    "changedPayloadWithSameRequestIDAccepted": true,
+    "cliQueueActualEffect": true,
+    "lostReply": {
+      "requestID": "dda2b0a5-9855-4531-b206-1e7b8548b2fc",
+      "uncertain": "RPC connection closed; outcome may be uncertain",
+      "rejoinedStatus": {
+        "type": "active",
+        "activeFlags": []
+      },
+      "recoveryStatus": {
+        "type": "active",
+        "activeFlags": []
+      },
+      "recoveredQueuedSubmissionID": "01a1c5e8-0be2-7f42-8364-840ff83ec0cc",
+      "resubmitted": false,
+      "historyContainsRequestID": true,
+      "effectCount": 1
+    },
+    "interrupt": {
+      "ackMs": 5.452459000007366,
+      "turnStatus": "interrupted",
+      "pendingQueueCount": 1,
+      "pendingQueueExplicitlyDeleted": true,
+      "forbiddenEffectCount": 0,
+      "queuedTaskRan": false
+    },
+    "permissionWait": {
+      "requestMethod": "mcpServer/elicitation/request",
+      "pendingStatus": {
+        "type": "active",
+        "activeFlags": [
+          "waitingOnApproval"
+        ]
+      },
+      "noEffectBeforeConsent": true,
+      "completed": true
+    },
+    "tuiExit": {
+      "terminalStillRunning": true,
+      "nativeThreadStillLoaded": true,
+      "backgroundRuntimeStillOwned": true,
+      "loadedAfterUnsubscribe": {
+        "data": [
+          "01a1c5e7-26cc-7c32-af8f-a21ece8a28e4"
+        ],
+        "nextCursor": null
+      },
+      "staleSteer": {
+        "error": "no active turn to steer"
+      },
+      "unloadObservationMs": 1200,
+      "shellTextFallbackUsed": false
+    }
+  },
+  "independentEffects": {
+    "bootstrap": 1,
+    "idle": 1,
+    "steered": 1,
+    "queued": 2,
+    "changed-duplicate": 1,
+    "cli-queued": 1,
+    "held-done": 1,
+    "recovered-once": 1,
+    "consent": 1
+  },
+  "runs": [
+    {
+      "run": "run-7i008s",
+      "startedAt": "2026-11-10T14:38:56.489Z",
+      "finishedAt": "2026-11-10T14:39:09.822Z",
+      "harnessCompleted": false,
+      "checks": [],
+      "failure": "Error: thread/items/list is not supported yet",
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-J5tu0f",
+      "startedAt": "2026-11-10T14:29:27.521Z",
+      "finishedAt": "2026-11-10T14:29:45.015Z",
+      "harnessCompleted": false,
+      "checks": [],
+      "failure": "Error: RPC timed out: initialize; outcome may be uncertain",
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-Z6JJzD",
+      "startedAt": "2026-11-10T14:31:11.678Z",
+      "finishedAt": "2026-11-10T14:31:54.964Z",
+      "harnessCompleted": true,
+      "checks": [
+        "sameRuntimeAttachment",
+        "idle",
+        "busyQueue"
+      ],
+      "failure": null,
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-e4vv3k",
+      "startedAt": "2026-11-10T14:35:17.180Z",
+      "finishedAt": "2026-11-10T14:36:13.294Z",
+      "harnessCompleted": true,
+      "checks": [
+        "sameRuntimeAttachment",
+        "cliQueue",
+        "lostReply",
+        "interrupt",
+        "permissionWait",
+        "tuiExit"
+      ],
+      "failure": null,
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-hPLej6",
+      "startedAt": "2026-11-10T14:30:23.898Z",
+      "finishedAt": "2026-11-10T14:30:26.418Z",
+      "harnessCompleted": false,
+      "checks": [],
+      "failure": "Error: no rollout found for thread id 01a1c5de-0a7e-7d01-9e8b-0fb0e88e3f76",
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-uRxTup",
+      "startedAt": "2026-11-10T14:34:09.964Z",
+      "finishedAt": "2026-11-10T14:34:12.553Z",
+      "harnessCompleted": false,
+      "checks": [],
+      "failure": "Error: no rollout found for thread id 01a1c5e1-7def-72e2-b866-13e5f8ef5452",
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    },
+    {
+      "run": "run-vXdNaG",
+      "startedAt": "2026-11-10T14:40:20.811Z",
+      "finishedAt": "2026-11-10T14:41:50.600Z",
+      "harnessCompleted": true,
+      "checks": [
+        "sameRuntimeAttachment",
+        "idle",
+        "busyQueue",
+        "nativeQueueIdempotent",
+        "cliQueue",
+        "lostReply",
+        "interrupt",
+        "permissionWait",
+        "tuiExit"
+      ],
+      "failure": null,
+      "credentialsRemoved": true,
+      "serviceStopped": true,
+      "backendExit": {
+        "code": 0,
+        "signal": null
+      }
+    }
+  ],
+  "cleanup": {
+    "at": "2026-11-10T14:43:09.250147+00:00",
+    "runs": 7,
+    "scopedProcessesRemaining": []
+  },
+  "sources": [
+    {
+      "path": "experiments/worker-delivery-probe/probe.mts",
+      "bytes": 23197,
+      "sha256": "3f8daf3c5dacd1a59197695614a86acee6536af2d3db6a4f20d893544753bf5d"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/rpc.mjs",
+      "bytes": 3211,
+      "sha256": "efec90767b9e14a8eb4cf99f7942ed959c13bb6d7218351f243007d9ad6f018e"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/fixture.mjs",
+      "bytes": 3783,
+      "sha256": "b8ac8cc26fbb2e4a88ab7f58dc39f9b244b5d6746e23834667cf59b04fb1b401"
+    },
+    {
+      "path": "apps/mac-companion/src/session-service-client.ts",
+      "bytes": 11516,
+      "sha256": "9dcde0b1d5058cedacd075808fe5bb112c0d05d039ee9aaef0b51528a4d73380"
+    },
+    {
+      "path": "apps/mac-companion/src/session-service.ts",
+      "bytes": 7003,
+      "sha256": "c55fca1e2179bd75a67d2348336e4ab87dd891f3d7aa72068c4bbf050107ee9a"
+    },
+    {
+      "path": "apps/mac-companion/src/sessions.ts",
+      "bytes": 12502,
+      "sha256": "f983fbd790406d5d85350e30c190050f30072b780b41f98f349e2db1ed0caf37"
+    }
+  ],
+  "schemas": [
+    {
+      "path": "experiments/worker-delivery-probe/build/schema/ClientRequest.json",
+      "bytes": 320118,
+      "sha256": "2d629aaaceea335d7e58ab19ce5908c8dd75ca3f3a6161a5f015bf59aadd3295"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/schema-stable/ClientRequest.json",
+      "bytes": 218531,
+      "sha256": "94074a415950787a25e09ae3b4d9de312cc264eb0f021633dfca921d300cd42a"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/schema/v2/ThreadQueueAddParams.json",
+      "bytes": 6829,
+      "sha256": "f6466a8f06cd4e68ec1999d06a0d70a1ddc339c0cb1baf12ee966a999fead17c"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/schema/v2/ThreadQueueListResponse.json",
+      "bytes": 7303,
+      "sha256": "7a320613604095eef93247b395dafeeb6d05b26256c4055b6a5bad05eff74ab5"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/schema/v2/ThreadResumeParams.json",
+      "bytes": 45105,
+      "sha256": "9642460eb42e9a6e8fa8e12b4381e8ed939d10b1ad8690e694d84467ea76d41a"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/schema/v2/TurnSteerParams.json",
+      "bytes": 8985,
+      "sha256": "ba7034e96620c999cf0164f08bc753f58ff2b214f2025ab409f8ce42dc4cc708"
+    }
+  ],
+  "localArtifacts": [
+    {
+      "path": "experiments/worker-delivery-probe/build/run-7i008s/results.json",
+      "bytes": 2206,
+      "sha256": "0ff2dbd8411ce380921a35ae599837d26cb5140c62de57bfbcbb56526d1323b0"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-7i008s/fixture.jsonl",
+      "bytes": 157,
+      "sha256": "1a30aa34626c9a93010a72c0508e27807f76174abe2cd01d3cdb208ceafda070"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-7i008s/control-rpc.jsonl",
+      "bytes": 6842,
+      "sha256": "fbc64c65f2cb4ef031c34fc15c44713064742bd3d731d4ffa0906ada2d47b112"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-7i008s/terminal.txt",
+      "bytes": 23158,
+      "sha256": "71841bd870eb42a320db54b87dd661ed0d2361a1f7a9dbd87836076a64aca134"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-J5tu0f/results.json",
+      "bytes": 1223,
+      "sha256": "3da9866a1487110f2fe31b82d8ada62fca43333bfc6c105988b8848ab4faee70"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-J5tu0f/control-rpc.jsonl",
+      "bytes": 178,
+      "sha256": "f3df6f89953fef86729932afb69d5c1045f9f296ba0e94ce3525e5760fde8347"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-J5tu0f/terminal.txt",
+      "bytes": 3258,
+      "sha256": "609d43bccd5f1d2fc49fe165ab828a524487a962af60fcea750aff40a88a9cdb"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-Z6JJzD/results.json",
+      "bytes": 7246,
+      "sha256": "31c68de905c3c643efa7bae29caf84574fa764ca50ecee9b7627426854be752a"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-Z6JJzD/fixture.jsonl",
+      "bytes": 927,
+      "sha256": "c7e07d0d30b6e910d5dffb45ee07572fc644a66231b26ad39da0812d5a9d36c3"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-Z6JJzD/control-rpc.jsonl",
+      "bytes": 741588,
+      "sha256": "4b689450ea860738cd104e318244b1edd7049092fff3bffeccdd3422c90437e3"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-Z6JJzD/terminal.txt",
+      "bytes": 101965,
+      "sha256": "5999756da0590aa25297dda19e6bfe4ca033f187148fcbc73593054d458f90f8"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/results.json",
+      "bytes": 3767,
+      "sha256": "549109bac80990ad52ec0d9cd82e51779d8269abccac046df8b1ecb430a6e262"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/fixture.jsonl",
+      "bytes": 1303,
+      "sha256": "b717d4ab2bf17a683507bbca006b616dfc67698d0c04c97953b0a9fcd9ddf7ff"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/control-rpc.jsonl",
+      "bytes": 366109,
+      "sha256": "36df1a0cb6d78e08fe368da3ba77f3f48090c264edd702b637b11fd7d4ce9564"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/lost-rpc.jsonl",
+      "bytes": 5614,
+      "sha256": "2ccb0fc057cc46bee8887aa947ba8dd4960f445d7c965fd111f19d106e6afaad"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/recovered-rpc.jsonl",
+      "bytes": 60357,
+      "sha256": "26dd257a42047bf6367bae79523b3b7335e465a16b198fb5f7904bd61f0fce51"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/post-delivery-history.json",
+      "bytes": 11885,
+      "sha256": "a7a4750fcf262c224a3c360bdb6885f8a3f1adfc76d3b9df000fdb1ded1046ff"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/terminal.txt",
+      "bytes": 128598,
+      "sha256": "72cbd6386d625eb2a110875e15dcb6f064fe91f2a4c48ada26cbed71429f4ef9"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-e4vv3k/queue-cli.txt",
+      "bytes": 101,
+      "sha256": "e0b8f115d3c7c059f2fe868c33538addb3938d328b1f33ed14dcb5829d8b944c"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-hPLej6/results.json",
+      "bytes": 2286,
+      "sha256": "1126241620ab7204ee41b3a075366eb975d9a4d98b75c87af783aeac1cef787c"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-hPLej6/control-rpc.jsonl",
+      "bytes": 4776,
+      "sha256": "1c2c99a80a726e948d057f98fcb1e42b02de89a8bb2a50209fe14f775e2ff094"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-hPLej6/terminal.txt",
+      "bytes": 11038,
+      "sha256": "e069f86a24f4c3770800115daf2e0ecfffc09cc532615f20ee477c71f0918b43"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-uRxTup/results.json",
+      "bytes": 2286,
+      "sha256": "9b5f6f8094bbd7a103714923bc89dcc445c558d3b0b671a4dcbb40099e8baaf2"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-uRxTup/control-rpc.jsonl",
+      "bytes": 4694,
+      "sha256": "78509d4e32b8596aaec1d3ffe5e0af5642f6aaea51e4d69f21be881a30517533"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-uRxTup/terminal.txt",
+      "bytes": 2961,
+      "sha256": "f7639fd5a40a75171e04da12675dd2d71ebaf5b4ca9843733db616de8ab64816"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/results.json",
+      "bytes": 9999,
+      "sha256": "3a65301d29f59b14162cdb5ed67a09f4b4c97f5223bbf1acc76ee58b8eb537c3"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/fixture.jsonl",
+      "bytes": 2230,
+      "sha256": "99929cb477901de2ec76ee727e5072a87ae18f1a05e688d816287d79937fbf13"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/control-rpc.jsonl",
+      "bytes": 925688,
+      "sha256": "a3185cefe640538555e1aa9d7ad315dc447dc20264591ff624ed6bf99314066e"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/lost-rpc.jsonl",
+      "bytes": 5615,
+      "sha256": "f3b30fd19616ba84c149c7de85b0b3383b863072516f96cf8e30833aaf518639"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/recovered-rpc.jsonl",
+      "bytes": 61812,
+      "sha256": "6c703901e395469962eddd0453eddfd13be7b9c6adaa97e88b3f23a8e6d50dd2"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/post-delivery-history.json",
+      "bytes": 26026,
+      "sha256": "bfdfa0be4d2839da166093c77877d3eff4cd961eb8fe77dd2a4fbf1f185141aa"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/terminal.txt",
+      "bytes": 209159,
+      "sha256": "44748eac34c29df468cd25ebeeffe5cccad634bb589cf5386171c1597d5ff3e0"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/run-vXdNaG/queue-cli.txt",
+      "bytes": 101,
+      "sha256": "2444a60401f92524340929463c0430800fe94f989f6dd96b313f0dc08bacb364"
+    },
+    {
+      "path": "experiments/worker-delivery-probe/build/cleanup-audit.json",
+      "bytes": 94,
+      "sha256": "dfb7bc376bf49e4612863c0bdf806cf4fd0df9074681c125ce4137a7bf4e6b18"
+    }
+  ],
+  "validation": [
+    {
+      "command": "pnpm test",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-tests.log",
+        "bytes": 13889,
+        "sha256": "688c7957d25fca9aebc970549fe637e4f670ab49411c900c7869ef900a728002"
+      }
+    },
+    {
+      "command": "pnpm test:vision-state",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-vision.log",
+        "bytes": 4869,
+        "sha256": "beea12b24e1e42ffe13cdef6ec3deaaa77090b662427930a3a65ba4e8d4678a5"
+      }
+    },
+    {
+      "command": "pnpm typecheck",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-typecheck.log",
+        "bytes": 289,
+        "sha256": "b0b06a0f824e09c13d4cc253c3b1d093f850565e63e63dc8e0ac2a9faf12428d"
+      }
+    },
+    {
+      "command": "pnpm format:check",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-format.log",
+        "bytes": 279,
+        "sha256": "a39695eaf722d148f3d96d916a1094388d8315b44d97af59ae2cec675319a78f"
+      }
+    },
+    {
+      "command": "prettier --check new probe sources",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-probe-format.log",
+        "bytes": 66,
+        "sha256": "17aa973d3f004560237d9a95171210b0671deff23d61628eecf7322ff5938f20"
+      }
+    },
+    {
+      "command": "pnpm test:terminal-keyboard",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-keyboard.log",
+        "bytes": 976,
+        "sha256": "91a08aa88b0d06ac5fb0c79310340c1fb42c449b10eb21f5bc6278d8892210e1"
+      }
+    },
+    {
+      "command": "pnpm build:harness; no extra asset diff",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-harness.log",
+        "bytes": 597,
+        "sha256": "af403fdfe2abc8b5479eb3a335693d3173a84ff73f6b5c20d0b1ebf765ba5365"
+      }
+    },
+    {
+      "command": "visionOS simulator xcodebuild",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-worker-build.log",
+        "bytes": 5135,
+        "sha256": "6d9f99cf080a9a5d4d378de7452141d5bea2cd0af3357f5fe017dcbdf867ea08"
+      }
+    }
+  ],
+  "references": [
+    {
+      "url": "https://learn.chatgpt.com/docs/app-server",
+      "readAt": "2026-11-10",
+      "supports": "Remote TUI, shared App Server protocol, thread resume, steer/interrupt, history and approval events; queue behavior established separately from installed schema and experiment."
+    }
+  ],
+  "limits": [
+    "Queue id is not idempotent; no blind mutation retry",
+    "Stop active turn does not clear queued follow-up",
+    "TUI exit is not backend exit",
+    "No generic existing-process adoption, full user config parity, backend restart, production Pi delegation, actual CUA navigation while busy, headset or commercial eligibility test"
+  ]
+}
