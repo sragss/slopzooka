@@ -8,6 +8,10 @@
     "build:harness": "pnpm --filter @slz/mac-companion build:harness",
     "typecheck": "pnpm --filter @slz/mac-companion typecheck",
     "test": "pnpm --filter @slz/mac-companion test",
+    "setup:swiftlint": "node scripts/install-swiftlint.mjs",
+    "lint": "pnpm lint:ts && pnpm lint:swift",
+    "lint:ts": "eslint apps/mac-companion/src apps/mac-companion/test packages/protocol/src --max-warnings 0",
+    "lint:swift": ".build/swiftlint/swiftlint lint --strict --config .swiftlint.yml && node scripts/test-swiftlint.mjs",
     "format": "prettier --write \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
     "format:check": "prettier --check \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
     "build:mac-app": "node scripts/build-mac-app.mjs",
@@ -16,6 +20,10 @@
     "test:terminal-keyboard": "node scripts/test-terminal-keyboard.mjs"
   },
   "devDependencies": {
-    "prettier": "3.6.2"
+    "@eslint/js": "9.39.5",
+    "eslint": "9.39.5",
+    "prettier": "3.6.2",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.72.2"
   }
 }

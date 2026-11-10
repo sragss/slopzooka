@@ -114,6 +114,7 @@ private struct TerminalVoiceDraft: View {
             HStack {
                 Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")
                     .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
+                    .accessibilityHidden(true)
                 Text(voice.statusText).font(.caption)
                 Spacer(minLength: 0)
                 Button("Stop", systemImage: "xmark") { voice.stop() }

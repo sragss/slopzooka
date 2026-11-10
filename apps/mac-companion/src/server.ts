@@ -592,6 +592,7 @@ server.listen(
     host: HOST,
     ipv6Only: false,
   },
+  // eslint-disable-next-line @typescript-eslint/no-misused-promises -- Startup failures use the process-wide fatal rejection handler.
   async () => {
     try {
       sessionStatus = await sessionService.connectOrStart();
