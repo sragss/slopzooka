@@ -71,3 +71,18 @@ Keep Direct experimental and the PR draft until one short physical rerun verifie
 independent ACKs in both terminals after a helper interruption, with the launcher
 closed and no method toggle. Existing travel, sleep/wake, and media qualification
 limits remain. No further headset interaction was requested during this follow-up.
+
+## Integrated verification
+
+Merged upstream through `1766abb` (bug-report PRs #51/#52). The only textual
+conflict was in the headset guide; both transport diagnostics and bug-report
+instructions were retained. New native report requests use the existing shared
+route through `CompanionClient.request`.
+
+All checks passed on the merged branch: 68 companion tests (including both real
+WebKit recovery cases), TypeScript/Swift lint, typecheck, formatting, native state
+checks, real WebKit keyboard checks, browser asset parity, visionOS simulator
+build, ad-hoc signed Mac packaging, and isolated packaged-app tests. Logs are
+`/tmp/slz-recovery-{companion,static,state,keyboard,simulator,packaging}.log`.
+No installed companion, user PTY, or physical headset app was restarted for this
+follow-up.
