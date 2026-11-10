@@ -1,6 +1,6 @@
 # Experiment A: one agent-controlled simulator in the real Vision app
 
-Status: code prepared, November 9, 2026. [The implementation and Mac results](2026-11-09-live-surface-preparation-results.md) and [launch runbook](../experiments/surface-live-probe/README.md) now support the first physical cases. Signed builds are ready; **A1–A6 have not run on Vision Pro**. The model is a separate Mac process calling the companion presentation API, not an embedded production Pi service.
+Status: core physical path demonstrated, November 9, 2026. [Physical results and per-case ledger](2026-11-09-surface-live-results.md) cover automatic real-gateway presentation, Pi/terminal control, close/reopen, launcherless control and operator-driven provider replacement. Several fault cases remain partial or unrun; this is not a completed production acceptance suite.
 
 Companion experiment: [two background browser streams](2026-11-09-background-browser-streaming-live-plan.md). Broader context: [execution architecture](orchestrator-execution-path.md), [agent responsibility decision](2026-11-09-agent-control-ownership.md), and [latest runtime qualification](2026-11-09-runtime-qualification-results.md).
 
@@ -91,7 +91,7 @@ At execution, create a dated results note beside this plan and sanitized evidenc
 | Case | Current status | Result/evidence |
 | --- | --- | --- |
 | Mac preparation | Passed within documented scope | [Readiness results and remaining limitations](2026-11-09-live-surface-preparation-results.md) |
-| A1–A6 | Not run on headset | Signed test builds and first-case launch code prepared; physical lifecycle/fault injection still pending |
-| Optional Codex handoff | Not run | Follow-up only |
+| A1–A6 | Executed with partial cases | [Physical case ledger](2026-11-09-surface-live-results.md#case-ledger); forced disconnect, deliberately delayed resolution and already-dispatched Stop remain |
+| Optional Codex handoff | Passed | Same simulator, modal dismissal, draft/count changes and user-visible confirmation |
 
 References: [current ownership map](../docs/architecture.md), [repository window invariants](../AGENTS.md#window-architecture), [probe implementation and limits](../experiments/shared-window-probe/README.md), [prior physical results](shared-window-live-results.md).

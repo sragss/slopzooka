@@ -1,5 +1,7 @@
 # Live surface preparation: code and Mac checks
 
+Follow-up: [the physical Vision Pro session has now run](2026-11-09-surface-live-results.md). This note preserves the earlier preparation evidence.
+
 November 9, 2026 (local time). Follow-up to [Experiment A](2026-11-09-simulator-gateway-live-plan.md) and [Experiment B](2026-11-09-background-browser-streaming-live-plan.md). **The first headset cases now have runnable code and signed builds. No new physical Vision Pro result is claimed.** The [runbook](../experiments/surface-live-probe/README.md) contains preparation, launch, agent, operator and cleanup commands; [sanitized evidence](evidence/2026-11-09-live-surface-preparation/results.json) records local artifact hashes.
 
 ## What is implemented

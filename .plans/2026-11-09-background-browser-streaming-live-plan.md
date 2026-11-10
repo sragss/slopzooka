@@ -1,6 +1,6 @@
 # Experiment B: two controlled background tabs streaming to Vision
 
-Status: source/relay implemented, November 9, 2026. [Mac preparation results](2026-11-09-live-surface-preparation-results.md) establish headed background source delivery, independent receivers and real agent composition. [Launch code and a signed viewer](../experiments/surface-live-probe/README.md) are prepared. **B1–B6 have not run on Vision Pro**; deliberate cover/minimize and physical typing interference remain separate checks.
+Status: core physical path demonstrated after a sender/header fix, November 9, 2026. [Physical results and per-case ledger](2026-11-09-surface-live-results.md) record stable dual background streams, real agent composition, human typing overlap and covered-source delivery. Motion was somewhat jumpy; the final exact browser counter comparison was inconclusive. Fault/performance qualification remains incomplete.
 
 Companion experiment: [real simulator-to-gateway integration](2026-11-09-simulator-gateway-live-plan.md). This media experiment is independent and may run first if its Mac preparation finishes sooner. It can use the isolated ProbeViewer; that result will not count as production `WindowGateway` integration.
 
@@ -93,7 +93,7 @@ At execution, add a dated results note and sanitized evidence alongside the exis
 | Case | Current status | Result/evidence |
 | --- | --- | --- |
 | Mac source/relay gate | Partially qualified | [Executed source/receiver/agent cases](2026-11-09-live-surface-preparation-results.md); deliberate cover/minimize, full fault cases and resource attribution remain |
-| B1–B6 | Not run on headset | Prepared source and signed viewer; await physical slot |
+| B1–B6 | Executed with partial cases | [Physical case ledger](2026-11-09-surface-live-results.md#case-ledger); navigation/resize, forced live stalls, minimized behavior and stronger pixel verification remain |
 | H.264 comparison / four streams | Not run | Conditional follow-up |
 
 For the eventual live slot, the user needs the Vision Pro connected for deployment, permission to open the prepared test viewer, and a few brief visual verdicts. Agent runs handle discovery, connections and fixture actions. Do not ask the user to hunt through stream targets: prepare clearly labeled A/B entries and guide the exact opening steps, or use the production presentation path if Experiment A is ready.

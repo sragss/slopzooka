@@ -22,6 +22,8 @@ This builds the **actual SlopZooka source** under the separate `com.slopzooka.pr
 
 After installation, launch Gateway Probe with `node experiments/surface-live-probe/device.mjs --device DEVICE_UUID --app gateway`. It restarts only this test bundle. Connect it using the setup file described below.
 
+Prefer adding `--host HOST:PORT` from the isolated companion's setup file. This preselects that address through the existing `companionHost` preference and avoids choosing the regular companion from an ambiguous discovery list. The user still approves local-network access and enters the pairing code. This launch-argument path was exercised in the physical session.
+
 ## Simulator and actual gateway
 
 Choose the exact disposable device from `xcrun simctl list devices available`. The runner admits only a device whose name contains `probe`, refuses an already running driver on it, and never uses `booted` as a selector.
@@ -95,3 +97,5 @@ Stop agent callers, then the companion runner, then the simulator/browser host w
 Every run retains manifests, fixture events, screenshots, model/terminal results and cleanup records under ignored `build/`. Browser fixtures contain no personal data. Keep connection files and full UI/model traces local; publish only sanitized outcomes and hashes. Failures are retained, including the initial activation/parser setup failures and the switch press that had no effect.
 
 Physical A1–A6/B1–B6, sustained performance, spatial placement, lock/sleep, clean permissions, arbitrary native apps, H.264 transcoding and final control ownership remain separate acceptance work. No automatic device lock or shared ChatGPT-helper restart is part of these runners.
+
+See [physical results and remaining cases](../../.plans/2026-11-09-surface-live-results.md). Browser packet regression coverage now compiles and runs the actual ProbeViewer Swift parser; testing only the separate JavaScript receiver missed required header fields and caused black headset views in the first attempt.

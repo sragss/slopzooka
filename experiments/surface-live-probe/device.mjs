@@ -9,6 +9,7 @@ const { values } = parseArgs({
     device: { type: "string" },
     app: { type: "string" },
     connection: { type: "string" },
+    host: { type: "string" },
   },
 });
 const bundles = {
@@ -23,6 +24,20 @@ if ((values.app === "viewer") !== Boolean(values.connection))
   throw new Error(
     "Only viewer requires --connection; Gateway Probe uses normal pairing",
   );
+if (values.host) {
+  const host = new URL(`http://${values.host}`);
+  if (
+    values.app !== "gateway" ||
+    !host.hostname ||
+    !host.port ||
+    host.username ||
+    host.password ||
+    host.pathname !== "/" ||
+    host.search ||
+    host.hash
+  )
+    throw new Error("--host is a gateway-only host:port address");
+}
 const env = { ...process.env };
 for (const key of Object.keys(env))
   if (key.startsWith("DEVICECTL_CHILD_")) delete env[key];
@@ -53,7 +68,9 @@ execFileSync(
     "--device",
     values.device,
     "--terminate-existing",
-    bundles[values.app],
+    ...(values.host
+      ? ["--", bundles[values.app], "-companionHost", values.host]
+      : [bundles[values.app]]),
   ],
   { env, stdio: "inherit", timeout: 60000 },
 );

@@ -6,7 +6,19 @@ import { join } from "node:path";
 import { networkInterfaces } from "node:os";
 
 export function packet(header, payload = Buffer.alloc(0)) {
-  const meta = Buffer.from(JSON.stringify(header));
+  // Match the existing Swift MediaHeader, whose synthesized Decodable requires
+  // non-optional fields even when its declarations have default values.
+  const meta = Buffer.from(
+    JSON.stringify({
+      sequence: 0,
+      timestamp: 0,
+      width: 0,
+      height: 0,
+      keyframe: false,
+      parameterSets: [],
+      ...header,
+    }),
+  );
   if (meta.length > 65536 || payload.length > 8 * 1024 * 1024)
     throw new Error("Media packet too large");
   const prefix = Buffer.alloc(8);
