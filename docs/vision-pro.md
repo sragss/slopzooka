@@ -119,6 +119,9 @@ its outbox. Logs stay local. **Create Public Issue** posts to `sragss/slopzooka`
 using the Mac’s GitHub credentials, showing the account before submission. Nothing
 is published on a pause or when opening the sheet. If credentials or the Mac are
 unavailable, **Review on GitHub** opens your prepared public draft in the browser.
-After an uncertain submission, check existing issues before using that fallback
-to avoid duplicates. See [bug reports](mac-companion.md#bug-reports) for privacy,
+Expired reviews and connection/account rejections keep your text and offer **Edit**
+or **Review Again**. Re-review refreshes the account and requires another explicit
+**Create Public Issue** action. Timeouts, cancellation during submission, and other
+uncertain responses keep native resubmission disabled; check existing issues
+before using the browser fallback to avoid duplicates. See [bug reports](mac-companion.md#bug-reports) for privacy,
 local snapshot access, and retention.

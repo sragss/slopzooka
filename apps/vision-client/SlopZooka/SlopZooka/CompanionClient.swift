@@ -231,7 +231,7 @@ final class CompanionClient: NSObject, ObservableObject {
     func submitBugReport(hostID: String, draftID: String) async throws -> URL {
         struct Issue: Decodable { let url: URL }
         let result: Issue = try await request(hostID: hostID, path: "/api/diagnostics/bug-report/submit", method: "POST",
-            body: Self.json(["draftId": draftID]), timeout: 30)
+            body: Self.json(["draftId": draftID]), timeout: 40)
         guard result.url.absoluteString.range(of: #"^https://github\.com/sragss/slopzooka/issues/[0-9]+$"#, options: .regularExpression) != nil
         else { throw URLError(.badURL) }
         return result.url

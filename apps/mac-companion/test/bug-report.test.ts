@@ -13,6 +13,7 @@ import {
 } from "../src/diagnostics-http.js";
 import { installBugReportRoutes } from "../src/bug-report-http.js";
 import { GitHubClient } from "../src/github.js";
+import { ServiceError } from "../src/errors.js";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { buildSync } from "esbuild";
@@ -277,7 +278,9 @@ test("one native incident retains correlated evidence locally and publishes only
       if (!account) throw new Error("No credentials");
       return account;
     },
-    async createBugReport(title, body) {
+    async createBugReport(title, body, expectedAccount) {
+      if (account !== expectedAccount)
+        throw new ServiceError("GitHub account changed", 409);
       published.push({ title, body });
       if (fail)
         throw new Error("A lost response may follow successful creation");
@@ -392,9 +395,24 @@ test("one native incident retains correlated evidence locally and publishes only
   account = "different-account";
   assert.equal(
     (await post(submit, { draftId: draft.draftId }, token)).status,
-    409,
+    200,
+    "A changed account cannot hide an already-confirmed submission",
   );
   assert.equal(published.length, 1);
+  const denied = (await (await post(prepare, input, token)).json()) as {
+    draftId: string;
+  };
+  account = "another-account";
+  for (let retry = 0; retry < 2; retry++)
+    assert.equal(
+      (await post(submit, { draftId: denied.draftId }, token)).status,
+      409,
+    );
+  assert.equal(
+    published.length,
+    1,
+    "An account mismatch never reaches GitHub's write API",
+  );
   fail = true;
   const failed = (await (await post(prepare, input, token)).json()) as {
     draftId: string;
@@ -423,6 +441,45 @@ test("one native incident retains correlated evidence locally and publishes only
     409,
   );
   assert.equal(published.length, 2);
+  account = "reporter";
+  fail = false;
+  const expired = (await (await post(prepare, input, token)).json()) as {
+    draftId: string;
+  };
+  const originalNow = Date.now;
+  const later = originalNow() + 31 * 60_000;
+  Date.now = () => later;
+  try {
+    assert.equal(
+      (await post(submit, { draftId: expired.draftId }, token)).status,
+      410,
+    );
+    assert.equal(
+      published.length,
+      2,
+      "An expired review cannot create an issue",
+    );
+    const refreshed = (await (await post(prepare, input, token)).json()) as {
+      draftId: string;
+      body: string;
+    };
+    assert.notEqual(refreshed.draftId, expired.draftId);
+    assert.equal(
+      refreshed.body,
+      bugReportBody(input.description, input.around),
+    );
+    assert.equal(
+      (await post(submit, { draftId: refreshed.draftId }, token)).status,
+      200,
+    );
+    assert.equal(
+      published.length,
+      3,
+      "A fresh explicit review can publish after expiry",
+    );
+  } finally {
+    Date.now = originalNow;
+  }
   await diagnostics.store.flush();
   const log = await fs.readFile(
     path.join(directory, "mac-companion", "current.jsonl"),
@@ -441,12 +498,15 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
     originalToken = process.env.GITHUB_TOKEN;
   process.env.GITHUB_TOKEN = "test-only-github-token";
   let ok = true;
+  let viewer = "reporter";
+  let viewerStatus = 200;
   const requests: { url: string; options: RequestInit }[] = [];
   globalThis.fetch = async (input, options) => {
     requests.push({ url: String(input), options: options! });
     if (String(input).endsWith("/graphql"))
       return new Response(
-        JSON.stringify({ data: { viewer: { login: "reporter" } } }),
+        JSON.stringify({ data: { viewer: { login: viewer } } }),
+        { status: viewerStatus },
       );
     return new Response(
       ok
@@ -461,10 +521,16 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
     const github = new GitHubClient();
     assert.equal(await github.bugReportAccount(), "reporter");
     assert.equal(
-      await github.createBugReport("Summary", "Reviewed public body"),
+      await github.createBugReport(
+        "Summary",
+        "Reviewed public body",
+        "reporter",
+      ),
       "https://github.com/sragss/slopzooka/issues/123",
     );
-    const request = requests[1]!;
+    const request = requests.find((request) =>
+      request.url.endsWith("/issues"),
+    )!;
     assert.equal(
       request.url,
       "https://api.github.com/repos/sragss/slopzooka/issues",
@@ -478,12 +544,101 @@ test("host issue submission uses fixed GitHub API credentials without reflecting
       title: "Summary",
       body: "Reviewed public body",
     });
+    viewer = "different-account";
+    process.env.GITHUB_TOKEN = "refreshed-test-token";
+    const writesBeforeRejection = requests.filter((request) =>
+      request.url.endsWith("/issues"),
+    ).length;
+    await assert.rejects(
+      github.createBugReport("Summary", "Reviewed body", "reporter"),
+      (error) => error instanceof ServiceError && error.statusCode === 409,
+    );
+    assert.equal(
+      requests.filter((request) => request.url.endsWith("/issues")).length,
+      writesBeforeRejection,
+    );
+    assert.equal(await github.bugReportAccount(), "different-account");
+    assert.equal(
+      new Headers(requests.at(-1)!.options.headers).get("Authorization"),
+      "Bearer refreshed-test-token",
+    );
+    viewer = "reporter";
+    viewerStatus = 401;
+    await assert.rejects(
+      github.createBugReport("Summary", "Reviewed body", "reporter"),
+      (error) => error instanceof ServiceError && error.statusCode === 409,
+    );
+    assert.equal(
+      requests.filter((request) => request.url.endsWith("/issues")).length,
+      writesBeforeRejection,
+    );
+    viewerStatus = 200;
     ok = false;
     await assert.rejects(
-      github.createBugReport("Summary", "private submitted description"),
+      github.createBugReport(
+        "Summary",
+        "private submitted description",
+        "reporter",
+      ),
       /^Error: GitHub issue request returned HTTP 403$/,
     );
   } finally {
+    globalThis.fetch = originalFetch;
+    if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
+    else process.env.GITHUB_TOKEN = originalToken;
+  }
+});
+
+test("a CLI account refresh during preflight cannot change the reviewed issue's author", async () => {
+  const originalFetch = globalThis.fetch,
+    originalToken = process.env.GITHUB_TOKEN;
+  let releaseViewer!: () => void, viewerStarted!: () => void;
+  const release = new Promise<void>((resolve) => {
+    releaseViewer = resolve;
+  });
+  const started = new Promise<void>((resolve) => {
+    viewerStarted = resolve;
+  });
+  let issue: Promise<string> | undefined;
+  const writes: string[] = [];
+  globalThis.fetch = async (input, options) => {
+    const authorization = new Headers(options?.headers).get("Authorization")!;
+    if (String(input).endsWith("/graphql")) {
+      const login =
+        authorization === "Bearer first-test-token"
+          ? "first-user"
+          : "second-user";
+      if (login === "first-user") {
+        viewerStarted();
+        await release;
+      }
+      return new Response(JSON.stringify({ data: { viewer: { login } } }));
+    }
+    writes.push(authorization);
+    return new Response(
+      JSON.stringify({
+        html_url: "https://github.com/sragss/slopzooka/issues/123",
+      }),
+      { status: 201 },
+    );
+  };
+  try {
+    const github = new GitHubClient();
+    process.env.GITHUB_TOKEN = "first-test-token";
+    issue = github.createBugReport(
+      "Reviewed summary",
+      "Reviewed body",
+      "first-user",
+    );
+    await started;
+    process.env.GITHUB_TOKEN = "second-test-token";
+    assert.equal(await github.bugReportAccount(), "second-user");
+    releaseViewer();
+    await issue;
+    assert.deepEqual(writes, ["Bearer first-test-token"]);
+  } finally {
+    releaseViewer();
+    await issue?.catch(() => undefined);
     globalThis.fetch = originalFetch;
     if (originalToken === undefined) delete process.env.GITHUB_TOKEN;
     else process.env.GITHUB_TOKEN = originalToken;

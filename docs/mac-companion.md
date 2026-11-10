@@ -166,10 +166,13 @@ Native captures are saved as `SLOPZOOKA_HOME/logs/reports/<report-id>.json` on t
 Mac; their report ID appears in the public preview. Only authenticated companion
 requests can download them through `/api/diagnostics/reports/<report-id>`.
 
-Native public drafts expire after 30 minutes or a companion restart. Submission
-uses the exact reviewed title/body, checks that the GitHub account still matches,
-and never automatically retries an uncertain GitHub write. Check existing issues
-before submitting again after an ambiguous failure.
+Native public drafts expire after 30 minutes or a companion restart. **Review Again**
+prepares a fresh review after expiry or an account/connection rejection, keeping
+your report text. Preparing a review refreshes the Mac’s GitHub credentials. Before
+creating an issue, the companion verifies the reviewed account and writes using
+that same credential snapshot. Repeated requests for a submitted draft return its
+cached outcome, even if the account has since changed. Timeouts and cancellation
+never automatically retry a write; check existing issues after an ambiguous failure.
 
 If capture or pairing fails, you can still review and submit the public issue
 without logs. Use **Retry local snapshot** after reconnecting. The Mac menu can

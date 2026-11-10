@@ -13,95 +13,69 @@ struct BugReportView: View {
     @State private var description = ""
     @State private var reportID: String?
     @State private var captured = false
-    @State private var draft: BugReportDraft?
     @State private var error: String?
-    @State private var stage = Stage.compose
-    @State private var issueURL: URL?
-    @State private var attempted = false
-    private enum Stage: Equatable { case compose, preparing, review, publishing, sent }
+    @State private var state = BugReportState.composing
 
     var body: some View {
         NavigationStack {
-            VStack(alignment: .leading, spacing: 16) {
-                Text("Describe what went wrong").font(.title2)
+            VStack(alignment: .leading, spacing: 18) {
+                Text("Report a bug").font(.title2.weight(.semibold))
                 Text("The issue will be public. Logs stay on your Mac and are never attached automatically.")
                     .font(.callout).foregroundStyle(.secondary)
-                if stage == .compose {
-                    composition
-                } else if let draft {
-                    Text(title).font(.headline)
-                    ScrollView {
-                        Text(draft.body).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
-                    }
-                    if let account = draft.account { Text("Publish as @\(account)").font(.callout) }
-                    if let issueURL { Link("View Issue on GitHub", destination: issueURL) }
-                    else {
-                        if attempted {
-                            Link("Check Existing Issues", destination: URL(string: "https://github.com/sragss/slopzooka/issues")!)
-                        }
-                        if let browserURL = draft.browserURL, draft.account == nil || attempted {
-                            Link("Review on GitHub", destination: browserURL)
-                        }
-                    }
-                    if stage == .review && draft.account == nil {
-                        if draft.browserURL == nil {
-                            Text("Shorten the description to fit a browser draft link, or copy the report above.")
-                                .font(.caption).foregroundStyle(.secondary)
-                        }
-                        Text("GitHub credentials aren’t available on your Mac. Continue in your signed-in browser.")
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                if state == .composing || state == .preparing {
+                    composition.disabled(state == .preparing)
+                } else if let draft = state.draft {
+                    preview(draft)
+                } else if case let .sent(url) = state {
+                    Label("Issue created", systemImage: "checkmark.circle")
+                    Link("View Issue on GitHub", destination: url)
+                    Spacer()
                 }
                 Text(captured ? (reportID == nil ? "Local snapshot unavailable. You can still report this bug." : "Diagnostic snapshot saved locally on your Mac.") : "Saving local diagnostics…")
                     .font(.caption).foregroundStyle(.secondary)
-                if let error { Text(error).font(.callout).foregroundStyle(.orange) }
+                if let message = state.message ?? error { Text(message).font(.callout).foregroundStyle(.orange) }
                 actions
             }
-            .padding(28)
-            .navigationTitle("Report a Bug")
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(stage == .sent ? "Done" : "Cancel") { dismiss() }
-                        .disabled(stage == .publishing)
-                }
-            }
+            .padding(24)
+            .navigationBarHidden(true)
         }
-        .frame(width: 620, height: 660)
-        .interactiveDismissDisabled(stage == .publishing)
+        .frame(minWidth: 560, idealWidth: 620, minHeight: 600, idealHeight: 660)
+        .interactiveDismissDisabled(state.isSubmitting)
         .task {
+            guard !captured else { return }
             startVoice()
             defer { captured = true }
             if let hostID { reportID = try? await client.captureBugReport(hostID: hostID, around: around) }
         }
-        .task(id: stage) {
-            do {
-                if stage == .preparing {
-                    let prepared: BugReportDraft
+        .task(id: state) {
+            switch state {
+            case .preparing:
+                do {
+                    let draft: BugReportDraft
                     if let hostID {
-                        prepared = try await client.prepareBugReport(hostID: hostID, title: title, description: description, around: around, reportID: reportID)
+                        draft = try await client.prepareBugReport(hostID: hostID, title: title, description: description, around: around, reportID: reportID)
                     } else {
-                        prepared = .offline(title: title, description: description, around: around)
+                        draft = .offline(title: title, description: description, around: around)
                     }
                     try Task.checkCancellation()
-                    draft = prepared
-                    stage = .review
-                } else if stage == .publishing, let hostID, let draftID = draft?.draftId {
+                    state = .reviewing(draft)
+                } catch {
+                    guard !Task.isCancelled else { return }
+                    self.error = "Could not prepare the report on your Mac. You can still review it without diagnostic metadata."
+                    state = .reviewing(.offline(title: title, description: description, around: around))
+                }
+            case let .submitting(draft):
+                do {
+                    guard let hostID, let draftID = draft.draftId else { throw URLError(.badServerResponse) }
                     let url = try await client.submitBugReport(hostID: hostID, draftID: draftID)
                     try Task.checkCancellation()
-                    issueURL = url
-                    stage = .sent
+                    state = .sent(url)
+                } catch {
+                    // Cancellation also leaves an uncertain outcome. Reappearing
+                    // must not implicitly start another submission.
+                    state.submissionFailed(error)
                 }
-            } catch {
-                guard !Task.isCancelled else { return }
-                if stage == .publishing {
-                    self.error = "Could not publish or confirm this report. Check existing issues before submitting again."
-                    stage = .review
-                }
-                else {
-                    self.error = "Could not prepare the report on your Mac. You can still review it without diagnostic metadata."
-                    draft = .offline(title: title, description: description, around: around)
-                    stage = .review
-                }
+            default: break
             }
         }
         .onChange(of: voice.captureState) { _, state in
@@ -119,10 +93,29 @@ struct BugReportView: View {
         .onDisappear { if voice.targetID == id { voice.stop() } }
     }
 
+    private func preview(_ draft: BugReportDraft) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title).font(.headline)
+            ScrollView {
+                Text(draft.body).frame(maxWidth: .infinity, alignment: .leading).textSelection(.enabled)
+            }
+            if let account = draft.account { Text("Publish as @\(account)").font(.footnote) }
+            if case .unconfirmed = state {
+                Link("Check Existing Issues", destination: URL(string: "https://github.com/sragss/slopzooka/issues")!)
+            }
+            if draft.account == nil {
+                Text(draft.browserURL == nil
+                    ? "Shorten the description to fit a browser draft link, or copy the report above."
+                    : "GitHub credentials aren’t available on your Mac. Continue in your signed-in browser.")
+                    .font(.footnote).foregroundStyle(.secondary)
+            }
+        }
+    }
+
     private var composition: some View {
         VStack(alignment: .leading, spacing: 12) {
-            TextField("Summary (or use the first line of your recording)", text: $title)
-                .textFieldStyle(.roundedBorder)
+            Text("Summary").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            TextField("Use the first line of your recording, or type a summary", text: $title)
             if voice.targetID == id && (voice.captureState == .listening || voice.captureState == .preparing || voice.captureState == .finishing) {
                 ScrollView {
                     Text(voice.hasText ? voice.transcript : "Speak naturally. What happened, and what did you expect?")
@@ -153,22 +146,49 @@ struct BugReportView: View {
     }
 
     private var actions: some View {
-        HStack {
-            if stage == .review && !attempted { Button("Edit") { draft = nil; stage = .compose } }
-            Spacer()
-            if stage == .compose {
+        HStack(spacing: 10) {
+            Button {
+                dismiss()
+            } label: {
+                Text(isSent ? "Done" : "Cancel")
+            }
+            .disabled(state.isSubmitting)
+            switch state {
+            case .composing:
+                Spacer()
                 Button("Review Public Report") {
                     if voice.targetID == id && voice.hasText { voice.send() }
                     else { prepare(description) }
                 }
+                .buttonStyle(.borderedProminent)
                 .disabled(!captured || (voice.targetID == id ? !voice.canSend : description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty))
-            } else if stage == .preparing || stage == .publishing {
-                ProgressView(stage == .preparing ? "Preparing review…" : "Publishing…")
-            } else if stage == .review && draft?.account != nil && !attempted {
-                Button("Create Public Issue") { attempted = true; error = nil; stage = .publishing }
-                    .buttonStyle(.borderedProminent)
+            case .preparing: ProgressView("Preparing review…")
+            case .submitting: ProgressView("Publishing…")
+            case let .reviewing(draft):
+                Button("Edit") { error = nil; state = .composing }
+                Spacer()
+                if draft.account != nil {
+                    Button("Create Public Issue") { error = nil; state = .submitting(draft) }
+                        .buttonStyle(.borderedProminent)
+                } else if let url = draft.browserURL {
+                    Link("Review on GitHub", destination: url).buttonStyle(.borderedProminent)
+                }
+            case .rejected:
+                Button("Edit") { error = nil; state = .composing }
+                Spacer()
+                Button("Review Again") { prepare(description) }.buttonStyle(.borderedProminent)
+            case let .unconfirmed(draft):
+                Spacer()
+                if let url = draft.browserURL { Link("Review on GitHub", destination: url) }
+            case .sent: Spacer()
             }
         }
+        .buttonStyle(.bordered)
+    }
+
+    private var isSent: Bool {
+        if case .sent = state { return true }
+        return false
     }
 
     private func startVoice() {
@@ -195,6 +215,6 @@ struct BugReportView: View {
             return
         }
         error = nil
-        stage = .preparing
+        state = .preparing
     }
 }

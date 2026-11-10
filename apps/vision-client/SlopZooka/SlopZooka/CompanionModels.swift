@@ -220,7 +220,7 @@ struct CreatedSessionResponse: Decodable { let session: HostSession }
 struct APIAcknowledgement: Decodable { let ok: Bool }
 
 /// Public issue projection only; diagnostic events never enter this model.
-struct BugReportDraft: Decodable {
+struct BugReportDraft: Decodable, Equatable {
     let draftId: String?
     let body: String
     let account: String?

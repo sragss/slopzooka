@@ -9,6 +9,7 @@ import {
   type BugReportCapture,
 } from "./bug-report-draft.js";
 import type { GitHubClient } from "./github.js";
+import { ServiceError } from "./errors.js";
 
 /** Paired native composition. A bounded, short-lived draft pins exactly what was reviewed. */
 export function installBugReportRoutes(
@@ -108,25 +109,26 @@ export function installBugReportRoutes(
       return;
     }
     try {
-      if (
-        !draft.account ||
-        (await github.bugReportAccount()) !== draft.account
-      ) {
-        res.status(409).json({
-          error:
-            "GitHub account changed or is unavailable. Review before publishing.",
-        });
-        return;
-      }
-      // Cache both success and failure: a lost acknowledgement must not create a
-      // second issue. No automatic retries after an uncertain GitHub response.
-      draft.submission ??= github.createBugReport(draft.title, draft.body);
+      // Memoize authorization and the write together. Repeated requests return
+      // the same outcome even if credentials change after GitHub accepted it.
+      draft.submission ??= (async () => {
+        if (!draft.account)
+          throw new ServiceError(
+            "GitHub account unavailable. Review before publishing.",
+            409,
+          );
+        return github.createBugReport(draft.title, draft.body, draft.account);
+      })();
       res.json({ url: await draft.submission });
-    } catch {
-      res.status(502).json({
-        error:
-          "GitHub submission could not be confirmed. Check existing issues before trying again.",
-      });
+    } catch (error) {
+      if (error instanceof ServiceError && error.statusCode === 409) {
+        res.status(409).json({ error: error.message });
+      } else {
+        res.status(502).json({
+          error:
+            "GitHub submission could not be confirmed. Check existing issues before trying again.",
+        });
+      }
     }
   });
 }
