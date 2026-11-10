@@ -1,0 +1,55 @@
+{"at": "2026-11-08T17:03:49.132893+00:00", "event": "start", "case": "cap-h264-lowlatency", "configuration": {"codec": "h264", "mode": "lowlatency", "pattern": "static", "warmup": 1, "seconds": 2}}
+{"at": "2026-11-08T17:03:52.595505+00:00", "event": "finish", "case": "cap-h264-lowlatency", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:03:52.595646+00:00", "event": "start", "case": "cap-h264-realtime", "configuration": {"codec": "h264", "mode": "realtime", "pattern": "static", "warmup": 1, "seconds": 2}}
+{"at": "2026-11-08T17:03:55.754587+00:00", "event": "finish", "case": "cap-h264-realtime", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:03:55.754674+00:00", "event": "start", "case": "cap-hevc-lowlatency", "configuration": {"codec": "hevc", "mode": "lowlatency", "pattern": "static", "warmup": 1, "seconds": 2}}
+{"at": "2026-11-08T17:03:59.098313+00:00", "event": "finish", "case": "cap-hevc-lowlatency", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:03:59.098399+00:00", "event": "start", "case": "cap-hevc-realtime", "configuration": {"codec": "hevc", "mode": "realtime", "pattern": "static", "warmup": 1, "seconds": 2}}
+{"at": "2026-11-08T17:04:02.279770+00:00", "event": "finish", "case": "cap-hevc-realtime", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:02.279903+00:00", "event": "start", "case": "h264-motion-1080p60-3x-8m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "motion", "fps": 60, "streams": 3}}
+{"at": "2026-11-08T17:04:11.105375+00:00", "event": "finish", "case": "h264-motion-1080p60-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:11.105469+00:00", "event": "start", "case": "hevc-static-1080p30-1x-8m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "static"}}
+{"at": "2026-11-08T17:04:19.480761+00:00", "event": "finish", "case": "hevc-static-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:19.480853+00:00", "event": "start", "case": "hevc-scroll-1080p30-1x-8m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll"}}
+{"at": "2026-11-08T17:04:28.317359+00:00", "event": "finish", "case": "hevc-scroll-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:28.317462+00:00", "event": "start", "case": "h264-scroll-1080p30-1x-8m-repeat", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll"}}
+{"at": "2026-11-08T17:04:37.113630+00:00", "event": "finish", "case": "h264-scroll-1080p30-1x-8m-repeat", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:37.113717+00:00", "event": "start", "case": "hevc-scroll-1080p30-1x-8m-repeat", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll"}}
+{"at": "2026-11-08T17:04:45.940098+00:00", "event": "finish", "case": "hevc-scroll-1080p30-1x-8m-repeat", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:45.940223+00:00", "event": "start", "case": "h264-scroll-1080p30-1x-4m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "mbps": 4}}
+{"at": "2026-11-08T17:04:55.154540+00:00", "event": "finish", "case": "h264-scroll-1080p30-1x-4m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:04:55.154625+00:00", "event": "start", "case": "hevc-scroll-portrait15-1x-4m-jpeg", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "width": 702, "height": 1520, "fps": 15, "mbps": 4, "input": "jpeg"}}
+{"at": "2026-11-08T17:05:03.894153+00:00", "event": "finish", "case": "hevc-scroll-portrait15-1x-4m-jpeg", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:03.894239+00:00", "event": "start", "case": "h264-scroll-portrait15-1x-4m-jpeg", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "width": 702, "height": 1520, "fps": 15, "mbps": 4, "input": "jpeg"}}
+{"at": "2026-11-08T17:05:12.614550+00:00", "event": "finish", "case": "h264-scroll-portrait15-1x-4m-jpeg", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:12.614638+00:00", "event": "start", "case": "hevc-motion-1080p60-3x-8m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "motion", "fps": 60, "streams": 3}}
+{"at": "2026-11-08T17:05:21.427537+00:00", "event": "finish", "case": "hevc-motion-1080p60-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:21.427615+00:00", "event": "start", "case": "hevc-scroll-1080p30-1x-4m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "mbps": 4}}
+{"at": "2026-11-08T17:05:30.224825+00:00", "event": "finish", "case": "hevc-scroll-1080p30-1x-4m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:30.224920+00:00", "event": "start", "case": "h264-scroll-1080p30-1x-8m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll"}}
+{"at": "2026-11-08T17:05:39.031158+00:00", "event": "finish", "case": "h264-scroll-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:39.031251+00:00", "event": "start", "case": "h264-static-1080p30-1x-8m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "static"}}
+{"at": "2026-11-08T17:05:47.381176+00:00", "event": "finish", "case": "h264-static-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:47.381263+00:00", "event": "start", "case": "hevc-scroll-portrait15-1x-4m-raw", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "width": 702, "height": 1520, "fps": 15, "mbps": 4, "input": "raw"}}
+{"at": "2026-11-08T17:05:56.041079+00:00", "event": "finish", "case": "hevc-scroll-portrait15-1x-4m-raw", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:05:56.041166+00:00", "event": "start", "case": "h264-scroll-1080p30-3x-8m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "streams": 3}}
+{"at": "2026-11-08T17:06:04.879706+00:00", "event": "finish", "case": "h264-scroll-1080p30-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:06:04.879808+00:00", "event": "start", "case": "h264-motion-1080p30-1x-8m", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "motion"}}
+{"at": "2026-11-08T17:06:13.664077+00:00", "event": "finish", "case": "h264-motion-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:06:13.664176+00:00", "event": "start", "case": "hevc-scroll-1080p30-3x-8m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "streams": 3}}
+{"at": "2026-11-08T17:06:22.469445+00:00", "event": "finish", "case": "hevc-scroll-1080p30-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:06:22.469532+00:00", "event": "start", "case": "hevc-motion-1080p30-1x-8m", "configuration": {"codec": "hevc", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "motion"}}
+{"at": "2026-11-08T17:06:31.272272+00:00", "event": "finish", "case": "hevc-motion-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:06:31.272381+00:00", "event": "start", "case": "h264-scroll-portrait15-1x-4m-raw", "configuration": {"codec": "h264", "mode": "lowlatency", "warmup": 2, "seconds": 6, "images": true, "pattern": "scroll", "width": 702, "height": 1520, "fps": 15, "mbps": 4, "input": "raw"}}
+{"at": "2026-11-08T17:06:39.950803+00:00", "event": "finish", "case": "h264-scroll-portrait15-1x-4m-raw", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:06:39.950891+00:00", "event": "complete", "count": 22}
+{"at": "2026-11-08T17:12:14.095455+00:00", "phase": "mode-followup", "event": "start", "case": "hevc-realtime-scroll-1080p30-1x-8m", "configuration": {"codec": "hevc", "mode": "realtime", "pattern": "scroll", "warmup": 2, "seconds": 6, "images": true}}
+{"at": "2026-11-08T17:12:22.784949+00:00", "phase": "mode-followup", "event": "finish", "case": "hevc-realtime-scroll-1080p30-1x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:12:40.143857+00:00", "phase": "mode-followup", "event": "runner-note", "detail": "Follow-up console summary referenced a nonexistent quality field after first result was saved. No measured case failed or was repeated; resumed remaining three cases."}
+{"at": "2026-11-08T17:12:40.144115+00:00", "phase": "mode-followup", "event": "start", "case": "hevc-realtime-scroll-1080p30-1x-4m", "configuration": {"codec": "hevc", "mode": "realtime", "pattern": "scroll", "warmup": 2, "seconds": 6, "images": true, "mbps": 4}}
+{"at": "2026-11-08T17:12:48.833320+00:00", "phase": "mode-followup", "event": "finish", "case": "hevc-realtime-scroll-1080p30-1x-4m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:12:48.833448+00:00", "phase": "mode-followup", "event": "start", "case": "hevc-realtime-scroll-1080p30-3x-8m", "configuration": {"codec": "hevc", "mode": "realtime", "pattern": "scroll", "warmup": 2, "seconds": 6, "images": true, "streams": 3}}
+{"at": "2026-11-08T17:12:57.527640+00:00", "phase": "mode-followup", "event": "finish", "case": "hevc-realtime-scroll-1080p30-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:12:57.527753+00:00", "phase": "mode-followup", "event": "start", "case": "hevc-realtime-motion-1080p60-3x-8m", "configuration": {"codec": "hevc", "mode": "realtime", "pattern": "motion", "warmup": 2, "seconds": 6, "images": true, "streams": 3, "fps": 60}}
+{"at": "2026-11-08T17:13:06.220551+00:00", "phase": "mode-followup", "event": "finish", "case": "hevc-realtime-motion-1080p60-3x-8m", "status": "ok", "exitCode": 0}
+{"at": "2026-11-08T17:13:06.220654+00:00", "phase": "mode-followup", "event": "complete", "count": 26}

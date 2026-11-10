@@ -89,3 +89,10 @@ Every scene can start recovery, including when the launcher is closed. Existing 
 Reloading a preview keeps its current content available while reconnecting. Reloading again, or closing and reopening it, starts fresh recovery without waiting for an older stalled request. Late rename replies cannot restore a terminal whose session has ended.
 
 visionOS owns physical placement and room locking. Recovery preserves scene IDs and reuses restored scenes, but opening a missing window is not a guarantee of its previous physical position. Xcode stop/run, installation over an existing app, system-close behavior, and locked/unlocked room placement require device testing.
+
+
+## Optional live surface experiment
+
+The [live surface test runner](../experiments/surface-live-probe/README.md) builds a separate **SlopZooka Gateway Probe** from the app's real source. It pairs with an isolated companion and can open a prepared simulator preview through the existing window gateway. The companion enables these test routes only when `SLOPZOOKA_SURFACE_PROBE_MANIFEST` names a local run manifest; ordinary installations do not enable them.
+
+The test preview is a streamed image with Reload and Close controls. Its on-screen receiver status is diagnostic; direct headset pointer/keyboard control is not implemented. The experiment's separate app identity keeps its pairing/layout state separate from your normal installation. Use the linked runbook for setup, Stop and cleanup.

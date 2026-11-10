@@ -1,0 +1,987 @@
+{
+  "recordedAt": "2026-11-09",
+  "scope": "Claude custom-MCP compatibility and item #1 runtime contract; not a browser benchmark",
+  "runtimeVersion": "26.1103.60933",
+  "piVersion": "1.4.0",
+  "nodeVersion": "v22.20.0",
+  "runs": [
+    {
+      "startedAt": "2026-11-09T22:41:12.253Z",
+      "elapsedMs": 277,
+      "model": "claude-opus-5-5",
+      "provider": "anthropic",
+      "reasoning": "low",
+      "target": "fixture",
+      "runtime": {
+        "surface": "synthetic image fixture, not computer use"
+      },
+      "mcp": {
+        "server": {
+          "name": "slz-visual-fixture-NOT-CUA",
+          "version": "0.1.0"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "visual_fixture"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [],
+      "final": "",
+      "stopReason": "error",
+      "modelError": "401 {\"type\":\"error\",\"error\":{\"type\":\"authentication_error\",\"message\":\"invalid x-api-key\"},\"request_id\":\"req_011CgtAEGKw8DwNG6PFdQc8E\"}",
+      "toolErrors": 0,
+      "modelRequests": [
+        {
+          "stopReason": "error",
+          "usage": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0,
+            "totalTokens": 0,
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0,
+              "total": 0
+            }
+          }
+        }
+      ],
+      "modelVisibleImages": 0,
+      "sdkEstimatedUSD": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:41:50.871Z",
+      "elapsedMs": 4319,
+      "model": "claude-opus-5-5",
+      "provider": "anthropic",
+      "reasoning": "low",
+      "firstToolDispatchMs": 1408,
+      "target": "fixture",
+      "runtime": {
+        "surface": "synthetic image fixture, not computer use"
+      },
+      "mcp": {
+        "server": {
+          "name": "slz-visual-fixture-NOT-CUA",
+          "version": "0.1.0"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "visual_fixture"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 1416,
+          "type": "tool_result",
+          "name": "visual_fixture",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "image",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 2489,
+          "type": "tool_result",
+          "name": "visual_fixture",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "The fixture passed: the card was red, and I submitted one answer, \"red.\"\n\n- **Observe:** the call returned `{\"observed\":true}` with an image attached. The image was a solid red square.\n- **Answer:** the tool returned `{\"passed\":true,\"answers\":1}`.\n\nThe image was attached and readable, and the answer was accepted, so the Pi/MCP/image loop worked end to end. There were no setup or access errors.",
+      "stopReason": "stop",
+      "toolErrors": 0,
+      "modelRequests": [
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 4,
+            "output": 51,
+            "cacheRead": 0,
+            "cacheWrite": 675,
+            "totalTokens": 730,
+            "cost": {
+              "input": 1.6e-05,
+              "output": 0.00102,
+              "cacheRead": 0,
+              "cacheWrite": 0.003375,
+              "total": 0.004411
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 2,
+            "output": 72,
+            "cacheRead": 675,
+            "cacheWrite": 118,
+            "totalTokens": 867,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.00144,
+              "cacheRead": 0.000135,
+              "cacheWrite": 0.00059,
+              "total": 0.002173
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "stop",
+          "usage": {
+            "input": 2,
+            "output": 139,
+            "cacheRead": 793,
+            "cacheWrite": 90,
+            "totalTokens": 1024,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.0027800000000000004,
+              "cacheRead": 0.0001586,
+              "cacheWrite": 0.00045,
+              "total": 0.0033966000000000005
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        }
+      ],
+      "modelVisibleImages": 1,
+      "lastImageArtifact": "experiments/pi-cua-probe/build/2026-11-09T22-41-50.871Z-fixture.png",
+      "sdkEstimatedUSD": 0.009980600000000001
+    },
+    {
+      "startedAt": "2026-11-09T22:42:07.341Z",
+      "elapsedMs": 12724,
+      "model": "claude-opus-5-5",
+      "provider": "anthropic",
+      "reasoning": "low",
+      "firstToolDispatchMs": 2444,
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 2746,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 2830,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 4891,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5383,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5495,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5617,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 6013,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "image"
+          ]
+        },
+        {
+          "elapsedMs": 9882,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "Everything worked in the fixture app, with no errors when opening it.\n\n- **Starting point:** The window \"Slz Runtime Fixture\" showed Counter: 0 and an empty Probe input.\n- **Steps:** I entered `pi-direct` in Probe input and clicked Increment exactly twice.\n- **Result:** The accessibility tree and the screenshot both show **Counter: 2**, and Probe input contains **pi-direct**.\n- **Screenshot:** Captured above.\n\nI didn't touch any other app, and it took three tool calls.",
+      "stopReason": "stop",
+      "toolErrors": 0,
+      "modelRequests": [
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 4,
+            "output": 75,
+            "cacheRead": 0,
+            "cacheWrite": 2631,
+            "totalTokens": 2710,
+            "cost": {
+              "input": 1.6e-05,
+              "output": 0.0015,
+              "cacheRead": 0,
+              "cacheWrite": 0.013155,
+              "total": 0.014671
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 2,
+            "output": 99,
+            "cacheRead": 2631,
+            "cacheWrite": 7792,
+            "totalTokens": 10524,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.00198,
+              "cacheRead": 0.0005262,
+              "cacheWrite": 0.03896,
+              "total": 0.0414742
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 2,
+            "output": 56,
+            "cacheRead": 10423,
+            "cacheWrite": 2107,
+            "totalTokens": 12588,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.0011200000000000001,
+              "cacheRead": 0.0020846000000000003,
+              "cacheWrite": 0.010535,
+              "total": 0.013747599999999999
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "stop",
+          "usage": {
+            "input": 2,
+            "output": 182,
+            "cacheRead": 12530,
+            "cacheWrite": 68,
+            "totalTokens": 12782,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.0036400000000000004,
+              "cacheRead": 0.0025060000000000004,
+              "cacheWrite": 0.00034,
+              "total": 0.0064940000000000015
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        }
+      ],
+      "modelVisibleImages": 1,
+      "lastImageArtifact": "experiments/pi-cua-probe/build/2026-11-09T22-42-07.341Z-computer.jpg",
+      "sdkEstimatedUSD": 0.0763868
+    },
+    {
+      "startedAt": "2026-11-09T22:43:14.517Z",
+      "elapsedMs": 5009,
+      "model": "claude-opus-5-5",
+      "provider": "anthropic",
+      "reasoning": "low",
+      "firstToolDispatchMs": 2342,
+      "target": "browser",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "browser",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 2518,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "final": "The Chrome connection test failed when it started, so it never connected to Chrome. I ran `await cua.getBrowser({id:\"chrome\"});` once, as you asked. It returned this error:\n\n```\nCannot verify browser access without the current turn\n```\n\nAs you instructed, I stopped there. I didn't reset, retry, try another backend, or create or claim any tabs.",
+      "stopReason": "stop",
+      "toolErrors": 1,
+      "modelRequests": [
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 4,
+            "output": 92,
+            "cacheRead": 2409,
+            "cacheWrite": 164,
+            "totalTokens": 2669,
+            "cost": {
+              "input": 1.6e-05,
+              "output": 0.00184,
+              "cacheRead": 0.00048180000000000006,
+              "cacheWrite": 0.00082,
+              "total": 0.0031578
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 0
+          }
+        },
+        {
+          "stopReason": "stop",
+          "usage": {
+            "input": 2,
+            "output": 131,
+            "cacheRead": 2573,
+            "cacheWrite": 7287,
+            "totalTokens": 9993,
+            "cost": {
+              "input": 8e-06,
+              "output": 0.0026200000000000004,
+              "cacheRead": 0.0005146,
+              "cacheWrite": 0.036435,
+              "total": 0.039577600000000004
+            },
+            "cacheWrite1h": 0,
+            "reasoning": 11
+          }
+        }
+      ],
+      "modelVisibleImages": 0,
+      "sdkEstimatedUSD": 0.04273540000000001
+    },
+    {
+      "startedAt": "2026-11-09T22:45:05.711Z",
+      "elapsedMs": 7751,
+      "model": "gpt-6.1-sol",
+      "provider": "openai",
+      "reasoning": "low",
+      "firstToolDispatchMs": 2555,
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 2804,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 2891,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 4759,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "Stopped on initialization failure. Exact error:\n\n```text\nComputer Use server error -10005: Error Domain=com.apple.ScreenCaptureKit.SCStreamErrorDomain Code=-3811 \"Failed to start stream due to audio/video capture failure\" UserInfo={NSLocalizedDescription=Failed to start stream due to audio/video capture failure}\n```\n\nNo text entry, counter clicks, verification, or screenshot capture completed.",
+      "stopReason": "stop",
+      "toolErrors": 1,
+      "modelRequests": [
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 3,
+            "output": 42,
+            "cacheRead": 1589,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 1634,
+            "cost": {
+              "input": 6e-06,
+              "output": 0.00042,
+              "cacheRead": 0.0001589,
+              "cacheWrite": 0,
+              "total": 0.0005849
+            }
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 3,
+            "output": 22,
+            "cacheRead": 1589,
+            "cacheWrite": 4655,
+            "reasoning": 0,
+            "totalTokens": 6269,
+            "cost": {
+              "input": 6e-06,
+              "output": 0.00022,
+              "cacheRead": 0.0001589,
+              "cacheWrite": 0.0116375,
+              "total": 0.0120224
+            }
+          }
+        },
+        {
+          "stopReason": "stop",
+          "usage": {
+            "input": 3,
+            "output": 84,
+            "cacheRead": 6244,
+            "cacheWrite": 36,
+            "reasoning": 0,
+            "totalTokens": 6367,
+            "cost": {
+              "input": 6e-06,
+              "output": 0.00084,
+              "cacheRead": 0.0006244000000000001,
+              "cacheWrite": 9e-05,
+              "total": 0.0015604000000000002
+            }
+          }
+        }
+      ],
+      "modelVisibleImages": 0,
+      "sdkEstimatedUSD": 0.014167700000000002
+    },
+    {
+      "startedAt": "2026-11-09T22:46:49.588Z",
+      "elapsedMs": 10302,
+      "model": "gpt-6.1-sol",
+      "provider": "openai",
+      "reasoning": "low",
+      "firstToolDispatchMs": 2849,
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 3073,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 3142,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 4896,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5399,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5510,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5630,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 6048,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "image"
+          ]
+        },
+        {
+          "elapsedMs": 8096,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "Verified in `dev.slopzooka.codex-runtime-fixture`:\n- Probe input: `pi-direct`\n- Increment clicked exactly twice; counter shows `2`\n- Screenshot captured\n\nNo other app was accessed.",
+      "stopReason": "stop",
+      "toolErrors": 0,
+      "modelRequests": [
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 3,
+            "output": 43,
+            "cacheRead": 1589,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 1635,
+            "cost": {
+              "input": 6e-06,
+              "output": 0.00043000000000000004,
+              "cacheRead": 0.0001589,
+              "cacheWrite": 0,
+              "total": 0.0005949
+            }
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 3,
+            "output": 57,
+            "cacheRead": 6333,
+            "cacheWrite": 0,
+            "reasoning": 0,
+            "totalTokens": 6393,
+            "cost": {
+              "input": 6e-06,
+              "output": 0.0005700000000000001,
+              "cacheRead": 0.0006333,
+              "cacheWrite": 0,
+              "total": 0.0012093000000000002
+            }
+          }
+        },
+        {
+          "stopReason": "toolUse",
+          "usage": {
+            "input": 271,
+            "output": 22,
+            "cacheRead": 6333,
+            "cacheWrite": 1516,
+            "reasoning": 0,
+            "totalTokens": 8142,
+            "cost": {
+              "input": 0.000542,
+              "output": 0.00022,
+              "cacheRead": 0.0006333,
+              "cacheWrite": 0.00379,
+              "total": 0.0051853
+            }
+          }
+        },
+        {
+          "stopReason": "stop",
+          "usage": {
+            "input": 271,
+            "output": 48,
+            "cacheRead": 7849,
+            "cacheWrite": 36,
+            "reasoning": 0,
+            "totalTokens": 8204,
+            "cost": {
+              "input": 0.000542,
+              "output": 0.00048000000000000007,
+              "cacheRead": 0.0007849,
+              "cacheWrite": 9e-05,
+              "total": 0.0018969
+            }
+          }
+        }
+      ],
+      "modelVisibleImages": 1,
+      "lastImageArtifact": "experiments/pi-cua-probe/build/2026-11-09T22-46-49.588Z-computer.jpg",
+      "sdkEstimatedUSD": 0.008886400000000001
+    }
+  ],
+  "nativeLifecycle": {
+    "startedAt": "2026-11-09T22:44:37.642Z",
+    "modelInvoked": false,
+    "checks": {
+      "clientA": {
+        "counter2Observed": true,
+        "inputObserved": "pi-direct"
+      },
+      "clientB": {
+        "counter2Observed": true,
+        "inputObserved": "pi-direct"
+      },
+      "clientAClosedWhileBAlive": true,
+      "clientBAfterAClosed": {
+        "counter2Observed": true,
+        "inputObserved": "pi-direct"
+      },
+      "ownedChildrenExited": true
+    },
+    "limits": "Read-only two-client attachment and owned-process cleanup; not concurrent input, helper crash, desktop-closed startup or native action cancellation."
+  },
+  "independentVerdicts": {
+    "claude": {
+      "counter": 2,
+      "text": "pi-direct"
+    },
+    "gptRetry": {
+      "counter": 2,
+      "text": "pi-direct"
+    },
+    "gptFailedAttempt": {
+      "counter": 0,
+      "text": "",
+      "observation": "State file checked after capture error, before fresh connection"
+    },
+    "bothSuccessfulScreenshotsVisuallyVerified": true,
+    "ownedFixtureTerminatedAfterExecutableCheck": true
+  },
+  "probeCorrections": [
+    {
+      "issue": "Lifecycle diagnostic read transport.pid after close; library clears it",
+      "fix": "Capture PID before close; rerun passed",
+      "runtimeDefect": false
+    }
+  ],
+  "runtimeSourceAudit": {
+    "desktopVersion": "26.1103.60933",
+    "artifacts": [
+      {
+        "name": "nativePipe",
+        "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+        "bytes": 8221,
+        "sha256": "60b3653f7ee052007b02a79e11416a89d424d73dac450e429a93b214839c267f",
+        "markers": [
+          {
+            "marker": "NODE_REPL_HOST_SERVICES_PIPE_PATH",
+            "characterOffset": 1062
+          },
+          {
+            "marker": "method:\"ensureService\",params:{service:\"computer-use\"}",
+            "characterOffset": 2339
+          },
+          {
+            "marker": "launchServices",
+            "characterOffset": 2466
+          },
+          {
+            "marker": "SKY_CUA_SERVICE_PATH",
+            "characterOffset": 2667
+          },
+          {
+            "marker": "Sky Computer Use API version mismatch",
+            "characterOffset": 4744
+          },
+          {
+            "marker": "t(this,m,\"f\").then",
+            "characterOffset": 4286
+          }
+        ]
+      },
+      {
+        "name": "desktopMain",
+        "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/early-bootstrap-815-e030c49be4b9c405.js",
+        "bytes": 5954967,
+        "sha256": "67c10f58239453fba595f83917fda3756ac2f40ef87fe5f70dd143d4ecef6ad1",
+        "markers": [
+          {
+            "marker": "function ld(){",
+            "characterOffset": 536057
+          },
+          {
+            "marker": "authorizeSocketPeer(s,n)",
+            "characterOffset": 537218
+          },
+          {
+            "marker": "class xF{executors=new Map",
+            "characterOffset": 1795980
+          },
+          {
+            "marker": "async readLocalWorkBrowserAccess",
+            "characterOffset": 4481021
+          },
+          {
+            "marker": "async readMcpConfig({cwd:",
+            "characterOffset": 2204541
+          }
+        ]
+      },
+      {
+        "name": "piAnthropic",
+        "path": "experiments/pi-cua-probe/node_modules/@earendil-works/pi-ai/dist/api/anthropic-messages.js",
+        "bytes": 61072,
+        "sha256": "360298eff89e8c517c213880088db33c93b56ba737c91e885b22e7e125ca5d55",
+        "markers": [
+          {
+            "marker": "function mapThinkingLevelToEffort",
+            "characterOffset": 33311
+          },
+          {
+            "marker": "convertToolDefinitions",
+            "characterOffset": 40756
+          }
+        ]
+      },
+      {
+        "name": "piToolTypes",
+        "path": "experiments/pi-cua-probe/node_modules/@earendil-works/pi-ai/dist/types.d.ts",
+        "bytes": 32057,
+        "sha256": "9348589a0c88c61e78e8575539cec4bf4e4fba8bf9029d3535ddeae07cb1c696",
+        "markers": [
+          {
+            "marker": "export interface ToolCall",
+            "characterOffset": 14969
+          },
+          {
+            "marker": "namespace?: string;",
+            "characterOffset": 15206
+          }
+        ]
+      }
+    ],
+    "scope": "Read-only source inspection; no app/helper shutdown, account-state changes or authorization context borrowing."
+  },
+  "reproductionSourceArtifacts": [
+    {
+      "path": "experiments/pi-cua-probe/check-lifecycle.mjs",
+      "bytes": 2872,
+      "sha256": "a414022069f600d7a67a0e1449f83d063eba6ee2ab7d151e8a3196efeae7faf3"
+    },
+    {
+      "path": "experiments/pi-cua-probe/cli.mjs",
+      "bytes": 8310,
+      "sha256": "0fd7f29c5131f91387052292fee1918e31cac253366d904c50f8947d4a6e84ba"
+    },
+    {
+      "path": "experiments/pi-cua-probe/fixture.mjs",
+      "bytes": 3825,
+      "sha256": "f3088adefb747fa77aa856e74dd8610749e2da794b46f5c97eb1a90e9cc0a13f"
+    },
+    {
+      "path": "experiments/pi-cua-probe/harness.mjs",
+      "bytes": 4644,
+      "sha256": "d652ac3b14776fbc01e11ed2bef284e8949ebe5d3344c913984b2dea3b95ea3a"
+    },
+    {
+      "path": "experiments/pi-cua-probe/runtime.mjs",
+      "bytes": 2100,
+      "sha256": "443f9fafe368a8034ea45a1e8a98adbc5ef17edc24f02790405d37e0970bd094"
+    },
+    {
+      "path": "experiments/pi-cua-probe/test/harness.test.mjs",
+      "bytes": 8163,
+      "sha256": "61deca7b9904dae807246662bb6a678eb2fc07eef14553e44c9af07edad4d1fb"
+    },
+    {
+      "path": "experiments/pi-cua-probe/package.json",
+      "bytes": 316,
+      "sha256": "f868d52e25cc8620f6765fb39e27874f73a5c7686a782b4ffcc5b9d47ddbbd39"
+    },
+    {
+      "path": "experiments/pi-cua-probe/package-lock.json",
+      "bytes": 46697,
+      "sha256": "86ecc8f00be941d9c86c6e63b30bbeaa0c523ab8e9fe5a19e410929fafbbd35f"
+    }
+  ],
+  "ignoredLocalArtifacts": [
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-41-12.253Z-fixture.json",
+      "bytes": 1132,
+      "sha256": "7fa5c137ae4e0674d9db46178df9bf9c37a048173a4412cbba17419db7ce3d5e"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-41-50.871Z-fixture.png",
+      "bytes": 169,
+      "sha256": "0179228f90e29fa8bee612394ea9561032ad42fe67605e9e982d94cfe1c036ae"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-41-50.871Z-fixture.json",
+      "bytes": 2893,
+      "sha256": "08cd22abb5a3faa7c480bdfd29031651c8edb8200907ee70849b8125d362fea1"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-42-07.341Z-computer.jpg",
+      "bytes": 54032,
+      "sha256": "474d618c4258084672da069c99f0bc209b43417f964509d802244911dbe12cf8"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-42-07.341Z-computer.json",
+      "bytes": 4242,
+      "sha256": "32d3cdafd96691e5a78132283f824e723a578b653769f3ec473d27c126b5f521"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-43-14.517Z-browser.json",
+      "bytes": 2225,
+      "sha256": "8e62c135e3ecfe2578132c11cb27b36fc296d7a0ae81517fe42489868d7f7e24"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-45-05.711Z-computer.json",
+      "bytes": 2852,
+      "sha256": "72fcfa0526afa0f3e6c407abb3d04c8a921ed08491248d475d04c8b751d20d4b"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-46-49.588Z-computer.jpg",
+      "bytes": 53744,
+      "sha256": "93f726c4ee02b00f8059d8cbd707fb622348a6e90d3ecd7fc7b1797714408ae8"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-46-49.588Z-computer.json",
+      "bytes": 3802,
+      "sha256": "73cca279df08e5079b79e53978f9a8db5cd2e36a1fd16a6e6245896617b3b822"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-lifecycle.json",
+      "bytes": 609,
+      "sha256": "06891baf0af53847bcfb5f825d4b7f36cf2e0562f342ea5d5b254261bc7ed028"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/claude-native-state.json",
+      "bytes": 36,
+      "sha256": "2f97117e9dee097ac1bc7f413a944ea17fdfa106dc489a64628d8a7a45b0d541"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/gpt-comparison-state.json",
+      "bytes": 36,
+      "sha256": "2f97117e9dee097ac1bc7f413a944ea17fdfa106dc489a64628d8a7a45b0d541"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/runtime-source-audit.json",
+      "bytes": 2972,
+      "sha256": "3aa41bef9cbf64d5a4e21059f47cef9881100a69efa5e4b457e3f3dfc78f1609"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/claude-tests.txt",
+      "bytes": 1687,
+      "sha256": "b71cc20c214ec34222f702c8dead78d1658ce902db9fa8dfa9860c5b6543f253"
+    }
+  ],
+  "limits": [
+    "One successful run per model/task; not a controlled model comparison",
+    "SDK-estimated cost, differing prompt-cache conditions",
+    "No Opus browser navigation succeeded through Codex specialized browser",
+    "No Anthropic native toolset implemented or run",
+    "No desktop/helper cold shutdown, production identity, locked, parallel-input, live native-Stop or Vision tests",
+    "ScreenCaptureKit -3811 root cause remains unknown"
+  ],
+  "references": [
+    "https://www.anthropic.com/claude-opus-5-5",
+    "https://platform.claude.com/docs/en/models/overview",
+    "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-tool",
+    "https://platform.claude.com/docs/en/agents-and-tools/tool-use/computer-use-tool",
+    "https://platform.claude.com/docs/en/agents-and-tools/tool-use/browser-use-sdk",
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://learn.chatgpt.com/docs/app-server#api-overview",
+    "https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt#2-register-the-client-during-sign-in",
+    "https://openai.com/policies/service-terms/"
+  ],
+  "validation": {
+    "regressionTestsPassed": 7,
+    "regressionTestsFailed": 0,
+    "localMarkdownLinksAndAnchors": 86,
+    "newArtifactHashes": 26,
+    "priorRevisionSourceHashes": 8,
+    "sourceMarkers": 15,
+    "syntaxAndFormatting": "passed",
+    "productionAndDeviceSuitesRerun": false
+  }
+}

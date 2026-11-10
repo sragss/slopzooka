@@ -1,0 +1,113 @@
+{
+  "recordedAt": "2026-11-09T21:00:46.041016+00:00",
+  "scope": "Post-user-installation diagnostics, current-chat browser retry and tool reset, read-only Locked Use documentation/bundle metadata.",
+  "desktopVersion": "26.1103.60933",
+  "desktopBuild": "25894",
+  "previousDesktopVersion": "26.1023.51421",
+  "oldDiagnosticPathExists": false,
+  "initialDiagnosticAttempt": "Old pinned script path no longer present; output JSON parsing failed. Reidentified installed version and reran current-version diagnostics.",
+  "checks": [
+    {
+      "name": "check-extension-installed.js",
+      "exitCode": 0,
+      "installed": true,
+      "enabled": true,
+      "scope": "diagnostic-selected Chrome profile",
+      "profileStates": [
+        {
+          "installed": true,
+          "enabled": true
+        },
+        {
+          "installed": false,
+          "enabled": false
+        }
+      ]
+    },
+    {
+      "name": "check-native-host-manifest.js",
+      "exitCode": 0,
+      "exists": true,
+      "correct": true
+    },
+    {
+      "name": "current-chat browser entry point after user installation",
+      "call": "cua.getBrowser({ id: \"chrome\" })",
+      "outcome": "The browser access host is unavailable",
+      "tabOpened": false
+    },
+    {
+      "name": "current-chat browser entry point after documented js_reset",
+      "call": "cua.getBrowser({ id: \"chrome\" })",
+      "outcome": "The browser access host is unavailable",
+      "tabOpened": false
+    }
+  ],
+  "fixture": {
+    "readyAtInitialCheck": true,
+    "eventCountAtInitialCheck": 0,
+    "browserActionsByThisProbe": 0
+  },
+  "artifacts": [
+    {
+      "id": "extensionDiagnostic",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/browser/26.1103.60933/scripts/check-extension-installed.js",
+      "sha256": "c25b45762ca649f33a52e690a1500ee7a6307f11b4ff79f9c14ff4f35fab5693",
+      "bytes": 12769
+    },
+    {
+      "id": "hostDiagnostic",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/browser/26.1103.60933/scripts/check-native-host-manifest.js",
+      "sha256": "15a3c021162bd23f367818ac9b4d17f123e745e4902d68f05a17cc410ae9cfd9",
+      "bytes": 11634
+    },
+    {
+      "id": "desktopInfo",
+      "path": "/Applications/ChatGPT.app/Contents/Info.plist",
+      "sha256": "88d88aff21013226bd7b5610eda8856df0dcd008dd4c96cdd0515b755140a68b",
+      "bytes": 20787,
+      "bundleId": "com.openai.codex",
+      "version": "26.1103.60933"
+    },
+    {
+      "id": "guardianInfo",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/SharedSupport/CUALockScreenGuardian.app/Contents/Info.plist",
+      "sha256": "440f051725a005ebdab4e080c220c62a6a52e7b9e940febcc7e382e44b247f31",
+      "bytes": 1616,
+      "bundleId": "com.openai.sky.CUAService.guardian",
+      "version": "26.1102.1001824"
+    },
+    {
+      "id": "authorizationPluginInfo",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/Codex Computer Use.app/Contents/SharedSupport/Codex Computer Use Installer.app/Contents/Resources/CodexComputerUseAuthorizationPlugin.bundle/Contents/Info.plist",
+      "sha256": "a3cea8cc0f58595443c61c9ae27465a14e04c6603e4032a94c5cd3cf0fd4876d",
+      "bytes": 1489,
+      "bundleId": "com.openai.sky.CUAService.AuthorizationPlugin",
+      "version": "26.1102.1001824"
+    }
+  ],
+  "lockedUse": {
+    "evidenceKind": "official documentation plus bundled component plist identities",
+    "documentedMechanism": [
+      "opt-in macOS authorization plug-in",
+      "temporary unlock for active trusted Computer Use turn",
+      "protective cover on every display",
+      "local keyboard/pointer input relocks and pauses automatic unlock until manual unlock"
+    ],
+    "notEstablished": [
+      "setting enabled or plugin installed into macOS on this machine",
+      "external Pi/CLI trusted-turn eligibility",
+      "independent continuous ScreenCaptureKit through cover/relock",
+      "cold simulator setup while locked",
+      "whole-system sleep, lid closure, logout, reboot or FileVault unlock"
+    ],
+    "settingChanged": false,
+    "macLockedOrUnlockedByProbe": false
+  },
+  "nextStep": "User asked to start a fresh desktop chat explicitly mentioning Chrome and operate the owned fixture through the specialized browser route.",
+  "references": [
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://learn.chatgpt.com/docs/computer-use#locked-use",
+    "https://learn.chatgpt.com/docs/enterprise/chatgpt-work-local-security#locked-devices"
+  ]
+}

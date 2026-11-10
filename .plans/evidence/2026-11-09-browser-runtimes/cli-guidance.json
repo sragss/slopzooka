@@ -1,0 +1,81 @@
+{
+  "ref": "086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a",
+  "tag": "rust-v0.167.0",
+  "treeTruncated": false,
+  "treeEntries": 10864,
+  "skillPaths": [
+    "codex-rs/skills/src/assets/samples/imagegen/SKILL.md",
+    "codex-rs/skills/src/assets/samples/openai-docs/SKILL.md",
+    "codex-rs/skills/src/assets/samples/review-agent/SKILL.md",
+    "codex-rs/skills/src/assets/samples/skill-creator/SKILL.md",
+    "codex-rs/skills/src/assets/samples/skill-installer/SKILL.md"
+  ],
+  "files": [
+    {
+      "path": "codex-rs/plugin/src/bundled_hooks.rs",
+      "blobSha": "47a4eeef28cb1e3fd257ca608bc312bea028c170",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/plugin/src/bundled_hooks.rs",
+      "sha256OfCache": "3e3697aa2b4588b4078317427a3f13ac78b7e7f30c94527e0576e2623586c306",
+      "bytes": 4767
+    },
+    {
+      "path": "codex-rs/config/src/computer_use.rs",
+      "blobSha": "6523d19bedea8830ce626e1b5eef01b1d2107958",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/computer_use.rs",
+      "sha256OfCache": "167520f5585cac4e06c75acb3a6a4e9b513015cb6ba82afcb025b3a1aaa96d39",
+      "bytes": 1342
+    },
+    {
+      "path": "codex-rs/config/src/browser_computer_use_requirements.rs",
+      "blobSha": "88c18873d2be090db2183e93954febc06c5cc8a4",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/config/src/browser_computer_use_requirements.rs",
+      "sha256OfCache": "dc16a09a6aec4623e9c9870198ff8420015a4f46c0dc2835a641db079bb02e3b",
+      "bytes": 4878
+    },
+    {
+      "path": "codex-rs/app-server-protocol/src/protocol/v2/computer_use_config.rs",
+      "blobSha": "27399954f9d3148814534f07b11973257ea14bd7",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server-protocol/src/protocol/v2/computer_use_config.rs",
+      "sha256OfCache": "cd28ea05d5c4721de52fefb39e436fcfef541e282c9ef6d622aca8911ba3bb18",
+      "bytes": 1348
+    },
+    {
+      "path": "codex-rs/ext/skills/src/render.rs",
+      "blobSha": "b5f37d5cdeddf210aba7e24a6f2cd9280e5ca904",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/render.rs",
+      "sha256OfCache": "2dccf3b8ed0de052163704c3a358f3bb0595a35bd27793a6b34019e8e8de3e54",
+      "bytes": 39369
+    },
+    {
+      "path": "codex-rs/protocol/src/prompts/base_instructions/default.md",
+      "blobSha": "907ff8b877026871b088f01f4366cea36e1f02cd",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/protocol/src/prompts/base_instructions/default.md",
+      "sha256OfCache": "ac8ae107a0d72fe3476b430afb161ea4e67da2e446d778aefc44828160559807",
+      "bytes": 20903
+    },
+    {
+      "path": "codex-rs/skills/src/lib.rs",
+      "blobSha": "7ac553c8d191c83900ec3c23622c64470cb7a39f",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/skills/src/lib.rs",
+      "sha256OfCache": "d5331b581372831c355c3b578dec627cca40d07c544ed4f2ac2273b965528a28",
+      "bytes": 7623
+    },
+    {
+      "path": "codex-rs/ext/skills/src/fragments.rs",
+      "blobSha": "d4a0342a7ef7be6286e72060d1b069a232998e7e",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/fragments.rs",
+      "sha256OfCache": "d5e9543668a0d69e972b2577254b7cb1efe07f80898b5319ac4143693bf275b5",
+      "bytes": 3799
+    },
+    {
+      "path": "codex-rs/ext/skills/src/catalog_prompt.rs",
+      "blobSha": "0f60373707f5398d9562e020d6ac7a98ac4e1b71",
+      "url": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/ext/skills/src/catalog_prompt.rs",
+      "sha256OfCache": "8d70657e23809ca6723c6da9f051a6bc1418b0cf5755362071faaccfeb5cfdd9",
+      "bytes": 10426
+    }
+  ],
+  "source": "Public openai/codex release tag matched to installed CLI 0.167.0; application CUA runtime is separate.",
+  "cacheRootRelativeToRepo": "experiments/codex-runtime-probe/build/cli-guidance/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a",
+  "encoding": "UTF-8 as returned by GitHub file connector; Git blob SHA separately recorded."
+}

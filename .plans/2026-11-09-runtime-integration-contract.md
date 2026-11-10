@@ -1,0 +1,108 @@
+# Review item #1: the Codex runtime integration contract
+
+November 9, 2026. This consolidates the native reuse, desktop/browser investigation and live Pi work into a decision boundary. **Native control is technically reusable from our own Pi process, with either GPT or Claude. Independent use of Codex's Chrome backend is not yet provisioned. Neither result establishes a supported shipping API.**
+
+**Execution follow-up:** [real CLI and native qualification](2026-11-09-runtime-qualification-results.md) now establishes actual terminal Codex + Pi use of our owned browser MCP, CLI interruption/cleanup, native cold startup with ChatGPT closed, helper termination/recovery and bounded native Stop. The fixture's relaunch crash was fixed and retained in the journal. Native app handles can reopen a closed app and follow its replacement process. Remaining item #1 gates are production permission attribution, real-update qualification and vendor terms/support; the external Codex-specific browser authorization path remains separate and unresolved.
+
+See the [original native experiment](2026-11-08-codex-runtime-reuse.md), [browser bootstrap trace](2026-11-09-background-browser-control.md#8-desktop-bootstrap-traced-after-the-owned-task-failure), [Pi/GPT result](2026-11-09-pi-cua-probe.md), [Pi/Claude result](2026-11-09-claude-cua-compatibility.md) and [new evidence](evidence/2026-11-09-browser-runtimes/claude-and-runtime-contract.json).
+
+## One integration label hides several separate contracts
+
+| Boundary | Who owns it | What is established |
+| --- | --- | --- |
+| Model inference and tool selection | Pi plus selected model API | Live GPT and Opus both use the same native tools. An API key authorizes model inference; it does not authorize the desktop browser host. |
+| MCP client and model-facing tools | Our process plus the genuine packaged runtime | stdio initialize/list/call, current tool descriptions/schemas, first-use guidance, text/images, scoped elicitation and owned-process close all exercised. |
+| Native execution and OS permissions | Installed Codex native helper | Real AX/input/screenshot effects on the disposable app. Existing helper installation and macOS grants are prerequisites; production permission attribution is not qualified. |
+| Specialized browser authorization | Desktop access host and lifecycle registry | Desktop-created tasks pass. Independent MCP and external App Server paths fail different prerequisites. |
+| Browser target control | Provider-specific browser service/extension and tab ownership | Actual terminal Codex and Pi now use our owned browser provider; normal completion and interruption release only the caller's targets. This does not provision the private Codex browser backend. |
+| Native helper lifetime, updates and redistribution | Vendor installation plus our integration policy | Cold startup, helper termination/recovery and bounded Stop now measured. Production permissions, real-update qualification and shipping permission remain gates. |
+
+MCP is the usable boundary. Importing a private JavaScript client, copying a plugin manifest or knowing a socket path is not the same as obtaining the surrounding host lifecycle.
+
+## Native startup: new source evidence and live lifecycle check
+
+Inspection of the installed `targets/mac/native-pipe.js` shows:
+
+1. It first connects to the native helper socket and performs a versioned ping.
+2. If the socket is unavailable and a host-services pipe was supplied, it asks that host to `ensureService` for computer use.
+3. Without that host-services pipe, it uses the trusted runtime's Launch Services capability to open the configured helper app, falling back to the installed helper location or bundle identifier.
+4. It reconnects and validates the client/server API version. Version mismatch is an explicit error.
+
+Our independent launcher does not inherit the desktop host-services pipe. At the initial review this startup path was source evidence only. The [subsequent approved cold test](2026-11-09-runtime-qualification-results.md#cold-startup-and-helper-recovery-completed-in-the-approved-slot) verified both ChatGPT and the helper absent before independent startup, then completed observation/input and helper recovery with ChatGPT still closed. The installed runtime and existing macOS grants remain prerequisites; this is not clean-machine onboarding evidence.
+
+We also ran a read-only two-client test against the completed fixture. A and B each attached; we closed A's MCP process; B stayed alive and obtained a fresh observation with the correct counter/text. Both owned child processes exited on cleanup. This qualifies **connection lifetime isolation**, not concurrent native input, separate keyboards, helper-crash isolation or cancellation of a script already executing in the helper.
+
+The inspected native client queues requests on its own connection. That is not evidence of global arbitration between all callers. SlopZooka must still coordinate shared foreground input regardless of model choice. The first lifecycle script attempt had a diagnostic bug—reading the transport's PID after close, when it had been cleared. Capturing the PID before close fixed the probe; that failure is not a runtime defect.
+
+## A real capture failure surfaced during the comparison
+
+After replacing the disposable app with a fresh instance, a GPT baseline returned ScreenCaptureKit error `-3811`, described as failure to start a stream due to audio/video capture failure. The fixture's independent state remained counter 0 with empty text. The model stopped and the error is recorded. We have not established whether this arose from target teardown/startup timing, helper state or another capture condition.
+
+This makes rapid target closure/relaunch and capture readiness an explicit runtime acceptance case. A successful AX attachment is not proof a screenshot stream can start. Surface those states separately. Never automatically replay an input sequence because capture failed: first establish what actions, if any, already took effect. The comparison's retry used a fresh connection only after independently verifying unchanged fixture state; the fresh connection succeeded, with state and screenshot independently verified. Both outcomes are retained in the evidence. A successful retry does not establish the failure's cause or an acceptable recovery SLA.
+
+## Chrome: the missing object is a desktop-owned session
+
+The earlier trace identified generated configuration from `appServices.threadConfiguration.readMcpConfig`, rather than the static manifest. That configuration carries the browser access-host connection, executor identity and public signature-verification key. Browser requests also carry actual session/turn context. The desktop host validates the caller and returns a signed decision tied to the request.
+
+This follow-up inspected two details more closely:
+
+- The packaged macOS host invokes a native socket-peer authorizer. We have inspected its call boundary, **not** proven which external executable identities it would accept.
+- The desktop registry observes thread start/resume requests and replies, records session-to-executor relationships and resolves access against its current principal/Work state. A generated UUID or an external model's concept of a “turn” does not create that lifecycle association.
+
+There are consequently several independent gates: process/peer admission; executor/session ownership; account entitlement; and website/tab permissions. Successfully installing the extension or accepting a website does not satisfy the earlier gates. A valid model API credential is separate again.
+
+| Attempt | Actual outcome | What it establishes |
+| --- | --- | --- |
+| External stdio MCP, model-free or Pi/GPT or Pi/Opus | Missing-current-turn rejection | The runtime starts; independent browser session ownership is missing. |
+| Our own real App Server task | Browser access host unavailable | A genuine Codex turn alone is insufficient. |
+| Desktop parent creates a desktop child | Child completes Chrome fixture | Desktop provisioning works on that path; our outside companion's access to that task interface remains unqualified. |
+| Read another task's transcript | Observations can be read; runtime status may differ across owners | Transcript visibility does not transfer execution ownership or qualify Stop. |
+
+Public App Server documentation provides generic task and MCP methods. The inspected 106-method schema has no desktop `readMcpConfig` or browser enrollment method. Current browser-extension documentation describes desktop-mediated use; it does not establish an external Pi embedding contract. This is a scoped negative finding, not proof that no private or future interface exists. [App Server](https://learn.chatgpt.com/docs/app-server#api-overview), [browser extension](https://learn.chatgpt.com/docs/chrome-extension).
+
+We checked the apparent alternative of Sign in with ChatGPT. Its documented registration flow grants API invocation against `https://api.openai.com/v1`; it does not document granting a local browser access-host session. It could solve inference billing/sign-in, but is not evidence that it solves this separate browser bridge. [Documented sign-in resource and scopes](https://developers.openai.com/cookbook/articles/sign-in-with-chatgpt#2-register-the-client-during-sign-in).
+
+The useful next browser investigation needs a host-issued external-client connection and a defined create/approve/call/cancel/end lifecycle. Reusing another chat's credentials, simulating the host's signed answer or setting guessed executor IDs would not establish that contract. No such bypass or account-state mutation was attempted.
+
+## Shipping and support are a separate decision
+
+The public CLI's source availability is not a license for the bundled native/browser components. OpenAI's current Service Terms, section 10, describe limited use of installed Licensed Materials, restrict modification/redistribution/sublicensing and tie use to permitted Services use. Whether and how those provisions apply to this exact integration needs confirmation under the user's applicable agreement. Neither local success nor the use of MCP grants a standalone redistribution or cross-model embedding right. [Service Terms, updated October 16, 2026](https://openai.com/policies/service-terms/).
+
+Before committing to this runtime for a release, get a concrete answer on calling a user's existing installation from our companion, using non-OpenAI models with it, whether any component may be packaged, and what compatibility/support contract exists. Keep vendor binaries and copied guidance out of the repo/distribution meanwhile; our experiments dynamically use the installed provider. This is an unresolved product-dependency question, not a claim that the experiment established permission to ship.
+
+## An owned Chrome extension is a bounded alternative
+
+**Implementation follow-up:** the [owned extension prototype](2026-11-09-owned-browser-extension-probe.md) now passes real headed/headless browser tests and concurrent Pi/GPT + Pi/Opus tasks. It uses our own public-API implementation, not Codex browser authorization. The historical proposal below is preserved; its “not built” status describes that earlier review. Target leases/queues ended up with one owner in the extension next to CDP dispatch, while the transient companion bridge assigns client identities and routes requests. No production window/session ownership changed.
+
+**User follow-up:** could we implement the browser capabilities ourselves now that we understand the interface? **Yes, the core looks tractable.** This is an engineering assessment based on public Chrome APIs and our earlier inspection, not a new working extension or a commitment to reproduce every Codex feature.
+
+The proposed path is: **Pi or terminal Codex → companion browser tools → native-messaging bridge → our extension → Chrome's tab-targeted CDP**. The extension needs a small host/browser adapter as well; replacing only the extension underneath Codex's existing service would leave that service's upstream authorization checks intact. Our own path uses our own connection and task ownership, independent of which model acts.
+
+Chrome's debugger API accepts tab-specific commands and exposes the Accessibility, DOM, Runtime, Input, Page, Emulation and Target domains. That supplies the building blocks for page observations, screenshots, navigation and background page input. It also exposes frame/target and detach handling that our adapter must implement correctly. Background operation must be verified against the real selected tab and native focus, not inferred from a page's emulated visibility. [Debugger API](https://developer.chrome.com/docs/extensions/reference/api/debugger).
+
+Keep the implementation boundary narrow:
+
+- **Extension:** target tabs, relay supported CDP commands/events, report detach/closure and show a small control/Stop indicator. Chrome supplies the browser engine, profile and rendering.
+- **Companion browser adapter:** own ephemeral target/session grants, serialize input per target, produce useful element references/AX observations, return images, and stop stale queued work. One implementation serves Pi and coding-agent MCP. Workspace ownership remains in existing Mac services; presentation remains in `WindowGateway`.
+- **Native-messaging bridge:** register our extension's allowed origin and relay to the existing companion rather than start another workspace/session service. Chrome launches the bridge process for the connection; our already-running companion remains the resource owner. [Native messaging](https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging).
+
+The maintenance burden is primarily edge behavior: navigation invalidating element references, cross-process iframes, popup ownership, DevTools/debugger detach, browser/bridge restart, same-tab competition and human takeover. A modern active debugger/native-messaging connection can keep the MV3 service worker alive, but restart handling is still required. Native OS dialogs leave this page-control path. Different tabs also share profile cookies unless we deliberately choose separate profiles. [Worker lifecycle](https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle).
+
+**Control does not settle media.** Our extension can request page screenshots for the agent. For a first Vision demo, retain selected tabs in dedicated unfocused native windows and the existing capture/encoding path, then qualify exact target association. Direct tab video is a separate test: `tabCapture` exposes media but has user-invocation requirements. Do not promise unattended arbitrary-tab streaming, locked operation or unlimited active surfaces from debugger access alone. Continuous video should not ride as a sequence of giant native-messaging JSON messages. [Tab capture](https://developer.chrome.com/docs/extensions/reference/api/tabCapture).
+
+**Smallest discriminating prototype:** our extension plus a bridge, two disposable tabs, one read/act/screenshot loop, and two clients. Verify independent background input while the human uses a third target; reject competing ownership of one tab; Stop A without affecting B; recover from bridge restart and target navigation. Defer video transport, full browser-product UI, arbitrary JavaScript REPLs and native dialogs until the control path works. No extension has been built or installed in this follow-up.
+
+This is now a concrete candidate to compare with further private-runtime integration. It can remove the OpenAI-specific browser authorization and redistribution dependency while retaining the preferred Codex native-Mac path as a separate decision. It does not require a Chromium fork, new durable coordinator or parallel window manager.
+
+## Small remaining qualification plan
+
+| Gate | Concrete acceptance evidence |
+| --- | --- |
+| Cold native startup | Completed on this installation with the desktop closed and restored afterward. Remaining: actual production app identity and fresh-permission onboarding. |
+| Target and capture recovery | Six corrected warm/cold relaunch cycles completed. Old app handles can relaunch/rebind instead of failing: exact shared-window identity remains item #3 work. Earlier `-3811` was not reproduced and its cause is unresolved. |
+| Actual Stop and helper failure | Bounded native Stop and helper termination/recovery passed in the approved slot. This does not qualify every in-flight native mutation or claim rollback. |
+| Browser provisioning | Actual terminal CLI/Pi consumers and CLI cleanup/interruption pass via our owned extension. Private Codex browser enrollment remains unqualified, but is no longer necessary for this implementation path. |
+| Version changes | Qualify the exact manifest/runtime/helper tuple and tool schema after an update. Detect startup/schema/version mismatch before admitting input; retain the observed failure. Loading guidance dynamically reduces prompt drift but does not remove compatibility work. |
+| Release dependency | Resolve the installed-runtime and cross-model use terms and operational support expectations before promising the feature to others. |
+
+The next native integration can still stay small and experimental. No second coordinator, durable workflow store, window registry or private browser authorization service is warranted. This review also does not close items #2–#7: task ownership, parallel input, presentation, spatial scale, voice/context and away-from-Mac behavior remain their own decisions and tests.

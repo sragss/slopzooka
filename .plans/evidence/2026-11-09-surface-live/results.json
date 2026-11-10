@@ -1,0 +1,362 @@
+{
+  "recordedAt": "2026-11-10T03:46:21.761527+00:00",
+  "baseRevision": "845f259944e50cacf4a295539fb201f71a85356c",
+  "scope": "Physical prepared-fixture integration, not complete fault/performance qualification.",
+  "simulator": {
+    "initialRun": "run-6TvFGt",
+    "initialNonce": "93e84a33",
+    "pi": {
+      "calls": 15,
+      "images": 6,
+      "errors": 0,
+      "elapsedMs": 55285,
+      "counter": [
+        0,
+        2
+      ]
+    },
+    "terminal": {
+      "code": 0,
+      "signal": null,
+      "version": "codex-cli 0.167.0",
+      "elapsedMs": 43313,
+      "calls": 9,
+      "itemTypes": [
+        "agent_message",
+        "mcp_tool_call"
+      ],
+      "onlyFixtureTools": true
+    },
+    "terminalCounter": [
+      2,
+      3
+    ],
+    "physicalVerdicts": [
+      "Actual simulator streaming",
+      "Preview too wide; phone aspect requested; not changed",
+      "Closed preview; reopened stream visible; launcher closed",
+      "Count 3, terminal-handoff-ready and dismissed dialog confirmed",
+      "Replacement Count 1 streaming confirmed"
+    ],
+    "stop": {
+      "ackMs": 1.7892919999999322,
+      "queuedAction": {
+        "error": "Stopped or replaced; explicitly resume then observe"
+      },
+      "postStopRejected": true,
+      "before": "Count: 2",
+      "after": "Count: 2",
+      "inFlightCancellationQualified": false
+    },
+    "replacement": {
+      "oldSession": "45e28123-942b-44c9-9750-4581fd56acd5",
+      "newSession": "23bee040-d7da-4338-8b37-45b8d7a2d255",
+      "oldRefRejected": "Stale element; observe again",
+      "nonce": "Nonce: 38f7449c",
+      "counter": "Count: 1"
+    },
+    "recoveryActor": "Operator updated transient descriptor and gateway reload"
+  },
+  "browser": {
+    "failedBlackRun": "run-Q5ApeV",
+    "failure": "Swift MediaHeader required width and other nonoptional fields absent from JavaScript sender",
+    "fix": "Full header defaults at sender; actual Swift parser regression",
+    "secondAttempt": "run-yhZ5jz failed synthetic-human seeded-text invariant; cause not established, retained failure",
+    "workingRun": "run-uyUwbl",
+    "workingNonce": "6a283c08",
+    "settings": {
+      "quality": 65,
+      "maxWidth": 1280,
+      "maxHeight": 960,
+      "everyNthFrame": 3
+    },
+    "userVerdict": "Both streaming and stable; bar animation somewhat jumpy",
+    "pi": {
+      "calls": 10,
+      "images": 1,
+      "errors": 0,
+      "elapsedMs": 17951
+    },
+    "terminal": {
+      "code": 0,
+      "signal": null,
+      "version": "codex-cli 0.167.0",
+      "elapsedMs": 33431,
+      "calls": 10,
+      "itemTypes": [
+        "agent_message",
+        "mcp_tool_call"
+      ],
+      "onlyFixtureTools": true
+    },
+    "callerEffects": "Both Counter 2\u21923, label save and Settings; tool events interleaved",
+    "typing": {
+      "agentResult": "agent-result-1794281271733.json",
+      "start": 1794281234347,
+      "end": 1794281271733,
+      "elapsedMs": 37386,
+      "toolCalls": 22,
+      "typingChangesDuringTask": 33,
+      "allChanges": 247,
+      "firstOverlap": 1794281234400,
+      "lastOverlap": 1794281239884,
+      "fieldFocusedDuringChanges": true,
+      "finalTextLength": 290,
+      "finalCaret": 290
+    },
+    "coveredRun": "run-g591Uy",
+    "coveredNonce": "572b4fdd",
+    "coverageGeometry": [
+      {
+        "pid": 95519,
+        "alpha": 1,
+        "bounds": {
+          "X": 1938,
+          "Height": 1369,
+          "Y": 20,
+          "Width": 520
+        },
+        "layer": 0,
+        "order": 17
+      },
+      {
+        "order": 21,
+        "pid": 91509,
+        "layer": 0,
+        "alpha": 1,
+        "bounds": {
+          "X": 1948,
+          "Height": 1349,
+          "Y": 30,
+          "Width": 500
+        }
+      }
+    ],
+    "coveredDecodedFrames": [
+      30,
+      30
+    ],
+    "coveredSampleMsEach": 1500,
+    "coveredUserVerdict": "Browsers working; user reported counters 4",
+    "coveredOracleCounter": 3,
+    "coveredExactVisualCount": "inconclusive: user report differs from oracle and captured frame"
+  },
+  "deferred": [
+    "Forced control-network reconnect",
+    "Deliberately late physical preview resolution",
+    "Stop after actual dispatch",
+    "Single-stream headset baseline",
+    "Navigation/resize and one-target reincarnation",
+    "Forced live transport stall/overload",
+    "Minimize",
+    "Precise physical latency and CPU/GPU capacity"
+  ],
+  "attentionProposal": {
+    "returnToUsefulQualityMs": 500,
+    "qualification": "User target; attention signals/privacy/hysteresis/visible recovery not researched or measured here"
+  },
+  "cleanup": {
+    "testDeviceProcesses": [
+      {
+        "pid": 1200,
+        "terminated": true
+      },
+      {
+        "pid": 1361,
+        "terminated": true
+      }
+    ],
+    "simulatorShutdown": true,
+    "dedicatedWDARemaining": 0,
+    "regularSlopZookaAndTerminalsStopped": false,
+    "testAppsRemainInstalled": true
+  },
+  "regressions": {
+    "browserMediaMJPEGPassed": 7,
+    "includesActualNativeSwiftDecoder": true
+  },
+  "sources": [
+    {
+      "path": "experiments/owned-browser-probe/media.mjs",
+      "bytes": 9053,
+      "sha256": "74bbdba96c117be5a5f6117cea6ae56b9d8688383f2afca386ff9f7b6d4f24e5"
+    },
+    {
+      "path": "experiments/owned-browser-probe/test/native-media.test.mjs",
+      "bytes": 2410,
+      "sha256": "89459bcd29581581833e001cbb0c3184043d1771fe9479341a0246977c0b651d"
+    },
+    {
+      "path": "experiments/shared-window-probe/Shared/Protocol.swift",
+      "bytes": 5025,
+      "sha256": "722d5a516751957b8297168d5524c7311240f72c2cefb735de9ba9976ce21ba9"
+    },
+    {
+      "path": "experiments/surface-live-probe/device.mjs",
+      "bytes": 2506,
+      "sha256": "852c115d5e35af7fc12be82673720762e71906afc1d56f5b691b8f983c6e2ab8"
+    }
+  ],
+  "localArtifacts": [
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/slot.json",
+      "bytes": 509,
+      "sha256": "4fce9a1e44b935dc0a3dc9d5f7a204bdb56f3acf54f7eb610890ce7375f77cdc"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/user-observations.json",
+      "bytes": 1175,
+      "sha256": "0e77ccb8f8ee16ed36ba82cc9d6fd639d6b37b8bae7ae6bd281618eae5e02773"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/final-gateway-state.json",
+      "bytes": 2469,
+      "sha256": "ed7aeb0a9d8c4510b25b95810e9ba396e941ff3a8752b300f408271c82694771"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/device-cleanup.json",
+      "bytes": 100,
+      "sha256": "f94836da31a534da1117305d4ee660d36ae0d6e06d69fe1a8273259caf690a38"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/covered-windows-final.json",
+      "bytes": 198,
+      "sha256": "2840141da6323fb61b7fe4324837ec5e366087c8b280beed8a2d7643b479ec84"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/physical-slot/cover.swift",
+      "bytes": 2171,
+      "sha256": "ac791b27eaf19ad7656706222a7c52427d4dd440f1659399a540652ffa4445fa"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/agent-result-1794280337852.json",
+      "bytes": 4531,
+      "sha256": "5114595c1ec91e6c86c11de7cf196aa50736b6914461ba3b7c0bb39c6b31d453"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/physical-agent-state.xml",
+      "bytes": 43201,
+      "sha256": "9cd77d6885114720ca41bd89be3289f01515b856e458acbd44a7e40cdd566831"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/physical-close-reopen.json",
+      "bytes": 5082,
+      "sha256": "5100b98595d8d0c78fcb1981efc6731cac7169b727b5f13f0c545f323d2e6cfe"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/physical-stop-launcherless.json",
+      "bytes": 2686,
+      "sha256": "bc0aa71d998da2f6d488064bd1421759524e8157e3b5edf33ebe6fe198e59252"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/terminal-1794280550069.json",
+      "bytes": 194,
+      "sha256": "7c68ec40a2b364d2f974ad8258d7b50c61ed085dbd61e8a6e884ccb66e917e32"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/terminal-1794280550069.jsonl",
+      "bytes": 1471121,
+      "sha256": "2f959704fddda46dfa689a93b4676b4f01eede692d24624464a9b58d102912a9"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/physical-terminal-state.xml",
+      "bytes": 43204,
+      "sha256": "1507999d89936c919db473a5edc727290084d75b4854c59afbc18c11e574140f"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-6TvFGt/cleanup.json",
+      "bytes": 1118,
+      "sha256": "6053760f372122829f5f42b50733ec9359fdb20dbbeaca82677ba9d9268c00e5"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-JdgloM/physical-provider-replacement.json",
+      "bytes": 2863,
+      "sha256": "8afcd580446cc688e389ad6db28ef55abd240f5d35dd7f6a64643963df1720cb"
+    },
+    {
+      "path": "experiments/surface-live-probe/build/run-JdgloM/cleanup.json",
+      "bytes": 1118,
+      "sha256": "de3efe5c89a58655df9772cad024ea1b63b0d1d5340f974eb518ac04afea5910"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-Q5ApeV/summary.json",
+      "bytes": 1317,
+      "sha256": "b11acc33387d762f16d4decddab7ea410d45bbe4bd20d6c163a85a4f782adcdf"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-Q5ApeV/physical-baseline-status.json",
+      "bytes": 949,
+      "sha256": "475e6fc6c32318a0b8afc020ef3bf73ddc79fe431de3b223b51096aa86a9b575"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-yhZ5jz/stream-results.json",
+      "bytes": 9225,
+      "sha256": "a5c072c07b6aca3613bc6727d7220276ce4e963c37cd6218275f0ec10cabcfff"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/physical-baseline-status.json",
+      "bytes": 942,
+      "sha256": "1a73768608be162e858704bf6479865c9489309dfaca7f93adb83108396a1e2d"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/stream-commands.jsonl",
+      "bytes": 2527,
+      "sha256": "00d68ae71aa755e405eddd9dcdeb2a002684b09087cb9ce5644482aaad59e928"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/fixture-events.jsonl",
+      "bytes": 1911,
+      "sha256": "338366a7f7ade3e164f8b9ca914280456058b3f5bdfd63ecc97e33650a4ea5e3"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/agent-result-1794281159901.json",
+      "bytes": 3297,
+      "sha256": "3460ee5de63c949b143b2964a6de1cf6e4262d36fb4a1a0cd94a8f465be4d9d6"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/terminal-1794281141724.json",
+      "bytes": 195,
+      "sha256": "7f4e6d55491a60e3bb1b3c6444e22b0c2eec32cdb70d617b50b8ad1d9bcfcfce"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/physical-typing-overlap.json",
+      "bytes": 348,
+      "sha256": "ed7328e3f66949faca172f7f32f73d28e65de792b0fde609c6103dfde01ba0d5"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-uyUwbl/agent-result-1794281271733.json",
+      "bytes": 5221,
+      "sha256": "5d36624972078ba54f29f94e929843e89c08ea255c52a8f93b824ed186508bb8"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-g591Uy/physical-covered.json",
+      "bytes": 19362,
+      "sha256": "c02261278cb19f22d1d4aef42e98c06d6103be1dc6085c6052628ba9c60afabe"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-g591Uy/physical-covered-a.jpg",
+      "bytes": 24002,
+      "sha256": "609e1ef4931833ac16d43bc0f74b2567bc257ad60337bf1b578516971b034dca"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-g591Uy/physical-covered-b.jpg",
+      "bytes": 24121,
+      "sha256": "2b0cd82a1fb7507643a816831ab30ff71f1031afe9ebd7039e8e01eeeff58c48"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-g591Uy/fixture-events.jsonl",
+      "bytes": 646,
+      "sha256": "81f791710047ed4082abc02fe70e1a5debbcb1ae9c5ca8fd6a310c3189d12c0e"
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/run-g591Uy/summary.json",
+      "bytes": 1580,
+      "sha256": "b0de43a1e06314022c4d9704b24c1576d70ff708c014d6f847b4efbf8ee8d118"
+    },
+    {
+      "path": "/tmp/slz-physical-regressions.log",
+      "bytes": 1631,
+      "sha256": "a01185e655bb796b4b92ceb144766975e30e3f8ca7eeb6918d1e807feff2d7c4"
+    }
+  ]
+}

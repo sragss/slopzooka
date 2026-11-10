@@ -4,6 +4,10 @@ import Foundation
 // launcher code runs against a controllable transport, including delayed replies.
 @MainActor
 enum Fixture {
+    static var probeSurfaceData = Data()
+    static var probeBatchData = Data()
+    static var beforeProbePoll: (() async -> Void)?
+    static var probePolls: [URLRequest] = []
     static var layouts: [String: WindowLayout] = [:]
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
@@ -97,6 +101,16 @@ enum Fixture {
         if path == "/api/frontends" {
             if let callback = beforeFrontends { beforeFrontends = nil; try await callback() }
             return try json(["frontends": [], "warning": "Frontend fixture"], for: request)
+        }
+        if path == "/api/surface-probe/poll" {
+            let batch = probeBatchData
+            probePolls.append(request)
+            if let callback = beforeProbePoll { beforeProbePoll = nil; await callback() }
+            return response(batch, for: request)
+        }
+        if path == "/api/surface-probe/resolve" {
+            if let callback = beforePreview { beforePreview = nil; await callback() }
+            return response(probeSurfaceData, for: request)
         }
         if path == "/api/frontends/open" {
             let port = previewPort
@@ -471,6 +485,68 @@ struct WindowGatewayChecks {
         catch {}
         precondition(!Fixture.requests.dropFirst(requestCount).contains(where: { $0.hasPrefix("PATCH") }))
         print("PASS: shared names and legacy fallback reach launcher payloads, reject stale replies, and recover without replacing scenes or processes")
+
+        let probeFixture = URL(fileURLWithPath: CommandLine.arguments[1]).deletingLastPathComponent().appendingPathComponent("surface-probe.v1.json")
+        let probeJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: probeFixture)) as! [String: Any]
+        Fixture.probeSurfaceData = try JSONSerialization.data(withJSONObject: (probeJSON["surfaces"] as! [[String: Any]])[0])
+        _ = try JSONDecoder().decode(ProbeSurfaceResponse.self, from: Fixture.probeSurfaceData)
+        let probeID = "names-host:probe:fixture"
+        let probeRecord = WindowRecord(id: probeID, kind: .preview, targetID: "probe:fixture")
+        let batch = ProbePresentationBatch(instanceID: "probe-run", commands: [.init(id: "open-1", action: "open", surfaceID: "probe:fixture")])
+        var releaseProbe: CheckedContinuation<Void, Never>?
+        Fixture.beforePreview = { await withCheckedContinuation { releaseProbe = $0 } }
+        nameCommands.removeAll()
+        let probeRequests = Fixture.requests.count
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        await until { releaseProbe != nil }
+        precondition(nameCommands.filter { $0 == .open(probeRecord) }.count == 1)
+        naming.close(id: probeID)
+        releaseProbe!.resume()
+        try? await Task.sleep(for: .milliseconds(30))
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        precondition(naming.previewPayload(for: probeID) == nil, "Late resolve or duplicate command cannot resurrect explicitly closed probe")
+        naming.applyProbeCommands(.init(instanceID: "probe-run", commands: [.init(id: "open-2", action: "open", surfaceID: "probe:fixture")]), hostID: "names-host")
+        await until { naming.previewPayload(for: probeID)?.stream != nil }
+        precondition(!Fixture.requests.dropFirst(probeRequests).contains { $0.hasPrefix("POST /api/workspaces/") })
+        let persistedProbe = try JSONEncoder().encode(Fixture.layouts[nameBase.host!]!)
+        precondition(!String(decoding: persistedProbe, as: UTF8.self).contains("synthetic-fixture-token"))
+        naming.close(id: probeID)
+        print("PASS: live-probe commands use the real gateway, deduplicate, reject late reopen and persist only stable content")
+
+        // Exercise the actual typed client path, including its route generation.
+        Fixture.probeBatchData = Data("""
+            {"instanceID":"probe-run","commands":[{"id":"open-3","action":"open","surfaceID":"probe:fixture"}]}
+            """.utf8)
+        naming.observe(id: probeID, isPresented: true, isFocused: false)
+        naming.updateProbeReceiver(id: probeID, state: "receiving")
+        let probeSnapshot = HostSessionsResponse(sessions: Fixture.sessions[nameBase.host!]!, surfaceProbe: true)
+        await naming.client.onSessionSnapshot?(probeSnapshot, naming.client.current!)
+        await until { naming.previewPayload(for: probeID)?.stream != nil }
+        let poll = Fixture.probePolls.last!
+        let pollBody = try JSONSerialization.jsonObject(with: poll.httpBody!) as! [String: Any]
+        let pollPresence = pollBody["presence"] as! [[String: Any]]
+        precondition(poll.httpMethod == "POST" && poll.timeoutInterval == 5)
+        precondition(poll.value(forHTTPHeaderField: "X-SlopZooka-Client-ID") != nil)
+        precondition(pollBody["available"] as? Bool == true && UUID(uuidString: pollBody["receiverID"] as! String) != nil)
+        precondition((pollBody["results"] as! [[String: Any]]).contains { $0["id"] as? String == "open-2" })
+        precondition(pollPresence.contains { $0["id"] as? String == probeID && $0["presented"] as? Bool == true && $0["receiver"] as? String == "receiving" })
+        naming.close(id: probeID)
+        Fixture.probeBatchData = Data("""
+            {"instanceID":"probe-run","commands":[{"id":"stale-open","action":"open","surfaceID":"probe:stale"}]}
+            """.utf8)
+        var releasePoll: CheckedContinuation<Void, Never>?
+        Fixture.beforeProbePoll = { await withCheckedContinuation { releasePoll = $0 } }
+        let oldPoll = Task { await naming.client.onSessionSnapshot?(probeSnapshot, naming.client.current!) }
+        await until { releasePoll != nil }
+        // Even reaccepting the same address replaces the route; endpoint equality is insufficient.
+        try naming.client.accept(fixtureHealth(nameTarget.id, endpoint: nameBase), endpoint: nameBase, authenticated: true)
+        let commandsBeforeStaleReply = nameCommands.count
+        releasePoll!.resume()
+        await oldPoll.value
+        precondition(nameCommands.count == commandsBeforeStaleReply && naming.reference(for: "names-host:probe:stale") == nil,
+            "A delayed probe batch from a replaced route cannot open a window")
+        print("PASS: probe polling uses typed companion transport, reports gateway state and rejects superseded routes")
 
         try await checkClosingAndEnding()
 

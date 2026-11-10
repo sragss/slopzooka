@@ -1,0 +1,354 @@
+{
+  "repositories": [
+    {
+      "repo": "microsoft/playwright-mcp",
+      "sha": "404be8eb89abecff77a55152b6d843d140c78372",
+      "date": "2026-11-06T22:49:42Z",
+      "url": "https://github.com/microsoft/playwright-mcp/commit/404be8eb89abecff77a55152b6d843d140c78372"
+    },
+    {
+      "repo": "microsoft/playwright",
+      "sha": "84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a",
+      "date": "2026-11-08T17:10:27Z",
+      "url": "https://github.com/microsoft/playwright/commit/84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a"
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "sha": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "date": "2026-11-08T01:58:38Z",
+      "url": "https://github.com/vercel-labs/agent-browser/commit/4b0e9f01fa8d214d39bbfe5391257640634fb9a0"
+    },
+    {
+      "repo": "remorses/playwriter",
+      "sha": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "date": "2026-11-06T10:07:25Z",
+      "url": "https://github.com/remorses/playwriter/commit/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f"
+    },
+    {
+      "repo": "ChromeDevTools/chrome-devtools-mcp",
+      "sha": "7e10c08d30172f4a9d0dba64fa21890afebed09a",
+      "date": "2026-11-09T13:39:35Z",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/commit/7e10c08d30172f4a9d0dba64fa21890afebed09a"
+    },
+    {
+      "repo": "browser-use/browser-use",
+      "sha": "b49a68e4060acb226da8f784194fef301c53a6d7",
+      "date": "2026-10-30T04:28:48Z",
+      "url": "https://github.com/browser-use/browser-use/commit/b49a68e4060acb226da8f784194fef301c53a6d7"
+    },
+    {
+      "repo": "browserbase/stagehand",
+      "sha": "d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295",
+      "date": "2026-11-08T23:49:13Z",
+      "url": "https://github.com/browserbase/stagehand/commit/d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295"
+    }
+  ],
+  "sources": [
+    {
+      "repo": "microsoft/playwright-mcp",
+      "path": "README.md",
+      "ref": "404be8eb89abecff77a55152b6d843d140c78372",
+      "blobSha": "9c2f13dee367ee3c01a811609c8324f9ca171f5e",
+      "url": "https://github.com/microsoft/playwright-mcp/blob/404be8eb89abecff77a55152b6d843d140c78372/README.md",
+      "sha256OfNormalizedCache": "addbee8e89ceebd696365571456f68d512d9f9bb5d39f8a5094f7f561d3f8af4",
+      "bytes": 69676
+    },
+    {
+      "repo": "microsoft/playwright-mcp",
+      "path": "package.json",
+      "ref": "404be8eb89abecff77a55152b6d843d140c78372",
+      "blobSha": "904fce56ce94cc8373fb24a854ded61ad0efc353",
+      "url": "https://github.com/microsoft/playwright-mcp/blob/404be8eb89abecff77a55152b6d843d140c78372/package.json",
+      "sha256OfNormalizedCache": "c77ed3ee01e103f0cc6d4aba091a410821066a9df189d5a8248e38325bab068e",
+      "bytes": 1539
+    },
+    {
+      "repo": "microsoft/playwright-mcp",
+      "path": "index.js",
+      "ref": "404be8eb89abecff77a55152b6d843d140c78372",
+      "blobSha": "75594c777c3663c82255873bfbdd385aff221071",
+      "url": "https://github.com/microsoft/playwright-mcp/blob/404be8eb89abecff77a55152b6d843d140c78372/index.js",
+      "sha256OfNormalizedCache": "28c639173fb79f5cae1ed44519995cea0dd2aee2f4a48a2511f06f153802b946",
+      "bytes": 747
+    },
+    {
+      "repo": "microsoft/playwright",
+      "path": "packages/extension/README.md",
+      "ref": "84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a",
+      "blobSha": "cd2b58de865d20f04906225851d0936ce8fc8495",
+      "url": "https://github.com/microsoft/playwright/blob/84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a/packages/extension/README.md",
+      "sha256OfNormalizedCache": "02361a6a4fd3e611eb29096fc46e66e02df19f8997f98e216fcffd53afa91b30",
+      "bytes": 5269
+    },
+    {
+      "repo": "microsoft/playwright",
+      "path": "packages/playwright-core/src/tools/mcp/extensionContextFactory.ts",
+      "ref": "84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a",
+      "blobSha": "5ab4b92a6cc79d7bdd5b3dfe6bbce453ada106c5",
+      "url": "https://github.com/microsoft/playwright/blob/84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a/packages/playwright-core/src/tools/mcp/extensionContextFactory.ts",
+      "sha256OfNormalizedCache": "bdff1ed9f2b19876a33bb9201233ef7b819c9a653a1558dd72030b10a90952ab",
+      "bytes": 2776
+    },
+    {
+      "repo": "microsoft/playwright",
+      "path": "tests/extension/multi-connection.spec.ts",
+      "ref": "84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a",
+      "blobSha": "476cdc870a2bb9a9e44c5d8457bad15026fccd23",
+      "url": "https://github.com/microsoft/playwright/blob/84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a/tests/extension/multi-connection.spec.ts",
+      "sha256OfNormalizedCache": "5dc3bb0f452983e37a2447ccc083a60db2ff32071ce1abc4e22fe6a8f962bfe7",
+      "bytes": 9337
+    },
+    {
+      "repo": "microsoft/playwright",
+      "path": "packages/playwright-core/src/tools/mcp/browserFactory.ts",
+      "ref": "84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a",
+      "blobSha": "185159811a3ee3aaf2d03811b1dc4ac9cf7de6d4",
+      "url": "https://github.com/microsoft/playwright/blob/84e2bdcaa5a6e4a9e8afcbe8b1bca4ff8a8cb69a/packages/playwright-core/src/tools/mcp/browserFactory.ts",
+      "sha256OfNormalizedCache": "00d64f061ff2f0cab47475deff31c8a02e1ba65055fc3f6027b6a092d488268d",
+      "bytes": 13028
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "README.md",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "53f71fd42a568994479edfa5063c58ca0b5dad8d",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/README.md",
+      "sha256OfNormalizedCache": "a96587f37a6e624a56ceba9402892f072229b49f50dc6f56b1c128ce9a2126b2",
+      "bytes": 8780
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "package.json",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "766943950a48ebf3765ae9d95b602e8dc876486d",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/package.json",
+      "sha256OfNormalizedCache": "6a56a3311a04628a6529cfc18b72571fe53094bd270f9db19229e9382ea1be13",
+      "bytes": 2500
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "skills/agent-browser/SKILL.md",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "da0e6dcbf7c5b75c304ae871d864c4504ea30592",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/skills/agent-browser/SKILL.md",
+      "sha256OfNormalizedCache": "ef7c2da16e25e86b78396bd9a2fd112e23c42cdd2de435197a920b9fc646d1c2",
+      "bytes": 3220
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "cli/src/mcp.rs",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "a776f611c95ceb40df657212aa720148ca346cdc",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/cli/src/mcp.rs",
+      "sha256OfNormalizedCache": "e0fd2a93dcbada28954caf203e8bb530afc5425304444138d73b9bdb2eeb0faa",
+      "bytes": 250846
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "skill-data/core/SKILL.md",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "7b950a63f600942313e6f464bc262fa9a9fd16d5",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/skill-data/core/SKILL.md",
+      "sha256OfNormalizedCache": "ef7ad4d2d8289906d96e9e51ddb83aee899e442863430f99183acf3c6c29a09f",
+      "bytes": 15791
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "skill-data/core/references/session-management.md",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "32a6cd0de8666af745f884c7af6d76dd0e5dd64b",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/skill-data/core/references/session-management.md",
+      "sha256OfNormalizedCache": "578cb84eb3ca10566b1c82d12c5b8d3cadf3b15bf63d1ccbabd47466283553ae",
+      "bytes": 12217
+    },
+    {
+      "repo": "vercel-labs/agent-browser",
+      "path": "docs/content/docs/cdp-mode.mdx",
+      "ref": "4b0e9f01fa8d214d39bbfe5391257640634fb9a0",
+      "blobSha": "360a66cceb0264be734f407973cf4c405707db8c",
+      "url": "https://github.com/vercel-labs/agent-browser/blob/4b0e9f01fa8d214d39bbfe5391257640634fb9a0/docs/content/docs/cdp-mode.mdx",
+      "sha256OfNormalizedCache": "485a4a5e5b29992cf7a43666e485e43da22ca682b7b5ce7ea7713662e207a0a8",
+      "bytes": 9378
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "README.md",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "7e2d6f44879f79784118948584553455d6f33aa4",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/README.md",
+      "sha256OfNormalizedCache": "c140979cc6e5a9610962f65232bbc9c4e590a69fda5bcda45331a8bbf82e93cf",
+      "bytes": 21256
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "package.json",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "bb668ad894559eed1d2bc7d5308f1b06557df56c",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/package.json",
+      "sha256OfNormalizedCache": "9804a116438fe35f9ba7a3550f445911d101ed6e0b153dd4598a067c1c162948",
+      "bytes": 1767
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "LICENSE",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "703b8dea61d5989b8ee6460bd52dd1acd2033e57",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/LICENSE",
+      "sha256OfNormalizedCache": "db5cfe32978232c5fb08ddc4b6687490c9071a4a2d234169892d626c768a3909",
+      "bytes": 1071
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "SECURITY.md",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "0a8d977dd4a7db32bae26a50491cf629bd9dad99",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/SECURITY.md",
+      "sha256OfNormalizedCache": "98df6d93183fa0381cee09c55bba1d742c952ec1fa6707d9f019c0b94a3c09d3",
+      "bytes": 1043
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/package.json",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "e42b478d7b1f1ae7cd5ba05fec3f70826b39a9db",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/package.json",
+      "sha256OfNormalizedCache": "109d4463645956880ca7115aa69e6975391850b26ad766caaa853c2e92488f95",
+      "bytes": 2051
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/browser-launch.ts",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "a07afa3d03a3d63c6cedef0569ca5f28ee86bd1d",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/browser-launch.ts",
+      "sha256OfNormalizedCache": "1f2d3294e0a2ae3efb4934ef4456b03c077a77e20b7a6fcbdccc55ddb14a9e5c",
+      "bytes": 1513
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/index.ts",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "a1bd084be5236e334cd724f8b177237b83881f67",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/index.ts",
+      "sha256OfNormalizedCache": "9f1b28aed3cff9003d494e5b19fa7e3a9908edfdaf79991d89d7eec9307a8ba4",
+      "bytes": 1309
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/mcp.ts",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "337eceb7a0fe3da1fd0fa377530651448d87f74e",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/mcp.ts",
+      "sha256OfNormalizedCache": "5d52ec354185c875e8c4e44984a6fe33c6b18e956e2e4157e172fd1fac1e90c4",
+      "bytes": 13396
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/skill.md",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "e40696a52e2cb6662cf6de315cf4e00f870a18e6",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/skill.md",
+      "sha256OfNormalizedCache": "b1c63aeb5a2d079cb8ed06c2d39f5e83f5ffebfa9c033ad5cc4a2d9284a6a1d4",
+      "bytes": 72724
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/relay-client.ts",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "a540c8e2c64a19956bce3cb1426a5bbbee9a7d69",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/relay-client.ts",
+      "sha256OfNormalizedCache": "9b7389ffefaee907c7b1b35f1cb7336c43a88b7d1d6af8bc6f64d66310e9079c",
+      "bytes": 18657
+    },
+    {
+      "repo": "remorses/playwriter",
+      "path": "playwriter/src/executor.ts",
+      "ref": "2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f",
+      "blobSha": "1217d28b18e2390c934dfcd4e02120caeff9cfe3",
+      "url": "https://github.com/remorses/playwriter/blob/2cae912a9c1e68ae2b74fcaef9efd79b6d7d432f/playwriter/src/executor.ts",
+      "sha256OfNormalizedCache": "f7acb10660ff4a58b2ad0051199cbb0863ae6a8ff99d832b2e225e5310513dc3",
+      "bytes": 80926
+    },
+    {
+      "repo": "ChromeDevTools/chrome-devtools-mcp",
+      "path": "README.md",
+      "ref": "7e10c08d30172f4a9d0dba64fa21890afebed09a",
+      "blobSha": "2dca1a052a314a7c2635fb9da68c96221441e380",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/7e10c08d30172f4a9d0dba64fa21890afebed09a/README.md",
+      "sha256OfNormalizedCache": "c419e4a59a6ca70691848cd7c11b1a1e72d03765f34bce093e99e9dc6e42a8e9",
+      "bytes": 9583
+    },
+    {
+      "repo": "ChromeDevTools/chrome-devtools-mcp",
+      "path": "package.json",
+      "ref": "7e10c08d30172f4a9d0dba64fa21890afebed09a",
+      "blobSha": "eb9fb8d80d122d7f4e1d9e632a6d93abbf101f27",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/7e10c08d30172f4a9d0dba64fa21890afebed09a/package.json",
+      "sha256OfNormalizedCache": "a63a8e52fcf555d579364724515992fb80c824ad1fc5c34db0477276952d4f38",
+      "bytes": 4932
+    },
+    {
+      "repo": "ChromeDevTools/chrome-devtools-mcp",
+      "path": "docs/advanced-usage.md",
+      "ref": "7e10c08d30172f4a9d0dba64fa21890afebed09a",
+      "blobSha": "e92eea144cd526b62b5fd8b2961da93e3206ecb4",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/7e10c08d30172f4a9d0dba64fa21890afebed09a/docs/advanced-usage.md",
+      "sha256OfNormalizedCache": "32af4805074ff970776b6b145823094900da3f16d06bc409b7222babff47e4ef",
+      "bytes": 7763
+    },
+    {
+      "repo": "ChromeDevTools/chrome-devtools-mcp",
+      "path": "docs/design-principles.md",
+      "ref": "7e10c08d30172f4a9d0dba64fa21890afebed09a",
+      "blobSha": "3cf9baef12917ecf1b13c2909a444f74b8b66744",
+      "url": "https://github.com/ChromeDevTools/chrome-devtools-mcp/blob/7e10c08d30172f4a9d0dba64fa21890afebed09a/docs/design-principles.md",
+      "sha256OfNormalizedCache": "bb278b7507696966bc9270403d3a1c3f2f7781f8dc0fbc6865197ddb74eca514",
+      "bytes": 1089
+    },
+    {
+      "repo": "browser-use/browser-use",
+      "path": "README.md",
+      "ref": "b49a68e4060acb226da8f784194fef301c53a6d7",
+      "blobSha": "fe0d153c091192af376573013bf27974de9169ff",
+      "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/README.md",
+      "sha256OfNormalizedCache": "21a31ea5601d3cd6622bff2ea62b26c2d4f40cdb5805810e38a3fb37db241c11",
+      "bytes": 19732
+    },
+    {
+      "repo": "browser-use/browser-use",
+      "path": "browser_use/integrations/openai/browser_use.py",
+      "ref": "b49a68e4060acb226da8f784194fef301c53a6d7",
+      "blobSha": "e6347ba654bd91f03889c326876afd0a891c320f",
+      "url": "https://github.com/browser-use/browser-use/blob/b49a68e4060acb226da8f784194fef301c53a6d7/browser_use/integrations/openai/browser_use.py",
+      "sha256OfNormalizedCache": "e13696f9767a5dcc59a8b23469a5fb6fdcd66fedbac123106f949f4a42228152",
+      "bytes": 30365
+    },
+    {
+      "repo": "browserbase/stagehand",
+      "path": "README.md",
+      "ref": "d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295",
+      "blobSha": "ccbe44ff7e0e789cc59fd25a26474913f38ee1b2",
+      "url": "https://github.com/browserbase/stagehand/blob/d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295/README.md",
+      "sha256OfNormalizedCache": "7d0a2f591e674a744e5557034443fb7ea6f3cca84664ad62f0b4e02e5051f757",
+      "bytes": 18244
+    },
+    {
+      "repo": "browserbase/stagehand",
+      "path": "packages/integrations/pi-sdk/src/mcp.ts",
+      "ref": "d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295",
+      "blobSha": "3e524e50767fea6cec1a954d2aaae8861815831e",
+      "url": "https://github.com/browserbase/stagehand/blob/d9cb8ccb8f9f4d07aaeb33cd634d76baabdc4295/packages/integrations/pi-sdk/src/mcp.ts",
+      "sha256OfNormalizedCache": "fcaba296ae4049ee26fcf673961af7421d2c687737ce1571b98f57a44cbc57cb",
+      "bytes": 5877
+    },
+    {
+      "repo": "microsoft/playwright-mcp",
+      "path": "index.d.ts",
+      "ref": "404be8eb89abecff77a55152b6d843d140c78372",
+      "blobSha": "e4b6a736568c91d47605f80acf0e2dd5b4bf67c1",
+      "url": "https://github.com/microsoft/playwright-mcp/blob/404be8eb89abecff77a55152b6d843d140c78372/index.d.ts",
+      "sha256OfNormalizedCache": "ccd9400e038c1036a35e28575c59ce0f6722324d5c4119540ef710626c816d24",
+      "bytes": 901
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+name: SharedWindowProbe
+options:
+  bundleIdPrefix: com.slopzooka.probe
+  deploymentTarget:
+    macOS: '15.0'
+    iOS: '26.0'
+    visionOS: '26.0'
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: YES
+    MARKETING_VERSION: '0.1'
+    CURRENT_PROJECT_VERSION: '1'
+targets:
+  ProbeHost:
+    type: application
+    platform: macOS
+    sources: [Shared, Host]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.slopzooka.probe.host
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Stream test windows to your Vision Pro during an explicitly started experiment.
+        INFOPLIST_KEY_NSScreenCaptureUsageDescription: Capture the window selected for the isolated sharing experiment.
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.developer-tools
+    scheme: {}
+  ProbeViewer:
+    type: application
+    platform: visionOS
+    sources: [Shared, Viewer]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.slopzooka.probe.viewer
+        INFOPLIST_KEY_NSLocalNetworkUsageDescription: Connect to the selected Mac test host.
+        INFOPLIST_KEY_UIApplicationSceneManifest_Generation: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+    scheme: {}
+  ProbeFixture:
+    type: application
+    platform: iOS
+    sources: [Fixture]
+    info:
+      path: Fixture-Info.plist
+      properties:
+        CFBundleURLTypes:
+          - CFBundleURLSchemes: [slz-probe]
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.slopzooka.probe.fixture
+        TARGETED_DEVICE_FAMILY: '1,2'
+    scheme:
+      testTargets: [ProbeFixtureTests]
+      gatherCoverageData: false
+  ProbeFixtureTests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources: [FixtureTests]
+    dependencies:
+      - target: ProbeFixture
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.slopzooka.probe.fixture.tests
+        TEST_TARGET_NAME: ProbeFixture
+  ProbeChecks:
+    type: tool
+    platform: macOS
+    sources: [Shared, Checks, Host/Server.swift]
+    scheme: {}

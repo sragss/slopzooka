@@ -1,0 +1,127 @@
+{
+  "date": "2026-11-09",
+  "purpose": "Distinguish native Mac control of Chrome from Codex specialized browser provider reuse.",
+  "environment": {
+    "codex": "26.1023.51421",
+    "chrome": "156.0.8078.80"
+  },
+  "interface": "Normal session-provided mcp__cua_repl.js; native Mac getApp binding",
+  "provenance": "Tool calls and semantic results transcribed from this session; fixture events read directly from the isolated local HTTP server. Personal browser state and profile labels omitted.",
+  "userObservation": "User reports Codex controls their browser without the Chrome plugin when foregrounded.",
+  "fixture": {
+    "origin": "http://127.0.0.1:58554",
+    "path": "/native-chrome",
+    "source": "experiments/browser-runtime-probe/fixture.html",
+    "sha256": "abba6059358fc24b0328564932fcd09a8f77df806a6c6fb78ef2b8d98670c226"
+  },
+  "calls": [
+    {
+      "code": "var nativeChrome = await cua.getApp(\"com.google.Chrome\");",
+      "result": "Native app handle and Mac AX state returned successfully; personal content omitted."
+    },
+    {
+      "code": "await nativeChrome.pressKey(\"Escape\"); await nativeChrome.pressKey(\"super+n\"); await nativeChrome.typeText(\"http://127.0.0.1:58554/native-chrome\"); await nativeChrome.pressKey(\"Return\"); await nativeChrome.getAXState();",
+      "result": "New fixture window; page fields/buttons and nested iframe exposed as native accessibility elements."
+    },
+    {
+      "code": "await nativeChrome.click(130); await nativeChrome.typeText(\"Native Mac route\"); await nativeChrome.click(131); await nativeChrome.click(132); await nativeChrome.getAXState();",
+      "result": "Field value Native Mac route and Counter: 1 observed; independent save/increment events received."
+    },
+    {
+      "code": "await nativeChrome.click(134); await nativeChrome.click(137); var nativeChromeFixtureState = await nativeChrome.getAXState({disableDiffing:true});",
+      "result": "Settings page, Ready for review., Frame clicked, Counter: 1 and field value observed."
+    },
+    {
+      "code": "await nativeChrome.click(44); var nativeChromeAfterCleanup = await nativeChrome.getAXState({emit:false}); nodeRepl.write({ownedFixtureWindowNoLongerSelected: !nativeChromeAfterCleanup.includes('58554/native-chrome')});",
+      "result": {
+        "ownedFixtureWindowNoLongerSelected": true
+      }
+    }
+  ],
+  "indexWarning": "Element numbers are historical observations; new runs must derive indices from fresh AX state.",
+  "fixtureEvents": [
+    {
+      "fixture": "/native-chrome",
+      "action": "save",
+      "count": 0,
+      "label": "Native Mac route"
+    },
+    {
+      "fixture": "/native-chrome",
+      "action": "increment",
+      "count": 1,
+      "label": "Native Mac route"
+    },
+    {
+      "fixture": "/native-chrome",
+      "action": "settings",
+      "count": 1,
+      "label": "Native Mac route"
+    }
+  ],
+  "cleanup": {
+    "action": "Clicked observed close button of sole disposable test window, then checked native state no longer selected fixture. Stopped owned loopback server.",
+    "fixtureServerExitCode": 0,
+    "personalWindowsClosed": false
+  },
+  "exercised": [
+    "native application attachment",
+    "new window and URL entry with native keys",
+    "semantic page and iframe accessibility",
+    "native typing and element-index clicks",
+    "independent fixture event verification"
+  ],
+  "notExercised": [
+    "browser-desktop getBrowser/getTab/CDP for these actions",
+    "extension installation or extension inventory",
+    "independent external launcher driving Chrome specifically",
+    "foreground versus background comparison",
+    "human takeover, minimized/occluded window or lock behavior",
+    "ScreenCaptureKit target association or Vision streaming",
+    "screenshots or coordinate actions in this specific check"
+  ],
+  "sourceFindings": [
+    "Mac getApp calls computer.get_app_state and bind_mac_app; it does not use create_browser_api to obtain the App handle.",
+    "Native binding forwards app-scoped observations, clicks and keys to the native Mac adapter.",
+    "Native client uses ComputerUseIPCAppGetSkyshotRequest and ComputerUseIPCAppPerformActionRequest over MacNativePipeTransport.",
+    "Native app policy explicitly marks com.google.Chrome with codex/computerUseChrome response metadata."
+  ],
+  "sourceArtifacts": [
+    {
+      "pathRelativeToInstalledOai": "cua/dist/lib/js/oai_js_cua/src/tinysky_alt/create_tinysky_alt.js",
+      "bytes": 3234,
+      "sha256": "d6940dd2fee85628fdff0d1bdbaeefaec358db20a5c6dfb00359ce9a1d364c0b"
+    },
+    {
+      "pathRelativeToInstalledOai": "cua/dist/lib/js/oai_js_cua/src/tinysky_alt/bind_mac_app.js",
+      "bytes": 2539,
+      "sha256": "1c210ebf411e196622c6fa294fd255df10ddbb44038ab4523e68d2dcc351ea14"
+    },
+    {
+      "pathRelativeToInstalledOai": "cua/dist/project/cua/sky_js/src/targets/mac/client.js",
+      "bytes": 5138,
+      "sha256": "71134f10354fe9f7be23a62df52789908a8592151685286a7965b297a81cef8f"
+    },
+    {
+      "pathRelativeToInstalledOai": "cua/dist/project/cua/sky_js/src/targets/mac/computer-use-policy.js",
+      "bytes": 4838,
+      "sha256": "a00024117e11f2d1e4151e140bede2c0ed7931625aa0f79a427457cb1103524e"
+    },
+    {
+      "pathRelativeToInstalledOai": "cua/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+      "bytes": 8829,
+      "sha256": "51a1138a0f0d7f01fe5d4d0a4f0753c67b2c3f3ed55c7540c26d182274e116f4"
+    },
+    {
+      "pathRelativeToInstalledOai": "cua/docs/tinysky-alt-core-cua-repl-mac.md",
+      "bytes": 14357,
+      "sha256": "b936a61951eeb1c6c9bd4557a263bac268f890dbe4f85a8dd0aaffc6b5c23e75"
+    }
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/computer-use",
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://chromium.googlesource.com/chromium/src/+/3376a4f83a973d9804e861d79cf43ae93e35feec/docs/accessibility/overview.md"
+  ],
+  "conclusion": "Native Mac control of Chrome works in this session independently of the specialized browser API entry point. Combined with prior independent native-fixture reuse, this supports trying the native provider first; it does not prove independent Chrome reuse or universal background control."
+}

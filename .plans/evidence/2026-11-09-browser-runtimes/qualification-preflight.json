@@ -1,0 +1,116 @@
+{
+  "recordedAt": "2026-11-09T20:46:07.429737+00:00",
+  "scope": "Browser-runtime qualification preparation; read-only installed diagnostics, normal current-chat browser connection attempt, and separate HTTP fixture smoke check.",
+  "desktopVersion": "26.1023.51421",
+  "desktopBuild": "22530",
+  "checks": [
+    {
+      "name": "check-extension-installed.js",
+      "browser": "chrome",
+      "exitCode": 2,
+      "installed": false,
+      "enabled": false,
+      "scope": "diagnostic-selected profile"
+    },
+    {
+      "name": "check-native-host-manifest.js",
+      "browser": "chrome",
+      "exitCode": 1,
+      "exists": false,
+      "correct": false
+    },
+    {
+      "name": "current-chat browser entry point",
+      "call": "cua.getBrowser({ id: \"chrome\" })",
+      "outcome": "The browser access host is unavailable",
+      "tabOpened": false
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "browserService",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/scripts/browser-service.mjs",
+      "sha256": "0c1cb5b13bbe6ae70cea751740e537885a12d53cd076c864cd9154ef6e86e3bb",
+      "bytes": 2110036
+    },
+    {
+      "id": "desktopMain",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/main-UOTY8NmV.js",
+      "sha256": "ad73b094efd3d5037bceb90b285cb20d6319c4043d3b7f52ee7fade6e3015c7a",
+      "bytes": 5250222
+    },
+    {
+      "id": "extensionDiagnostic",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/browser/26.1023.51421/scripts/check-extension-installed.js",
+      "sha256": "c25b45762ca649f33a52e690a1500ee7a6307f11b4ff79f9c14ff4f35fab5693",
+      "bytes": 12769
+    },
+    {
+      "id": "hostDiagnostic",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/browser/26.1023.51421/scripts/check-native-host-manifest.js",
+      "sha256": "15a3c021162bd23f367818ac9b4d17f123e745e4902d68f05a17cc410ae9cfd9",
+      "bytes": 11634
+    },
+    {
+      "id": "fixtureServer",
+      "path": "experiments/browser-runtime-probe/serve-fixture.mjs",
+      "sha256": "28cdea787943b3a37ca3d882a13a55c90c52be4ec608b0bedd19ad687f250052",
+      "bytes": 3744
+    },
+    {
+      "id": "fixtureHtml",
+      "path": "experiments/browser-runtime-probe/fixture.html",
+      "sha256": "abba6059358fc24b0328564932fcd09a8f77df806a6c6fb78ef2b8d98670c226",
+      "bytes": 1589
+    }
+  ],
+  "sourceFindings": [
+    {
+      "artifact": "browserService",
+      "marker": "Cannot verify browser access without the current turn",
+      "characterOffset": 1982237,
+      "kind": "static source"
+    },
+    {
+      "artifact": "browserService",
+      "marker": "The browser access host is unavailable",
+      "characterOffset": 1982623,
+      "kind": "static source"
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "async readLocalWorkBrowserAccess",
+      "characterOffset": 4777558,
+      "kind": "static source"
+    }
+  ],
+  "fixtureSmoke": {
+    "kind": "HTTP only, no browser interaction",
+    "passed": [
+      "both fixture pages serve",
+      "dummy event persisted and independently fetched",
+      "unexpected origin rejected",
+      "unknown fixture target rejected",
+      "owned smoke server clean shutdown"
+    ],
+    "label": "HTTP smoke only",
+    "artifactsIgnored": true
+  },
+  "liveFixture": {
+    "state": "started separately after smoke; awaiting normal browser setup",
+    "loopbackOnly": true,
+    "eventCountAtStart": 0
+  },
+  "setup": "User asked to complete official Chrome setup in desktop Settings > Computer Use; no installation or permission change performed by this probe.",
+  "notEstablished": [
+    "desktop specialized browser baseline",
+    "independent Pi/CLI browser authorization",
+    "concurrent extension consumers",
+    "runtime startup with desktop closed",
+    "Vision stream identity"
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/chrome-extension",
+    "https://learn.chatgpt.com/docs/browser"
+  ]
+}

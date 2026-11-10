@@ -1,0 +1,17 @@
+{
+  "name": "slopzooka-owned-browser-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "probe": "node probe.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.30.0",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-mcp": "1.4.0"
+  },
+  "devDependencies": {
+    "playwright-core": "1.65.0-alpha-2026-10-30"
+  }
+}

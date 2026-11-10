@@ -14,6 +14,7 @@ const companionSources = [
   "WindowPersistence",
 ];
 const suites = {
+  ProbeMediaChecks: ["ProbeMediaParser"],
   CompanionClientChecks: companionSources,
   LauncherStateChecks: [
     ...companionSources,

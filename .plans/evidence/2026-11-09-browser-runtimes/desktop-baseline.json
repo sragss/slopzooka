@@ -1,0 +1,255 @@
+{
+  "recordedAt": "2026-11-09T21:27:53.080683+00:00",
+  "desktopVersion": "26.1103.60933",
+  "cliAndAppServerVersion": "0.167.0",
+  "scope": "Desktop fixture corroboration; model-free standalone MCP retry; read-only desktop lifecycle source inspection; independent App Server initialization and fixture-task read.",
+  "desktopBaseline": {
+    "status": "passed for one desktop Chrome-extension task",
+    "corroboration": [
+      "user report",
+      "read-only fixture-task transcript via Codex thread tool",
+      "fixture server events",
+      "direct visual inspection of saved Chrome screenshot"
+    ],
+    "calls": [
+      {
+        "api": "cua.createBrowserTab",
+        "browser": "chrome",
+        "fixture": "/a",
+        "sessionName": "Workspace check"
+      },
+      {
+        "api": "tab.playwright",
+        "actions": [
+          "fill Workspace label with codex-a",
+          "click Save label",
+          "click Increment twice",
+          "click Settings",
+          "observe AX state"
+        ]
+      },
+      {
+        "api": "tab.markDeliverable + tab.getScreenshot",
+        "observed": [
+          "Workspace /a",
+          "codex-a",
+          "Counter: 2",
+          "Settings page"
+        ]
+      }
+    ],
+    "eventPartition": {
+      "earlierBuiltInBrowser": [
+        1,
+        2,
+        3,
+        4
+      ],
+      "correctedChromeExtension": [
+        5,
+        6,
+        7,
+        8
+      ]
+    },
+    "events": [
+      {
+        "sequence": 1,
+        "fixture": "/a",
+        "action": "save",
+        "count": 0,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:16:56.581Z"
+      },
+      {
+        "sequence": 2,
+        "fixture": "/a",
+        "action": "increment",
+        "count": 1,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:16:56.750Z"
+      },
+      {
+        "sequence": 3,
+        "fixture": "/a",
+        "action": "increment",
+        "count": 2,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:16:56.775Z"
+      },
+      {
+        "sequence": 4,
+        "fixture": "/a",
+        "action": "settings",
+        "count": 2,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:16:56.951Z"
+      },
+      {
+        "sequence": 5,
+        "fixture": "/a",
+        "action": "save",
+        "count": 0,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:17:55.191Z"
+      },
+      {
+        "sequence": 6,
+        "fixture": "/a",
+        "action": "increment",
+        "count": 1,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:17:55.470Z"
+      },
+      {
+        "sequence": 7,
+        "fixture": "/a",
+        "action": "increment",
+        "count": 2,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:17:55.746Z"
+      },
+      {
+        "sequence": 8,
+        "fixture": "/a",
+        "action": "settings",
+        "count": 2,
+        "label": "codex-a",
+        "receivedAt": "2026-11-09T21:17:56.022Z"
+      }
+    ]
+  },
+  "standaloneMcp": {
+    "serverInfo": {
+      "name": "rmcp",
+      "version": "3.5.1"
+    },
+    "protocolVersion": "2025-06-18",
+    "tools": [
+      "js",
+      "js_add_node_module_dir",
+      "js_reset",
+      "turn_ended"
+    ],
+    "inheritedTaskVariables": [],
+    "turnMetadataSent": false,
+    "result": "Cannot verify browser access without the current turn",
+    "ownedProcessExitCode": 0,
+    "reproduction": {
+      "base": "experiments/codex-runtime-probe/client.py",
+      "changes": [
+        "explicit version 26.1023.51421 -> 26.1103.60933",
+        "CUA_REPL_ENABLED_SURFACES computer -> browser",
+        "first call cua.getState() -> cua.getBrowser({ id: \"chrome\" })",
+        "output stage getState -> getBrowser"
+      ],
+      "configurationModified": false
+    }
+  },
+  "appServerProbe": {
+    "daemonVersionCommand": "codex app-server daemon version",
+    "daemonWasAlreadyRunning": true,
+    "firstAttempt": {
+      "transport": "raw JSONL via codex app-server proxy",
+      "result": "reply timeout; no browser authorization conclusion"
+    },
+    "successfulAttempt": {
+      "transport": "WebSocket over existing local Unix socket",
+      "clientName": "slz_browser_qualification",
+      "methods": [
+        "initialize",
+        "initialized",
+        "thread/read"
+      ],
+      "readScope": "completed owned fixture task only",
+      "result": "initialized and read task successfully",
+      "threadStatus": "notLoaded"
+    },
+    "newThreadOrTurnStarted": false,
+    "modelInvoked": false,
+    "serverRestartedOrStopped": false
+  },
+  "sourceFindings": [
+    {
+      "artifact": "currentDesktopMain",
+      "marker": "class xF{executors=new Map;threadSessions=new Map;pending=new Map;",
+      "characterOffset": 1795980,
+      "finding": "Registry observes actual thread start/resume responses and thread/started notifications, mapping session to executor."
+    },
+    {
+      "artifact": "currentDesktopMain",
+      "marker": "async readLocalWorkBrowserAccess",
+      "characterOffset": 4481021,
+      "finding": "Access resolves session mapping and authenticated-principal/executor policy."
+    },
+    {
+      "artifact": "browserService",
+      "marker": "Cannot verify browser access without the current turn",
+      "characterOffset": 2003163,
+      "finding": "Service requires active turn metadata before signed access-host check."
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "currentDesktopMain",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/early-bootstrap-815-e030c49be4b9c405.js",
+      "bytes": 5954967,
+      "sha256": "67c10f58239453fba595f83917fda3756ac2f40ef87fe5f70dd143d4ecef6ad1"
+    },
+    {
+      "id": "browserService",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/scripts/browser-service.mjs",
+      "bytes": 2131481,
+      "sha256": "7d3557cf45c21d2416fd706d853b953fde355aedccfa8af398979cb4524ae02d"
+    },
+    {
+      "id": "originalProbe",
+      "path": "experiments/codex-runtime-probe/client.py",
+      "bytes": 7799,
+      "sha256": "d90d0df7442e460c80235fe33ace8e9233f1c7173688269c6774a43df490515e"
+    },
+    {
+      "id": "currentProbe",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/probe.py",
+      "bytes": 7818,
+      "sha256": "844f609db05f622bcde8a4e5cea2d3cc5d546d5e84539c8409932fbbbe7f858b"
+    },
+    {
+      "id": "currentProbeOutput",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/output.jsonl",
+      "bytes": 677,
+      "sha256": "b35df41fc2b87824d1e35d2ca597cd2c6ff10ea26063663d5fa9226e14e848fb"
+    },
+    {
+      "id": "appServerClient",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-readonly.mjs",
+      "bytes": 1994,
+      "sha256": "6b6edee05884189774cad24959260e6bc25770fd10a638d9878a27c01a3475a3"
+    },
+    {
+      "id": "appServerResult",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-websocket.json",
+      "bytes": 533,
+      "sha256": "1d69138fb33874bb52608991a511b44de791474f0370d83d302b4f10498a9ed5"
+    },
+    {
+      "id": "chromeScreenshot",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/desktop-chrome-settings.jpg",
+      "bytes": 30744,
+      "sha256": "b9e2dc0f25e280d1ec80b9a79dc3e6c05f8078cbec93853792590dc37b706048"
+    }
+  ],
+  "nextTest": "Create an owned disposable task through the real App Server lifecycle and qualify its own browser provisioning; do not borrow the successful desktop task identity.",
+  "notEstablished": [
+    "external owned-task browser provisioning",
+    "direct model-free Pi browser SDK",
+    "independent CLI browser control",
+    "concurrent browser owners",
+    "native control on the updated build",
+    "locked use or Vision streaming"
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/extend/mcp",
+    "https://developers.openai.com/codex/app-server#protocol"
+  ]
+}

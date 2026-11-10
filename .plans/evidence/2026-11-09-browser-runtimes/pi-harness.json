@@ -1,0 +1,542 @@
+{
+  "recordedAt": "2026-11-09",
+  "scope": "Independent ephemeral Pi harness; native fixture and browser initialization only",
+  "nodeVersion": "v22.20.0",
+  "piPackages": {
+    "@earendil-works/pi-agent-core": "1.4.0",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-mcp": "1.4.0"
+  },
+  "fixtureVerdict": {
+    "counter": 2,
+    "text": "pi-direct",
+    "independentStateFileVerified": true,
+    "screenshotVisuallyVerified": true,
+    "ownedFixtureTerminatedAfterExecutableCheck": true
+  },
+  "tests": {
+    "passed": 7,
+    "failed": 0,
+    "model": "Pi faux provider for regression tests; separate real GPT runs below"
+  },
+  "runs": [
+    {
+      "startedAt": "2026-11-09T22:22:41.385Z",
+      "elapsedMs": 743,
+      "model": "gpt-6.1-sol",
+      "target": "fixture",
+      "runtime": {
+        "surface": "synthetic image fixture, not computer use"
+      },
+      "mcp": {
+        "server": {
+          "name": "slz-visual-fixture-NOT-CUA",
+          "version": "0.1.0"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "visual_fixture"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "events": [],
+      "final": "",
+      "stopReason": "error",
+      "modelError": "OpenAI API error (401): {\"message\":\"You have insufficient permissions for this operation. Missing scopes: api.responses.write. Check that you have the correct role in your organization (Reader, Writer, Owner) and project (Member, Owner), and if you're using a restricted API key, that it has the necessary scopes.\",\"type\":\"invalid_request_error\",\"param\":null,\"code\":null}",
+      "toolErrors": 0,
+      "modelInvoked": true
+    },
+    {
+      "startedAt": "2026-11-09T22:23:41.334Z",
+      "elapsedMs": 334,
+      "model": "gpt-6.1-sol",
+      "target": "browser",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "browser",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": false,
+      "connectionCheck": {
+        "isError": true,
+        "contentTypes": [
+          "text",
+          "text"
+        ],
+        "errors": [
+          "Cannot verify browser access without the current turn"
+        ]
+      },
+      "events": [
+        {
+          "elapsedMs": 334,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "toolErrors": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:23:45.141Z",
+      "elapsedMs": 704,
+      "model": "gpt-6.1-sol",
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": false,
+      "connectionCheck": {
+        "isError": true,
+        "contentTypes": [
+          "text",
+          "text"
+        ],
+        "errors": [
+          "Invalid app: dev.slopzooka.codex-runtime-fixture"
+        ]
+      },
+      "events": [
+        {
+          "elapsedMs": 703,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "toolErrors": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:24:07.533Z",
+      "elapsedMs": 455,
+      "model": "gpt-6.1-sol",
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": false,
+      "connectionCheck": {
+        "isError": true,
+        "contentTypes": [
+          "text",
+          "text"
+        ],
+        "errors": [
+          "Computer Use was not approved to use Slz Runtime Fixture"
+        ]
+      },
+      "events": [
+        {
+          "elapsedMs": 453,
+          "type": "permission_request",
+          "decision": "cancel"
+        },
+        {
+          "elapsedMs": 455,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "toolErrors": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:24:32.763Z",
+      "elapsedMs": 544,
+      "model": "gpt-6.1-sol",
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": false,
+      "connectionCheck": {
+        "isError": false,
+        "contentTypes": [
+          "text",
+          "text"
+        ],
+        "errors": []
+      },
+      "events": [
+        {
+          "elapsedMs": 392,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 544,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "toolErrors": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:25:40.865Z",
+      "elapsedMs": 4291,
+      "model": "gpt-6.1-sol",
+      "target": "fixture",
+      "runtime": {
+        "surface": "synthetic image fixture, not computer use"
+      },
+      "mcp": {
+        "server": {
+          "name": "slz-visual-fixture-NOT-CUA",
+          "version": "0.1.0"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "visual_fixture"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 1913,
+          "type": "tool_result",
+          "name": "visual_fixture",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "image",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 3003,
+          "type": "tool_result",
+          "name": "visual_fixture",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "Observed a red card and submitted \u201cred\u201d once. Actual verdict: **passed** (`passed: true`, `answers: 1`).",
+      "stopReason": "stop",
+      "toolErrors": 0
+    },
+    {
+      "startedAt": "2026-11-09T22:26:17.346Z",
+      "elapsedMs": 11492,
+      "model": "gpt-6.1-sol",
+      "target": "computer",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "computer",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 2359,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 2408,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 4403,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 4900,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5015,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5133,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 5510,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        },
+        {
+          "elapsedMs": 7022,
+          "type": "permission_request",
+          "decision": "accept"
+        },
+        {
+          "elapsedMs": 7090,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "image"
+          ]
+        },
+        {
+          "elapsedMs": 9316,
+          "type": "tool_result",
+          "name": "js",
+          "isError": false,
+          "contentTypes": [
+            "text"
+          ]
+        }
+      ],
+      "final": "Verified in `dev.slopzooka.codex-runtime-fixture`:\n- Probe input: `pi-direct`\n- Clicked Increment exactly twice; counter shows `Counter: 2`\n- Captured a screenshot showing both values\n\nNo other app was touched.",
+      "stopReason": "stop",
+      "toolErrors": 0,
+      "modelVisibleImages": 1,
+      "lastImageArtifact": "experiments/pi-cua-probe/build/2026-11-09T22-26-17.346Z-computer.jpg"
+    },
+    {
+      "startedAt": "2026-11-09T22:26:45.978Z",
+      "elapsedMs": 4936,
+      "model": "gpt-6.1-sol",
+      "target": "browser",
+      "runtime": {
+        "version": "26.1103.60933",
+        "surface": "browser",
+        "manifestPath": "~/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+        "suppliedDesktopIdentity": false
+      },
+      "mcp": {
+        "server": {
+          "name": "rmcp",
+          "version": "3.5.1"
+        },
+        "protocolVersion": "2025-11-25",
+        "toolNames": [
+          "js",
+          "js_reset"
+        ],
+        "serverInstructionsPresent": true
+      },
+      "modelInvoked": true,
+      "events": [
+        {
+          "elapsedMs": 2148,
+          "type": "tool_result",
+          "name": "js",
+          "isError": true,
+          "contentTypes": [
+            "text",
+            "text"
+          ]
+        }
+      ],
+      "final": "Connection test failed with the exact error:\n\n`Cannot verify browser access without the current turn`\n\nStopped without creating or claiming tabs, resetting, retrying, or trying another backend.",
+      "stopReason": "stop",
+      "toolErrors": 1,
+      "modelVisibleImages": 0
+    }
+  ],
+  "sourceArtifacts": [
+    {
+      "path": "experiments/pi-cua-probe/cli.mjs",
+      "bytes": 7350,
+      "sha256": "23a567bc37594608938b7a76bea610b2b170bb457f0cb375038ec572eb7dfecf"
+    },
+    {
+      "path": "experiments/pi-cua-probe/fixture.mjs",
+      "bytes": 3825,
+      "sha256": "f3088adefb747fa77aa856e74dd8610749e2da794b46f5c97eb1a90e9cc0a13f"
+    },
+    {
+      "path": "experiments/pi-cua-probe/harness.mjs",
+      "bytes": 4644,
+      "sha256": "d652ac3b14776fbc01e11ed2bef284e8949ebe5d3344c913984b2dea3b95ea3a"
+    },
+    {
+      "path": "experiments/pi-cua-probe/runtime.mjs",
+      "bytes": 2100,
+      "sha256": "443f9fafe368a8034ea45a1e8a98adbc5ef17edc24f02790405d37e0970bd094"
+    },
+    {
+      "path": "experiments/pi-cua-probe/test/harness.test.mjs",
+      "bytes": 8115,
+      "sha256": "e5395789694f6de9f7a6ab97d9e4e5112722172998ddbedf2c7534b69e75c9bc"
+    },
+    {
+      "path": "experiments/pi-cua-probe/package.json",
+      "bytes": 316,
+      "sha256": "f868d52e25cc8620f6765fb39e27874f73a5c7686a782b4ffcc5b9d47ddbbd39"
+    },
+    {
+      "path": "experiments/pi-cua-probe/package-lock.json",
+      "bytes": 46697,
+      "sha256": "86ecc8f00be941d9c86c6e63b30bbeaa0c523ab8e9fe5a19e410929fafbbd35f"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/Fixture.swift",
+      "bytes": 2433,
+      "sha256": "ee61ee92e325f753a2fff38d6f61cfab627878377f6f02756f9bd4b2b7c349fd"
+    }
+  ],
+  "ignoredLocalArtifacts": [
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-22-41.385Z-fixture.json",
+      "bytes": 904,
+      "sha256": "5ff931e2a722463f7790741b2c10ee20724d1f49dfbe64e58430baaa55e7870e"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-23-41.334Z-browser.json",
+      "bytes": 992,
+      "sha256": "c59bdd2f3b9941700eeefe8366d930cbaa650b1bc044cb41179b43386a8fbd8a"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-23-45.141Z-computer.json",
+      "bytes": 989,
+      "sha256": "42305746e55256c4cb463de7ed4e57237ec97141cf21b46ff82f3d7d19becea8"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-24-07.533Z-computer.json",
+      "bytes": 1097,
+      "sha256": "ba97322986858eb40779d17cdc89cf2eccafcff30d0bd9ff6c339f7803d1b682"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-24-32.763Z-computer.json",
+      "bytes": 1029,
+      "sha256": "9f080cbce2f2baa3a55099b606308d6fc4802a78f142cb79be388341a869d3db"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-25-40.865Z-fixture.json",
+      "bytes": 1008,
+      "sha256": "3b1ed844fd331a198c3243470e6027546762304aed5c98ab2021807b707a23cb"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-26-17.346Z-computer.jpg",
+      "bytes": 47970,
+      "sha256": "cef456ef411bef677b18f38c2af060890a6fc33c940670c82e204358dfbb9332"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-26-17.346Z-computer.json",
+      "bytes": 2332,
+      "sha256": "631011d250c0266b546f70db5abf5d0492f07ed0155412f6b4e26461924e930d"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/2026-11-09T22-26-45.978Z-browser.json",
+      "bytes": 1067,
+      "sha256": "2ecb2791d7f8b8723c38f4395530f49afd939b844275a806cc267f66d06e8a21"
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/test-results.txt",
+      "bytes": 1687,
+      "sha256": "1362a67a26116e96b38ffb0f724372e889d7614cc1d3a154cbb0bab701a2e1d4"
+    }
+  ],
+  "notEstablished": [
+    "Independent Chrome authorization",
+    "Parallel control",
+    "Native in-flight Stop latency",
+    "Closed-ChatGPT startup",
+    "Production integration",
+    "Vision presentation",
+    "Lock behavior"
+  ],
+  "credentialHandling": "Existing user-authorized local env file; only OPENAI_API_KEY loaded; value not logged or sent to MCP child.",
+  "sourceRevision": "5dd303efed5dd392c6b4de921462025fba03c021",
+  "sourceArtifactNote": "Source hashes refer to this historical revision; later provider/metrics changes are recorded separately."
+}

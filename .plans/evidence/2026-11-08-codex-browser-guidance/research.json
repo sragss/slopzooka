@@ -1,0 +1,388 @@
+{
+  "date": "2026-11-08",
+  "appVersion": "26.1023.51421",
+  "packageVersions": {
+    "cua": "0.2.6",
+    "cua-repl": "0.1.2",
+    "browser-desktop": "0.1.1"
+  },
+  "guidance": {
+    "localCache": "experiments/codex-runtime-probe/build/guidance/26.1023.51421",
+    "fileCount": 52,
+    "totalBytes": 198515,
+    "files": [
+      {
+        "path": "browser-desktop/environment-docs/codex-app/accessibility.md",
+        "bytes": 5570,
+        "sha256": "25e1aa573ad8e26d5a11754b32f75b20787fb98a39a8f532f6bfedbeda04e1be"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/api-use-behavior.md",
+        "bytes": 3815,
+        "sha256": "9f602b5e5904ff08d53bc684f29a70c5a81cd14dd5a7af3e6bca00a44fb2b710"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/api.json",
+        "bytes": 66615,
+        "sha256": "afc25cc80c0abb56fff443642791f2b797113209fb435f686ac4a1dd3654f725"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/bootstrap-troubleshooting.md",
+        "bytes": 680,
+        "sha256": "bbf69be0ecff6b45e70a71d96487a6932426b3377df389ec7376107e8c1e0416"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/browser-control-interruption.md",
+        "bytes": 345,
+        "sha256": "2fd73066304bc822ce3fba35eeba6456a0505f32f2f1364424639a08e49d1d5a"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/browser-safety.md",
+        "bytes": 3319,
+        "sha256": "1d34bbfd82e75deaeaac667eed6c4df211568a358d9e99d94f4d444614964da8"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/browser-troubleshooting.md",
+        "bytes": 928,
+        "sha256": "76ca57503fc2b11c602ad090326b6f0fec2d037826ec828607945f4c333b206b"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/browser/management.md",
+        "bytes": 5843,
+        "sha256": "c7718517d2e1db86b07f9b26e9f66c268e6f0e632ec2e204ec945c4cb2bd353e"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/browser/viewport.md",
+        "bytes": 1014,
+        "sha256": "c9857bf5aae8bfc73630751363ce27204792b88b1cd95d4da19c03833501921a"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/browser/visibility.md",
+        "bytes": 888,
+        "sha256": "8cb1588084cd3372ffc78b8c500dfa2f359d8a63a3c250f014fd55fad7336b08"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/tab/botDetection.md",
+        "bytes": 3072,
+        "sha256": "d40282e95a0c3dfcb9a94096e2ae64684af35a551fecc6c1fbfe21a9ccae5c65"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/tab/browserAuth.md",
+        "bytes": 22070,
+        "sha256": "3f9dddd9731311dcc18015f78667c26ed95fde2fcb909f6eb45e6a12ca501f2a"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/tab/cdp.md",
+        "bytes": 2232,
+        "sha256": "8e4d8cc937b7213d9c946f082762e31ece226b05ff42e49e535841c7209ac9a6"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/tab/pageAssets.md",
+        "bytes": 1870,
+        "sha256": "ad372fa68fa3af13a22c1d5a60f3437af19ef24be68197a0602d43cf2ee1950d"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/capabilities/tab/webmcp.md",
+        "bytes": 341,
+        "sha256": "02326ba566c5446c8e642fc98ac7aae3044c46d48432272d81b7c7e164d42beb"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/chrome-file-upload-troubleshooting.md",
+        "bytes": 696,
+        "sha256": "fe75442ac53d6a0fe5e45712e86d2ab0d40318b113d0c74121f4bb84e9460182"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/chrome-troubleshooting.md",
+        "bytes": 5015,
+        "sha256": "70b27f1b1331e81653b0bcb0c84b91ee7e884304bb7a2c6d5df60133df482580"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/confirmations.md",
+        "bytes": 5812,
+        "sha256": "5897041e3b121ac9193d69eac9d46e74c4eb3a77a5aa5f0e2dd06c0d5d22a458"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/documents.json",
+        "bytes": 4156,
+        "sha256": "6b8d82101e7148c7036529651557f551581ebc3210a8f78f2d53f91f1b362686"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/file-uploads.md",
+        "bytes": 960,
+        "sha256": "be58df64881903636d16bb11f65e98c8e77f34b82a2d27566df320284c9d37f6"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/local-web-development.md",
+        "bytes": 346,
+        "sha256": "0bc8a4455b4469e17bd4cfd5192d90d079fcaa9894fbd763552281117535a32c"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/mcp-apps.md",
+        "bytes": 1217,
+        "sha256": "b7d4fd0fb0a93f95bf9323fdfabf98bd76a68815d850b978391a9c282c057ae5"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/screenshots.md",
+        "bytes": 576,
+        "sha256": "e157ebeed24968438fa8ae6150e2c5c82b11e51bac6a3cfb214220dba4929bb7"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/session-naming.md",
+        "bytes": 274,
+        "sha256": "385cfcc20ff5778b81c59f218152381f65c9fd4ad0970bb59c847a009726a003"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/tab-claiming-chrome.md",
+        "bytes": 2170,
+        "sha256": "9cd2b24253ff7376e317f39cac4dd8ba276ea2a98385d9d3f7f12349ba5706aa"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/tab-claiming-dot.md",
+        "bytes": 776,
+        "sha256": "926e329bf228c8cbecd139f35fc9bdce53711b46bca4227d473daab5ad3d484c"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/tab-cleanup-chrome.md",
+        "bytes": 1104,
+        "sha256": "d20b4073125929f2b61960b1513ecd9e0fb261c88a4d8077e34f22520e7a1de8"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/tab-cleanup-iab.md",
+        "bytes": 565,
+        "sha256": "cf14b2134734b17d80801b30a9febcdb06b7bed25cd2b12ea2277835022e4a36"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/tab-mentions-iab.md",
+        "bytes": 1319,
+        "sha256": "10a36c2bd1b856c1b594fc36b5280f2cad5391be971ba8a5b834924fa76763cb"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/visibility.md",
+        "bytes": 601,
+        "sha256": "7cb1870c425f6b80521722fe5091a76328d53c41bca69705277231e815610ed0"
+      },
+      {
+        "path": "browser-desktop/environment-docs/codex-app/webmcp.md",
+        "bytes": 750,
+        "sha256": "87416e2dda6e0d1116103b35c727677f9a1e5547d3994736301a54040522e9de"
+      },
+      {
+        "path": "cua/docs/tinysky-alt-confirmations.md",
+        "bytes": 5607,
+        "sha256": "68474884543a6a1e72275b59f27f383313fd6aa8604ccedabb5d5cd37077e6fc"
+      },
+      {
+        "path": "cua/docs/tinysky-alt-core-cua-repl-mac.md",
+        "bytes": 14357,
+        "sha256": "b936a61951eeb1c6c9bd4557a263bac268f890dbe4f85a8dd0aaffc6b5c23e75"
+      },
+      {
+        "path": "cua/docs/tinysky-alt-core-cua-repl-no-cua.md",
+        "bytes": 13476,
+        "sha256": "0bd84d33ef7766467e8e5a3b4f624c31dfbc54040b59625b9f3a7e66fef11068"
+      },
+      {
+        "path": "cua/docs/tinysky-alt-other-browser-apis.md",
+        "bytes": 792,
+        "sha256": "174672af7e028a5e4815318c4133fdab0a5189c5701396df837d7aac76e90fd4"
+      },
+      {
+        "path": "cua-repl/README.md",
+        "bytes": 5759,
+        "sha256": "d2e6abfd3ea3e5b6b0f36c93a937eb107147758ad1b9a0c44c67ae7fddc9c889"
+      },
+      {
+        "path": "cua-repl/instructions/audio-attachments.md",
+        "bytes": 598,
+        "sha256": "8a445752e54042dfb878884afbd3f7730cf4e9a9389af3b7774163b450c4759c"
+      },
+      {
+        "path": "cua-repl/instructions/banner.js",
+        "bytes": 37,
+        "sha256": "db4a56c4a1cb6f9ec2ca663694fbe8941846aaa83d0bf12d3a5699f92126105a"
+      },
+      {
+        "path": "cua-repl/instructions/browser-cloud-preference.md",
+        "bytes": 184,
+        "sha256": "8363cae7942a9dac87997398e143b96bc4c3fc2435dccc3b2604391e4bc4bbf1"
+      },
+      {
+        "path": "cua-repl/instructions/browser-disabled.md",
+        "bytes": 27,
+        "sha256": "6d1be6d881b8b340dabb04d277bfc5c0690fb855031f023bc882284904dd6d9a"
+      },
+      {
+        "path": "cua-repl/instructions/browser-orbit-preference.md",
+        "bytes": 236,
+        "sha256": "6abbb76f30dc1c0829bc1965723a3245c9fce088ce29d340dc81f8f2f5e9332f"
+      },
+      {
+        "path": "cua-repl/instructions/code.md",
+        "bytes": 62,
+        "sha256": "c0cc551f6c6116c5276baecc68c1139d25c205570281e02b6ad483526e4bede9"
+      },
+      {
+        "path": "cua-repl/instructions/computer-disabled.md",
+        "bytes": 35,
+        "sha256": "c34c37e1549a55281eaecf6e29b4878313cfecf5983559a98a6fca1f6d1cf53c"
+      },
+      {
+        "path": "cua-repl/instructions/macos/browser-cloud-guidance.md",
+        "bytes": 1632,
+        "sha256": "5f04b3b743645bb7adfd91c1fcdf64ddb4a0594fbda60a07651da1ef3342dd84"
+      },
+      {
+        "path": "cua-repl/instructions/macos/browser-cloud.md",
+        "bytes": 760,
+        "sha256": "7872a652b6911d7b380f64ff6bddc1120e8bc562a2e049aefbf7632904139572"
+      },
+      {
+        "path": "cua-repl/instructions/macos/browser.md",
+        "bytes": 1757,
+        "sha256": "f30c20ba08636e959f0e044dd4101c0f8f60d2abb3b77d1bb322a41dfeae849b"
+      },
+      {
+        "path": "cua-repl/instructions/macos/computer.md",
+        "bytes": 140,
+        "sha256": "e8318bd16b9792b517d300802583961317d7e0cb3a3a4ed776a681ed20f16f7d"
+      },
+      {
+        "path": "cua-repl/instructions/macos/description.md",
+        "bytes": 856,
+        "sha256": "096e5cea5931c9c23adc839211bfe3764039a2e68dd47b627ae0d8bc22fdaed6"
+      },
+      {
+        "path": "cua-repl/instructions/macos/output.md",
+        "bytes": 488,
+        "sha256": "e239db8a09d3fb3b2a626e19a64be96da0130374675acf709649bef99430d486"
+      },
+      {
+        "path": "cua-repl/instructions/reset.md",
+        "bytes": 240,
+        "sha256": "8293a9ec45999391940bdfce1637fb5c4d708f89b5d726b4d03800df9cb795af"
+      },
+      {
+        "path": "cua-repl/instructions/server.md",
+        "bytes": 62,
+        "sha256": "6001fb94250c49c234d96cbe08913ad9340e71e48b1709d8c0d598b46a25ea9e"
+      },
+      {
+        "path": "sky/docs/sky-window-api.md",
+        "bytes": 6471,
+        "sha256": "18d387e9c5d2a131fb697dce038ccd58e78059eb406d010db171e987de1cc6f5"
+      }
+    ],
+    "additionalLiveFiles": [
+      "live-browser-bootstrap.md",
+      "live-browser-tools.json"
+    ]
+  },
+  "inspectedArtifacts": [
+    {
+      "path": "cua/package.json",
+      "bytes": 1037,
+      "sha256": "5ee5ae5c5bdc6104fbcb66984f1ad41600d1c5b0bb0ae264a725b81d5ccdde28"
+    },
+    {
+      "path": "cua-repl/package.json",
+      "bytes": 822,
+      "sha256": "6b651f0786202485a945ebbd345ec620107d74a00d86c33d8128329c8f0a262e"
+    },
+    {
+      "path": "browser-desktop/package.json",
+      "bytes": 308,
+      "sha256": "a7bfc13a4f9a8a22fd4a275adedf352e5f10ea57f8259301b905c3e997bc3b63"
+    },
+    {
+      "path": "browser-desktop/scripts/browser-client.mjs",
+      "bytes": 170131,
+      "sha256": "c1ca88410dab039d763e668ecc561b4cc1e041bfa289e318a9244c600c373c10"
+    },
+    {
+      "path": "browser-desktop/scripts/browser-service.mjs",
+      "bytes": 2110036,
+      "sha256": "0c1cb5b13bbe6ae70cea751740e537885a12d53cd076c864cd9154ef6e86e3bb"
+    },
+    {
+      "path": "browser-desktop/scripts/browser-accessibility.wasm.br",
+      "bytes": 4084148,
+      "sha256": "97d2773f1f0d3f890e2dc8bbf7da5745cfb9c2686d893579ffc35bb9608185ee"
+    },
+    {
+      "path": "cua/dist/lib/js/oai_js_cua/src/tinysky_browser/create_tinysky_browser.js",
+      "bytes": 1174,
+      "sha256": "a8967b5f784e0568fe89697eeda24259a63d8960ef9576d3f5512838db778001"
+    },
+    {
+      "path": "<plugin>/require-browser-access.mjs",
+      "bytes": 51,
+      "sha256": "d314c3f98b63d8c23c9989a3ef9c036e5d0e530d6c4a6a01e4d53da451aba815"
+    }
+  ],
+  "probe": {
+    "baseSource": "experiments/codex-runtime-probe/client.py",
+    "baseSourceSha256": "d90d0df7442e460c80235fe33ace8e9233f1c7173688269c6774a43df490515e",
+    "changes": [
+      "Narrow CUA_REPL_ENABLED_SURFACES to browser instead of computer",
+      "Replace the initial getState call with await cua.listBrowsers();",
+      "Save tools/list and raw result only to ignored local cache; do not use --fixture"
+    ],
+    "preserved": "Installed command, arguments, preloader, manifest environment and trusted-service configuration",
+    "inheritedTaskVariables": [],
+    "suppliedTurnMetadata": false,
+    "result": "rejected",
+    "error": "Cannot verify browser access without the current turn",
+    "effect": "No browser inventory or page observation was returned; no tab was claimed, opened or controlled.",
+    "cleanupReturnCode": 0
+  },
+  "sourceObservations": [
+    {
+      "claim": "Browser client uses the trusted browser RPC service",
+      "file": "browser-desktop/scripts/browser-client.mjs",
+      "search": "Browser use requires a trusted Node REPL browser service"
+    },
+    {
+      "claim": "Access check requires a current turn and authenticated host response",
+      "file": "browser-desktop/scripts/browser-service.mjs",
+      "search": "Cannot verify browser access without the current turn"
+    },
+    {
+      "claim": "Browser commands carry session/turn identity separately from initial access check",
+      "file": "browser-desktop/scripts/browser-service.mjs",
+      "search": "Missing required browser session_id"
+    },
+    {
+      "claim": "Page accessibility can use browser CDP rather than macOS AX",
+      "file": "browser-desktop/scripts/browser-service.mjs",
+      "search": "Accessibility.getFullAXTree"
+    },
+    {
+      "claim": "Browser input includes CDP dispatch",
+      "file": "browser-desktop/scripts/browser-service.mjs",
+      "search": "Input.dispatchMouseEvent"
+    },
+    {
+      "claim": "A compiled WASM component formats and identifies browser accessibility revisions",
+      "file": "browser-desktop/scripts/browser-service.mjs",
+      "search": "computer_use_browser_wasm_revision_create"
+    }
+  ],
+  "officialReferences": [
+    {
+      "url": "https://learn.chatgpt.com/docs/chrome-extension",
+      "supports": "Extension setup, separate browser/profile and website permissions, native messaging/debugger permissions."
+    }
+  ],
+  "limits": [
+    "No browser-control success established by the standalone probe.",
+    "No metadata impersonation, access-check removal, signature fabrication or alternate transport attempted.",
+    "Static API manifests list capabilities that may be disabled or absent in a connected backend.",
+    "Local doc copies and raw proprietary source are not committed.",
+    "No production or streaming changes."
+  ],
+  "collector": {
+    "source": "experiments/codex-runtime-probe/collect-guidance.py",
+    "sha256": "d7e420e42a736984855d553a7425c7e7d8fb43ab66991f7dec87921ce2eabffa",
+    "result": "52 packaged files copied; source/cache hashes verified; destination ignored by git"
+  }
+}

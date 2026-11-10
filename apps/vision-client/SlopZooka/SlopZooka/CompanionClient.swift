@@ -312,6 +312,23 @@ final class CompanionClient: NSObject, ObservableObject {
         await refreshFrontends(hostID: hostID, force: true)
     }
 
+    // Optional live-probe calls share normal authentication and route-revision checks.
+    func pollSurfaceProbe(hostID: String, receiverID: String, available: Bool,
+        results: [ProbePresentationReceipt], presence: [ProbePresentationPresence]) async throws -> ProbePresentationBatch {
+        struct Poll: Encodable {
+            let receiverID: String
+            let available: Bool
+            let results: [ProbePresentationReceipt]
+            let presence: [ProbePresentationPresence]
+        }
+        return try await request(hostID: hostID, path: "/api/surface-probe/poll", method: "POST",
+            body: JSONEncoder().encode(Poll(receiverID: receiverID, available: available, results: results, presence: presence)), timeout: 5)
+    }
+    func resolveSurfaceProbe(hostID: String, id: String) async throws -> ProbeSurfaceResponse {
+        try await request(hostID: hostID, path: "/api/surface-probe/resolve", method: "POST",
+            body: Self.json(["id": id]))
+    }
+
     private static func json(_ values: [String: Any?]) throws -> Data {
         try JSONSerialization.data(withJSONObject: values.compactMapValues { $0 }, options: .sortedKeys)
     }

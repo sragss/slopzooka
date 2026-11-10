@@ -1,0 +1,44 @@
+[
+  {
+    "fixture": "/pw-a",
+    "action": "save",
+    "count": 0,
+    "label": "MCP A",
+    "receivedAt": "2026-11-09T14:04:52.039Z"
+  },
+  {
+    "fixture": "/pw-b",
+    "action": "increment",
+    "count": 1,
+    "label": "",
+    "receivedAt": "2026-11-09T14:04:53.103Z"
+  },
+  {
+    "fixture": "/playwriter",
+    "action": "save",
+    "count": 0,
+    "label": "Playwriter exact value",
+    "receivedAt": "2026-11-09T14:04:54.908Z"
+  },
+  {
+    "fixture": "/playwriter",
+    "action": "settings",
+    "count": 0,
+    "label": "Playwriter exact value",
+    "receivedAt": "2026-11-09T14:04:55.034Z"
+  },
+  {
+    "fixture": "/agent-a",
+    "action": "save",
+    "count": 0,
+    "label": "Pinned A",
+    "receivedAt": "2026-11-09T14:04:55.069Z"
+  },
+  {
+    "fixture": "/agent-b",
+    "action": "increment",
+    "count": 1,
+    "label": "",
+    "receivedAt": "2026-11-09T14:04:55.078Z"
+  }
+]

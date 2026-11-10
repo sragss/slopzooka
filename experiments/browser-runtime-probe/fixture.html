@@ -1,0 +1,37 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>SlopZooka browser probe</title>
+<style>
+  body { font: 20px system-ui; margin: 48px; max-width: 680px; background: #f5f5fa; color: #172035; }
+  button, input { font: inherit; padding: 10px; margin: 8px 0; }
+  label { display: block; }
+  iframe { width: 100%; height: 100px; border: 1px solid #bbc; }
+</style>
+<h1></h1>
+<p>This disposable fixture contains no account or project data.</p>
+<label>Workspace label <input aria-label="Workspace label"></label>
+<button id="save">Save label</button>
+<button id="increment">Increment</button>
+<p id="counter" role="status">Counter: 0</p>
+<button id="settings">Settings</button>
+<section id="panel" hidden><h2>Settings page</h2><p>Ready for review.</p></section>
+<iframe title="Nested fixture" src="/frame"></iframe>
+<script>
+  const fixture = location.pathname;
+  document.title = 'SlopZooka browser probe ' + fixture;
+  document.querySelector('h1').textContent = 'Workspace ' + fixture;
+  let count = 0;
+  const report = action => fetch('/event', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({fixture, action, count, label: document.querySelector('input').value})
+  });
+  document.querySelector('#increment').onclick = () => {
+    document.querySelector('#counter').textContent = 'Counter: ' + (++count);
+    report('increment');
+  };
+  document.querySelector('#save').onclick = () => report('save');
+  document.querySelector('#settings').onclick = () => {
+    document.querySelector('#panel').hidden = false;
+    report('settings');
+  };
+</script>

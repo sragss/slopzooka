@@ -1,0 +1,285 @@
+{
+  "recordedAt": "2026-11-09T22:01:23.413431+00:00",
+  "desktopVersion": "26.1103.60933",
+  "scope": "User-authorized task-delegation/browser fixture qualification; production code unchanged.",
+  "verdict": "Desktop-owned codex_app.create_thread delegation and child Chrome fixture passed. Terminal-side delegation failed. Independent companion enrollment remains unqualified.",
+  "terminalDelegation": {
+    "entryPoint": "mcp__codex_tui__create_thread",
+    "threadId": "01a1c24e-bdd2-7060-afaf-fd24fa0ec80c",
+    "modelOverrideSupplied": false,
+    "turnStatus": "completed",
+    "browserResult": "The browser access host is unavailable",
+    "browserInitializationCalls": 1,
+    "completionSummaryCalls": 1,
+    "newFixtureEvents": 0,
+    "classificationCorrection": "This chat exposes terminal-side delegation; its create_thread call is not the inspected desktop codex_app service."
+  },
+  "manualDesktopBaseline": {
+    "threadId": "01a1c250-6c75-7cd1-b183-2b6e5f86dd6c",
+    "turnStatus": "completed",
+    "label": "codex-b",
+    "eventSequences": [
+      9,
+      10,
+      11,
+      12
+    ],
+    "browser": "chrome",
+    "screenshotVisuallyVerified": true
+  },
+  "desktopDelegation": {
+    "parentThreadId": "01a1c250-6c75-7cd1-b183-2b6e5f86dd6c",
+    "parentTurnId": "01a1c252-12b1-7e82-bcf9-10bc63af0fb7",
+    "entryPoint": "codex_app.create_thread",
+    "createArguments": {
+      "title": "SlopZooka desktop-delegated Chrome",
+      "target": {
+        "type": "projectless"
+      },
+      "prompt": "Your only job is to use @Chrome via the installed extension to open http://127.0.0.1:62221/b in a new tab, save desktop-delegated-b as Workspace label, click Increment exactly twice, open Settings, verify Counter: 2, and take a screenshot. Leave the tab open. This is a disposable fixture. If browser initialization fails, report the exact error and stop. Do not use the built-in browser or native-control fallback."
+    },
+    "parentModelOverrideSupplied": false,
+    "childThreadId": "01a1c252-4539-78f1-bf35-18a4a23a63fb",
+    "childTurnId": "01a1c252-45ab-7291-9d7c-ae006aba1f67",
+    "parentTurnStatus": "completed",
+    "childTurnStatus": "completed",
+    "parentPerformedBrowserActionsInDelegationTurn": false,
+    "childCalls": [
+      {
+        "tool": "js",
+        "arguments": {
+          "code": "let tab = await cua.createBrowserTab(\"chrome\", \"http://127.0.0.1:62221/b\", { sessionName: \"\ud83e\uddea Fixture B\" });",
+          "title": "Opening fixture in Chrome"
+        },
+        "status": "completed"
+      },
+      {
+        "tool": "js",
+        "arguments": {
+          "code": "await tab.setValue(6, \"desktop-delegated-b\"); await tab.click(7); await tab.click(8); await tab.click(8); await tab.click(10); await tab.getAXState();",
+          "title": "Saving label and updating counter"
+        },
+        "status": "completed"
+      },
+      {
+        "tool": "js",
+        "arguments": {
+          "code": "nodeRepl.write(await agent.documentation.get(\"screenshots\"));",
+          "title": "Preparing verification screenshot"
+        },
+        "status": "completed"
+      },
+      {
+        "tool": "js",
+        "arguments": {
+          "code": "await tab.markDeliverable(); await tab.getScreenshot();",
+          "title": "Capturing verified Settings page"
+        },
+        "status": "completed"
+      },
+      {
+        "tool": "js",
+        "arguments": {
+          "completion_summary": "Saved label and verified counter"
+        },
+        "status": "completed"
+      },
+      {
+        "tool": "js",
+        "arguments": {
+          "code": "var screenshotBytes = await tab.getScreenshot({ emit: false }); var fs = await import(\"node:fs/promises\"); await fs.mkdir(\"/Users/samragsdale/Documents/Codex/2026-11-09/your-only-job-is-to-use/outputs\", { recursive: true }); await fs.writeFile(\"/Users/samragsdale/Documents/Codex/2026-11-09/your-only-job-is-to-use/outputs/desktop-delegated-b.jpg\", screenshotBytes);",
+          "title": "Saving verification screenshot"
+        },
+        "status": "completed"
+      }
+    ],
+    "eventSequences": [
+      13,
+      14,
+      15,
+      16
+    ],
+    "screenshotVisuallyVerified": true,
+    "visibleState": [
+      "Workspace /b",
+      "desktop-delegated-b",
+      "Counter: 2",
+      "Settings page"
+    ],
+    "browserFallbackUsed": false,
+    "distinctChildIdentity": true
+  },
+  "events": [
+    {
+      "sequence": 9,
+      "fixture": "/b",
+      "action": "save",
+      "count": 0,
+      "label": "codex-b",
+      "receivedAt": "2026-11-09T21:57:04.228Z"
+    },
+    {
+      "sequence": 10,
+      "fixture": "/b",
+      "action": "increment",
+      "count": 1,
+      "label": "codex-b",
+      "receivedAt": "2026-11-09T21:57:04.244Z"
+    },
+    {
+      "sequence": 11,
+      "fixture": "/b",
+      "action": "increment",
+      "count": 2,
+      "label": "codex-b",
+      "receivedAt": "2026-11-09T21:57:04.261Z"
+    },
+    {
+      "sequence": 12,
+      "fixture": "/b",
+      "action": "settings",
+      "count": 2,
+      "label": "codex-b",
+      "receivedAt": "2026-11-09T21:57:04.277Z"
+    },
+    {
+      "sequence": 13,
+      "fixture": "/b",
+      "action": "save",
+      "count": 0,
+      "label": "desktop-delegated-b",
+      "receivedAt": "2026-11-09T21:59:04.156Z"
+    },
+    {
+      "sequence": 14,
+      "fixture": "/b",
+      "action": "increment",
+      "count": 1,
+      "label": "desktop-delegated-b",
+      "receivedAt": "2026-11-09T21:59:04.179Z"
+    },
+    {
+      "sequence": 15,
+      "fixture": "/b",
+      "action": "increment",
+      "count": 2,
+      "label": "desktop-delegated-b",
+      "receivedAt": "2026-11-09T21:59:04.193Z"
+    },
+    {
+      "sequence": 16,
+      "fixture": "/b",
+      "action": "settings",
+      "count": 2,
+      "label": "desktop-delegated-b",
+      "receivedAt": "2026-11-09T21:59:04.207Z"
+    }
+  ],
+  "manualSetup": {
+    "nativeUiAttempt": {
+      "api": "cua.getApp(\"ChatGPT\")",
+      "result": "Sky Computer Use native pipe startup failed",
+      "causeEstablished": false
+    },
+    "userActions": [
+      "Created a fresh desktop task after being unable to find the terminal-created task; sent fixture prompt.",
+      "Sent an explicit request in that desktop task to create the child through the desktop task tool."
+    ],
+    "desktopComposerSubmissionsAutomated": false
+  },
+  "observationCaveat": {
+    "entryPoint": "codex_tui.read_thread",
+    "initialDesktopThreadStatus": "notLoaded",
+    "initialDesktopTurnStatus": "interrupted",
+    "initialCompletionTime": null,
+    "subsequentFinalStatus": "completed",
+    "observedFor": [
+      "desktop baseline",
+      "desktop delegation child"
+    ],
+    "interruptRequestedByThisTest": false,
+    "underlyingCauseEstablished": false,
+    "rule": "A cross-client snapshot alone does not establish interruption/completion or safe retry; corroborate final task evidence. Transcript visibility does not prove shared live execution ownership."
+  },
+  "leftForReview": {
+    "fixtureServerRunning": true,
+    "fixtureTabsMarkedDeliverable": true,
+    "userOwnedTasksRetained": true,
+    "sharedDaemonStoppedOrRestarted": false
+  },
+  "notEstablished": [
+    "outside-companion access to codex_app interface",
+    "direct model-free Pi browser actions",
+    "unattended external orchestration",
+    "Stop/cancellation correctness",
+    "reconnect or desktop-restart recovery",
+    "concurrent browser control",
+    "exact tab-to-capture-window association",
+    "current-version native CUA requalification",
+    "Locked Use",
+    "Vision streaming"
+  ],
+  "nextTest": "Obtain legitimate companion enrollment to the desktop task interface; then fixture request, Stop and reconnect without replicating desktop internals.",
+  "artifacts": [
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/dispatch.json",
+      "bytes": 1169,
+      "sha256": "d148b206d7d95f70825529bc1cba058759e9503c2358a8b1eb25f95d7315136c"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/terminal-delegation-result.json",
+      "bytes": 5020,
+      "sha256": "0d703eafe9e33014a65f6a0e534a4ce8ef63d065f35746448f7a46154bcc084f"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/terminal-delegation-tool-trace.jsonl",
+      "bytes": 29406,
+      "sha256": "c04cc7b8e0219300c9e16347a006c7e98e308fbd0e44edf9346d9abfaddb825f"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/before-events.json",
+      "bytes": 1279,
+      "sha256": "ada206268edbf38ecd2034abad8660792e6d4f5ae5a6c4316284131df57e1195"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/after-terminal-events.json",
+      "bytes": 1279,
+      "sha256": "ada206268edbf38ecd2034abad8660792e6d4f5ae5a6c4316284131df57e1195"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/native-ui-startup.json",
+      "bytes": 164,
+      "sha256": "609246a0b6dad8dc4cfb7b215557eb3d614e12f195ef999a1418e286b0b01d98"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/manual-desktop-result.json",
+      "bytes": 3867,
+      "sha256": "7560819444d26921b20ff377dcee950d9683f27957df91eca4fa8029d93633a2"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/parent-final.json",
+      "bytes": 6869,
+      "sha256": "b58f5a385ed77406dd8cf6e9f4e8b24cb72aea368709df62b87aedff782e491b"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/child-final.json",
+      "bytes": 5568,
+      "sha256": "c370bb0001a613bbed43e99acfd9584001d74487e603e47d205b779c57869a86"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/final-events.json",
+      "bytes": 2610,
+      "sha256": "ed71aa3f65321e38ec17e4a75e73b773631b06f827644985e881ef148c0c17ee"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/codex-b-settings.jpg",
+      "bytes": 30833,
+      "sha256": "6476d9e92938e02b96b1377c661e4f1ed183b927a17d8ffb102352e19ac0dc0c"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/build/desktop-delegation/desktop-delegated-b.jpg",
+      "bytes": 32148,
+      "sha256": "b5778a62d69cc1a9ba872917deea91d0886727fd4c25ec0a78ddfc856079396d"
+    }
+  ]
+}

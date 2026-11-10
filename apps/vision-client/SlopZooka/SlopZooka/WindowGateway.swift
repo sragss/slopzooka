@@ -25,6 +25,7 @@ private struct WindowState {
     var error: String?
     var reloadRevision = 0
     var openRequested = false
+    var probeReceiverState = "not started"
     var renameRequest: UUID?
     var previewRequest: (revision: Int, task: Task<Void, Never>)?
 
@@ -67,6 +68,10 @@ final class WindowGateway: ObservableObject {
     private var companionInstances: [String: (route: UUID, process: String?)] = [:]
     private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var isSynchronizing = false
+    private let probeReceiverID = UUID().uuidString
+    private var probeReceipts: [String: [String: ProbePresentationReceipt]] = [:]
+    private var probePollRequests: [String: UUID] = [:]
+    private var probeInstances: [String: String] = [:]
 
     init(persistence: WindowPersistence? = nil, client: CompanionClient? = nil) {
         self.client = client ?? CompanionClient()
@@ -96,6 +101,7 @@ final class WindowGateway: ObservableObject {
             }
             for session in sessions { self.registerTerminal(session, hostID: hostID) }
             await self.synchronize()
+            if snapshot.surfaceProbe == true { await self.pollProbe(hostID: hostID) }
         }
     }
 
@@ -324,7 +330,62 @@ final class WindowGateway: ObservableObject {
         windows[record.id, default: WindowState()].openRequested = true
         action(.open(record))
     }
+    func updateProbeReceiver(id: String, state: String) { windows[id]?.probeReceiverState = state }
+
+    private func pollProbe(hostID: String) async {
+        let requestID = UUID(); probePollRequests[hostID] = requestID
+        let receipts = Array(probeReceipts[hostID, default: [:]].values)
+        let states = windows.values.compactMap { window -> ProbePresentationPresence? in
+            guard let reference = window.reference, reference.hostID == hostID,
+                reference.window.targetID.hasPrefix("probe:") else { return nil }
+            return ProbePresentationPresence(id: reference.window.id, surfaceID: reference.window.targetID,
+                presented: window.isPresented, receiver: window.probeReceiverState)
+        }
+        do {
+            let batch = try await client.pollSurfaceProbe(hostID: hostID, receiverID: probeReceiverID,
+                available: !presenters.isEmpty, results: receipts, presence: states)
+            guard !Task.isCancelled, probePollRequests[hostID] == requestID else { return }
+            applyProbeCommands(batch, hostID: hostID)
+        } catch { /* Optional probe cannot interrupt ordinary launcher/session recovery. */ }
+    }
+
+    // Also exercised by the deterministic gateway suite. All scene intent still
+    // enters open/close/reload and the existing revision-checked persistence.
+    func applyProbeCommands(_ batch: ProbePresentationBatch, hostID: String) {
+        if probeInstances[hostID] != batch.instanceID { probeReceipts[hostID] = [:]; probeInstances[hostID] = batch.instanceID }
+        for command in batch.commands {
+            if probeReceipts[hostID]?[command.id] != nil { continue }
+            var receipt = ProbePresentationReceipt(id: command.id)
+            do {
+                guard !presenters.isEmpty, client.knownHostIDs.contains(hostID),
+                      command.surfaceID.hasPrefix("probe:"), command.surfaceID.count <= 180,
+                      !command.surfaceID.contains("/"), probeReceipts[hostID, default: [:]].count < 256 else {
+                    throw CompanionError(message: "Probe unavailable or invalid target")
+                }
+                let id = "\(hostID):\(command.surfaceID)"
+                switch command.action {
+                case "open":
+                    remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: command.surfaceID)))
+                    try open(id: id)
+                case "close":
+                    close(id: id)
+                    if persistence.windows(hostID: hostID).contains(where: { $0.id == id }) {
+                        throw CompanionError(message: persistenceError ?? "Close intent was not saved")
+                    }
+                case "reload": reload(id: id)
+                default: throw CompanionError(message: "Unsupported probe presentation command")
+                }
+            } catch { receipt.error = error.localizedDescription }
+            probeReceipts[hostID, default: [:]][command.id] = receipt
+        }
+    }
+
     private func resolvePreview(_ record: WindowRecord, hostID: String) async throws -> PreviewWindowPayload {
+        if record.targetID.hasPrefix("probe:") {
+            let result = try await client.resolveSurfaceProbe(hostID: hostID, id: record.targetID)
+            guard result.id == record.targetID else { throw CompanionError(message: "Probe target mismatch") }
+            return PreviewWindowPayload(id: record.id, title: result.title, urlString: "", stream: result.stream)
+        }
         let result = try await client.openFrontend(hostID: hostID, id: record.targetID)
         guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
         if let port = result.exposedPort, let token = result.accessToken {

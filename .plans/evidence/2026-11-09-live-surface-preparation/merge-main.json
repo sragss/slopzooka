@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-10T02:41:43.234570+00:00",
+  "sourceBranch": "origin/main",
+  "sourceRevision": "dcb55377d0e4925cf9941a22544d721a0cd9dcdc",
+  "draftBeforeMerge": "b163261bd542706b965cab08296984cdd7923d9c",
+  "resolution": "One additive conflict in WindowGatewayChecks.swift; retained probe tests and the upstream close-versus-end-session suite. Application files merged automatically.",
+  "validation": {
+    "companionTests": 50,
+    "visionState": "passed",
+    "typecheck": "passed",
+    "terminalKeyboard": "passed",
+    "format": "passed",
+    "harness": "passed; generated assets match merged index",
+    "visionSimulatorBuild": "passed",
+    "signedGatewayProbe": "passed",
+    "signedProbeViewer": "passed",
+    "headsetInstalled": false
+  },
+  "logs": [
+    {
+      "path": "/tmp/slz-main-install.log",
+      "sha256": "dbf90a76e2c7c59bfee82f8d0970d97bd7f0f2124854a0dfab83b358db8a424f"
+    },
+    {
+      "path": "/tmp/slz-main-typecheck.log",
+      "sha256": "b0b06a0f824e09c13d4cc253c3b1d093f850565e63e63dc8e0ac2a9faf12428d"
+    },
+    {
+      "path": "/tmp/slz-main-tests.log",
+      "sha256": "d875ff9f146aea7fbcd40bfb31835eab137e40e8444954c6c85e9fa64f8beb57"
+    },
+    {
+      "path": "/tmp/slz-main-vision-state.log",
+      "sha256": "230c6ad5069682d21e119f9d6cb91d2f7831e9f0258b0d9b1fe8b244f758a30d"
+    },
+    {
+      "path": "/tmp/slz-main-format.log",
+      "sha256": "a39695eaf722d148f3d96d916a1094388d8315b44d97af59ae2cec675319a78f"
+    },
+    {
+      "path": "/tmp/slz-main-harness.log",
+      "sha256": "f4efe813e28cb4ff188825643e7ce1b29704862eb733a23fbef85cda64c35c32"
+    },
+    {
+      "path": "/tmp/slz-main-assets.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": "/tmp/slz-main-keyboard.log",
+      "sha256": "8a4f22f5cb41b9da396eee90f35debb22c2923b5d1f35c99c870725b77b7be62"
+    },
+    {
+      "path": "/tmp/slz-main-prepared.log",
+      "sha256": "5a1d2b1d5a7b09cafa8826577d5719967e9dacc3f8e5b999b8fa4a815c3b1225"
+    },
+    {
+      "path": "/tmp/slz-main-simulator.log",
+      "sha256": "29aa794e2cfff1d2c093892b23c154ffd4b6d96b742795613de33e6ab717d51a"
+    }
+  ]
+}

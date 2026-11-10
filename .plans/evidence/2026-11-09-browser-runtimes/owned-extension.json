@@ -1,0 +1,1412 @@
+{
+  "experiment": "owned Chrome extension / native messaging / MCP browser control",
+  "date": "2026-11-09",
+  "scope": "Disposable fixture origin, isolated testing profile; no production browser or app integration.",
+  "sourceFingerprintScope": "Hashes describe current source at conclusion. Final acceptance runs run-qNIkI1/run-aTL2tm preceded only the --serve shutdown-handler ordering correction; the subsequent immediate-interrupt smoke test verifies that change. Earlier uncommitted iterations are retained as development observations, not attributed to these final hashes.",
+  "sources": [
+    {
+      "path": "experiments/owned-browser-probe/bridge.mjs",
+      "sha256": "d91ca0d442d89f48e74e9368c04170719dcad80a6bda442c51bbff64fd1b4b95"
+    },
+    {
+      "path": "experiments/owned-browser-probe/extension/manifest.json",
+      "sha256": "5bc686bd03187aded0c5945d9cfe52742b3488644ef8d8280b4df17ffb73abae"
+    },
+    {
+      "path": "experiments/owned-browser-probe/extension/worker.js",
+      "sha256": "9c85cfb514121ada64ab883f57512da83ecbb9234da9ae7bc53ec91d605f16f3"
+    },
+    {
+      "path": "experiments/owned-browser-probe/mcp.mjs",
+      "sha256": "52d2780f2246d9041b47c6468d5ddf7d7487409965346ee818a33f11598f8e38"
+    },
+    {
+      "path": "experiments/owned-browser-probe/models.mjs",
+      "sha256": "4d7040ee2158cfa1a42398b996ea882dec91e1221a38a527ae6649a6b5cf2eb1"
+    },
+    {
+      "path": "experiments/owned-browser-probe/native-host.mjs",
+      "sha256": "da6649383cb99e8c9c0ecfd5ccf1886005b173ace80239fa57a0626f123c2d1a"
+    },
+    {
+      "path": "experiments/owned-browser-probe/package-lock.json",
+      "sha256": "d5deb882f1176932192b71670949b09c66daf48efc249d2819b1f2be9d12de62"
+    },
+    {
+      "path": "experiments/owned-browser-probe/package.json",
+      "sha256": "9072f6ed134399058bae5f72add7d317fa4584af1dc76794fb6b8b86b6f205cc"
+    },
+    {
+      "path": "experiments/owned-browser-probe/probe.mjs",
+      "sha256": "15d5524054e1e0a7e98f2274f6c1f2db5ed3194a9d8c4b5a738be76fe03ee82a"
+    },
+    {
+      "path": "experiments/owned-browser-probe/test/wire.test.mjs",
+      "sha256": "c3405dcb401719bf962f6235a7121b1c492d5f48946f78394182e4409fe832aa"
+    },
+    {
+      "path": "experiments/owned-browser-probe/test-driver.mjs",
+      "sha256": "354314618c085c565e90773b28da35626bf40ed7979275b31da71e6ebf7b2ead"
+    },
+    {
+      "path": "experiments/owned-browser-probe/wire.mjs",
+      "sha256": "6a3e566b6472cef542fb5ea4a4ef9a887857abe0cd2dce11b9dcad1a025c5bb8"
+    }
+  ],
+  "runs": [
+    {
+      "id": "run-8SPxCO",
+      "at": "2026-11-09T23:24:50.436Z",
+      "note": "Initial packaging attempt: Chrome native child could not read bridge under Documents.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": false,
+          "elapsedMs": 20025,
+          "error": "Timed out: extension native host"
+        }
+      ],
+      "fixtureEvents": [],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-8SPxCO/summary.json",
+          "sha256": "507f1d46cfe4b53864c25340e2c544d3f949d5837626725dd5aa678aa078dcdd"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-8SPxCO/results.jsonl",
+          "sha256": "49b8a558cadb1e4a714d34fae589e1bb7fb8ce82fc697ca031413a1971dd84ec"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-8SPxCO/failure.txt",
+          "sha256": "b608588abc597eae712afe8f315e25faccf14da9c20cfeb1dbbe2ceb7282a7f8"
+        }
+      ]
+    },
+    {
+      "id": "run-vKeov7",
+      "at": "2026-11-09T23:25:15.537Z",
+      "note": "Initial headless success, before focus emulation and strengthened lifecycle cases.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 719,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": false,
+            "extensionId": "nhgbagjghphpfgkodpbilhnbfnakeejg",
+            "nativeHostPid": 74030
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": true,
+          "elapsedMs": 17,
+          "detail": {
+            "fixtureEvents": 8,
+            "counterA": 2,
+            "counterB": 2,
+            "foregroundTabUnchanged": true
+          }
+        },
+        {
+          "name": "ownership_and_origin_rejection",
+          "passed": true,
+          "elapsedMs": 2,
+          "detail": {
+            "conflictingClaimRejected": true,
+            "foreignTargetRejected": true,
+            "foreignOriginRejected": true
+          }
+        },
+        {
+          "name": "real_background_screenshot",
+          "passed": true,
+          "elapsedMs": 240,
+          "detail": {
+            "mimeType": "image/jpeg",
+            "bytes": 27893
+          }
+        },
+        {
+          "name": "navigation_invalidates_refs",
+          "passed": true,
+          "elapsedMs": 269,
+          "detail": {
+            "staleRejected": true,
+            "freshActionWorked": true
+          }
+        },
+        {
+          "name": "stop_revokes_queued_input_without_stopping_b",
+          "passed": true,
+          "elapsedMs": 865,
+          "detail": {
+            "stopped": true,
+            "effects": "Already dispatched input cannot be undone; queued input revoked. Connect a new client to resume.",
+            "queuedRejected": 12,
+            "extraAIncrements": 0,
+            "bContinued": true
+          }
+        },
+        {
+          "name": "native_bridge_restart_revokes_targets_without_replay",
+          "passed": true,
+          "elapsedMs": 625,
+          "detail": {
+            "oldTargetRejected": true,
+            "newNativeHost": true,
+            "counterB": 4
+          }
+        },
+        {
+          "name": "mcp_disconnect_releases_only_its_targets",
+          "passed": true,
+          "elapsedMs": 102,
+          "detail": {
+            "reclaimedByNewClient": true
+          }
+        }
+      ],
+      "fixtureEvents": [
+        {
+          "sequence": 1,
+          "fixture": "/b",
+          "action": "save",
+          "count": 0,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 2,
+          "fixture": "/a",
+          "action": "save",
+          "count": 0,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 3,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 4,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 5,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 6,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 7,
+          "fixture": "/a",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 8,
+          "fixture": "/b",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 9,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": ""
+        },
+        {
+          "sequence": 10,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 3,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 11,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 4,
+          "label": "owned-b"
+        }
+      ],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-vKeov7/summary.json",
+          "sha256": "e2d61a0276d87ec234067c8c37dd7d6c431f95cd0df75bc9636fb1c3aa8492f8"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-vKeov7/results.jsonl",
+          "sha256": "60a9d39ec96b8574272c192322cb230a450156d7140aad5a808113941b6a2790"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-vKeov7/fixture-events.jsonl",
+          "sha256": "177dd0b4758034075808ab763fb8e483b103707ea4daa2598e3c3f6b30844c0a"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-vKeov7/background-a.jpg",
+          "sha256": "9fe72e6427cac37864b6b70429591fefdd7493543b73036783a84bae9e90c820"
+        }
+      ]
+    },
+    {
+      "id": "run-tVdgmC",
+      "at": "2026-11-09T23:27:27.922Z",
+      "note": "Headed background clicks not delivered without focus emulation; models never reached.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 924,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": true,
+            "extensionId": "llinhjbmohdedgohihmebihgkacfanje",
+            "nativeHostPid": 74486
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": false,
+          "elapsedMs": 10228,
+          "error": "Timed out: 8 fixture events"
+        }
+      ],
+      "fixtureEvents": [],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-tVdgmC/summary.json",
+          "sha256": "d4baf9dc2be994589c3d0b864a0d71ad3d1f0cfd2f077807cc5255d8007a9458"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-tVdgmC/results.jsonl",
+          "sha256": "58d2c2786ff8cdfc8b1055adc6daae3df2cdec5634205c97e516145eb1712bd9"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-tVdgmC/failure.txt",
+          "sha256": "f11d02eac63b5fcf8265183b16fd4fbd9d8fa4471f2cd74238605c880c4219d9"
+        }
+      ]
+    },
+    {
+      "id": "run-uWtFkj",
+      "at": "2026-11-09T23:28:12.953Z",
+      "note": "Diagnostic reproduction: text filled, Counter remained 0, no click events.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 823,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": true,
+            "extensionId": "omdedemcnlofojflmigllgkjjnnnadkb",
+            "nativeHostPid": 74662
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": false,
+          "elapsedMs": 10225,
+          "error": "Timed out: 8 fixture events"
+        }
+      ],
+      "fixtureEvents": [],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-uWtFkj/summary.json",
+          "sha256": "27df3b0147085c4ef79cb82faf2da5e764d93aee615cee0e15153f8e6b722bb7"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-uWtFkj/results.jsonl",
+          "sha256": "41a9e9031a8e90d8df48a5a734883f9b27a0907a922ed83da7170237d8f0e4fd"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-uWtFkj/background-state.json",
+          "sha256": "9d6cce1352f6c24449b1b20cd6af358986e741caf5069684ab2ac5315bfc150b"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-uWtFkj/failure.txt",
+          "sha256": "396b1fb6487e4b1e71681f9d98ad32fd6ed6b11e02e2fde859f028a7c96474f7"
+        }
+      ]
+    },
+    {
+      "id": "run-FwFFoS",
+      "at": "2026-11-09T23:28:58.378Z",
+      "note": "Focus emulation enabled; first successful headed run with concurrent GPT and Opus.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 774,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": true,
+            "extensionId": "hpalbnecmdcibbelghikibehcgphchea",
+            "nativeHostPid": 74792
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": true,
+          "elapsedMs": 230,
+          "detail": {
+            "fixtureEvents": 8,
+            "counterA": 2,
+            "counterB": 2,
+            "foregroundTabUnchanged": true,
+            "simulatedHumanTypingIntact": true,
+            "humanDocumentFocused": true
+          }
+        },
+        {
+          "name": "ownership_and_origin_rejection",
+          "passed": true,
+          "elapsedMs": 3,
+          "detail": {
+            "conflictingClaimRejected": true,
+            "foreignTargetRejected": true,
+            "foreignOriginRejected": true
+          }
+        },
+        {
+          "name": "real_background_screenshot",
+          "passed": true,
+          "elapsedMs": 172,
+          "detail": {
+            "mimeType": "image/jpeg",
+            "bytes": 25554
+          }
+        },
+        {
+          "name": "navigation_invalidates_refs",
+          "passed": true,
+          "elapsedMs": 316,
+          "detail": {
+            "staleRejected": true,
+            "freshActionWorked": true
+          }
+        },
+        {
+          "name": "stop_revokes_queued_input_without_stopping_b",
+          "passed": true,
+          "elapsedMs": 914,
+          "detail": {
+            "stopped": true,
+            "effects": "Already dispatched input cannot be undone; queued input revoked. Connect a new client to resume.",
+            "queuedRejected": 12,
+            "extraAIncrements": 0,
+            "bContinued": true
+          }
+        },
+        {
+          "name": "native_bridge_restart_revokes_targets_without_replay",
+          "passed": true,
+          "elapsedMs": 572,
+          "detail": {
+            "oldTargetRejected": true,
+            "newNativeHost": true,
+            "counterB": 4
+          }
+        },
+        {
+          "name": "live_pi_models",
+          "passed": true,
+          "elapsedMs": 21313,
+          "detail": [
+            {
+              "provider": "openai",
+              "model": "gpt-6.1-sol",
+              "elapsedMs": 20395,
+              "images": 1,
+              "fixtureEvents": 4,
+              "toolCalls": 12,
+              "toolErrors": 0
+            },
+            {
+              "provider": "anthropic",
+              "model": "claude-opus-5-5",
+              "elapsedMs": 21302,
+              "images": 1,
+              "fixtureEvents": 4,
+              "toolCalls": 10,
+              "toolErrors": 0
+            }
+          ]
+        },
+        {
+          "name": "mcp_disconnect_releases_only_its_targets",
+          "passed": true,
+          "elapsedMs": 108,
+          "detail": {
+            "reclaimedByNewClient": true
+          }
+        }
+      ],
+      "fixtureEvents": [
+        {
+          "sequence": 1,
+          "fixture": "/b",
+          "action": "save",
+          "count": 0,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 2,
+          "fixture": "/a",
+          "action": "save",
+          "count": 0,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 3,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 4,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 5,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 6,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 7,
+          "fixture": "/a",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 8,
+          "fixture": "/b",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 9,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": ""
+        },
+        {
+          "sequence": 10,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 3,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 11,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 4,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 12,
+          "fixture": "/gpt",
+          "action": "save",
+          "count": 0,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 13,
+          "fixture": "/opus",
+          "action": "save",
+          "count": 0,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 14,
+          "fixture": "/gpt",
+          "action": "increment",
+          "count": 1,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 15,
+          "fixture": "/opus",
+          "action": "increment",
+          "count": 1,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 16,
+          "fixture": "/opus",
+          "action": "increment",
+          "count": 2,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 17,
+          "fixture": "/gpt",
+          "action": "increment",
+          "count": 2,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 18,
+          "fixture": "/gpt",
+          "action": "settings",
+          "count": 2,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 19,
+          "fixture": "/opus",
+          "action": "settings",
+          "count": 2,
+          "label": "pi-opus"
+        }
+      ],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/summary.json",
+          "sha256": "48aafdb077163968904042990a5aa929df8d5d26b0ad3735fda2c6e3bb83ee4c"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/results.jsonl",
+          "sha256": "2afd534098297e7aeb62e83a8d2b75af7872890d1f3c64db3add9a720a858419"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/fixture-events.jsonl",
+          "sha256": "513734afbe7036fdfd67f372ba9b15f7d9fc36ebc5657bb6121f79df78a66efb"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/background-state.json",
+          "sha256": "52da5a533e50435a24c05d3f0f9b5bb7c7d0077180d665ff44d9987d880e5dd6"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/gpt-model.json",
+          "sha256": "f487c49235076c24dd95a341c91ecc39bb109c143da6298e4467f2ebefb404c4"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/opus-model.json",
+          "sha256": "ebe8f3ee921312dfc21b9f8d6e394a443772d24a5f80279c65d2ed09ad00130e"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/background-a.jpg",
+          "sha256": "3e5ab41b899c97da66754613c13ee84030f0ad77b06ba8ddfd26eac14908fa5d"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/gpt-model.jpg",
+          "sha256": "cf5d345e7f41561b2b2187a4a1adaf3bf2c2cd694f9ed7f4fdfc94c1f34ea85f"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-FwFFoS/opus-model.jpg",
+          "sha256": "bd15a22555cd141caa7dbb2bb2922cd4a8b6b1246ffc8cfe745cb65a77ba923a"
+        }
+      ]
+    },
+    {
+      "id": "run-EJ5xd1",
+      "at": "2026-11-09T23:29:58.124Z",
+      "note": "Stronger Stop and in-flight native-host crash, hit test and external tab closure passed.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 871,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": true,
+            "extensionId": "bdmginnibebgegeckhhejfmhchbdciac",
+            "nativeHostPid": 75075
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": true,
+          "elapsedMs": 218,
+          "detail": {
+            "fixtureEvents": 8,
+            "counterA": 2,
+            "counterB": 2,
+            "foregroundTabUnchanged": true,
+            "simulatedHumanTypingIntact": true,
+            "humanDocumentFocused": true
+          }
+        },
+        {
+          "name": "ownership_and_origin_rejection",
+          "passed": true,
+          "elapsedMs": 2,
+          "detail": {
+            "conflictingClaimRejected": true,
+            "foreignTargetRejected": true,
+            "foreignOriginRejected": true
+          }
+        },
+        {
+          "name": "real_background_screenshot",
+          "passed": true,
+          "elapsedMs": 16,
+          "detail": {
+            "mimeType": "image/jpeg",
+            "bytes": 25554
+          }
+        },
+        {
+          "name": "navigation_invalidates_refs",
+          "passed": true,
+          "elapsedMs": 316,
+          "detail": {
+            "staleRejected": true,
+            "freshActionWorked": true
+          }
+        },
+        {
+          "name": "stop_revokes_queued_input_without_stopping_b",
+          "passed": true,
+          "elapsedMs": 915,
+          "detail": {
+            "stopped": true,
+            "effects": "Already dispatched input cannot be undone; queued input revoked. Connect a new client to resume.",
+            "initialClickActuallyRan": true,
+            "stopAckMs": 2,
+            "queuedRejected": 12,
+            "extraAIncrements": 0,
+            "bContinued": true
+          }
+        },
+        {
+          "name": "native_bridge_restart_revokes_targets_without_replay",
+          "passed": true,
+          "elapsedMs": 764,
+          "detail": {
+            "inFlightReportedUncertain": true,
+            "oldTargetRejected": true,
+            "newNativeHost": true,
+            "counterB": 4
+          }
+        },
+        {
+          "name": "closed_target_is_not_retargeted",
+          "passed": true,
+          "elapsedMs": 157,
+          "detail": {
+            "staleTargetRejected": true,
+            "bStillPresent": true
+          }
+        },
+        {
+          "name": "mcp_disconnect_releases_only_its_targets",
+          "passed": true,
+          "elapsedMs": 86,
+          "detail": {
+            "reclaimedByNewClient": true
+          }
+        }
+      ],
+      "fixtureEvents": [
+        {
+          "sequence": 1,
+          "fixture": "/a",
+          "action": "save",
+          "count": 0,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 2,
+          "fixture": "/b",
+          "action": "save",
+          "count": 0,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 3,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 4,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 5,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 6,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 7,
+          "fixture": "/b",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 8,
+          "fixture": "/a",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 9,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": ""
+        },
+        {
+          "sequence": 10,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 3,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 11,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 4,
+          "label": "owned-b"
+        }
+      ],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-EJ5xd1/summary.json",
+          "sha256": "e5cd5ea162c971ca2b985f9a0202aeff70b980e6abae563a4a6ef913ae485449"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-EJ5xd1/results.jsonl",
+          "sha256": "be3472ccdcecbdb63998d2121d197d9887d8487465c4a95bae7b3d8ef00cb5ef"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-EJ5xd1/fixture-events.jsonl",
+          "sha256": "fda2d7b7ecd6c33f56a8a185d96926936ac398f9774846bfc969564030b8491c"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-EJ5xd1/background-state.json",
+          "sha256": "cfee63172453b63f903a2eadcfadb1a3b0d95c69dd08ea17427a0ebb816f764e"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-EJ5xd1/background-a.jpg",
+          "sha256": "3e5ab41b899c97da66754613c13ee84030f0ad77b06ba8ddfd26eac14908fa5d"
+        }
+      ]
+    },
+    {
+      "id": "run-qNIkI1",
+      "at": "2026-11-09T23:31:50.336Z",
+      "note": "Final source: headless acceptance repeat.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 720,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": false,
+            "extensionId": "hgkbbmmjkjdockkkmlhjcaphhmdhfjla",
+            "nativeHostPid": 79181
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": true,
+          "elapsedMs": 211,
+          "detail": {
+            "fixtureEvents": 8,
+            "counterA": 2,
+            "counterB": 2,
+            "foregroundTabUnchanged": true,
+            "simulatedHumanTypingIntact": true,
+            "humanDocumentFocused": true
+          }
+        },
+        {
+          "name": "ownership_and_origin_rejection",
+          "passed": true,
+          "elapsedMs": 2,
+          "detail": {
+            "conflictingClaimRejected": true,
+            "foreignTargetRejected": true,
+            "foreignOriginRejected": true
+          }
+        },
+        {
+          "name": "real_background_screenshot",
+          "passed": true,
+          "elapsedMs": 143,
+          "detail": {
+            "mimeType": "image/jpeg",
+            "bytes": 27893
+          }
+        },
+        {
+          "name": "navigation_invalidates_refs",
+          "passed": true,
+          "elapsedMs": 313,
+          "detail": {
+            "staleRejected": true,
+            "freshActionWorked": true
+          }
+        },
+        {
+          "name": "stop_revokes_queued_input_without_stopping_b",
+          "passed": true,
+          "elapsedMs": 912,
+          "detail": {
+            "stopped": true,
+            "effects": "Already dispatched input cannot be undone; queued input revoked. Connect a new client to resume.",
+            "initialClickActuallyRan": true,
+            "stopAckMs": 2,
+            "queuedRejected": 12,
+            "extraAIncrements": 0,
+            "bContinued": true
+          }
+        },
+        {
+          "name": "native_bridge_restart_revokes_targets_without_replay",
+          "passed": true,
+          "elapsedMs": 711,
+          "detail": {
+            "inFlightReportedUncertain": true,
+            "oldTargetRejected": true,
+            "newNativeHost": true,
+            "counterB": 4
+          }
+        },
+        {
+          "name": "closed_target_is_not_retargeted",
+          "passed": true,
+          "elapsedMs": 300,
+          "detail": {
+            "staleTargetRejected": true,
+            "bStillPresent": true
+          }
+        },
+        {
+          "name": "mcp_disconnect_releases_only_its_targets",
+          "passed": true,
+          "elapsedMs": 86,
+          "detail": {
+            "reclaimedByNewClient": true
+          }
+        }
+      ],
+      "fixtureEvents": [
+        {
+          "sequence": 1,
+          "fixture": "/a",
+          "action": "save",
+          "count": 0,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 2,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 3,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 4,
+          "fixture": "/a",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 5,
+          "fixture": "/b",
+          "action": "save",
+          "count": 0,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 6,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 7,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 8,
+          "fixture": "/b",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 9,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": ""
+        },
+        {
+          "sequence": 10,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 3,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 11,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 4,
+          "label": "owned-b"
+        }
+      ],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-qNIkI1/summary.json",
+          "sha256": "b6aab3a9fd202ca96fb24f45f205937a32d8c8ddaa5b81ff902618aa5c49a2ec"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-qNIkI1/results.jsonl",
+          "sha256": "734067950bf258384b580e1c1e241043efa1ddc3a9f7d4387f745fe49707652c"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-qNIkI1/fixture-events.jsonl",
+          "sha256": "71f68a6c67c71dd30eebdb4d2c1c65718965d575c130e68bf28f387c33028d09"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-qNIkI1/background-state.json",
+          "sha256": "6955f4c73c30effdc6283faca75972857bcd1ca3c455b6bd68f83bf86182480e"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-qNIkI1/background-a.jpg",
+          "sha256": "9fe72e6427cac37864b6b70429591fefdd7493543b73036783a84bae9e90c820"
+        }
+      ]
+    },
+    {
+      "id": "run-aTL2tm",
+      "at": "2026-11-09T23:32:12.414Z",
+      "note": "Final source: headed acceptance repeat and concurrent Pi/model consumers.",
+      "results": [
+        {
+          "name": "real_extension_native_host_connected",
+          "passed": true,
+          "elapsedMs": 876,
+          "detail": {
+            "browser": "Chrome/157.0.8103.15",
+            "node": "v22.20.0",
+            "headed": true,
+            "extensionId": "hklcmngppfbdgoljkehhdmjmohkakofd",
+            "nativeHostPid": 79176
+          }
+        },
+        {
+          "name": "two_mcp_clients_background_input",
+          "passed": true,
+          "elapsedMs": 217,
+          "detail": {
+            "fixtureEvents": 8,
+            "counterA": 2,
+            "counterB": 2,
+            "foregroundTabUnchanged": true,
+            "simulatedHumanTypingIntact": true,
+            "humanDocumentFocused": true
+          }
+        },
+        {
+          "name": "ownership_and_origin_rejection",
+          "passed": true,
+          "elapsedMs": 2,
+          "detail": {
+            "conflictingClaimRejected": true,
+            "foreignTargetRejected": true,
+            "foreignOriginRejected": true
+          }
+        },
+        {
+          "name": "real_background_screenshot",
+          "passed": true,
+          "elapsedMs": 14,
+          "detail": {
+            "mimeType": "image/jpeg",
+            "bytes": 25554
+          }
+        },
+        {
+          "name": "navigation_invalidates_refs",
+          "passed": true,
+          "elapsedMs": 312,
+          "detail": {
+            "staleRejected": true,
+            "freshActionWorked": true
+          }
+        },
+        {
+          "name": "stop_revokes_queued_input_without_stopping_b",
+          "passed": true,
+          "elapsedMs": 912,
+          "detail": {
+            "stopped": true,
+            "effects": "Already dispatched input cannot be undone; queued input revoked. Connect a new client to resume.",
+            "initialClickActuallyRan": true,
+            "stopAckMs": 2,
+            "queuedRejected": 12,
+            "extraAIncrements": 0,
+            "bContinued": true
+          }
+        },
+        {
+          "name": "native_bridge_restart_revokes_targets_without_replay",
+          "passed": true,
+          "elapsedMs": 713,
+          "detail": {
+            "inFlightReportedUncertain": true,
+            "oldTargetRejected": true,
+            "newNativeHost": true,
+            "counterB": 4
+          }
+        },
+        {
+          "name": "closed_target_is_not_retargeted",
+          "passed": true,
+          "elapsedMs": 157,
+          "detail": {
+            "staleTargetRejected": true,
+            "bStillPresent": true
+          }
+        },
+        {
+          "name": "live_pi_models",
+          "passed": true,
+          "elapsedMs": 22448,
+          "detail": [
+            {
+              "provider": "openai",
+              "model": "gpt-6.1-sol",
+              "elapsedMs": 22152,
+              "images": 1,
+              "fixtureEvents": 4,
+              "toolCalls": 13,
+              "toolErrors": 0
+            },
+            {
+              "provider": "anthropic",
+              "model": "claude-opus-5-5",
+              "elapsedMs": 22436,
+              "images": 1,
+              "fixtureEvents": 4,
+              "toolCalls": 9,
+              "toolErrors": 0
+            }
+          ]
+        },
+        {
+          "name": "mcp_disconnect_releases_only_its_targets",
+          "passed": true,
+          "elapsedMs": 106,
+          "detail": {
+            "reclaimedByNewClient": true
+          }
+        }
+      ],
+      "fixtureEvents": [
+        {
+          "sequence": 1,
+          "fixture": "/a",
+          "action": "save",
+          "count": 0,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 2,
+          "fixture": "/b",
+          "action": "save",
+          "count": 0,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 3,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 4,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 5,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 6,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 7,
+          "fixture": "/b",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 8,
+          "fixture": "/a",
+          "action": "settings",
+          "count": 2,
+          "label": "owned-a"
+        },
+        {
+          "sequence": 9,
+          "fixture": "/a",
+          "action": "increment",
+          "count": 1,
+          "label": ""
+        },
+        {
+          "sequence": 10,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 3,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 11,
+          "fixture": "/b",
+          "action": "increment",
+          "count": 4,
+          "label": "owned-b"
+        },
+        {
+          "sequence": 12,
+          "fixture": "/gpt",
+          "action": "save",
+          "count": 0,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 13,
+          "fixture": "/opus",
+          "action": "save",
+          "count": 0,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 14,
+          "fixture": "/opus",
+          "action": "increment",
+          "count": 1,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 15,
+          "fixture": "/opus",
+          "action": "increment",
+          "count": 2,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 16,
+          "fixture": "/gpt",
+          "action": "increment",
+          "count": 1,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 17,
+          "fixture": "/opus",
+          "action": "settings",
+          "count": 2,
+          "label": "pi-opus"
+        },
+        {
+          "sequence": 18,
+          "fixture": "/gpt",
+          "action": "increment",
+          "count": 2,
+          "label": "pi-gpt"
+        },
+        {
+          "sequence": 19,
+          "fixture": "/gpt",
+          "action": "settings",
+          "count": 2,
+          "label": "pi-gpt"
+        }
+      ],
+      "localArtifacts": [
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/summary.json",
+          "sha256": "c3e47fb22a2c0cb8380793e90e5f83978eff7065988816d0e0c11280f9f10e83"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/results.jsonl",
+          "sha256": "028b1bdd1e05c3d592ebb1854783bf7ecedbe2310db042b16db53034825ad692"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/fixture-events.jsonl",
+          "sha256": "507eebf891a9b7faefbec32ebe3de0435b8815897358a085571d9fa191b02852"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/background-state.json",
+          "sha256": "ea6f8f992ea09dafc8916d30bcf152ab5c6059149c6e4ce480d3880986c1b01e"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/gpt-model.json",
+          "sha256": "ac3a0b545ea5039c212d09001f4f8d62eed0b57790fb0d4d641244deff7229c3"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/opus-model.json",
+          "sha256": "5592e4ed38a5328b512517d5663599f353c477911ad53d462394902bd6b42b44"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/background-a.jpg",
+          "sha256": "3e5ab41b899c97da66754613c13ee84030f0ad77b06ba8ddfd26eac14908fa5d"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/gpt-model.jpg",
+          "sha256": "cf5d345e7f41561b2b2187a4a1adaf3bf2c2cd694f9ed7f4fdfc94c1f34ea85f"
+        },
+        {
+          "path": "experiments/owned-browser-probe/build/run-aTL2tm/opus-model.jpg",
+          "sha256": "cf5d345e7f41561b2b2187a4a1adaf3bf2c2cd694f9ed7f4fdfc94c1f34ea85f"
+        }
+      ]
+    }
+  ],
+  "unitTests": {
+    "command": "npm test (experiments/owned-browser-probe)",
+    "passed": 2,
+    "failed": 0
+  },
+  "serveSmoke": {
+    "endpointPrinted": true,
+    "exitCode": 0,
+    "signal": null,
+    "cleanupReported": true,
+    "stderr": ""
+  },
+  "repositoryChecks": [
+    {
+      "command": "pnpm test:vision-state",
+      "passed": true
+    },
+    {
+      "command": "pnpm typecheck",
+      "passed": true
+    },
+    {
+      "command": "pnpm test",
+      "passed": true,
+      "tests": 43
+    },
+    {
+      "command": "pnpm test:terminal-keyboard",
+      "passed": true,
+      "qualification": "Earlier November 8 viewport timeout cause remains unexplained."
+    },
+    {
+      "command": "pnpm format:check",
+      "passed": true
+    },
+    {
+      "command": "pnpm build:harness",
+      "passed": true,
+      "generatedAssetDiff": false
+    },
+    {
+      "command": "xcodebuild generic visionOS Simulator Debug CODE_SIGNING_ALLOWED=NO build",
+      "passed": true,
+      "logSha256": "36172960b46b91ee5af36c4f59297774ec2bddb77424c36a3e644715fa3e8ba2"
+    }
+  ],
+  "notEstablished": [
+    "Live terminal Codex consumer",
+    "Physical human keyboard or toolbar Stop acceptance",
+    "Stable Google Chrome installation/onboarding",
+    "Cross-origin frames or real app dialogs",
+    "Signed-in profiles or hostile same-user processes",
+    "Mac lock, sleep, worker eviction or long-session availability",
+    "Continuous background-tab streams and exact target presentation on Vision Pro",
+    "Provider quality/cost ranking"
+  ],
+  "serveSmokeInitial": {
+    "endpointPrinted": true,
+    "exitCode": null,
+    "cleanupReported": false,
+    "stderr": ""
+  },
+  "sourceRevision": "6a76c7cc29e7e600f3d5c80db83a0f0cb79d5c17"
+}

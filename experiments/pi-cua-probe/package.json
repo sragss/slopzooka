@@ -1,0 +1,14 @@
+{
+  "name": "slopzooka-pi-cua-probe",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "probe": "node cli.mjs"
+  },
+  "dependencies": {
+    "@earendil-works/pi-agent-core": "1.4.0",
+    "@earendil-works/pi-ai": "1.4.0",
+    "@earendil-works/pi-mcp": "1.4.0"
+  }
+}

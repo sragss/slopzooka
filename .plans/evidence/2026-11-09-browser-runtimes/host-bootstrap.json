@@ -1,0 +1,300 @@
+{
+  "recordedAt": "2026-11-09T21:53:04.360470+00:00",
+  "desktopVersion": "26.1103.60933",
+  "cliSourceRevision": "086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a",
+  "scope": "Read-only source and protocol inspection after the independently created Codex task failed browser-host provisioning.",
+  "newTaskStarted": false,
+  "modelTurnStarted": false,
+  "browserActionsInvoked": false,
+  "processEnvironmentRead": false,
+  "personalConfigurationChanged": false,
+  "vendorCodePatched": false,
+  "sourceFindings": [
+    {
+      "artifact": "desktopRenderer",
+      "marker": "A.appServices.threadConfiguration.readMcpConfig",
+      "characterOffset": 2167280,
+      "line": 273,
+      "finding": "Desktop renderer obtains generated MCP overrides from an app service."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "async buildMcpCodexConfig",
+      "characterOffset": 2201958,
+      "line": 860,
+      "finding": "Main-process configuration owner selects and assembles per-thread plugins."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "async readMcpConfig({cwd:",
+      "characterOffset": 2204541,
+      "line": 860,
+      "finding": "Internal desktop RPC delegates to the configuration owner."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "Object.assign(c.env,{[et.OuO]:d,[et.b$E]:eN().env[ry]",
+      "characterOffset": 447393,
+      "line": 50,
+      "finding": "Local task configuration injects executor ID, access-host path and public verifying identity."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "\"1\"===eN().env.CODEX_APP_SERVER_USE_LOCAL_DAEMON",
+      "characterOffset": 447557,
+      "line": 50,
+      "finding": "The shared-daemon branch includes generated unified CUA server overrides."
+    },
+    {
+      "artifact": "desktopConstants",
+      "marker": "BROWSER_USE_ACCESS_PIPE_PATH",
+      "characterOffset": 1270,
+      "line": 1,
+      "finding": "Browser access configuration keys are defined in the packaged shared protocol."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "generateKeyPairSync)(\"ed25519\")",
+      "characterOffset": 4757819,
+      "line": 1587,
+      "finding": "Desktop startup owns the access-host signing keypair."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "process.env[et.$Q0]=tw.verifyingIdentity",
+      "characterOffset": 4762724,
+      "line": 1587,
+      "finding": "Desktop startup publishes host connection/public verifier internally."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "function ld(){",
+      "characterOffset": 536057,
+      "line": 104,
+      "finding": "Packaged macOS host uses the native socket-peer authorizer; native policy not fully audited."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "class xF{executors=new Map;threadSessions=new Map;pending=new Map;",
+      "characterOffset": 1795980,
+      "line": 785,
+      "finding": "Desktop-owned lifecycle registry maps sessions to executors."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "async readLocalWorkBrowserAccess",
+      "characterOffset": 4481021,
+      "line": 1466,
+      "finding": "Access decision consults principal/executor/Work state."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "requestDynamicToolsForThreadStart(e,t=\"default\",r)",
+      "characterOffset": 2939732,
+      "line": 1177,
+      "finding": "Dynamic desktop tool catalog depends on an available app renderer."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "async getOrCreateDesktopSession()",
+      "characterOffset": 4205953,
+      "line": 1437,
+      "finding": "SSH transport provisions a scoped desktop MCP forwarding session."
+    },
+    {
+      "artifact": "desktopMain",
+      "marker": "http_headers:{Authorization:`Bearer ${n.bearerToken}`}",
+      "characterOffset": 4210513,
+      "line": 1438,
+      "finding": "Remote desktop-tools configuration carries a per-endpoint credential; no live value read or used."
+    },
+    {
+      "artifact": "appToolsServer",
+      "marker": "function createCodexAppToolsMcpServer",
+      "characterOffset": 1366182,
+      "line": 34555,
+      "finding": "Packaged stdio MCP adapter forwards catalog/calls/cancellation to the desktop host."
+    },
+    {
+      "artifact": "appToolsServer",
+      "marker": "Codex app tools require thread metadata from the executor.",
+      "characterOffset": 1367835,
+      "line": 34606,
+      "finding": "Delegation adapter requires caller context and does not solve external host provisioning."
+    },
+    {
+      "artifact": "desktopRenderer",
+      "marker": "Create a separate task only when the user explicitly asks for a new task.",
+      "characterOffset": 1697297,
+      "line": 73,
+      "finding": "Packaged desktop task tool exposes project/projectless/worktree targets; no task created in this follow-up."
+    },
+    {
+      "artifact": "browserService",
+      "marker": "Cannot verify browser access without the current turn",
+      "characterOffset": 2003163,
+      "line": 9575,
+      "finding": "Specialized browser requires current session/turn metadata."
+    },
+    {
+      "artifact": "browserService",
+      "marker": "Cannot authenticate the browser access response",
+      "characterOffset": 2003896,
+      "line": 9575,
+      "finding": "Browser service checks signature and exact request-bound allowed response."
+    },
+    {
+      "artifact": "cliMcpHandler",
+      "marker": "let meta = with_mcp_tool_call_thread_id_meta(params.meta, &thread_id);",
+      "characterOffset": 30511,
+      "line": 747,
+      "finding": "Direct App Server tool invocation adds thread metadata; it does not create a model turn."
+    },
+    {
+      "artifact": "cliThread",
+      "marker": "pub async fn call_mcp_tool(",
+      "characterOffset": 52873,
+      "line": 1351,
+      "finding": "Thread facade forwards direct call to latest MCP runtime with supplied metadata."
+    },
+    {
+      "artifact": "cliMcpRuntime",
+      "marker": "pub async fn latest_call_tool(",
+      "characterOffset": 29012,
+      "line": 771,
+      "finding": "Host-call dispatch uses live MCP connections without constructing model-turn metadata."
+    },
+    {
+      "artifact": "cliMcpConnection",
+      "marker": "Direct callers cannot supply host-owned entitlement metadata",
+      "characterOffset": 59857,
+      "line": 1372,
+      "finding": "Direct-call path strips host-owned entitlement metadata and forwards through connection policy handling."
+    },
+    {
+      "artifact": "cliMcpFixtureTest",
+      "marker": "async fn mcp_server_tool_call_returns_tool_result()",
+      "characterOffset": 4496,
+      "line": 105,
+      "finding": "Public test covers generic direct MCP return values/thread ID; reviewed, not executed."
+    }
+  ],
+  "protocolInventory": {
+    "clientMethodCount": 106,
+    "containsGenericMcpToolCall": true,
+    "containsDesktopReadMcpConfig": false,
+    "containsBrowserNamedMethod": false,
+    "negativeFindingScope": "Installed CLI-generated ClientRequest schema; not proof no other private interface exists."
+  },
+  "conclusions": [
+    "Desktop per-task configuration generation, rather than ordinary App Server initialization, injects the missing browser host connection and executor context.",
+    "Generic MCP calls are documented but do not themselves bootstrap desktop browser authority or create current-turn context.",
+    "Packaged desktop-task delegation and an SSH-forwarded desktop MCP bridge are concrete existing interfaces; independent local companion enrollment remains unqualified.",
+    "Next narrow behavioral test is programmatic desktop-created fixture-task dispatch, with actual browser actions/events/observation. It is distinct from direct model-free Pi control.",
+    "Do not build a replica of desktop configuration/authentication/lifecycle services merely to turn this source finding into a dependency."
+  ],
+  "notEstablished": [
+    "external access to desktop readMcpConfig",
+    "outside-companion desktop task dispatch",
+    "programmatically delegated fixture success",
+    "browser calls through generic mcpServer/tool/call",
+    "independent Pi browser control",
+    "native peer authorization policy",
+    "cold-start or desktop-restart recovery",
+    "concurrent browser owners",
+    "Locked Use",
+    "Vision streaming"
+  ],
+  "artifacts": [
+    {
+      "id": "desktopMain",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/early-bootstrap-815-e030c49be4b9c405.js",
+      "bytes": 5954967,
+      "sha256": "67c10f58239453fba595f83917fda3756ac2f40ef87fe5f70dd143d4ecef6ad1"
+    },
+    {
+      "id": "desktopConstants",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/early-bootstrap-339-cb7e73ca5a71df7c.js",
+      "bytes": 1360212,
+      "sha256": "2dd5cefc9452ffdce9b41e7e8463204b444202d7821b049b71dd6f3ac22783de"
+    },
+    {
+      "id": "desktopRenderer",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/182735.7f13786b92.js",
+      "bytes": 8273615,
+      "sha256": "119afcc814fe83e733d5b494d3201afe203c51b8d059998b2a8dbf3ed03ccd85"
+    },
+    {
+      "id": "browserService",
+      "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/browser-desktop/scripts/browser-service.mjs",
+      "bytes": 2131481,
+      "sha256": "7d3557cf45c21d2416fd706d853b953fde355aedccfa8af398979cb4524ae02d"
+    },
+    {
+      "id": "appToolsServer",
+      "path": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/codex-app-tools/26.1103.60933/server.mjs",
+      "bytes": 1378983,
+      "sha256": "f0f5230dd7701317bc9dafb589901eb24fc504d9b92520169e934278ed5a82e8"
+    },
+    {
+      "id": "appServerClientSchema",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-schema/ClientRequest.json",
+      "bytes": 218531,
+      "sha256": "94074a415950787a25e09ae3b4d9de312cc264eb0f021633dfca921d300cd42a"
+    },
+    {
+      "id": "appServerToolCallSchema",
+      "path": "experiments/codex-runtime-probe/build/browser-discovery/26.1103.60933/app-server-schema/v2/McpServerToolCallParams.json",
+      "bytes": 380,
+      "sha256": "7039a7583a1cbf38e9e0f5fe6398ff3711acd4d654b81b0be562514087fce6ba"
+    },
+    {
+      "id": "codexAppHelp",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/codex-app-help.txt",
+      "bytes": 1070,
+      "sha256": "af5513d883e7087d5606a071b92ce3c482920a82bfce548a0c2c703730cc8e94"
+    },
+    {
+      "id": "cliMcpHandler",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/cli/codex-rs/app-server/src/request_processors/mcp_processor.rs",
+      "bytes": 32169,
+      "sha256": "9a494039132ea55658cacb09aaea65e5225a7d7146b0d9530a8eb89eef8aab86",
+      "sourceUrl": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server/src/request_processors/mcp_processor.rs"
+    },
+    {
+      "id": "cliThread",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/cli/codex-rs/core/src/codex_thread.rs",
+      "bytes": 55153,
+      "sha256": "4049c4cf401d90720a0dd336337f6a85dd9630914d052778dc65852076ce26d6",
+      "sourceUrl": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/core/src/codex_thread.rs"
+    },
+    {
+      "id": "cliMcpRuntime",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/cli/codex-rs/codex-mcp/src/runtime.rs",
+      "bytes": 58108,
+      "sha256": "1f9a71206ccb016d6ef70450ceca09bf449da1c1ed7b869013f17b636ce930b4",
+      "sourceUrl": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/runtime.rs"
+    },
+    {
+      "id": "cliMcpConnection",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/cli/codex-rs/codex-mcp/src/connection_manager.rs",
+      "bytes": 62979,
+      "sha256": "968b726959997b7fe8b89612bf31e4a7fc901e5bc0a4ff4dedf9de4c6f8b03fd",
+      "sourceUrl": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/codex-mcp/src/connection_manager.rs"
+    },
+    {
+      "id": "cliMcpFixtureTest",
+      "path": "experiments/codex-runtime-probe/build/browser-host-inspection/26.1103.60933/cli/codex-rs/app-server/tests/suite/v2/mcp_tool.rs",
+      "bytes": 60781,
+      "sha256": "75bcd6b6cb386da216db2a85337ce9536783c1f4149f76442a0158324f6c3df7",
+      "sourceUrl": "https://github.com/openai/codex/blob/086ccc833bc9cf01024ad2dd6af7dbd421b6bf9a/codex-rs/app-server/tests/suite/v2/mcp_tool.rs"
+    }
+  ],
+  "references": [
+    "https://learn.chatgpt.com/docs/app-server#initialization",
+    "https://learn.chatgpt.com/docs/app-server#api-overview",
+    "https://learn.chatgpt.com/docs/developer-commands#codex-app",
+    "https://learn.chatgpt.com/docs/browser"
+  ],
+  "validationScope": "Artifact hashes, exact source markers, generated protocol inventory, extracted ASAR entry equality, Markdown links/anchors/fences and whitespace. Public Rust tests were read only; production/device suites not rerun."
+}
