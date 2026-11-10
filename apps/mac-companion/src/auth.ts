@@ -12,6 +12,9 @@ const publicPaths = new Set([
   "/favicon.png",
   "/harness.js",
   "/harness.css",
+  "/report-bug",
+  "/bug-report.js",
+  "/bug-report.css",
   "/terminal.js",
   "/terminal.css",
 ]);

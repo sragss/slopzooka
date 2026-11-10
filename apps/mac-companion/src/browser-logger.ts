@@ -42,7 +42,7 @@ export const browserLog = eventLogger(
 );
 const log = browserLog("diagnostics");
 
-async function flush() {
+export async function flushBrowserLogs() {
   if (sending || !queue.length) return;
   sending = true;
   try {
@@ -77,8 +77,8 @@ async function flush() {
     sending = false;
   }
 }
-setInterval(() => void flush(), 2000);
-window.addEventListener("online", () => void flush());
+setInterval(() => void flushBrowserLogs(), 2000);
+window.addEventListener("online", () => void flushBrowserLogs());
 window.addEventListener("error", (event) =>
   browserLog("browser").error("browser.error", {
     error: event.error ?? event.message,

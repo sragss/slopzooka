@@ -96,6 +96,17 @@ writers begin fresh segments after startup or write failure, reserve a whole
 segment’s capacity, and prune only when opening a segment. The native file actor
 serializes disk work off the main actor. Logs always belong to `SLOPZOOKA_HOME/logs`.
 
+The headset bug reporter is a native voice composer using the shared microphone
+controller. Pauses preserve its draft; review and public submission are separate
+explicit actions. Keep the public projection in `bug-report-draft.ts` explicit:
+user text, incident time, report ID, and validated build/runtime fingerprints.
+Never serialize a capture wholesale into an issue URL or body. Paired native
+requests prepare a bounded, expiring draft; submission references exactly that
+draft and caches the result to avoid retrying uncertain GitHub writes. GitHub
+credentials stay on the Mac. The desktop browser flow uses GitHub’s composer;
+`bug-report.ts` saves/links the authenticated local snapshot. Neither flow uploads
+logs. Test with fake GitHub writers; never create real issues in regression checks.
+
 ## Verify
 
 From the repository root:
@@ -147,4 +158,5 @@ Simulator compilation and macOS state tests do not establish device behavior. Be
 - Dictate across pauses, repeated sends, and the 50-second recognition handoff (including any clipped words); switch terminals; deny permission; interrupt the connection during send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
 - Open Next.js/Vite apps with HMR, authentication, and cross-service requests. Validate LAN certificate trust and framework origin policies.
 - Put two terminals on opposite sides of the room; emit `printf '\a'` in each. Check that each chime comes from its own window, its orange border clears when selected, and reconnect/reload does not repeat the sound. Repeat while dictating.
+- In the terminal’s **…** popover, gaze at each row and zoom button, then pinch near its center and edges. Check that highlights stay on one rounded target and neighboring actions do not fire. Open **Report a Bug**, verify voice starts after the popover closes, and cancel without publishing. Repeat in immersive mode and with a disconnected terminal; a terminal on another accepted Mac must capture from its own Mac.
 - Check physical wrist tracking and comfort in immersive mode.

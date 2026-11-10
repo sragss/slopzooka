@@ -2,7 +2,7 @@ import { build, context } from "esbuild";
 import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 
-const options = ["harness", "terminal"].map((name) => ({
+const options = ["harness", "terminal", "bug-report"].map((name) => ({
   entryPoints: [`src/${name}.ts`],
   bundle: true,
   format: "esm",

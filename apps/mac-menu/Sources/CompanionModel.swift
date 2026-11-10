@@ -255,14 +255,19 @@ final class CompanionModel: ObservableObject {
         let requestId: String
         let url: String
     }
-    func openDashboard() {
+    func reportBug() {
+        if ready { openDashboard(reportBug: true) }
+        else { NSWorkspace.shared.open(URL(string: "https://github.com/sragss/slopzooka/issues/new")!) }
+    }
+    func openDashboard(reportBug: Bool = false) {
         guard ready, !openingDashboard, let input else { return }
         dashboardError = nil
         let requestId = UUID().uuidString
         dashboardRequest = requestId
         openingDashboard = true
         do {
-            var data = try JSONSerialization.data(withJSONObject: ["type": "open-dashboard", "requestId": requestId])
+            let command: [String: Any] = ["type": "open-dashboard", "requestId": requestId, "reportBug": reportBug]
+            var data = try JSONSerialization.data(withJSONObject: command)
             data.append(10)
             try input.fileHandleForWriting.write(contentsOf: data)
             dashboardDeadline = Task { [weak self] in

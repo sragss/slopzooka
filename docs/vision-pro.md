@@ -72,6 +72,10 @@ Listening never restores on launch. Losing the connection or scene activity paus
 
 ## Terminal lifecycle
 
+The terminal’s **…** popover uses separate rounded action rows and circular zoom
+buttons, with space between their gaze targets. **Report a Bug** opens a native
+voice sheet after the popover closes, including while the terminal is disconnected.
+
 - A workspace is a git worktree. Each workspace can have multiple independent terminal sessions.
 - Opening a session attaches a viewer. Closing a window or losing the network detaches it without killing the process.
 - Sessions reappear in the launcher after restarting the headset app. Reopening restores the current screen, including the alternate screen used by TUIs.
@@ -102,3 +106,19 @@ retention and capturing raw evidence from `SLOPZOOKA_HOME/logs` before logs rota
 is an anchor for future bug-report tooling; capture does not filter device events
 by it. Only the debug panel observes the shared recent-entry ring, so transport
 and outbox state do not invalidate terminal views.
+
+In a terminal’s **… → Report a Bug**, a native sheet starts listening with the same
+microphone orb used by terminal dictation and title renaming. Pauses keep your
+draft. Tap the orb to pause and edit, or **Review Public Report** to finish
+transcription and inspect the exact public text. An existing unsent terminal
+voice draft is paused and preserved; finish/discard it before dictating the
+report, or type the report instead. Denied microphone permission still allows typing.
+
+The terminal’s Mac saves a diagnostic snapshot after the headset attempts to flush
+its outbox. Logs stay local. **Create Public Issue** posts to `sragss/slopzooka`
+using the Mac’s GitHub credentials, showing the account before submission. Nothing
+is published on a pause or when opening the sheet. If credentials or the Mac are
+unavailable, **Review on GitHub** opens your prepared public draft in the browser.
+After an uncertain submission, check existing issues before using that fallback
+to avoid duplicates. See [bug reports](mac-companion.md#bug-reports) for privacy,
+local snapshot access, and retention.

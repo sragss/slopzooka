@@ -80,6 +80,7 @@ struct CompanionPanel: View {
                     Button("Restart Session Service…") { model.manageSessionService(restart: true) }.disabled(!model.ready || model.serviceBusy)
                     Button("End All Sessions and Stop Service…") { model.manageSessionService(restart: false) }.disabled(!model.ready || model.serviceBusy)
                     Divider()
+                    Button("Report a Bug…") { model.reportBug() }.disabled(model.openingDashboard)
                     Button("View Logs…") { model.showLogs() }
                     Button("Login Settings…") { SMAppService.openSystemSettingsLoginItems() }
                 } label: {

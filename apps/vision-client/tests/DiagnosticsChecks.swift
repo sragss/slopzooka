@@ -135,6 +135,45 @@ struct DiagnosticsChecks {
         precondition(cancelledEvents.contains { $0["event"] as? String == "http.cancelled" })
         precondition(!cancelledEvents.contains { ["warn", "error"].contains($0["level"] as? String ?? "") }, "Ordinary cancellation is control flow, not an application error")
 
+        let reportCredentials = testCredentials()
+        let reportBase = URL(string: "http://report.invalid:7777")!
+        try reportCredentials.pair(reportBase, hostID: "report-host", token: "report-native-token")
+        let around = "2026-11-10T12:00:00Z"
+        var reportRequests: [URLRequest] = []
+        var issueURL = "https://github.com/sragss/slopzooka/issues/123"
+        let reporter = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: reportCredentials, diagnostics: NativeDiagnostics()) { request in
+            precondition(request.httpMethod == "POST")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer report-native-token")
+            reportRequests.append(request)
+            switch request.url!.path {
+            case "/api/diagnostics/capture": return try json(["reportId": "local-report"], for: request)
+            case "/api/diagnostics/bug-report/prepare":
+                return try json(["draftId": "reviewed-draft", "body": "Only public text", "account": "test-user", "browserURL": "https://github.com/sragss/slopzooka/issues/new?title=Bug"], for: request)
+            case "/api/diagnostics/bug-report/submit": return try json(["url": issueURL], for: request)
+            default: preconditionFailure("Unexpected report request")
+            }
+        }
+        try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+        let reportID = try await reporter.captureBugReport(hostID: "report-host", around: around)
+        precondition(reportID == "local-report")
+        let draft = try await reporter.prepareBugReport(hostID: "report-host", title: "Preview broke", description: "After reconnecting", around: around, reportID: reportID)
+        precondition(draft.account == "test-user" && draft.body == "Only public text")
+        let preparedBody = try JSONSerialization.jsonObject(with: reportRequests.last!.httpBody!) as! [String: String]
+        precondition(preparedBody == ["title": "Preview broke", "description": "After reconnecting", "around": around, "reportId": "local-report"])
+        let submitted = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!)
+        precondition(submitted.absoluteString == issueURL)
+        let submittedBody = try JSONSerialization.jsonObject(with: reportRequests.last!.httpBody!) as! [String: String]
+        precondition(submittedBody == ["draftId": "reviewed-draft"], "Submit references exactly the reviewed public projection")
+        issueURL = "https://other.invalid/sragss/slopzooka/issues/123"
+        do { _ = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!); preconditionFailure("Reject an untrusted issue destination") }
+        catch { precondition((error as? URLError)?.code == .badURL) }
+        let offline = BugReportDraft.offline(title: "Offline bug", description: "C++ still held", around: around)
+        precondition(offline.account == nil && offline.draftId == nil && offline.browserURL!.host == "github.com")
+        precondition(offline.browserURL!.absoluteString.contains("C%2B%2B"), "Browser form decoding must preserve literal plus signs")
+        precondition(!BugReportDraft.isComposer(URL(string: "https://github.com/other/issues/new")!))
+        precondition(!BugReportDraft.isComposer(URL(string: "https://user:secret@github.com/sragss/slopzooka/issues/new")!))
+        print("PASS: native reporting keeps host authentication, reviewed draft identity, and fixed GitHub destinations")
+
         let menu = NativeDiagnostics()
         menu.enableMacLogging()
         let root = menu.logDirectory!
