@@ -9,6 +9,8 @@ import { promisify } from "node:util";
 import type { Logger } from "./logger.js";
 import type { RecentRepo } from "./github.js";
 import type { TuiProfile } from "../../../packages/protocol/src/index.js";
+import type { SessionSummary } from "../../../packages/protocol/src/index.js";
+import { normalizedName } from "./names.js";
 
 const execFileAsync = promisify(execFile);
 const SLOPZOOKA_HOME =
@@ -44,6 +46,8 @@ export type WorkspacePaths = {
 
 export type WorkspaceRecord = {
   workspaceId: string;
+  name?: string;
+  windowNames?: Record<string, string>;
   repo: RecentRepo;
   profile: TuiProfile | null;
   localCheckoutPath: string;
@@ -69,6 +73,51 @@ function mutate<T>(operation: () => Promise<T>): Promise<T> {
 
 export class WorkspaceService {
   constructor(private readonly logger: Logger) {}
+
+  renameWorkspace(
+    workspaceId: string,
+    name: unknown,
+  ): Promise<WorkspaceSummary> {
+    const normalized = normalizedName(name);
+    return mutate(async () => {
+      const record = await this.requireWorkspace(workspaceId);
+      await upsertWorkspaceRecord({ ...record, name: normalized });
+      return this.getWorkspace(workspaceId);
+    });
+  }
+
+  // Durable labels are workspace metadata, independent of PTY and viewer lifetime.
+  // Backfill older service sessions in creation order without restarting the service.
+  describeSessions(sessions: SessionSummary[]): Promise<SessionSummary[]> {
+    return mutate(async () => {
+      const records = await readWorkspaceIndex();
+      let changed = false;
+      const result = sessions.map((session) => {
+        const record = records.find(
+          (record) => record.workspaceId === session.workspaceId,
+        );
+        if (!record) return session;
+        const names: Record<string, string> = (record.windowNames =
+          Object.assign(Object.create(null), record.windowNames));
+        if (!names[session.id]) {
+          const tool = session.profile ?? "terminal";
+          const used = new Set(Object.values(names));
+          let ordinal = 1;
+          while (used.has(tool + (ordinal === 1 ? "" : ordinal))) ordinal += 1;
+          names[session.id] = tool + (ordinal === 1 ? "" : ordinal);
+          changed = true;
+        }
+        return {
+          ...session,
+          title: names[session.id]!,
+          projectName: record.repo.name,
+          workspaceName: workspaceName(record),
+        };
+      });
+      if (changed) await writeWorkspaceIndex(records);
+      return result;
+    });
+  }
 
   launchWorkspace(
     input: LaunchWorkspaceRequest,
@@ -161,6 +210,7 @@ export class WorkspaceService {
     return Promise.all(
       limited.map(async (record) => ({
         ...record,
+        name: workspaceName(record),
         existsOnDisk: await pathExists(record.worktreePath),
       })),
     );
@@ -278,6 +328,7 @@ export class WorkspaceService {
     const record = await this.requireWorkspace(workspaceId);
     return {
       ...record,
+      name: workspaceName(record),
       existsOnDisk: await pathExists(record.worktreePath),
     };
   }
@@ -295,6 +346,31 @@ export class WorkspaceService {
 
     return record;
   }
+}
+
+function workspaceName(record: WorkspaceRecord): string {
+  if (record.name) return record.name;
+  const date = new Date(record.createdAt);
+  if (Number.isNaN(date.getTime())) return record.branchName.toLowerCase();
+  const month = [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec",
+  ][date.getUTCMonth()];
+  const stamp = record.createdAt
+    .slice(8, 16)
+    .replace("T", "-")
+    .replace(":", "");
+  return `${month}-${stamp}`.toLowerCase();
 }
 
 export function workspacePaths(): WorkspacePaths {

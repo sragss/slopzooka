@@ -54,6 +54,28 @@ window.runKeyboardChecks = async () => {
       input.dispatchEvent(new KeyboardEvent('keyup', options));
       check([expected], key + ' in inputmode=' + mode);
     }
+    for (const keyCode of [0, 229, 67]) {
+      const options = {key: 'c', code: 'KeyC', keyCode, which: keyCode, ctrlKey: true, bubbles: true, cancelable: true};
+      input.dispatchEvent(new KeyboardEvent('keydown', options));
+      input.dispatchEvent(new KeyboardEvent('keyup', options));
+      check(['\\x03'], 'Control-C with keyCode=' + keyCode + ' in inputmode=' + mode);
+    }
+    for (const keyCode of [0, 229]) {
+      for (let code = 65; code <= 90; code++) {
+        for (const key of [String.fromCharCode(code).toLowerCase(), String.fromCharCode(code)]) {
+          const options = {key, code: 'Key' + String.fromCharCode(code), keyCode, which: keyCode, ctrlKey: true, bubbles: true, cancelable: true};
+          input.dispatchEvent(new KeyboardEvent('keydown', options));
+          input.dispatchEvent(new KeyboardEvent('keyup', options));
+          check([String.fromCharCode(code - 64)], 'Control-' + key + ' keyCode=' + keyCode + ' in inputmode=' + mode);
+        }
+      }
+      input.dispatchEvent(new KeyboardEvent('keydown', {key: String.fromCharCode(3), code: 'KeyC', keyCode, ctrlKey: true, bubbles: true, cancelable: true}));
+      check(['\\x03'], 'Control character key must retain its physical Control-C code');
+      for (const extra of [{isComposing: true}, {metaKey: true}, {altKey: true}, {shiftKey: true}]) {
+        input.dispatchEvent(new KeyboardEvent('keydown', {key: 'c', code: 'KeyC', keyCode, ctrlKey: true, bubbles: true, cancelable: true, ...extra}));
+        check([], 'Composition and additional modifiers must not become plain Control-C');
+      }
+    }
     for (const [direction, suffix] of [['Up', 'A'], ['Down', 'B'], ['Right', 'C'], ['Left', 'D']]) {
       for (const key of ['UIKeyInput' + direction + 'Arrow', 'Arrow' + direction]) {
         for (const keyCode of [0, 229]) {
@@ -213,7 +235,7 @@ window.runViewportChecks = async () => {
   hardwareKey('a', 'KeyA', 65);
   hardwareKey('ArrowLeft', 'ArrowLeft', 37);
   hardwareKey('Enter', 'Enter', 13);
-  hardwareKey('c', 'KeyC', 67, {ctrlKey: true});
+  hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03'], 'Hardware text, arrows, Return, and Ctrl+C must reach the PTY without requesting software UI');
   window.slzFocusTerminal(true);
   check(isFocused() && terminal.textarea.inputMode === 'text', 'The Keyboard button must request software UI while keeping input focused');
@@ -270,7 +292,8 @@ window.runViewportChecks = async () => {
   await until(() => !button.hidden);
   const beforeReadOnlyShortcut = inputs().length;
   hardwareKey('UIKeyInputUpArrow', '', 0, {altKey: true});
-  check(inputs().length === beforeReadOnlyShortcut, 'Normalized arrow shortcuts must respect read-only ownership');
+  hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
+  check(inputs().length === beforeReadOnlyShortcut, 'Normalized arrow and Control shortcuts must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
   document.documentElement.dataset.nativeTerminal = 'true';

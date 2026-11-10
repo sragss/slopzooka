@@ -130,7 +130,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         focusGeneration += 1
         pendingFocus = isActive ? false : nil
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
-        webView.load(CompanionAPI.authorized(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)))
+        webView.load(CompanionClient.authorized(URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData)))
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, message.webView === webView else { return }
@@ -201,7 +201,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         // Restore physical typing without replaying an old software-keyboard request.
         pendingFocus = isActive ? false : nil
         loadState.wrappedValue = .loading("Reconnecting")
-        webView.load(CompanionAPI.authorized(URLRequest(url: requestedURL)))
+        webView.load(CompanionClient.authorized(URLRequest(url: requestedURL)))
     }
     func webView(
         _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,

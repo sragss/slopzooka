@@ -38,7 +38,7 @@ private struct SceneActions: ViewModifier {
         content
             .environmentObject(windows)
             .environmentObject(windows.launcher)
-            .environmentObject(windows.discovery)
+            .environmentObject(windows.client)
             .environmentObject(windows.immersiveWorkspace)
             .onAppear { update(); windows.start() }
             .onChange(of: phase) { _, _ in update() }
@@ -142,10 +142,12 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
         let windows = WindowGateway()
         self.windows = windows
         voice = TerminalVoiceController(capture: SpeechCaptureController(),
-            isAvailable: { [weak windows] in windows?.canReceiveVoice($0) == true },
-            rename: { [weak windows] id, name in
+            isAvailable: { [weak windows] id, mode in
+                mode == .rename ? windows?.canRename(id) == true : windows?.canReceiveVoice(id) == true
+            },
+            rename: { [weak windows] id, name, target in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
-                try await windows.rename(id: id, name: name)
+                try await windows.rename(id: id, name: name, target: target)
             },
             deliver: { [weak windows] command in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }

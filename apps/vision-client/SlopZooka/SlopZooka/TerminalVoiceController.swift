@@ -37,6 +37,8 @@ enum WindowName {
 @MainActor
 final class TerminalVoiceController: ObservableObject {
     enum Mode { case dictation, conversation, rename }
+    enum NameTarget: String { case window, workspace }
+    @Published private(set) var renameTarget: NameTarget = .window
 
     @Published var conversationEnabled: Bool {
         didSet {
@@ -54,9 +56,9 @@ final class TerminalVoiceController: ObservableObject {
 
     private let defaults: UserDefaults
     private let capture: any SpeechCapturing
-    private let isAvailable: (String) -> Bool
+    private let availability: (String, Mode) -> Bool
     private let deliver: (TerminalVoiceCommand) async throws -> Void
-    private let rename: (String, String) async throws -> Void
+    private let rename: (String, String, NameTarget) async throws -> Void
     private var committedText = ""
     private var pendingCommand: TerminalVoiceCommand?
     private var captureTask: Task<Void, Never>?
@@ -65,17 +67,22 @@ final class TerminalVoiceController: ObservableObject {
     private var isSuspended = false
 
     init(capture: any SpeechCapturing, defaults: UserDefaults = .standard,
-        isAvailable: @escaping (String) -> Bool,
-        rename: @escaping (String, String) async throws -> Void,
+        isAvailable: @escaping (String, Mode) -> Bool,
+        rename: @escaping (String, String, NameTarget) async throws -> Void,
         deliver: @escaping (TerminalVoiceCommand) async throws -> Void) {
         self.capture = capture
         self.defaults = defaults
-        self.isAvailable = isAvailable
+        self.availability = isAvailable
         self.deliver = deliver
         self.rename = rename
         conversationEnabled = defaults.bool(forKey: "conversationVoiceEnabled")
         capture.onUpdate = { [weak self] in self?.captureUpdated() }
         capture.onFinished = { [weak self] in self?.captureFinished() }
+    }
+
+    private func isAvailable(_ id: String) -> Bool {
+        guard let mode else { return false }
+        return availability(id, mode)
     }
 
     var hasText: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -91,7 +98,7 @@ final class TerminalVoiceController: ObservableObject {
         case .preparing: return "Preparing microphone…"
         case .finishing: return "Finishing transcription…"
         case .listening:
-            if mode == .rename { return "Say a window name · Pause to save" }
+            if mode == .rename { return "Say a \(renameTarget.rawValue) name · Pause to save" }
             return mode == .dictation ? "Pause briefly to send" : "Listening · Tap Send when ready"
         case let .failed(message), let .unavailable(message): return message
         case .idle:
@@ -106,19 +113,20 @@ final class TerminalVoiceController: ObservableObject {
         activate(id, mode: conversationEnabled ? .conversation : .dictation)
     }
 
-    func activateRename(_ id: String) {
-        activate(id, mode: .rename)
+    func activateRename(_ id: String, target: NameTarget = .window) {
+        activate(id, mode: .rename, nameTarget: target)
     }
 
-    private func activate(_ id: String, mode requestedMode: Mode) {
-        guard !isSubmitting, isAvailable(id) else { return }
-        if mode == requestedMode && targetID == id { stop(); return }
+    private func activate(_ id: String, mode requestedMode: Mode, nameTarget: NameTarget = .window) {
+        guard !isSubmitting, availability(id, requestedMode) else { return }
+        if mode == requestedMode && targetID == id && renameTarget == nameTarget { stop(); return }
         guard !hasText && pendingCommand == nil else {
             error = "Send, save, or discard the current draft before switching voice input."
             return
         }
         stop()
         mode = requestedMode
+        renameTarget = nameTarget
         targetID = id
         startCapture()
     }
@@ -235,7 +243,7 @@ final class TerminalVoiceController: ObservableObject {
             Task { [weak self] in
                 guard let self, self.generation == token else { return }
                 do {
-                    try await self.rename(id, name)
+                    try await self.rename(id, name, self.renameTarget)
                     guard self.generation == token else { return }
                     self.stop()
                 } catch {

@@ -163,7 +163,7 @@ app.get("/api/sessions", async (_req, res) => {
   try {
     const info = await sessionService.info();
     res.json({
-      sessions: info.sessions,
+      sessions: await workspaceService.describeSessions(info.sessions),
       companionInstanceId,
       serviceInstanceId: info.instanceId,
     });
@@ -198,7 +198,12 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
         ),
       ),
     });
-    res.status(201).json({ session });
+    const sessions = await workspaceService.describeSessions(
+      (await sessionService.info()).sessions,
+    );
+    res.status(201).json({
+      session: sessions.find((candidate) => candidate.id === session.id),
+    });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not create session");
   }
@@ -211,7 +216,8 @@ app.patch("/api/sessions/:sessionId", async (req, res) => {
       req.params.sessionId,
       req.body?.name,
     );
-    res.json({ session });
+    const [described] = await workspaceService.describeSessions([session]);
+    res.json({ session: described });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not rename session");
   }
@@ -378,6 +384,18 @@ app.post("/api/repos/create-and-launch", async (req, res) => {
       error: error instanceof Error ? error.message : String(error),
     });
     sendWorkspaceError(res, error, "Failed to create and launch repository.");
+  }
+});
+
+app.patch("/api/workspaces/:workspaceId", async (req, res) => {
+  try {
+    const workspace = await workspaceService.renameWorkspace(
+      req.params.workspaceId,
+      req.body?.name,
+    );
+    res.json({ workspace });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not rename workspace");
   }
 });
 

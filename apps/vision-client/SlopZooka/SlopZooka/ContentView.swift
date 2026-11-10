@@ -5,6 +5,7 @@ struct ContentView: View {
 
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var state: LauncherState
+    @EnvironmentObject private var client: CompanionClient
     @AppStorage("launcherSection") private var section: LauncherSection = .projects
     private enum Sheet: String, Identifiable {
         case settings, newRepo
@@ -17,7 +18,7 @@ struct ContentView: View {
     var body: some View {
         VStack(spacing: 16) {
             launcherHeader
-            if state.isReady {
+            if client.isReady {
                 HStack(spacing: 4) {
                     ForEach(LauncherSection.allCases) { item in
                         Button { section = item } label: {
@@ -83,9 +84,9 @@ struct ContentView: View {
             Text("SlopZooka").font(.title2.weight(.semibold))
             Spacer()
             Image(systemName: "desktopcomputer")
-                .foregroundStyle(state.isReady ? Color.green : Color.secondary)
-                .accessibilityLabel(state.isReady ? "Mac connected" : "Mac disconnected")
-                .help(state.isReady ? "Mac connected" : "Mac disconnected")
+                .foregroundStyle(client.isReady ? Color.green : Color.secondary)
+                .accessibilityLabel(client.isReady ? "Mac connected" : "Mac disconnected")
+                .help(client.isReady ? "Mac connected" : "Mac disconnected")
             Button { activeSheet = .settings } label: {
                 Image(systemName: "gearshape")
                     .frame(width: 44, height: 44)
@@ -103,7 +104,7 @@ struct ContentView: View {
             if let error = windows.persistenceError {
                 Text(error).font(.footnote).foregroundStyle(.orange)
             }
-            if !state.isReady {
+            if !client.isReady {
                 if activeSheet != .settings { MacConnectionView() }
             } else {
                 switch section {
@@ -120,9 +121,8 @@ struct ContentView: View {
                 case .projects:
                     projectsContent
                 case .frontends:
-                    FrontendListView(
-                        frontends: state.frontends, warning: state.frontendWarning,
-                        baseURL: CompanionAPI.baseURL(host: state.normalizedHost))
+                    FrontendListView(hostID: client.current?.id)
+                        .id(client.current?.id)
                 }
             }
         }
@@ -191,6 +191,7 @@ struct ContentView: View {
         return state.recentWorkspaces.filter {
             query.isEmpty || $0.repo.nameWithOwner.localizedCaseInsensitiveContains(query)
                 || $0.branchName.localizedCaseInsensitiveContains(query)
+                || ($0.name?.localizedCaseInsensitiveContains(query) ?? false)
         }
     }
 
@@ -255,7 +256,7 @@ struct ContentView: View {
                             .buttonStyle(.plain)
                             .hoverEffectDisabled()
                             .disabled(
-                                state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                                state.isMutatingWorkspace)
 
                             Menu {
                                 Button(
@@ -274,10 +275,10 @@ struct ContentView: View {
                                     .contentShape(Circle())
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel("Options for \(workspace.repo.nameWithOwner), \(workspace.branchName)")
+                            .accessibilityLabel("Options for \(workspace.repo.nameWithOwner), \(workspace.name ?? workspace.branchName)")
                             .padding(.trailing, 8)
                             .disabled(
-                                state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                                state.isMutatingWorkspace)
                         }
                         .modifier(LauncherRowSurface())
                     }
@@ -316,7 +317,7 @@ struct ContentView: View {
                             }
                             .buttonStyle(.plain)
                             .hoverEffectDisabled()
-                            .disabled(state.busyRepoID != nil || state.busyWorkspaceID != nil || state.isMutatingWorkspace)
+                            .disabled(state.isMutatingWorkspace)
                         }
                         .modifier(LauncherRowSurface())
                     }
