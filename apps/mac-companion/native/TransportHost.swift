@@ -43,8 +43,10 @@ enum TransportHost {
         let parameters = try NativeStream.serverParameters(identity: URL(fileURLWithPath: identityPath))
 
         // CoreWLAN identifies physical Wi-Fi adapters; no en0/awdl0 assumptions.
-        // Exclude them and every non-Wi-Fi type, then independently check each
-        // accepted socket's scoped link-local endpoints before forwarding bytes.
+        // Exclude them, then admit only scoped link-local Wi-Fi peer sockets.
+        // Do not also set requiredInterfaceType = .wifi: with physical
+        // Wi-Fi excluded, that prevented AWDL connections in the device A/B test.
+        // Interface type and scope are still checked on every accepted socket.
         let physical = Set(CWWiFiClient.shared().interfaceNames() ?? [])
         guard !physical.isEmpty else { exit(4) }
         let monitor = NWPathMonitor()
@@ -53,7 +55,6 @@ enum TransportHost {
             guard Set(excluded.map(\.name)) == physical else { return }
             monitor.cancel()
             parameters.includePeerToPeer = true
-            parameters.requiredInterfaceType = .wifi
             parameters.prohibitedInterfaces = excluded
             do {
                 let listener = try StreamListener(parameters: parameters, serviceName: hostID, observe: { observation in

@@ -1,0 +1,394 @@
+{
+  "date": "2026-11-10",
+  "productRevision": "72c7f3e",
+  "testBundle": "com.slopzooka.probe.transport",
+  "rawCapture": {
+    "at": "2026-11-10T20:16:48.910Z",
+    "reportId": "34b4478f-daea-4e5f-ae0b-5d8c7499eb93",
+    "bytes": 697492,
+    "sha256": "cb62e92a63feb262c56352dfcfebfacecfda9f75fcbbe68c22bf19d4e5764147"
+  },
+  "coverage": {
+    "retentionHours": 24,
+    "truncated": false,
+    "unavailable": [
+      "mac-menu"
+    ],
+    "partialSegments": 0,
+    "malformedRecords": 0,
+    "missingBuilds": [],
+    "notes": "Best-effort retained evidence; offline client buffers, forced termination and capacity limits can leave gaps. Clock observations describe upload-time calibration; earlier clock changes are unknown. Events are unsorted and retries may repeat identities."
+  },
+  "flushIncomplete": false,
+  "rawEventCount": 1022,
+  "scope": "Selected metadata only; not a replacement for the private raw diagnostic report.",
+  "timeline": [
+    {
+      "ts": "2026-11-10T20:03:09.163Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "helper.ready",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "helperId": "f5b1a62e-3120-49f5-85c9-ecfacccda62b",
+        "pid": 65544,
+        "durationMs": 99
+      }
+    },
+    {
+      "ts": "2026-11-10T20:07:04.750Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "peer.admitted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "helperId": "f5b1a62e-3120-49f5-85c9-ecfacccda62b",
+        "pid": 65544,
+        "interfaceIndex": "16",
+        "interfaceName": "awdl0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:07:05.511Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "1d2f4125-7b00-414f-891e-922a44dfd9da",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:07:05.512Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "cc2717fc-218d-4b9a-8683-5870bc999806",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:07:05.567Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "1d2f4125-7b00-414f-891e-922a44dfd9da",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:07:05.567Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-b",
+        "connectionId": "cc2717fc-218d-4b9a-8683-5870bc999806",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:09:04.446Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "helper.ready",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "helperId": "ca82c6cb-306b-460c-b89e-d2efbc319270",
+        "pid": 77693,
+        "durationMs": 212
+      }
+    },
+    {
+      "ts": "2026-11-10T20:09:56.042Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "helper.ready",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "helperId": "836af008-7ce3-4f82-862e-e75a44c6c8af",
+        "pid": 78261,
+        "durationMs": 164
+      }
+    },
+    {
+      "ts": "2026-11-10T20:09:58.121Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "peer.admitted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "helperId": "836af008-7ce3-4f82-862e-e75a44c6c8af",
+        "pid": 78261,
+        "interfaceIndex": "16",
+        "interfaceName": "awdl0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:09:58.132Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "3a9e9829-6441-4318-94d6-bc361d9c06b4",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:09:58.191Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "3a9e9829-6441-4318-94d6-bc361d9c06b4",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:13:51.914Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "334a5ad8-0bfb-47d6-a1ff-67d5d019b5a8",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:13:51.918Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-b",
+        "connectionId": "fe9af42e-349a-4bbc-a254-04a3211855e0",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:13:55.606Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-b",
+        "connectionId": "391aed4b-11ef-4da1-a36a-7a23172c939e",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:13:55.606Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "94d49397-ac5e-4b1f-a1ce-ad6cf35d968e",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:02.568Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "968f69d6-823a-4cae-9863-79d5de888201",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:02.615Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "dd5310c8-93a2-4ed0-b7bf-121d815b1b52",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:02.632Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "968f69d6-823a-4cae-9863-79d5de888201",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:02.684Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-b",
+        "connectionId": "dd5310c8-93a2-4ed0-b7bf-121d815b1b52",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:22.026Z",
+      "source": "vision-client",
+      "component": "network",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "connectionMethod": "direct",
+        "paired": "true",
+        "routeRevision": "8E343A10-2B6B-4CE7-91C4-F4903A6172D4"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:22.432Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "b033ae67-2ab4-473e-a67e-aba1d40c35a8",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:22.455Z",
+      "source": "mac-companion",
+      "component": "terminal-relay",
+      "event": "connection.opened",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "connectionId": "81d8f487-9271-4d73-af9a-2e96546178e1",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:22.493Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-a",
+        "connectionId": "b033ae67-2ab4-473e-a67e-aba1d40c35a8",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    },
+    {
+      "ts": "2026-11-10T20:15:22.517Z",
+      "source": "browser",
+      "component": "terminal",
+      "event": "connection.accepted",
+      "fields": {
+        "hostId": "b246c2e5-b1f7-4d74-a06b-632553f8da91",
+        "clientId": "3957e4b0-096a-41d6-8e18-61212be593fd",
+        "sessionId": "transport-b",
+        "connectionId": "81d8f487-9271-4d73-af9a-2e96546178e1",
+        "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0"
+      }
+    }
+  ],
+  "verdicts": [
+    {
+      "at": "2026-11-10T19:59:37.228Z",
+      "phase": "pairing",
+      "result": "Connected after clearing complete code field; test companion received 200"
+    },
+    {
+      "at": "2026-11-10T20:00:56.320Z",
+      "phase": "lan-to-direct",
+      "result": "LAN typing worked; Direct fails"
+    },
+    {
+      "at": "2026-11-10T20:01:49.387Z",
+      "phase": "direct-failure-to-lan",
+      "result": "Both terminals returned"
+    },
+    {
+      "at": "2026-11-10T20:07:32.979Z",
+      "phase": "direct-candidate",
+      "result": "I think it works"
+    },
+    {
+      "at": "2026-11-10T20:11:38.197Z",
+      "phase": "helper-recovery-launcher-closed",
+      "result": "Both recovered and acknowledge typing"
+    },
+    {
+      "at": "2026-11-10T20:14:47.106Z",
+      "phase": "rapid-toggles-preview-close",
+      "result": "Both work; preview stayed closed"
+    },
+    {
+      "at": "2026-11-10T20:16:48.897Z",
+      "phase": "app-restart",
+      "result": "All correct: Direct retained; both terminals usable; preview stayed closed"
+    }
+  ],
+  "finalState": {
+    "at": "2026-11-10T20:16:48.876Z",
+    "serviceInstanceId": "802f9c39-bd2c-4d97-b958-9f66ef4860c0",
+    "sessions": [
+      {
+        "id": "transport-a",
+        "status": "running"
+      },
+      {
+        "id": "transport-b",
+        "status": "running"
+      }
+    ],
+    "layout": {
+      "version": 1,
+      "revision": 2,
+      "windows": [
+        {
+          "id": "transport-a",
+          "kind": "terminal",
+          "targetID": "transport-a"
+        },
+        {
+          "id": "transport-b",
+          "kind": "terminal",
+          "targetID": "transport-b"
+        }
+      ]
+    }
+  },
+  "caveats": [
+    "The helper-restart verdict says both terminals recovered, but the captured relay/browser logs record only transport-a reattaching before the next manual method switch. Both reattach after that switch and after app restart. Do not infer a bounded two-window automatic recovery guarantee.",
+    "No access-point-free startup, sleep/wake, media benchmark, or physical-placement qualification in this pass.",
+    "Post-slot unavailable-preview suppression was tested locally, not on the headset."
+  ]
+}

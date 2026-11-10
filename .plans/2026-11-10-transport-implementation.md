@@ -24,7 +24,7 @@ The Mac helper has no workspace, session, window, or HTTP domain implementation.
 - Switching retires old documents and requests before establishing the new route. Native scenes, Mac PTYs, and desired layouts remain. Late health, catalog, or preview replies cannot reactivate old content. Returning to a supported route resolves existing windows again; closed windows stay closed.
 - Initial pairing still requires a trusted Local Network. An authenticated health response provides the Mac's transport CA, stored by host ID in Keychain. Direct verifies its TLS chain, fixed certificate name, and expiry before forwarding any HTTP credentials. This reuses pairing trust rather than introducing a second enrollment system. Offline first enrollment is explicitly out of this PR.
 - The transport identity has its own private CA directory. The leaf renews before expiry through the same helper recovery path; its public CA remains stable. No system trust-store installation. Memory-only identity import requires macOS 15+; Local Network remains available on the companion's older supported systems.
-- `includePeerToPeer` alone is not sufficient evidence of a direct link. The Mac discovers physical Wi-Fi adapters with CoreWLAN, excludes them from its Wi-Fi-only listener, and checks each accepted socket's actual scoped IPv6 link-local endpoints against the current physical-adapter set. There are no hardcoded `en0`/`awdl0` names. The authenticated listener sends a versioned admission marker only after that check; the client does not forward product traffic before receiving it. Path changes recheck admission.
+- `includePeerToPeer` alone is not sufficient evidence of a direct link. The Mac discovers physical Wi-Fi adapters with CoreWLAN, excludes them from its peer-aware listener, and admits only sockets with a Wi-Fi interface and matching scoped IPv6 link-local endpoints outside that physical-adapter set. The listener must not also set `requiredInterfaceType = .wifi`: that combination prevented AWDL connections in the physical A/B test. There are no hardcoded `en0`/`awdl0` names. The authenticated listener sends a versioned admission marker only after that check; the client does not forward product traffic before receiving it. Path changes recheck admission.
 - Bonjour browsing is bounded and stops before connecting. Unknown versions, absent trust, failed authentication, and an unavailable peer route fail Direct rather than trying LAN or a different Mac.
 
 ## Preview availability
@@ -53,7 +53,9 @@ A broad test run initially exposed an assertion counting unrelated frontend-disc
 
 ## Before moving out of draft
 
-One short physical-device pass, on an isolated companion home:
+The isolated physical-device pass ran on November 10; see [results and evidence limits](2026-11-10-transport-device-results.md). The pass covered the checklist below with the limits in that report. User verdicts passed after correcting the listener restriction, but the helper-recovery log contains only one terminal reattachment before the next manual method switch. Resolve that discrepancy before claiming automatic recovery of every window. Quantitative latency/load and travel qualification remain open.
+
+Original acceptance checklist:
 
 1. Pair over Local Network. Open two existing terminals and a web preview. Verify typing/output through the new adapter.
 2. Select Direct. Confirm the same PTYs survive, both terminals attach once, the preview becomes unavailable in its existing scene, and its Open action/API both reject with the same reason.
@@ -114,5 +116,11 @@ capturing so its queued events can reach the Mac. Use the existing diagnostics
 capture API and report collection, not a transport-specific exporter. Correlate
 host/action/connection IDs and route revisions; `peer.admitted` records the first
 validated scoped link-local Wi-Fi interface per helper lifetime. The physical
-acceptance list above is still pending. No installed app or user session service
-was restarted for these checks.
+pass and its recovery evidence discrepancy are recorded in the [device results](2026-11-10-transport-device-results.md). The normal installed apps and user session service
+were not restarted for these checks.
+
+## Follow-up from physical acceptance
+
+Removed only the Mac listener’s extra Wi-Fi interface-type requirement. Physical-adapter exclusion, TLS authentication, scoped link-local Wi-Fi admission, and path revalidation remain. Fresh original/candidate helper swaps reproduced failure and recovery without changing the session service.
+
+Restored previews now consult the existing server-authored frontend capability before resolving. A known unavailable preview retains its desired window and message without making a failing Open request every session poll. A later available catalog resolves that same preview. This stays inside `WindowGateway`, uses its existing error state for deduplication, and adds no cache, retry subsystem, or persistence schema. Missing capability data still permits normal resolution; an initial request can race catalog loading. This post-slot cleanup is covered by native regression checks, not by the headset verdict.

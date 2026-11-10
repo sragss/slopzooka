@@ -1,5 +1,7 @@
 # Transport device acceptance — operator preparation
 
+Completed November 10, 2026: [results, corrections, and remaining qualifications](2026-11-10-transport-device-results.md). The preparation below records the rig used.
+
 Product revision: `72c7f3e` on `feat/centralized-transport`.
 This pass tests the new LAN/Direct transport and its diagnostics, not video
 streaming or the agent orchestrator. Follow the acceptance list in

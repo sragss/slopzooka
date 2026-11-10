@@ -18,7 +18,7 @@ In **Settings → Connected Mac**, choose **Local Network** (the default) or **D
 
 The choice is remembered for each paired Mac on this headset. A failed Direct connection stays on Direct: use **Try Again** or explicitly choose **Use Local Network**. The app does not silently switch methods. Manual IP/hostname entry belongs to Local Network.
 
-Changing methods reconnects the existing windows while Mac terminals keep running. Web previews show an unavailable placeholder on Direct; their catalog entries remain visible with a reason. Switching back reloads still-open previews and may lose unsaved in-page edits. A preview closed while unavailable stays closed. From a disconnected window, **Open Launcher → Settings → Connected Mac** provides the same recovery controls.
+Changing methods reconnects the existing windows while Mac terminals keep running. Web previews show an unavailable placeholder on Direct; their catalog entries remain visible with a reason. A known unavailable preview waits for a supported connection instead of repeatedly trying to open. Switching back reloads still-open previews and may lose unsaved in-page edits. A preview closed while unavailable stays closed. From a disconnected window, **Open Launcher → Settings → Connected Mac** provides the same recovery controls.
 
 ## Launcher
 

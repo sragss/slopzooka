@@ -317,6 +317,18 @@ final class WindowGateway: ObservableObject {
         guard windows[record.id]?.resolvedPreviewRevision != revision,
             windows[record.id]?.previewRequest?.revision != revision else { return }
         windows[record.id]?.previewRequest?.task.cancel()
+        // Restoration uses the same server-authored capability as the launcher.
+        // Expected unavailability is state, not a failing Open every poll. A new
+        // catalog/route can make it available again without another window cache.
+        if let availability = client.frontends(for: hostID).frontends.first(where: { $0.id == record.targetID })?.presentation,
+           !availability.available {
+            let message = availability.message ?? "Preview unavailable on this connection."
+            if windows[record.id]?.error != message {
+                windows[record.id]?.error = message
+                log.info("preview.unavailable", ["hostId": hostID, "windowId": record.id, "reasonCode": availability.reasonCode ?? "unavailable"])
+            }
+            return
+        }
         // Content availability never blocks intent persistence or other windows.
         let task = Task {
             defer { if windows[record.id]?.previewRequest?.revision == revision { windows[record.id]?.previewRequest = nil } }
