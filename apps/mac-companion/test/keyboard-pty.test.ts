@@ -9,7 +9,8 @@ test("Codex-profile PTY receives terminal editing/control bytes unchanged", asyn
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-keyboard-pty-"));
   const sessions = new SessionManager();
   // A raw reader exercises the same launch/PTY input path without starting an agent.
-  const payload = "\u007f\u001b[3~\b\t\u001b[D\u0003\u001b[1;3A";
+  const payload =
+    "AZ!_é😀\u007f\u001b[3~\b\t\u001b[D\u0003\u001b[1;3A\u001bOP\u001b[15;2~\u001b[1;6D";
   await fs.writeFile(
     path.join(home, "probe.py"),
     `import os, tty

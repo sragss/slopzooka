@@ -14,8 +14,10 @@ try {
     entry,
     `
 import { Terminal } from ${JSON.stringify(path.join(root, "apps/mac-companion/node_modules/@xterm/xterm"))};
+import { bindTerminalTextInput } from ${JSON.stringify(path.join(root, "apps/mac-companion/src/terminal-text-input.ts"))};
 const terminal = new Terminal();
 terminal.open(document.getElementById('terminal'));
+const detachTextInput = bindTerminalTextInput(terminal);
 const input = terminal.textarea;
 let data = [];
 terminal.onData(value => data.push(value));
@@ -35,8 +37,82 @@ window.runKeyboardChecks = async () => {
   if (accepted) edit('insertLineBreak');
   input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Enter', keyCode: 13, bubbles: true}));
   check(['\\r'], 'hardware Enter must not double submit');
+  const physicalKey = (options, text, keypress = false) => {
+    const event = {bubbles: true, cancelable: true, ...options};
+    input.dispatchEvent(new KeyboardEvent('keydown', event));
+    if (keypress) input.dispatchEvent(new KeyboardEvent('keypress', {...event, charCode: text.charCodeAt(0), keyCode: text.charCodeAt(0), which: text.charCodeAt(0)}));
+    const accepted = input.dispatchEvent(new InputEvent('beforeinput', {inputType: 'insertText', data: text, bubbles: true, cancelable: true, composed: true}));
+    if (accepted) {
+      input.value += text;
+      input.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: text, bubbles: true, composed: true}));
+    }
+    input.dispatchEvent(new KeyboardEvent('keyup', event));
+  };
+  const keyOnly = (key, keyCode, modifiers = {}) => {
+    const options = {key, code: key, keyCode, which: keyCode, bubbles: true, cancelable: true, ...modifiers};
+    input.dispatchEvent(new KeyboardEvent('keydown', options));
+    input.dispatchEvent(new KeyboardEvent('keyup', options));
+  };
   for (const mode of ['none', 'text']) {
     input.inputMode = mode;
+    for (const keyCode of [0, 229, 65]) {
+      for (const [key, text, modifiers = {}] of [
+        ['A', 'A', {shiftKey: true}], ['A', 'A', {modifierCapsLock: true}],
+        ['!', '!', {shiftKey: true}], ['_', '_', {shiftKey: true}],
+        ['é', 'é', {altKey: true}], ['😀', '😀'],
+      ]) {
+        physicalKey({key, keyCode, code: 'KeyA', ...modifiers}, text);
+        await new Promise(resolve => setTimeout(resolve, 0));
+        check([text], 'committed text without keypress ' + key + ' keyCode=' + keyCode + ' inputmode=' + mode);
+      }
+    }
+    for (const key of ['Shift', 'CapsLock', 'Unidentified']) {
+      for (const keyCode of [0, 229]) {
+        physicalKey({key, keyCode, shiftKey: true}, 'A');
+        await new Promise(resolve => setTimeout(resolve, 0));
+        check(['A'], 'committed text after modifier-only or unidentified keydown ' + key);
+      }
+    }
+    physicalKey({key: 'A', code: 'KeyA', keyCode: 65, shiftKey: true}, 'A', true);
+    check(['A'], 'native keypress plus beforeinput must send once');
+    physicalKey({key: 'a', code: 'KeyA', keyCode: 65}, 'a');
+    check(['a'], 'handled keydown plus beforeinput must send once');
+    physicalKey({key: 'A', code: 'KeyA', keyCode: 0, shiftKey: true, repeat: true}, 'A');
+    physicalKey({key: 'A', code: 'KeyA', keyCode: 0, shiftKey: true, repeat: true}, 'A');
+    check(['A', 'A'], 'repeat must send once per committed edit');
+    const namedKeys = [
+      ['ArrowUp', 38], ['ArrowDown', 40], ['ArrowLeft', 37], ['ArrowRight', 39],
+      ['Home', 36], ['End', 35], ['PageUp', 33], ['PageDown', 34],
+      ['Enter', 13], ['Tab', 9], ['Backspace', 8], ['Delete', 46], ['Escape', 27],
+      ...Array.from({length: 12}, (_, i) => ['F' + (i + 1), 112 + i]),
+    ];
+    for (let mask = 0; mask < 16; mask++) {
+      const modifiers = {shiftKey: !!(mask & 1), altKey: !!(mask & 2), ctrlKey: !!(mask & 4), metaKey: !!(mask & 8)};
+      for (const [key, canonical] of namedKeys) {
+        keyOnly(key, canonical, modifiers);
+        const expected = data; data = [];
+        for (const keyCode of [0, 229]) {
+          keyOnly(key, keyCode, modifiers);
+          check(expected, key + ' modifier mask=' + mask + ' keyCode=' + keyCode + ' inputmode=' + mode);
+        }
+      }
+    }
+    for (const [key, code, canonical, modifiers = {}] of [
+      [' ', 'Space', 32], ['[', 'BracketLeft', 219], ['\\\\', 'Backslash', 220], [']', 'BracketRight', 221],
+      ['@', 'Digit2', 50, {shiftKey: true}], ['_', 'Minus', 189, {shiftKey: true}], ['6', 'Digit6', 54],
+    ]) {
+      for (const keyCode of [canonical, 0, 229]) {
+        for (const physicalCode of [code, '']) {
+          const options = {key, code: physicalCode, keyCode, ctrlKey: true, bubbles: true, cancelable: true, ...modifiers};
+          input.dispatchEvent(new KeyboardEvent('keydown', options)); input.dispatchEvent(new KeyboardEvent('keyup', options));
+        check([String.fromCharCode({' ': 0, '[': 27, '\\\\': 28, ']': 29, '@': 0, '_': 31, '6': 30}[key])], 'Control punctuation ' + key + ' keyCode=' + keyCode);
+        }
+      }
+    }
+    for (const key of ['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Fn', 'FnLock', 'Globe']) {
+      keyOnly(key, 0); check([], key + ' alone must not create terminal bytes');
+    }
+    keyOnly('F1', 0, {modifierFn: true}); check(['\\x1bOP'], 'delivered Fn function key');
     for (const [key, code, keyCode, expected, modifiers = {}] of [
       ['Backspace', 'Backspace', 8, '\\x7f'],
       ['Delete', 'Delete', 46, '\\x1b[3~'],
@@ -107,12 +183,32 @@ window.runKeyboardChecks = async () => {
   const handledArrow = new KeyboardEvent('keydown', {key: 'UIKeyInputUpArrow', keyCode: 0, altKey: true, bubbles: true, cancelable: true});
   handledArrow.preventDefault(); input.dispatchEvent(handledArrow);
   check([], 'already handled arrow must not emit input');
+  input.dispatchEvent(new KeyboardEvent('keydown', {key: 'A', code: 'KeyA', keyCode: 0, shiftKey: true, bubbles: true}));
+  input.dispatchEvent(new FocusEvent('blur'));
+  const afterBlur = new InputEvent('beforeinput', {inputType: 'insertText', data: 'A', bubbles: true, cancelable: true});
+  if (!input.dispatchEvent(afterBlur)) throw Error('Blur must clear pending hardware text');
+  check([], 'stale hardware stroke after blur');
+  const otherText = new InputEvent('beforeinput', {inputType: 'insertText', data: 'A', bubbles: true, cancelable: true});
+  if (!document.getElementById('other').dispatchEvent(otherText)) throw Error('Other text fields must keep native text editing');
+  input.value = '';
+  input.dispatchEvent(new CompositionEvent('compositionstart', {data: '', bubbles: true}));
+  input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Unidentified', keyCode: 229, isComposing: true, bubbles: true}));
+  const composing = new InputEvent('beforeinput', {inputType: 'insertCompositionText', data: '中', isComposing: true, bubbles: true, cancelable: true});
+  if (!input.dispatchEvent(composing)) throw Error('Composition must retain native editing');
+  input.value = '中';
+  input.dispatchEvent(new CompositionEvent('compositionupdate', {data: '中', bubbles: true}));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  input.dispatchEvent(new CompositionEvent('compositionend', {data: '中', bubbles: true}));
+  input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Unidentified', keyCode: 229, bubbles: true}));
+  await new Promise(resolve => setTimeout(resolve, 0));
+  check(['中'], 'IME commit must remain native and send once');
+  input.value = '';
   edit('deleteContentBackward'); check(['\\x7f'], 'editing-only Backspace');
   edit('deleteContentForward'); check(['\\x1b[3~'], 'editing-only Delete');
   for (const keyCode of [0, 229]) {
     input.value = 'x';
-    input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true, cancelable: true}));
-    edit('deleteContentBackward');
+    const accepted = input.dispatchEvent(new KeyboardEvent('keydown', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true, cancelable: true}));
+    if (accepted) edit('deleteContentBackward');
     input.dispatchEvent(new KeyboardEvent('keyup', {key: 'Backspace', code: 'Backspace', keyCode, bubbles: true}));
     await new Promise(resolve => setTimeout(resolve, 0));
     check(['\\x7f'], 'Backspace with unusable keyCode=' + keyCode + ' must send exactly once');
@@ -131,6 +227,13 @@ window.runKeyboardChecks = async () => {
   check(['x'], 'normal typing');
   edit('insertLineBreak', input, true); check([], 'composition must not submit');
   edit('insertLineBreak', document.getElementById('other')); check([], 'other fields must not submit');
+  terminal.options.screenReaderMode = true;
+  input.dispatchEvent(new KeyboardEvent('keydown', {key: 'A', code: 'KeyA', keyCode: 0, shiftKey: true, bubbles: true}));
+  const accessibleText = new InputEvent('beforeinput', {inputType: 'insertText', data: 'A', bubbles: true, cancelable: true});
+  if (!input.dispatchEvent(accessibleText)) throw Error('Screen-reader mode must retain native text editing');
+  input.dispatchEvent(new KeyboardEvent('keyup', {key: 'A', keyCode: 0, bubbles: true}));
+  check([], 'screen-reader native editing must not be replayed');
+  terminal.options.screenReaderMode = false;
   return 'PASS';
 };`,
   );
@@ -288,11 +391,32 @@ window.runViewportChecks = async () => {
     check(isFocused() && terminal.textarea.inputMode === (showKeyboard ? 'text' : 'none'), 'Alt+Up must preserve focus and keyboard mode');
   }
   check(JSON.stringify(inputs().slice(beforeShortcut)) === JSON.stringify(['\\x1b[1;3A', '\\x1b[1;3A']), 'Alt+Up must reach the production PTY transport exactly once in each keyboard mode');
+  const commit = (text, options = {}) => {
+    const target = terminal.textarea;
+    const key = {key: text, code: 'KeyA', keyCode: 0, shiftKey: true, bubbles: true, cancelable: true, ...options};
+    target.dispatchEvent(new KeyboardEvent('keydown', key));
+    const accepted = target.dispatchEvent(new InputEvent('beforeinput', {inputType: 'insertText', data: text, bubbles: true, cancelable: true, composed: true}));
+    if (accepted) {
+      target.value += text;
+      target.dispatchEvent(new InputEvent('input', {inputType: 'insertText', data: text, bubbles: true, composed: true}));
+    }
+    target.dispatchEvent(new KeyboardEvent('keyup', key));
+  };
+  const beforeText = inputs().length;
+  for (const showKeyboard of [false, true]) {
+    window.slzFocusTerminal(showKeyboard);
+    commit('A'); commit('!');
+    hardwareKey('F5', 'F5', 0, {shiftKey: true});
+    check(isFocused() && terminal.textarea.inputMode === (showKeyboard ? 'text' : 'none'), 'Text and function shortcuts must preserve focus and keyboard mode');
+  }
+  check(JSON.stringify(inputs().slice(beforeText)) === JSON.stringify(['A', '!', '\\x1b[15;2~', 'A', '!', '\\x1b[15;2~']), 'Committed capitals, punctuation, and Shift-F5 must reach transport exactly once');
+
   viewportSocket.receive({type: 'ownership', sessionId, writable: false});
   await until(() => !button.hidden);
   const beforeReadOnlyShortcut = inputs().length;
   hardwareKey('UIKeyInputUpArrow', '', 0, {altKey: true});
   hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
+  commit('Z'); hardwareKey('F1', 'F1', 0);
   check(inputs().length === beforeReadOnlyShortcut, 'Normalized arrow and Control shortcuts must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');

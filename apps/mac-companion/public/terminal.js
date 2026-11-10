@@ -9378,6 +9378,54 @@ var TerminalConnection = class {
   }
 };
 
+// src/terminal-text-input.ts
+function bindTerminalTextInput(terminal2) {
+  const input = terminal2.textarea;
+  if (!input) return () => {
+  };
+  let pending;
+  let composing = false;
+  const reset = (event) => {
+    pending = void 0;
+    if (event?.type === "blur") composing = false;
+  };
+  const composition = (event) => {
+    composing = event.type === "compositionstart";
+    reset();
+  };
+  const keydown = (event) => {
+    pending = !composing && !event.isComposing && !event.ctrlKey && !event.metaKey ? { event, emitted: false } : void 0;
+  };
+  const beforeinput = (event) => {
+    if (terminal2.options.screenReaderMode || !pending || event.defaultPrevented || !event.cancelable || composing || event.isComposing || event.inputType !== "insertText" || !event.data)
+      return;
+    const key = pending;
+    reset();
+    event.preventDefault();
+    if (!key.emitted && !key.event.defaultPrevented)
+      terminal2.input(event.data, true);
+  };
+  const subscription = terminal2.onKey(() => {
+    if (pending) pending.emitted = true;
+  });
+  input.addEventListener("keydown", keydown, true);
+  input.addEventListener("beforeinput", beforeinput, true);
+  for (const type of ["keyup", "blur"])
+    input.addEventListener(type, reset, true);
+  for (const type of ["compositionstart", "compositionend"])
+    input.addEventListener(type, composition, true);
+  return () => {
+    reset();
+    subscription.dispose();
+    input.removeEventListener("keydown", keydown, true);
+    input.removeEventListener("beforeinput", beforeinput, true);
+    for (const type of ["keyup", "blur"])
+      input.removeEventListener(type, reset, true);
+    for (const type of ["compositionstart", "compositionend"])
+      input.removeEventListener(type, composition, true);
+  };
+}
+
 // src/terminal.ts
 var mount = document.querySelector("#terminal");
 var overlay = document.querySelector("#connection-overlay");
@@ -9396,6 +9444,7 @@ var terminal = new Dl({
 var fit = new o();
 terminal.loadAddon(fit);
 terminal.open(mount);
+var detachTextInput = bindTerminalTextInput(terminal);
 fit.fit();
 focusTerminal();
 function focusTerminal(showKeyboard = false) {
@@ -9459,6 +9508,7 @@ window.slzSetTerminalZoom = (zoom) => {
 };
 window.addEventListener("online", reconnect);
 function detach() {
+  detachTextInput();
   resizeObserver.disconnect();
   cancelAnimationFrame(resizeFrame);
   window.removeEventListener("online", reconnect);
