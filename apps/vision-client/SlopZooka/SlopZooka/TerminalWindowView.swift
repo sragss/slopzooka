@@ -11,6 +11,9 @@ struct TerminalWindowView: View {
     @State private var confirmEndSession = false
     @State private var isSessionDetailsExpanded = false
     @State private var isActionsPresented = false
+    @State private var report: Report?
+    @State private var isReportPresented = false
+    private struct Report { let hostID: String? }
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
     @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
@@ -36,6 +39,9 @@ struct TerminalWindowView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .sheet(isPresented: $isReportPresented, onDismiss: { report = nil }) {
+            BugReportView(hostID: report?.hostID)
+        }
     }
 
     private var payload: TerminalWindowPayload? {
@@ -116,6 +122,10 @@ struct TerminalWindowView: View {
                         .accessibilityLabel("Session actions")
                         .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
                             terminalActions(payload: payload)
+                                .onDisappear {
+                                    // Let the popover finish before presenting a sheet.
+                                    if report != nil { isReportPresented = true }
+                                }
                         }
 
                         Button {
@@ -202,35 +212,38 @@ struct TerminalWindowView: View {
     }
 
     private func terminalActions(payload: TerminalWindowPayload) -> some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 8) {
             TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
             Divider()
-            Button("New Shell", systemImage: "terminal") {
+            TerminalMenuAction(title: "New Shell", symbol: "terminal") {
                 isActionsPresented = false
                 Task { await newShell(payload: payload) }
             }
-            Button("Reload Content", systemImage: "arrow.clockwise") {
+            TerminalMenuAction(title: "Reload Content", symbol: "arrow.clockwise") {
                 isActionsPresented = false
                 windows.reload(id: payload.id)
             }
-            Button("Open Launcher", systemImage: "square.grid.2x2") {
+            TerminalMenuAction(title: "Open Launcher", symbol: "square.grid.2x2") {
                 isActionsPresented = false
                 windows.openLauncher()
             }
-            Button("Session Details", systemImage: "info.circle") {
+            TerminalMenuAction(title: "Session Details", symbol: "info.circle") {
                 isActionsPresented = false
                 isUtilitiesExpanded.toggle()
                 isSessionDetailsExpanded = isUtilitiesExpanded
             }
+            TerminalMenuAction(title: "Report a Bug", symbol: "ladybug") {
+                report = Report(hostID: windows.reference(for: payload.id)?.hostID)
+                isActionsPresented = false
+            }
             Divider()
-            Button("Close Window", systemImage: "xmark") {
+            TerminalMenuAction(title: "Close Window", symbol: "xmark") {
                 isActionsPresented = false
                 windows.close(id: payload.id)
             }
         }
-        .buttonStyle(TerminalMenuButtonStyle())
-        .frame(width: 360)
-        .clipShape(RoundedRectangle(cornerRadius: 20))
+        .padding(12)
+        .frame(width: 400)
     }
 
     private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {
@@ -354,4 +367,20 @@ private struct DebugLogView: View {
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+}
+
+/// Standard controls own gaze feedback; the label fills the entire visible row.
+private struct TerminalMenuAction: View {
+    let title: String
+    let symbol: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Label(title, systemImage: symbol)
+                .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: 12))
+    }
 }

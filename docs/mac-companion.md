@@ -137,6 +137,47 @@ Use the existing explicit session-service restart
 when ready to end those sessions and enable its new writer. Historical unbounded
 log files are not rewritten or deleted automatically.
 
+## Bug reports
+
+Choose **Report a bug** in the dashboard or **Settings → Report a Bug…** in the
+Mac menu. The report page saves a diagnostic snapshot on this Mac and lets you
+describe the problem. **Review on GitHub** opens a draft in `sragss/slopzooka`
+using your browser’s GitHub login; submit it there when ready. GitHub CLI login
+is not required for this desktop browser flow. The headset instead opens a native
+voice composer, then shows the public preview and GitHub account before **Create
+Public Issue**. It uses the companion’s existing `GITHUB_TOKEN` / `GH_TOKEN` or
+`gh auth token`; credentials stay on the Mac and go only to GitHub’s API. Missing
+credentials fall back to the browser composer. See [headset reporting](vision-pro.md#diagnostics).
+
+Issues are public. The public draft includes only your summary/description,
+incident timestamp, local report ID, and a bounded list of build fingerprints and
+runtime versions. Expand **Preview public report** to inspect exactly what will
+be sent to GitHub. It contains no captured event bodies, file paths, host/client
+identities, or private error details. What you type or dictate is included as written.
+
+Logs stay local. **Download local snapshot** requires companion authentication
+and downloads the full JSON for your own inspection; it does not attach or upload
+it. Redacted diagnostics can still contain private paths, repository names, URLs,
+and action history. Attachments on public GitHub issues are public too. Share a
+snapshot only through a separately agreed access-controlled channel. Retention
+and capture bounds are described above; a local report ID is not a remote
+maintainer download link. Captures can omit still-buffered/offline client events.
+Native captures are saved as `SLOPZOOKA_HOME/logs/reports/<report-id>.json` on the
+Mac; their report ID appears in the public preview. Only authenticated companion
+requests can download them through `/api/diagnostics/reports/<report-id>`.
+
+Native public drafts expire after 30 minutes or a companion restart. **Review Again**
+prepares a fresh review after expiry or an account/connection rejection, keeping
+your report text. Preparing a review refreshes the Mac’s GitHub credentials. Before
+creating an issue, the companion verifies the reviewed account and writes using
+that same credential snapshot. Repeated requests for a submitted draft return its
+cached outcome, even if the account has since changed. Timeouts and cancellation
+never automatically retry a write; check existing issues after an ambiguous failure.
+
+If capture or pairing fails, you can still review and submit the public issue
+without logs. Use **Retry local snapshot** after reconnecting. The Mac menu can
+also open GitHub directly when its companion is unavailable.
+
 ## Browser terminal control
 
 One viewer controls a terminal's keyboard and size. Other views show **Read only**. Click **Take Control** in a browser terminal to move control to that tab; the previous viewer stays connected and becomes read-only. This preserves the session and shell process, including when recovering after a companion restart. Closing the controlling view still transfers control automatically.

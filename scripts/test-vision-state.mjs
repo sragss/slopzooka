@@ -16,7 +16,7 @@ const companionSources = [
   "WindowPersistence",
 ];
 const suites = {
-  DiagnosticsChecks: companionSources,
+  DiagnosticsChecks: [...companionSources, "BugReportState"],
   CompanionClientChecks: companionSources,
   LauncherStateChecks: [
     ...companionSources,

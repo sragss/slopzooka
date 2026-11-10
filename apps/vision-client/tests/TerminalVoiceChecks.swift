@@ -274,6 +274,35 @@ struct TerminalVoiceChecks {
         voice.stop()
         print("PASS: legacy windows can open metadata naming independently of terminal input readiness")
 
+        var reviewed: [String] = []
+        let commandCount = commands.count
+        precondition(voice.activateDraft("report", onReview: { reviewed.append($0) }))
+        await until { capture.state == .listening }
+        precondition(!capture.finishOnPause, "A report must never submit on a pause, regardless of terminal preference")
+        capture.finish("the preview broke")
+        await until { capture.state == .listening }
+        precondition(reviewed.isEmpty && commands.count == commandCount)
+        capture.transcript = "after reconnecting"
+        voice.send()
+        capture.finish("after reconnecting to my Mac")
+        precondition(reviewed == ["the preview broke after reconnecting to my Mac"] && voice.mode == nil)
+        precondition(commands.count == commandCount, "Reviewing a report must not deliver terminal input")
+        voice.activateTerminal("a")
+        await until { capture.state == .listening }
+        capture.transcript = "unsent terminal draft"
+        precondition(!voice.activateDraft("report", onReview: { reviewed.append($0) }))
+        precondition(voice.targetID == "a" && voice.transcript == "unsent terminal draft" && capture.state == .idle,
+            "Opening a report pauses existing capture without discarding or redirecting its draft")
+        voice.stop()
+        precondition(voice.activateDraft("report", text: "edited report", onReview: { reviewed.append($0) }))
+        await until { capture.state == .listening }
+        voice.pause()
+        precondition(voice.transcript == "edited report" && capture.state == .idle)
+        voice.stop()
+        capture.onFinished?()
+        precondition(reviewed.count == 1 && commands.count == commandCount, "Closing the sheet cannot submit a report")
+        print("PASS: report dictation shares one microphone, holds pauses, preserves terminal drafts, and only produces a local review")
+
         await checkRecognitionContinuity(defaults: defaults)
     }
 

@@ -135,6 +135,79 @@ struct DiagnosticsChecks {
         precondition(cancelledEvents.contains { $0["event"] as? String == "http.cancelled" })
         precondition(!cancelledEvents.contains { ["warn", "error"].contains($0["level"] as? String ?? "") }, "Ordinary cancellation is control flow, not an application error")
 
+        let reportCredentials = testCredentials()
+        let reportBase = URL(string: "http://report.invalid:7777")!
+        try reportCredentials.pair(reportBase, hostID: "report-host", token: "report-native-token")
+        let around = "2026-11-10T12:00:00Z"
+        var reportRequests: [URLRequest] = []
+        var issueURL = "https://github.com/sragss/slopzooka/issues/123"
+        var submitStatus = 200
+        var preparedCount = 0
+        let reporter = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: reportCredentials, diagnostics: NativeDiagnostics()) { request in
+            precondition(request.httpMethod == "POST")
+            precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer report-native-token")
+            reportRequests.append(request)
+            switch request.url!.path {
+            case "/api/diagnostics/capture": return try json(["reportId": "local-report"], for: request)
+            case "/api/diagnostics/bug-report/prepare":
+                preparedCount += 1
+                return try json(["draftId": "reviewed-draft-\(preparedCount)", "body": "Only public text", "account": "test-user", "browserURL": "https://github.com/sragss/slopzooka/issues/new?title=Bug"], for: request)
+            case "/api/diagnostics/bug-report/submit":
+                if submitStatus != 200 { return try json(["error": "Fixture rejection"], for: request, status: submitStatus) }
+                return try json(["url": issueURL], for: request)
+            default: preconditionFailure("Unexpected report request")
+            }
+        }
+        try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+        let reportID = try await reporter.captureBugReport(hostID: "report-host", around: around)
+        precondition(reportID == "local-report")
+        let draft = try await reporter.prepareBugReport(hostID: "report-host", title: "Preview broke", description: "After reconnecting", around: around, reportID: reportID)
+        precondition(draft.account == "test-user" && draft.body == "Only public text")
+        let preparedBody = try JSONSerialization.jsonObject(with: reportRequests.last!.httpBody!) as! [String: String]
+        precondition(preparedBody == ["title": "Preview broke", "description": "After reconnecting", "around": around, "reportId": "local-report"])
+        let submitted = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!)
+        precondition(submitted.absoluteString == issueURL)
+        let submittedBody = try JSONSerialization.jsonObject(with: reportRequests.last!.httpBody!) as! [String: String]
+        precondition(submittedBody == ["draftId": "reviewed-draft-1"], "Submit references exactly the reviewed public projection")
+        for status in [401, 403, 409, 410, 502] {
+            // Pairing may need restoring after 401; the draft text remains owned by the composer.
+            try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+            submitStatus = status
+            var flow = BugReportState.submitting(draft)
+            do {
+                _ = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!)
+                preconditionFailure("Expected rejected or uncertain submission")
+            } catch { flow.submissionFailed(error) }
+            if status == 502 {
+                precondition(flow == .unconfirmed(draft), "An uncertain write cannot return to editing or submission")
+            } else {
+                precondition(flow == .rejected(draft, expired: status == 410), "A definite rejection requires fresh review")
+                flow = .preparing
+                try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+                let refreshed = try await reporter.prepareBugReport(hostID: "report-host", title: "Preview broke", description: "After reconnecting", around: around, reportID: reportID)
+                flow = .reviewing(refreshed)
+                precondition(flow.draft?.draftId != draft.draftId && flow.draft?.body == draft.body,
+                    "Re-review gets a fresh ID while keeping the report text")
+            }
+        }
+        submitStatus = 200
+        var cancelledFlow = BugReportState.submitting(draft)
+        cancelledFlow.submissionFailed(CancellationError())
+        precondition(cancelledFlow == .unconfirmed(draft), "Cancellation after send cannot cause implicit resubmission on reappearance")
+        var offlineFlow = BugReportState.submitting(draft)
+        offlineFlow.submissionFailed(URLError(.timedOut))
+        precondition(offlineFlow == .unconfirmed(draft), "A timeout may follow a successful GitHub write")
+        print("PASS: native report rejections require fresh review; timeouts and cancellation keep uncertain writes protected")
+        issueURL = "https://other.invalid/sragss/slopzooka/issues/123"
+        do { _ = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!); preconditionFailure("Reject an untrusted issue destination") }
+        catch { precondition((error as? URLError)?.code == .badURL) }
+        let offline = BugReportDraft.offline(title: "Offline bug", description: "C++ still held", around: around)
+        precondition(offline.account == nil && offline.draftId == nil && offline.browserURL!.host == "github.com")
+        precondition(offline.browserURL!.absoluteString.contains("C%2B%2B"), "Browser form decoding must preserve literal plus signs")
+        precondition(!BugReportDraft.isComposer(URL(string: "https://github.com/other/issues/new")!))
+        precondition(!BugReportDraft.isComposer(URL(string: "https://user:secret@github.com/sragss/slopzooka/issues/new")!))
+        print("PASS: native reporting keeps host authentication, reviewed draft identity, and fixed GitHub destinations")
+
         let menu = NativeDiagnostics()
         menu.enableMacLogging()
         let root = menu.logDirectory!

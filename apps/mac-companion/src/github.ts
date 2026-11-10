@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { ServiceError } from "./errors.js";
 
 const execFileAsync = promisify(execFile);
 const GITHUB_GRAPHQL_URL = "https://api.github.com/graphql";
@@ -260,16 +261,81 @@ export class GitHubClient {
     return this.getRepo(nameWithOwner);
   }
 
+  async bugReportAccount(): Promise<string> {
+    return this.viewer(await this.resolveToken(true));
+  }
+
+  private async viewer(token: string): Promise<string> {
+    const data = await this.graphql<{ viewer: { login: string } }>(
+      "query { viewer { login } }",
+      {},
+      token,
+    );
+    return data.viewer.login;
+  }
+
+  async createBugReport(
+    title: string,
+    body: string,
+    expectedAccount: string,
+  ): Promise<string> {
+    // Verify and write with one credential snapshot, even if another request
+    // refreshes the CLI token concurrently. Preflight failures cannot create an issue.
+    let token: string;
+    try {
+      token = await this.resolveToken(true);
+      if ((await this.viewer(token)) !== expectedAccount)
+        throw new Error("Account changed");
+    } catch {
+      throw new ServiceError(
+        "GitHub account changed or is unavailable. Review before publishing.",
+        409,
+      );
+    }
+    const response = await fetch(
+      "https://api.github.com/repos/sragss/slopzooka/issues",
+      {
+        method: "POST",
+        redirect: "error",
+        signal: AbortSignal.timeout(12_000),
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/vnd.github+json",
+          "Content-Type": "application/json",
+          "User-Agent": "slopzooka-mac-companion",
+        },
+        body: JSON.stringify({ title, body }),
+      },
+    );
+    if (response.status === 401 || response.status === 403)
+      throw new ServiceError(
+        "GitHub rejected authorization for this issue. Refresh your credentials and review again.",
+        409,
+      );
+    // Never echo GitHub's payload: it may contain the submitted description.
+    if (!response.ok)
+      throw new Error(`GitHub issue request returned HTTP ${response.status}`);
+    const result = (await response.json()) as { html_url?: string };
+    if (
+      !/^https:\/\/github\.com\/sragss\/slopzooka\/issues\/\d+$/.test(
+        result.html_url ?? "",
+      )
+    )
+      throw new Error("GitHub returned an invalid issue URL");
+    return result.html_url!;
+  }
+
   private async graphql<T>(
     query: string,
     variables: Record<string, unknown>,
+    token?: string,
   ): Promise<T> {
-    const token = await this.resolveToken();
+    const resolvedToken = token ?? (await this.resolveToken());
     const response = await fetch(GITHUB_GRAPHQL_URL, {
       method: "POST",
       signal: AbortSignal.timeout(12_000),
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${resolvedToken}`,
         "Content-Type": "application/json",
         "User-Agent": "slopzooka-mac-companion",
       },
@@ -301,7 +367,8 @@ export class GitHubClient {
     return payload.data;
   }
 
-  private async resolveToken(): Promise<string> {
+  private async resolveToken(refresh = false): Promise<string> {
+    if (refresh) this.tokenPromise = null;
     if (!this.tokenPromise) {
       this.tokenPromise = (async () => {
         try {

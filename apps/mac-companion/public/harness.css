@@ -458,3 +458,6 @@ pre {
   font-size: 11px;
   user-select: text;
 }
+.sidebar .report-bug {
+  margin: 12px 10px 0;
+}

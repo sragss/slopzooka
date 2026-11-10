@@ -37,7 +37,7 @@ enum WindowName {
 @MainActor
 final class TerminalVoiceController: ObservableObject {
     private let log = AppLog("voice")
-    enum Mode { case dictation, conversation, rename }
+    enum Mode { case dictation, conversation, rename, draft }
     enum NameTarget: String { case window, workspace }
     @Published private(set) var renameTarget: NameTarget = .window
 
@@ -67,6 +67,7 @@ final class TerminalVoiceController: ObservableObject {
     private var generation = UUID()
     private var submitWhenFinished = false
     private var isSuspended = false
+    private var finishDraft: ((String) -> Void)?
 
     init(capture: any SpeechCapturing, defaults: UserDefaults = .standard,
         isAvailable: @escaping (String, Mode) -> Bool,
@@ -86,7 +87,7 @@ final class TerminalVoiceController: ObservableObject {
 
     private func isAvailable(_ id: String) -> Bool {
         guard let mode else { return false }
-        return availability(id, mode)
+        return mode == .draft ? finishDraft != nil : availability(id, mode)
     }
 
     var hasText: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
@@ -103,6 +104,7 @@ final class TerminalVoiceController: ObservableObject {
         case .finishing: return "Finishing transcription…"
         case .listening:
             if mode == .rename { return "Say a \(renameTarget.rawValue) name · Pause to save" }
+            if mode == .draft { return "Listening · Tap Review when ready" }
             return mode == .dictation ? "Pause briefly to send" : "Listening · Tap Send when ready"
         case let .failed(message), let .unavailable(message): return message
         case .idle:
@@ -119,6 +121,28 @@ final class TerminalVoiceController: ObservableObject {
 
     func activateRename(_ id: String, target: NameTarget = .window) {
         activate(id, mode: .rename, nameTarget: target)
+    }
+
+    /// Local composition uses the same microphone without a terminal destination.
+    /// Opening another composer pauses existing input and preserves unsent text.
+    @discardableResult
+    func activateDraft(_ id: String, text: String = "", onReview: @escaping (String) -> Void) -> Bool {
+        guard !isSubmitting else { return false }
+        pause()
+        guard !hasText && pendingCommand == nil else { return false }
+        stop()
+        mode = .draft
+        targetID = id
+        finishDraft = onReview
+        committedText = text
+        transcript = text
+        startCapture()
+        return true
+    }
+
+    func pause() {
+        isSuspended = true
+        stopCaptureKeepingDraft()
     }
 
     private func activate(_ id: String, mode requestedMode: Mode, nameTarget: NameTarget = .window) {
@@ -173,6 +197,7 @@ final class TerminalVoiceController: ObservableObject {
         captureTask = nil
         capture.stopListening()
         mode = nil
+        finishDraft = nil
         targetID = nil
         resetDraft()
         isSubmitting = false
@@ -192,7 +217,7 @@ final class TerminalVoiceController: ObservableObject {
         guard let id = targetID, isAvailable(id), mode != nil, !isSubmitting, !isSuspended else { return }
         captureTask?.cancel()
         let token = generation
-        let finishOnPause = mode != .conversation
+        let finishOnPause = mode == .dictation || mode == .rename
         captureTask = Task { [weak self] in
             guard let self, self.generation == token, !Task.isCancelled else { return }
             await self.capture.startListening(finishOnPause: finishOnPause)
@@ -214,7 +239,7 @@ final class TerminalVoiceController: ObservableObject {
         guard mode != nil else { return }
         committedText = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         capture.clearTranscript()
-        if submitWhenFinished || mode != .conversation {
+        if submitWhenFinished || mode == .dictation || mode == .rename {
             submitWhenFinished = false
             if hasText { submit() }
         } else {
@@ -244,6 +269,13 @@ final class TerminalVoiceController: ObservableObject {
     private func submit() {
         guard let id = targetID, hasText, !isSubmitting else { return }
         guard isAvailable(id) else { targetUnavailable(id); return }
+        if mode == .draft {
+            let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
+            let completion = finishDraft
+            stop()
+            completion?(text)
+            return
+        }
         if mode == .rename {
             let name = WindowName.normalized(transcript)
             stopCaptureKeepingDraft()

@@ -32,7 +32,8 @@ Paths below are relative to `apps/mac-companion/src`.
 | `session-service-protocol.ts`            | Versioned local control contract                                                                                                  |
 | `window-layout.ts`                       | Client-scoped desired window layouts, atomic persistence, and revision checking                                                   |
 | `workspace.ts`                           | Git worktrees and workspace persistence                                                                                           |
-| `github.ts`                              | Repository discovery and creation through GitHub                                                                                  |
+| `bug-report.ts` / `bug-report-draft.ts` / `bug-report-http.ts` | Browser composition, explicit public draft projection, and bounded native review/submission; captures stay local |
+| `github.ts`                              | Repository discovery/creation and fixed-destination bug issue submission through host credentials                                                                                  |
 | `dashboard-address.ts`                   | Optional Portless dashboard alias, verified redirects, and localhost fallback                                                     |
 | `frontend-discovery.ts`                  | Read-only Portless adapter, listener inventory, and bounded HTTP probes                                                           |
 | `frontends.ts`                           | Unified frontend catalog, saved URLs, and preview gateways                                                                        |
@@ -68,7 +69,8 @@ Paths below are relative to `apps/vision-client/SlopZooka/SlopZooka`.
 | `CompanionClient.swift`                                          | Mac discovery, accepted host identity, pairing, connection state, refresh lifetime, and typed native control requests                         |
 | `LauncherState.swift`                                             | Shared project browsing and launch state                                                                                                   |
 | `CompanionWebView.swift`                                          | `TerminalSessionController` and the terminal WebView bridge                                                                                |
-| `TerminalVoiceController.swift` / `SpeechCaptureController.swift` | Voice-input state and microphone capture                                                                                                   |
+| `BugReportView.swift` / `BugReportState.swift` | Native voice composition and explicit review from the terminal menu; rejected reviews can be renewed, uncertain submissions cannot be retried |
+| `TerminalVoiceController.swift` / `SpeechCaptureController.swift` | Shared terminal, naming, and local-composition voice state with one microphone owner                                                                                                   |
 
 `CompanionClient.swift` owns discovery, accepted routes, pairing, connection state, and native HTTP requests. Any scene can start it through `WindowGateway`, independently of the launcher. Views observe the client; the gateway consumes session snapshots for window recovery. Control callers pass stable host IDs. Health/protocol checks accept a route, and route revisions reject late replies even when an address changes away and back. Replacement routes can refresh while an old request is stalled; network failures publish reconnecting state until a request succeeds.
 
