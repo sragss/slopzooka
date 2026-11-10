@@ -11,6 +11,10 @@ final class CompanionClient: NSObject, ObservableObject {
     private let exchange: Exchange
     private let defaults: UserDefaults
     private let credentials: CompanionCredentials
+    private let diagnostics: NativeDiagnostics
+    private let log: AppLog
+    private var diagnosticsPoll: Task<Void, Never>?
+    private var sendingDiagnostics = false
     private struct Route: Equatable {
         let endpoint: URL
         let revision = UUID()
@@ -21,15 +25,18 @@ final class CompanionClient: NSObject, ObservableObject {
     private var selection = UUID()
     private var currentRoute: Route? { current.flatMap { routes[$0.id] } }
 
-    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, exchange: @escaping Exchange = { try await URLSession.shared.data(for: $0) }) {
+    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, diagnostics: NativeDiagnostics? = nil, exchange: @escaping Exchange = { try await URLSession.shared.data(for: $0) }) {
         self.exchange = exchange
         self.defaults = defaults
         self.credentials = credentials ?? .live
+        self.diagnostics = diagnostics ?? .shared
+        self.log = AppLog("network", diagnostics: self.diagnostics)
         super.init()
         browser.delegate = self
     }
 
     deinit {
+        diagnosticsPoll?.cancel()
         sessionPoll?.cancel()
         for task in frontendPolls.values { task.cancel() }
     }
@@ -107,6 +114,11 @@ final class CompanionClient: NSObject, ObservableObject {
         current = target
         needsPairing = !authenticated
         healthState = .success
+        diagnostics.bind(to: health.hostId)
+        log.info("connection.accepted", ["hostId": health.hostId, "paired": String(authenticated)])
+        if authenticated && health.diagnosticsVersion == 1 && diagnosticsPoll == nil {
+            diagnosticsPoll = poll { await $0.flushDiagnostics() }
+        }
         onConnected?(target)
         if sessionPoll != nil { startFrontendPoll(hostID: health.hostId) }
     }
@@ -349,7 +361,7 @@ final class CompanionClient: NSObject, ObservableObject {
         let attempt = selection
         guard route.paired else { throw CompanionError(message: "Pair with this Mac first", statusCode: 401) }
         do {
-            let result: T = try await request(base: route.endpoint, path: path, method: method, body: body, timeout: timeout)
+            let result: T = try await request(base: route.endpoint, path: path, hostID: hostID, method: method, body: body, timeout: timeout)
             guard routes[hostID] == route else { throw URLError(.cancelled) }
             if current?.id == hostID, selection == attempt, !needsPairing {
                 if case .reconnecting = healthState { healthState = .success }
@@ -368,24 +380,98 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     private func request<T: Decodable>(
-        base: URL, path: String, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20
+        base: URL, path: String, hostID: String? = nil, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20
     ) async throws -> T {
         guard let url = URL(string: path, relativeTo: base)?.absoluteURL else { throw URLError(.badURL) }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body
         request.timeoutInterval = timeout
+        var trace = DiagnosticRequest(method: method, path: path, hostID: hostID, diagnostics: diagnostics)
+        request.setValue(trace.actionID, forHTTPHeaderField: "X-SlopZooka-Action-ID")
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
-        let (data, response) = try await exchange(Self.authorized(request, credentials: credentials))
-        guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200..<300).contains(response.statusCode) else {
-            let error = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
-            throw CompanionError(
-                message: "\(method) \(path) — HTTP \(response.statusCode): \(error?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode))", statusCode: response.statusCode)
+        do {
+            let (data, response) = try await exchange(Self.authorized(request, credentials: credentials))
+            guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            trace.completed(response)
+            guard (200..<300).contains(response.statusCode) else {
+                let error = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+                throw CompanionError(
+                    message: "\(method) \(path) — HTTP \(response.statusCode): \(error?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode))", statusCode: response.statusCode)
+            }
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            trace.failed(error)
+            throw error
         }
-        return try JSONDecoder().decode(T.self, from: data)
     }
 
+    /// Best-effort diagnostics never use the control request wrapper or change
+    /// connection state. A failed upload must not generate another upload error.
+    func flushDiagnostics() async {
+        guard !sendingDiagnostics else { return }
+        sendingDiagnostics = true
+        defer { sendingDiagnostics = false }
+        for (hostID, route) in routes where route.paired && route.health.diagnosticsVersion == 1 {
+            let batch = diagnostics.batch(for: hostID)
+            guard !batch.isEmpty, let url = URL(string: "/api/diagnostics/events", relativeTo: route.endpoint)?.absoluteURL else { continue }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"; request.timeoutInterval = 4
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(hostID, forHTTPHeaderField: "X-SlopZooka-Host-ID")
+            request.httpBody = diagnostics.body(for: batch)
+            do {
+                let (_, response) = try await exchange(Self.authorized(request, credentials: credentials))
+                if let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) { diagnostics.acknowledge(batch) }
+            } catch { /* Retain the bounded outbox until reconnect. */ }
+        }
+    }
+
+}
+
+/// A request's timing/correlation state; it never owns decoding or connection state.
+@MainActor
+private struct DiagnosticRequest {
+    let actionID = DiagnosticContext.actionID ?? UUID().uuidString
+    private let diagnostics: NativeDiagnostics
+    private let log: AppLog
+    private let method: String
+    private let hostID: String?
+    private let started = ProcessInfo.processInfo.systemUptime
+    private var responseStatus: Int?
+
+    init(method: String, path: String, hostID: String?, diagnostics: NativeDiagnostics) {
+        self.method = method
+        self.hostID = hostID
+        self.diagnostics = diagnostics
+        var fields = ["actionId": actionID, "route": String(path.split(separator: "?", maxSplits: 1).first ?? ""), "method": method]
+        if let hostID { fields["hostId"] = hostID }
+        self.log = AppLog("network", fields: fields, diagnostics: diagnostics)
+        if method != "GET" { log.info("http.started") }
+    }
+
+    private var durationMs: Double { (ProcessInfo.processInfo.systemUptime - started) * 1000 }
+
+    mutating func completed(_ response: HTTPURLResponse) {
+        responseStatus = response.statusCode
+        if let hostID {
+            diagnostics.calibrate(hostID: hostID, serverTime: response.value(forHTTPHeaderField: "X-SlopZooka-Time"), durationMs: durationMs)
+        }
+        var fields = ["status": String(response.statusCode), "durationMs": String(durationMs)]
+        fields["requestId"] = response.value(forHTTPHeaderField: "X-SlopZooka-Request-ID")
+        if response.statusCode >= 400 { log.warn("http.completed", fields) }
+        else if method != "GET" { log.info("http.completed", fields) }
+    }
+
+    func failed(_ error: Error) {
+        guard (responseStatus ?? 0) < 400 else { return } // The HTTP failure was already recorded.
+        if error is CancellationError || (error as? URLError)?.code == .cancelled {
+            log.info("http.cancelled", ["durationMs": String(durationMs)])
+            return
+        }
+        // Server bodies remain with the caller; diagnostics only retain error type/code.
+        log.warn("http.failed", ["errorType": String(describing: type(of: error)), "code": String((error as NSError).code), "durationMs": String(durationMs)])
+    }
 }
 
 struct ConnectedHost: Equatable {

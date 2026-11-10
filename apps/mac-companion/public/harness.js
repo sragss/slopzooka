@@ -1,4 +1,275 @@
+// ../../packages/protocol/src/diagnostics.ts
+var MAX_LOG_EVENT_BYTES = 8 * 1024;
+var MAX_LOG_BATCH = 32;
+var correlationKeys = [
+  "hostId",
+  "clientId",
+  "actionId",
+  "requestId",
+  "sessionId",
+  "workspaceId",
+  "windowId",
+  "commandId",
+  "connectionId"
+];
+var validLogId = (value) => typeof value === "string" && /^[a-zA-Z0-9._:-]{1,120}$/.test(value);
+var privateKey = /authorization|cookie|token|ticket|password|secret|api[_-]?key|credential|private[_-]?key|pairingCode|transcript|^(text|data|body|environment|payload|command)$/i;
+function safeLogText(value) {
+  return value.slice(0, 2048).replace(/\b(?:https?|wss?):\/\/[^\s"'<>]+/gi, (text) => {
+    try {
+      const url = new URL(text);
+      return `${url.protocol}//${url.host}${url.pathname}`;
+    } catch {
+      return "[url]";
+    }
+  }).replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]").replace(
+    /\b(token|ticket|password|secret|api[_ -]?key|credentials?|private[_ -]?key|pairing[ -]?code|authorization)\s*[:=]\s*[^\s,;]+/gi,
+    "$1=[redacted]"
+  );
+}
+function logError(value, depth = 0) {
+  try {
+    if (!value || typeof value !== "object")
+      return {
+        message: safeLogText(
+          typeof value === "string" ? value : "Unknown error"
+        )
+      };
+    const error = value;
+    const result = {
+      message: safeLogText(
+        typeof error.message === "string" ? error.message : "Unknown error"
+      )
+    };
+    for (const key of ["name", "stack"])
+      if (typeof error[key] === "string") result[key] = safeLogText(error[key]);
+    if (typeof error.code === "string") result.code = safeLogText(error.code);
+    else if (typeof error.code === "number" && Number.isFinite(error.code))
+      result.code = error.code;
+    if (error.cause !== void 0 && depth < 2)
+      result.cause = logError(error.cause, depth + 1);
+    return result;
+  } catch {
+    return { message: "Unreadable error details" };
+  }
+}
+function safeLogFields(fields) {
+  const result = /* @__PURE__ */ Object.create(null);
+  for (const key of correlationKeys)
+    if (validLogId(fields[key])) result[key] = fields[key];
+  if (fields.error !== void 0) result.error = logError(fields.error);
+  let remaining = 24;
+  for (const key of Object.keys(fields)) {
+    if (key === "error" || correlationKeys.includes(key))
+      continue;
+    if (remaining-- <= 0) break;
+    const descriptor = Object.getOwnPropertyDescriptor(fields, key);
+    if (!descriptor || !("value" in descriptor)) continue;
+    const value = descriptor.value;
+    if (privateKey.test(key)) result[key.slice(0, 80)] = "[redacted]";
+    else if (typeof value === "string")
+      result[key.slice(0, 80)] = safeLogText(value);
+    else if (value === null || typeof value === "boolean" || typeof value === "number" && Number.isFinite(value))
+      result[key.slice(0, 80)] = value;
+  }
+  return result;
+}
+function boundedLogEvent(event) {
+  const result = {
+    version: 1,
+    source: event.source,
+    instanceId: event.instanceId,
+    sequence: event.sequence,
+    ts: event.ts,
+    monotonicMs: event.monotonicMs,
+    level: event.level,
+    component: safeLogText(event.component).slice(0, 120),
+    event: safeLogText(event.event).slice(0, 160),
+    fields: safeLogFields(event.fields),
+    ...event.buildId ? { buildId: event.buildId } : {},
+    ...event.runtimeId ? { runtimeId: event.runtimeId } : {},
+    ...event.receivedAt ? { receivedAt: event.receivedAt } : {},
+    ...event.clock ? { clock: event.clock } : {}
+  };
+  if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_LOG_EVENT_BYTES) {
+    result.fields = {
+      truncated: true,
+      ...Object.fromEntries(
+        correlationKeys.filter((key) => validLogId(event.fields[key])).map((key) => [key, event.fields[key]])
+      ),
+      ...result.fields.error ? { error: result.fields.error } : {}
+    };
+    if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_LOG_EVENT_BYTES)
+      result.fields.error = {
+        message: result.fields.error.message.slice(0, 256)
+      };
+  }
+  return result;
+}
+
+// src/log-events.ts
+function logId() {
+  const bytes2 = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues)
+    globalThis.crypto.getRandomValues(bytes2);
+  else
+    for (let index = 0; index < bytes2.length; index++)
+      bytes2[index] = Math.floor(Math.random() * 256);
+  return Array.from(bytes2, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+}
+function eventLogger(source, sink, options = {}) {
+  const instanceId = options.instanceId ?? logId();
+  let sequence = 0;
+  function scoped(component, fields = {}) {
+    const bound = { ...fields };
+    function write(level, event, fields2 = {}) {
+      if (level === "debug" && !options.debug) return;
+      try {
+        sink({
+          version: 1,
+          source,
+          instanceId,
+          sequence: ++sequence,
+          ts: (/* @__PURE__ */ new Date()).toISOString(),
+          monotonicMs: performance.now(),
+          level,
+          component,
+          event,
+          buildId: options.buildId,
+          runtimeId: options.runtimeId,
+          fields: { ...options.context?.current(), ...bound, ...fields2 }
+        });
+      } catch {
+      }
+    }
+    return {
+      debug: (event, fields2) => write("debug", event, fields2),
+      info: (event, fields2) => write("info", event, fields2),
+      warn: (event, fields2) => write("warn", event, fields2),
+      error: (event, fields2) => write("error", event, fields2),
+      child: (fields2) => scoped(component, { ...bound, ...fields2 })
+    };
+  }
+  return scoped;
+}
+
+// src/browser-logger.ts
+var queue = [];
+var bytes = 0;
+var dropped = 0;
+var sending = false;
+var clock;
+var size = (event) => new TextEncoder().encode(JSON.stringify(event)).length;
+var browserLog = eventLogger(
+  "browser",
+  (event) => {
+    event = boundedLogEvent(event);
+    const bridge = window.webkit?.messageHandlers?.diagnostics;
+    if (bridge) {
+      bridge.postMessage(event);
+      return;
+    }
+    const length = size(event);
+    while (queue.length && bytes + length > 256 * 1024) {
+      bytes -= queue.shift().bytes;
+      dropped++;
+    }
+    queue.push({ event, bytes: length });
+    bytes += length;
+  },
+  {
+    buildId: true ? "5aeae31713dd470468681993eb82b7f726c147520631e30a3a6f9b8ea2b50298" : "unknown"
+  }
+);
+var log = browserLog("diagnostics");
+async function flush() {
+  if (sending || !queue.length) return;
+  sending = true;
+  try {
+    let length = 0;
+    const batch = [];
+    for (const pending of queue.slice(0, MAX_LOG_BATCH)) {
+      length += pending.bytes;
+      if (length > 48 * 1024) break;
+      batch.push(pending.event);
+    }
+    const response = await fetch("/api/diagnostics/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: 1, clock, events: batch }),
+      signal: AbortSignal.timeout(4e3)
+    });
+    if (response.ok) {
+      const sent = new Set(batch.map((event) => event.sequence));
+      for (let index = queue.length - 1; index >= 0; index--) {
+        if (sent.has(queue[index].event.sequence))
+          bytes -= queue.splice(index, 1)[0].bytes;
+      }
+      if (dropped) {
+        const count = dropped;
+        dropped = 0;
+        log.warn("logs.dropped", { count });
+      }
+    }
+  } catch {
+  } finally {
+    sending = false;
+  }
+}
+setInterval(() => void flush(), 2e3);
+window.addEventListener("online", () => void flush());
+window.addEventListener(
+  "error",
+  (event) => browserLog("browser").error("browser.error", {
+    error: event.error ?? event.message
+  })
+);
+window.addEventListener(
+  "unhandledrejection",
+  (event) => browserLog("browser").error("browser.unhandled-rejection", {
+    error: event.reason
+  })
+);
+async function loggedFetch(route, init = {}) {
+  const method = init.method ?? "GET", actionId = logId();
+  const fields = { actionId, method, route: route.split("?")[0] };
+  const log3 = browserLog("http", fields), started = performance.now();
+  if (method !== "GET") log3.info("http.started");
+  try {
+    const headers = new Headers(init.headers);
+    headers.set("X-SlopZooka-Action-ID", actionId);
+    const response = await fetch(route, { ...init, headers });
+    const durationMs = performance.now() - started;
+    const serverTime = Date.parse(
+      response.headers.get("X-SlopZooka-Time") ?? ""
+    );
+    if (Number.isFinite(serverTime))
+      clock = {
+        observedAt: (/* @__PURE__ */ new Date()).toISOString(),
+        offsetMs: serverTime - (Date.now() - durationMs / 2),
+        uncertaintyMs: durationMs / 2
+      };
+    const result = {
+      status: response.status,
+      durationMs,
+      requestId: response.headers.get("X-SlopZooka-Request-ID")
+    };
+    if (!response.ok) log3.warn("http.completed", result);
+    else if (method !== "GET") log3.info("http.completed", result);
+    return response;
+  } catch (error) {
+    log3.error("http.failed", {
+      error: logError(error),
+      durationMs: performance.now() - started
+    });
+    throw error;
+  }
+}
+
 // src/harness.ts
+var log2 = browserLog("harness");
 var sections = {
   sessions: "Terminals",
   workspaces: "Workspaces",
@@ -23,6 +294,10 @@ function message(id, text = "") {
   $(id).hidden = !text;
 }
 function failure(id, error, guidance) {
+  log2.warn("action.failed", {
+    surface: id,
+    errorType: error instanceof Error ? error.name : "unknown"
+  });
   const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   const element = $(id);
   if (element.dataset.detail === detail) return;
@@ -55,7 +330,7 @@ function gate(authorized) {
 async function api(path, body, method = body ? "POST" : "GET") {
   let response;
   try {
-    response = await fetch(path, {
+    response = await loggedFetch(path, {
       method,
       signal: AbortSignal.timeout(3e4),
       headers: body ? { "Content-Type": "application/json" } : {},
@@ -108,6 +383,7 @@ function action(parent, title, run, quiet = false, disabled = false) {
   button.disabled = disabled;
   if (quiet) button.className = "quiet danger";
   button.onclick = async () => {
+    log2.info("action.requested", { action: title });
     button.disabled = true;
     busy++;
     try {
@@ -346,6 +622,7 @@ function render(key, force = false) {
 function navigate() {
   const hash = location.hash.slice(1);
   section = Object.hasOwn(sections, hash) ? hash : "sessions";
+  log2.info("navigation.changed", { section });
   $("page-title").textContent = sections[section];
   $("add-url").hidden = section !== "frontends";
   const filter = $("filter");
@@ -395,7 +672,10 @@ async function refresh() {
   refreshing = false;
   $("refresh").disabled = false;
 }
-$("refresh").onclick = () => void refresh();
+$("refresh").onclick = () => {
+  log2.info("refresh.requested");
+  void refresh();
+};
 $("dismiss-notice").onclick = () => {
   $("notice").hidden = true;
 };

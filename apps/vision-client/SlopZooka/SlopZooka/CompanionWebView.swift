@@ -4,6 +4,7 @@ import WebKit
 #if canImport(UIKit)
 struct CompanionWebView: UIViewRepresentable {
     let url: URL
+    let hostID: String?
     let reloadToken: Int
     @Binding var loadState: TerminalLoadState
     let isActive: Bool
@@ -16,6 +17,7 @@ struct CompanionWebView: UIViewRepresentable {
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
     func makeUIView(context: Context) -> WKWebView {
         context.coordinator.reloadToken = reloadToken
+        context.coordinator.hostID = hostID
         context.coordinator.focusToken = focusRequestToken
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
@@ -23,6 +25,7 @@ struct CompanionWebView: UIViewRepresentable {
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
         configuration.userContentController.add(context.coordinator, name: "terminalNotification")
+        configuration.userContentController.add(context.coordinator, name: "diagnostics")
         context.coordinator.onNotification = onNotification
         context.coordinator.onSelect = onSelect
         let webView = WKWebView(frame: .zero, configuration: configuration)
@@ -37,6 +40,7 @@ struct CompanionWebView: UIViewRepresentable {
     }
     func updateUIView(_ webView: WKWebView, context: Context) {
         context.coordinator.loadState = $loadState
+        context.coordinator.hostID = hostID
         context.coordinator.onNotification = onNotification
         context.coordinator.onSelect = onSelect
         context.coordinator.updateActivity(isActive, in: webView)
@@ -58,6 +62,7 @@ struct CompanionWebView: UIViewRepresentable {
         coordinator.onSelect = {}
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalState")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalNotification")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "diagnostics")
         webView.evaluateJavaScript("window.slzDetachTerminal?.()")
         webView.navigationDelegate = nil
         webView.stopLoading()
@@ -69,6 +74,8 @@ struct CompanionWebView: UIViewRepresentable {
 /// Owns the terminal document bridge. A loaded page is not a connected session.
 @MainActor
 final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    var hostID: String?
+    private var log: AppLog { AppLog("terminal-webview", fields: ["hostId": hostID ?? ""]) }
     var loadState: Binding<TerminalLoadState>
     var focusToken = 0
     var interruptToken = 0
@@ -134,6 +141,13 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
         guard message.frameInfo.isMainFrame, message.webView === webView else { return }
+        if message.name == "diagnostics" {
+            guard let requestedURL, let frameURL = message.frameInfo.request.url,
+                frameURL.scheme == requestedURL.scheme, frameURL.host == requestedURL.host,
+                frameURL.port == requestedURL.port, frameURL.path == requestedURL.path else { return }
+            NativeDiagnostics.shared.receiveBrowserEvent(message.body, hostID: hostID)
+            return
+        }
         if message.name == "terminalNotification" {
             guard let body = message.body as? [String: Any] else { return }
             if body["kind"] as? String == "selected" {
@@ -170,6 +184,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         }
     }
     func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        log.error("navigation.failed", error: error)
         loadState.wrappedValue = .failed(error.localizedDescription)
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
@@ -177,6 +192,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         applyZoom(in: webView)
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        log.error("navigation.failed", error: error)
         loadState.wrappedValue = .failed(error.localizedDescription)
     }
     func webView(
@@ -194,6 +210,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         }
     }
     func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        log.warn("process.terminated")
         guard let requestedURL else { return }
         terminalReady = false
         documentReady = false

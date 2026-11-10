@@ -47,11 +47,95 @@ Portless is optional. The registry adapter is tested against the Portless 0.14 s
 | `SLOPZOOKA_HOME`                                                                      | Workspace index, clones, worktrees, and pairing store; default `~/.slopzooka` |
 | `SLOPZOOKA_SIGN_IDENTITY`                                                             | Build signing identity; `-` opts into ad-hoc signing                          |
 | `SLOPZOOKA_BUILD_DIR`                                                                 | Build output directory, default `build/mac-app`                               |
-| `SLOPZOOKA_LOG_DIR`                                                                   | Override companion log directory                                              |
 | `SLOPZOOKA_CODEX_COMMAND` / `SLOPZOOKA_CLAUDE_COMMAND` / `SLOPZOOKA_OPENCODE_COMMAND` | Explicit agent command overrides                                              |
 | `PORTLESS_STATE_DIR`                                                                  | Portless instance to discover                                                 |
 
 Agent commands use their normal permission behavior.
+
+## Diagnostics
+
+**Settings → View Logs** opens `SLOPZOOKA_HOME/logs` (default
+`~/.slopzooka/logs`). Each home owns its logs; use a separate `SLOPZOOKA_HOME` for
+development or another isolated instance. The former `SLOPZOOKA_LOG_DIR` override
+is no longer used.
+
+Companion, session-service, and menu logs use separate rotating JSONL files in
+that directory. Vision Pro and browser events are collected into the companion’s
+files, preserving their source timestamps, sequence numbers, and correlation IDs.
+Native window, persistence, voice, and WebView activity joins HTTP, terminal
+transport, process lifecycle, and periodic traffic summaries. Terminal text,
+dictation transcripts, request bodies, and credentials are excluded by default.
+
+The live structured-log budget is 256 MiB: 128 MiB for the companion and collected clients,
+112 MiB for the session service, and 16 MiB for the menu. Writers rotate at 4 MiB
+or 15 minutes. Writers start fresh segments after startup or a write failure,
+leaving previous crash tails intact for capture. They reserve capacity for a
+whole segment and prune only when opening one, with a 512-segment bound per role.
+The menu uses a serial file actor and appends to uniquely named segments. Retention targets 24 hours;
+heavy activity can shorten it. Queues and individual events are also bounded.
+`SLOPZOOKA_LOG_LEVEL=debug` enables successful HTTP-read diagnostics in the
+companion. These logs are local; there is no automatic external upload.
+
+Paired clients can use these endpoints for debugging and future report tooling:
+
+| Endpoint | Purpose |
+| --- | --- |
+| `POST /api/diagnostics/events` | Internal versioned batch intake for clients |
+| `GET /api/diagnostics/reports/:id` | Download a captured incident as self-contained JSON |
+| `POST /api/diagnostics/capture` | Capture retained evidence and return its manifest/download path |
+
+Capture accepts an optional `around` UTC ISO timestamp as an incident bookmark.
+It preserves retained events without filtering, sorting, or deduplicating them;
+time filtering belongs to future bug-report tooling, which can interpret source
+clocks and retry identities. From a paired
+dashboard’s browser console:
+
+```js
+const report = await fetch("/api/diagnostics/capture", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ around: new Date().toISOString() }),
+}).then((response) => response.json());
+location.href = report.download;
+```
+
+Each JSON artifact is bounded to 32 MiB, favoring recently written segments when
+full. It includes raw events and a manifest of producer/build/runtime identities,
+missing builds or role coverage, truncation, damaged segments, storage loss
+counters, and incomplete Mac flushes. Build identity travels with each event, so
+it survives startup-record rotation. Original timestamps remain intact; buffered
+client events acquire the latest clock observation at upload. Its observation
+time and uncertainty remain explicit; a later observation cannot establish whether
+a device’s clock changed earlier.
+
+Captures persist under `reports` with separate limits of 64 MiB, 128 reports, and
+seven days, pruned on capture. Save the download when filing a bug: a timestamp
+alone cannot recover logs after rotation or a report after eviction. No report is
+sent externally automatically.
+
+A preloaded fatal-error handler retains the latest uncaught bootstrap failure in
+`bootstrap.jsonl` for each Node role, independently of structured logger startup.
+Each fallback is at most 8 KiB plus a newline and uses no inherited log descriptor.
+It covers application-import failures; errors before Node can run its preload and
+raw third-party stderr are not captured. The Mac menu also records launch failures.
+
+Delivery is best effort. The headset retains up to 8 MiB in memory during an
+outage; standalone browser documents retain up to 256 KiB. Successful authenticated
+uploads acknowledge only the submitted identities. Buffer overflow is reported in
+subsequent events. Reloading a standalone tab or restarting the headset loses
+unsent events; suspension delays uploads. Forced termination or power loss can lose
+a recent write. Captures include already collected client events, not unreachable
+clients’ pending buffers. They do not capture arbitrary preview applications’
+internal logs.
+
+Updating the companion leaves existing terminal processes running. A retained
+older session service keeps its legacy `session-service.log` and reports an
+incomplete diagnostic flush. Previously launched services keep their original
+log path, including any former override, and mark capture incomplete when that
+path is outside the current home’s logs. **View Logs** identifies the actual path.
+Use the existing explicit session-service restart
+when ready to end those sessions and enable its new writer. Historical unbounded
+log files are not rewritten or deleted automatically.
 
 ## Browser terminal control
 

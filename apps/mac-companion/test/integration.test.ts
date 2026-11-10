@@ -105,7 +105,6 @@ test(
         env: {
           ...process.env,
           SLOPZOOKA_HOME: home,
-          SLOPZOOKA_LOG_DIR: home,
           SLOPZOOKA_HOST: "127.0.0.1",
           SLOPZOOKA_PORT: String(port),
           PORTLESS_STATE_DIR: path.join(home, "portless"),

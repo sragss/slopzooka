@@ -323,7 +323,6 @@ test(
         env: {
           ...process.env,
           SLOPZOOKA_HOME: home,
-          SLOPZOOKA_LOG_DIR: home,
           SLOPZOOKA_PORT: String(backendPort),
           SLOPZOOKA_HOST: "127.0.0.1",
           SLOPZOOKA_DESKTOP: "1",

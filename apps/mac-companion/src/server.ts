@@ -1,5 +1,7 @@
+import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
 import { randomUUID } from "node:crypto";
+import { mkdir } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
 import os from "node:os";
@@ -10,7 +12,8 @@ import { WebSocketServer, type WebSocket } from "ws";
 
 import { SLOPZOOKA_BONJOUR_TYPE, startBonjourAdvertiser } from "./bonjour.js";
 import { GitHubClient } from "./github.js";
-import { createLogger } from "./logger.js";
+import { createDiagnostics } from "./logger.js";
+import { installDiagnosticsRoutes, logRequests } from "./diagnostics-http.js";
 import { FrontendService } from "./frontends.js";
 import {
   WorkspaceService,
@@ -42,14 +45,20 @@ const CONTROL_HOST = `${LOCAL_HOST_NAME}.local:${PORT}`;
 const CONTROL_ORIGIN = `http://${CONTROL_HOST}`;
 const BONJOUR_SERVICE_NAME = advertisedServiceName();
 const DEFAULT_CWD = path.resolve(import.meta.dirname, "../../..");
-const logger = createLogger("SlopZooka", "mac-companion.log");
+await mkdir(workspacePaths().slopzookaHome, { recursive: true, mode: 0o700 });
+const companionInstanceId = randomUUID();
+const diagnostics = createDiagnostics("mac-companion", {
+  home: workspacePaths().slopzookaHome,
+  instanceId: companionInstanceId,
+});
+const logger = diagnostics.logger("companion");
 const gitHubClient = new GitHubClient();
-const workspaceService = new WorkspaceService(logger);
+const workspaceService = new WorkspaceService(diagnostics.logger("workspaces"));
 
 const sessionService = await SessionServiceClient.forHome(
   workspacePaths().slopzookaHome,
+  diagnostics.logger("session-service-client"),
 );
-const companionInstanceId = randomUUID();
 let sessionStatus: ServiceInfo | undefined;
 let sessionServiceAvailable = false;
 let admissionReady = false;
@@ -59,8 +68,12 @@ const pairing: Pairing = new Pairing(
   workspacePaths().slopzookaHome,
   () => dashboardAddress.proxyOrigin,
 );
-const dashboardAddress = new DashboardAddress(PORT, pairing.hostId, logger);
-const frontendService = new FrontendService(logger, {
+const dashboardAddress = new DashboardAddress(
+  PORT,
+  pairing.hostId,
+  diagnostics.logger("dashboard"),
+);
+const frontendService = new FrontendService(diagnostics.logger("frontends"), {
   dashboardOrigin: () => dashboardAddress.proxyOrigin,
   workspaces: () => workspaceService.frontendWorkspaces(),
 });
@@ -103,6 +116,7 @@ const catalogTimer = setInterval(() => {
 catalogTimer.unref();
 
 const app = express();
+app.use(logRequests(diagnostics));
 app.use(express.json({ limit: "128kb" }));
 app.use((req, res, next) => {
   if (shuttingDown || !admissionReady) {
@@ -122,6 +136,9 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
+  sessionService.flushLogs(),
+);
 installWindowLayoutRoutes(
   app,
   new WindowLayoutStore(workspacePaths().slopzookaHome),
@@ -154,7 +171,8 @@ app.get("/health", (_req, res) => {
     controlOrigin: CONTROL_ORIGIN,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
-    logFilePath: logger.logFilePath,
+    logFilePath: diagnostics.store.file,
+    diagnosticsVersion: 1,
     workspacePaths: paths,
   });
 });
@@ -562,6 +580,9 @@ const heartbeat = setInterval(() => {
 }, 15_000);
 heartbeat.unref();
 wss.on("connection", (ws) => {
+  const connectionId = randomUUID();
+  const log = diagnostics.logger("terminal-relay", { connectionId });
+  log.info("connection.opened");
   alive.add(ws);
   ws.on("pong", () => alive.add(ws));
   void sessionService
@@ -569,6 +590,7 @@ wss.on("connection", (ws) => {
       type: "hello",
       version: PROTOCOL_VERSION,
       hostId: pairing.hostId,
+      connectionId,
     })
     .catch((error) => {
       logger.warn("Session relay unavailable", { error: String(error) });
@@ -578,6 +600,7 @@ wss.on("connection", (ws) => {
     logger.warn("Socket error", { error: error.message }),
   );
   ws.on("close", () => {
+    log.info("connection.closed");
     alive.delete(ws);
   });
 });
@@ -605,8 +628,9 @@ server.listen(
       controlOrigin: CONTROL_ORIGIN,
       bindHost: HOST,
       defaultCwd: DEFAULT_CWD,
-      logFilePath: logger.logFilePath,
-      workspacePaths: workspacePaths(),
+      logFilePath: diagnostics.store.file,
+      home: workspacePaths().slopzookaHome,
+      companionInstanceId,
     });
     bonjourAdvertiser = startBonjourAdvertiser({
       logger,
@@ -702,11 +726,11 @@ function advertisedServiceName(): string {
 }
 
 process.on("uncaughtException", (error) => {
-  logger.error("Fatal error", { error: error.message });
+  logger.error("process.uncaught-exception", { error: logError(error) });
   void shutdown("fatal", 1);
 });
 process.on("unhandledRejection", (error) => {
-  logger.error("Unhandled rejection", { error: String(error) });
+  logger.error("process.unhandled-rejection", { error: logError(error) });
   void shutdown("fatal", 1);
 });
 
@@ -854,5 +878,6 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   ]);
   server.closeAllConnections();
   await httpClosed;
+  await diagnostics.store.flush();
   process.exit(exitCode);
 }

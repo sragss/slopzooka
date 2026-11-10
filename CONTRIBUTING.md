@@ -49,6 +49,31 @@ Edit browser sources in `apps/mac-companion/src`, then run `pnpm build:harness`.
 
 Run `pnpm format` for TypeScript formatting. Add regression coverage for behavior changes, especially reconnects, cancellation, persistence, and process lifetime. Document user-facing changes in the relevant guide; keep the README focused on getting started.
 
+### Logging
+
+Use a scoped logger at the existing behavior owner. Node processes create one
+runtime with `createDiagnostics`; components receive `diagnostics.logger("component")`.
+Only process bootstrap and diagnostics routes access `diagnostics.store`.
+Browser components use `browserLog("component")`; native components use
+`AppLog("component")`. Bind stable IDs with `child`, use named events and structured
+flat scalar metadata, and pass `Error` values directly. Use `logError` for unknown
+catch values; rich errors retain name, message, stack, code, and bounded causes.
+Node request boundaries establish action/request correlation with `logContext.run`;
+scoped loggers read that context. Native `AppLog.operation` records duration and
+outcome and carries its action ID through native requests. Never log raw
+input, transcripts, credentials, request bodies, or environment dumps. Summarize
+high-volume traffic rather than adding events to every output/ack/input frame.
+
+The diagnostic envelope and native bridge fixture live in `packages/protocol`.
+`pnpm test` exercises storage, intake, redaction, clock observations, bootstrap failures, and incident export;
+`pnpm test:vision-state` also checks native buffering and authenticated retries.
+Both native apps compile the UI-independent runtime and file sink in `apps/shared`.
+Only the debug panel observes `NativeDiagnostics.recentEntries`. Outbox routing,
+clock calibration, and delivery do not publish UI updates. Both Node and native
+writers begin fresh segments after startup or write failure, reserve a whole
+segment’s capacity, and prune only when opening a segment. The native file actor
+serializes disk work off the main actor. Logs always belong to `SLOPZOOKA_HOME/logs`.
+
 ## Verify
 
 From the repository root:
