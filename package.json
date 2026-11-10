@@ -11,7 +11,7 @@
     "setup:swiftlint": "node scripts/install-swiftlint.mjs",
     "lint": "pnpm lint:ts && pnpm lint:swift",
     "lint:ts": "eslint apps/mac-companion/src apps/mac-companion/test packages/protocol/src --max-warnings 0",
-    "lint:swift": ".build/swiftlint/swiftlint lint --strict --config .swiftlint.yml",
+    "lint:swift": ".build/swiftlint/swiftlint lint --strict --config .swiftlint.yml && node scripts/test-swiftlint.mjs",
     "format": "prettier --write \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
     "format:check": "prettier --check \"apps/mac-companion/src/**/*.ts\" \"apps/mac-companion/test/**/*.ts\" \"packages/protocol/src/**/*.ts\"",
     "build:mac-app": "node scripts/build-mac-app.mjs",

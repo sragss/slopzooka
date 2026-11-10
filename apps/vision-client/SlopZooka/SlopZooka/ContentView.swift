@@ -330,6 +330,7 @@ struct ContentView: View {
         HStack(spacing: 10) {
             Image(systemName: feedbackIconName(for: feedback.style))
                 .foregroundStyle(feedbackColor(for: feedback.style))
+                .accessibilityHidden(true)
 
             Text(feedback.message)
                 .font(.footnote)

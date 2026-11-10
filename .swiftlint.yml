@@ -6,11 +6,24 @@ included:
 
 # Correctness checks only; formatting and size limits are intentionally omitted.
 only_rules:
+  - accessibility_label_for_image
+  - custom_rules
   - duplicate_conditions
   - duplicate_enum_cases
   - duplicate_imports
   - force_cast
   - force_try
+  - private_swiftui_state
   - discarded_notification_center_observer
   - unhandled_throwing_task
   - weak_delegate
+
+custom_rules:
+  native_window_actions:
+    name: Native window actions
+    included: "(^|/)apps/vision-client/SlopZooka/SlopZooka/"
+    excluded: '(^|/)apps/vision-client/SlopZooka/SlopZooka/WindowScene\.swift$'
+    regex: '\b(?:openWindow|dismissWindow)\b'
+    match_kinds: identifier
+    message: "Native window actions belong in WindowScene.swift; request intent through WindowGateway."
+    severity: error
