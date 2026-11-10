@@ -5,7 +5,7 @@ import Network
     static func main() throws {
         let args = CommandLine.arguments
         guard args.count >= 3 else {
-            print("link-probe host|client|selftest CONFIG [--peer] [--condition LABEL]")
+            print("link-probe host|client|selftest CONFIG [--peer] [--condition LABEL] [--exclude-interface NAME]")
             exit(2)
         }
         let configURL = URL(fileURLWithPath: args[2])
@@ -22,7 +22,13 @@ import Network
         client.complete = { success in host.stop(); exit(success ? 0 : 1) }
         let identity = configURL.deletingLastPathComponent().appendingPathComponent("identity.p12")
         switch args[1] {
-        case "host": try host.start(identity: identity)
+        case "host":
+            if let i = args.firstIndex(of: "--exclude-interface") {
+                guard i + 1 < args.count, !args[i + 1].hasPrefix("--") else {
+                    print("--exclude-interface requires an interface name"); exit(2)
+                }
+                host.startExcluding(identity: identity, interfaceName: args[i + 1])
+            } else { try host.start(identity: identity) }
         case "client": linkQueue.async { client.start() }
         case "selftest":
             host.ready = { port in client.start(direct: .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)) }

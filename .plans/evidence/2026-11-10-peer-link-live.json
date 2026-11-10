@@ -1,0 +1,1557 @@
+{
+  "date": "2026-11-10",
+  "scope": "Physical Mac to Vision Pro synthetic TLS/TCP link. Network associations unchanged; en0 excluded only from diagnostic listener. No rendered-media or physically-disassociated test.",
+  "macOS": "26.5.2",
+  "visionOS": "26.2 (23N301)",
+  "testedCode": {
+    "baseRevision": "e0b5830b8726f66606750ad2a94a72010008b085",
+    "sourceSHA256": {
+      "Sources/Link.swift": "4f174f1f30aec1189a698bec785f42608c55c30c123edd3d322bceea6a0991f4",
+      "Sources/Checks.swift": "e7e7bec68d0cf32f632653f60e4db401bfa238f335024eae4ae080810f90d34f",
+      "Sources/Client.swift": "f65b8be7368b11c613f9242e607f1bbb7b98b37ddf2a0363172f1ac8678edaad",
+      "Sources/Viewer.swift": "e66824dacd0e7b79446534658fb7c8fae1e5c6a83d410959454aff9f06d626ff",
+      "Sources/CLI.swift": "2fb31d6c150a6375c53cbe9765922f4d15d87d3cb5b5bc6061e545385a4d717d",
+      "Sources/Host.swift": "88d0676f3097dada7564d998b31f294d324ce913e1d73040a0624a53beef2c3f"
+    },
+    "binaries": {
+      "link-probe": "c9d4512f703cfcb74c45a045f5c8a823a90d73f7e34e82742c121349709ad893",
+      "link-probe-direct": "e72ba3daee307c1c622777255a9f3dc25f6a0a7446e82d84ae5ed82777f258ca"
+    },
+    "change": "Host exclusion diagnostic added during live slot; original viewer and workload unchanged."
+  },
+  "rawLogSHA256": {
+    "same-ap-peer-host.jsonl": "a9dcb521ab50a5f4c8520ed59c24bd37999f9eb642031e1c7a677048ed4e1bfc",
+    "final-lan-host.jsonl": "741579c56c847c8fe38d242e1356484a0c745a7abce0a4745946268aab3acfa4",
+    "exclude-lan-peer-host.jsonl": "7144b25cc0d9df2957162e80d46d9995ebf9210d31bf8b87120bf23056f8acf3",
+    "exclude-lan-negative-host.jsonl": "ae00c2874b41375a50fb89fb268b97fa747eec36a6ee218278cf3a002f981adb",
+    "same-ap-lan-host.jsonl": "8ca2acc3ab6995ccd01a9a77f2161461d2272815af282e6afb8b0156da1cf155",
+    "viewer-final/link-1794328118-29C93373.jsonl": "bc97f13ca65c72b9ffe311ab963b0e5ef4b0670be14179280efcc1250ec24977",
+    "viewer-final/link-1794327978-F28B9C09.jsonl": "ba6d11c40153a6bc068602abce9a04e76e35588d2648b8898d5b1af5b3669c2e",
+    "viewer-final/link-1794327865-F0D55102.jsonl": "1689de0d9e12941d4075cfc83790a5695313ef052d9899645edd04051bd4c83f",
+    "viewer-final/link-1794328064-8D6FE430.jsonl": "2698dacd94214ab7ebfcbf38bd849a32a16e4b95adb4b07351e21630a3853ff9",
+    "viewer-final/link-1794328027-DE493CDC.jsonl": "fb3966e8746e30c6adb2c4fb582331e89eed2c330df5dc3ddac03799a1ddf551",
+    "viewer-final/link-1794327796-768DA32E.jsonl": "a3130c1fea464c2d8fa96704d4b7560a844e0131836d0a80aaeb2613bb647443"
+  },
+  "runs": [
+    {
+      "condition": "same-ap-lan-1",
+      "peerEnabled": false,
+      "lastEvent": {
+        "elapsed": 19.94161220833331,
+        "event": "completed",
+        "hostSaved": true
+      },
+      "discovered": [
+        {
+          "elapsed": 2.3646046249999984,
+          "event": "discovered",
+          "interfaces": ["en0"],
+          "milliseconds": 2364.551249999977
+        }
+      ],
+      "authenticated": [
+        {
+          "attempt": 0,
+          "elapsed": 2.609426583333317,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": false
+          },
+          "milliseconds": 244.05325000000744
+        },
+        {
+          "attempt": 1,
+          "elapsed": 14.77731962499999,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": false
+          },
+          "milliseconds": 49.50870833334875
+        }
+      ],
+      "first_payload": [
+        {
+          "attempt": 0,
+          "elapsed": 4.721089041666659,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 2355.72054166667,
+          "sincePhaseMs": 22.603374999988546
+        },
+        {
+          "attempt": 0,
+          "elapsed": 9.73650649999999,
+          "event": "first_payload",
+          "phase": 2,
+          "sinceConnectMs": 7371.139708333345,
+          "sincePhaseMs": 24.379041666662715
+        },
+        {
+          "attempt": 1,
+          "elapsed": 14.800558749999993,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 72.75691666666262,
+          "sincePhaseMs": 22.95829166666863
+        }
+      ],
+      "phases": [
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 0,
+          "frameGapP95Ms": 0,
+          "host": {
+            "duration": 2.003938041627407,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 0,
+            "scheduled": 60,
+            "sent": 0,
+            "skippedBusy": 0
+          },
+          "phase": 0,
+          "receivedFrames": 0,
+          "receivedPayloadMbps": 0,
+          "receiverSeconds": 2.088081708333334,
+          "rttMaxMs": 147.9634166666699,
+          "rttP50Ms": 8.473208333327875,
+          "rttP95Ms": 114.30037499999912,
+          "rttSamples": 20,
+          "targetMbps": 0
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 193.49525000001222,
+          "frameGapP95Ms": 162.48924999999304,
+          "host": {
+            "duration": 5.002944124978967,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 141,
+            "skippedBusy": 9
+          },
+          "phase": 1,
+          "receivedFrames": 141,
+          "receivedPayloadMbps": 7.502966719669643,
+          "receiverSeconds": 5.01130091666667,
+          "rttMaxMs": 186.09358333333148,
+          "rttP50Ms": 11.655041666671195,
+          "rttP95Ms": 160.277833333339,
+          "rttSamples": 50,
+          "targetMbps": 8
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 206.2254583333356,
+          "frameGapP95Ms": 170.2092499999992,
+          "host": {
+            "duration": 5.005011041648686,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 100000,
+            "scheduled": 150,
+            "sent": 124,
+            "skippedBusy": 26
+          },
+          "phase": 2,
+          "receivedFrames": 124,
+          "receivedPayloadMbps": 19.786103642981686,
+          "receiverSeconds": 5.013619750000004,
+          "rttMaxMs": 180.10516666666376,
+          "rttP50Ms": 12.15612499998997,
+          "rttP95Ms": 161.156874999989,
+          "rttSamples": 51,
+          "targetMbps": 24
+        },
+        {
+          "attempt": 1,
+          "frameGapMaxMs": 189.36508333334245,
+          "frameGapP95Ms": 166.79416666667635,
+          "host": {
+            "duration": 5.004081541672349,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 138,
+            "skippedBusy": 12
+          },
+          "phase": 1,
+          "receivedFrames": 138,
+          "receivedPayloadMbps": 7.153935504164073,
+          "receiverSeconds": 5.143970333333328,
+          "rttMaxMs": 201.75695833333407,
+          "rttP50Ms": 11.579291666663494,
+          "rttP95Ms": 167.89220833334184,
+          "rttSamples": 50,
+          "targetMbps": 8
+        }
+      ],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 2.3760043749999795,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 0,
+          "elapsed": 2.555285708333315,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 0,
+          "elapsed": 2.555810333333312,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 0,
+          "elapsed": 2.5560729166666647,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 1,
+          "elapsed": 14.729875208333311,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    },
+    {
+      "condition": "same-ap-peer-1",
+      "peerEnabled": true,
+      "lastEvent": {
+        "elapsed": 17.313428624999972,
+        "event": "completed",
+        "hostSaved": true
+      },
+      "discovered": [
+        {
+          "elapsed": 0.0023257500000113396,
+          "event": "discovered",
+          "interfaces": ["awdl0", "en0"],
+          "milliseconds": 2.315708333327393
+        }
+      ],
+      "authenticated": [
+        {
+          "attempt": 0,
+          "elapsed": 0.10392191666667827,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 101.55233333333058
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.204684333333319,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 55.997166666656994
+        }
+      ],
+      "first_payload": [
+        {
+          "attempt": 0,
+          "elapsed": 2.151704875000007,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 2149.337791666653,
+          "sincePhaseMs": 36.17920833332278
+        },
+        {
+          "attempt": 0,
+          "elapsed": 7.147174374999992,
+          "event": "first_payload",
+          "phase": 2,
+          "sinceConnectMs": 7144.806749999987,
+          "sincePhaseMs": 13.601375000007465
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.225666791666669,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 76.9950000000108,
+          "sincePhaseMs": 20.664041666663024
+        }
+      ],
+      "phases": [
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 0,
+          "frameGapP95Ms": 0,
+          "host": {
+            "duration": 2.001159791718237,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 0,
+            "scheduled": 60,
+            "sent": 0,
+            "skippedBusy": 0
+          },
+          "phase": 0,
+          "receivedFrames": 0,
+          "receivedPayloadMbps": 0,
+          "receiverSeconds": 2.0106036249999875,
+          "rttMaxMs": 74.27295833332437,
+          "rttP50Ms": 7.1274999999957345,
+          "rttP95Ms": 70.20941666667113,
+          "rttSamples": 21,
+          "targetMbps": 0
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 186.05604166666012,
+          "frameGapP95Ms": 161.43900000000144,
+          "host": {
+            "duration": 5.003470833296888,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 149,
+            "skippedBusy": 1
+          },
+          "phase": 1,
+          "receivedFrames": 149,
+          "receivedPayloadMbps": 7.921723879389077,
+          "receiverSeconds": 5.015693124999984,
+          "rttMaxMs": 175.75258333334887,
+          "rttP50Ms": 10.13233333333119,
+          "rttP95Ms": 165.43208333334292,
+          "rttSamples": 50,
+          "targetMbps": 8
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 200.10620833332382,
+          "frameGapP95Ms": 162.4943749999943,
+          "host": {
+            "duration": 5.004800874972716,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 100000,
+            "scheduled": 150,
+            "sent": 150,
+            "skippedBusy": 0
+          },
+          "phase": 2,
+          "receivedFrames": 150,
+          "receivedPayloadMbps": 23.939353438461247,
+          "receiverSeconds": 5.012666708333342,
+          "rttMaxMs": 201.8682083333374,
+          "rttP50Ms": 22.319166666676438,
+          "rttP95Ms": 157.5939166666842,
+          "rttSamples": 50,
+          "targetMbps": 24
+        },
+        {
+          "attempt": 1,
+          "frameGapMaxMs": 187.1468333333155,
+          "frameGapP95Ms": 163.4513333333416,
+          "host": {
+            "duration": 5.004807083285414,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 141,
+            "skippedBusy": 9
+          },
+          "phase": 1,
+          "receivedFrames": 141,
+          "receivedPayloadMbps": 7.382149468310175,
+          "receiverSeconds": 5.093316541666667,
+          "rttMaxMs": 216.26150000000166,
+          "rttP50Ms": 20.73149999998236,
+          "rttP95Ms": 206.65700000000697,
+          "rttSamples": 50,
+          "targetMbps": 8
+        }
+      ],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 0.0026034999999922093,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.15080524999999,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    },
+    {
+      "condition": "exclude-lan-negative",
+      "peerEnabled": false,
+      "lastEvent": {
+        "elapsed": 12.737533041666666,
+        "event": "failed",
+        "partialResults": [],
+        "reason": "connect/authentication timeout"
+      },
+      "discovered": [
+        {
+          "elapsed": 0.002447083333379396,
+          "event": "discovered",
+          "interfaces": ["en0"],
+          "milliseconds": 2.4237916666720594
+        }
+      ],
+      "authenticated": [],
+      "first_payload": [],
+      "phases": [],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 0.0027966666667111895,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    },
+    {
+      "condition": "exclude-lan-peer-1",
+      "peerEnabled": true,
+      "lastEvent": {
+        "elapsed": 17.225694541666655,
+        "event": "completed",
+        "hostSaved": true
+      },
+      "discovered": [
+        {
+          "elapsed": 0.06202791666663643,
+          "event": "discovered",
+          "interfaces": ["en0"],
+          "milliseconds": 62.01270833332728
+        }
+      ],
+      "authenticated": [
+        {
+          "attempt": 0,
+          "elapsed": 0.11531104166664363,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 53.17525000003798
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.207765041666619,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 62.614541666675905
+        }
+      ],
+      "first_payload": [
+        {
+          "attempt": 0,
+          "elapsed": 2.1481902083332898,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 2086.053083333354,
+          "sincePhaseMs": 24.100625000016862
+        },
+        {
+          "attempt": 0,
+          "elapsed": 7.147581666666667,
+          "event": "first_payload",
+          "phase": 2,
+          "sinceConnectMs": 7085.443625000039,
+          "sincePhaseMs": 14.245250000044507
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.221722333333332,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 76.57891666667638,
+          "sincePhaseMs": 13.734208333346487
+        }
+      ],
+      "phases": [
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 0,
+          "frameGapP95Ms": 0,
+          "host": {
+            "duration": 2.0020932083716616,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 0,
+            "scheduled": 60,
+            "sent": 0,
+            "skippedBusy": 0
+          },
+          "phase": 0,
+          "receivedFrames": 0,
+          "receivedPayloadMbps": 0,
+          "receiverSeconds": 2.0073999166666567,
+          "rttMaxMs": 11.575833333381524,
+          "rttP50Ms": 4.90529166665965,
+          "rttP95Ms": 10.232416666667632,
+          "rttSamples": 21,
+          "targetMbps": 0
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 78.8164583333355,
+          "frameGapP95Ms": 39.43908333332047,
+          "host": {
+            "duration": 5.001896500005387,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 150,
+            "skippedBusy": 0
+          },
+          "phase": 1,
+          "receivedFrames": 150,
+          "receivedPayloadMbps": 7.988400526730396,
+          "receiverSeconds": 5.007210125000029,
+          "rttMaxMs": 26.20454166668651,
+          "rttP50Ms": 5.388416666676221,
+          "rttP95Ms": 25.392375000024003,
+          "rttSamples": 50,
+          "targetMbps": 8
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 167.82029166671464,
+          "frameGapP95Ms": 44.119374999979755,
+          "host": {
+            "duration": 5.0036457083188,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 100000,
+            "scheduled": 150,
+            "sent": 146,
+            "skippedBusy": 4
+          },
+          "phase": 2,
+          "receivedFrames": 146,
+          "receivedPayloadMbps": 23.319140978481972,
+          "receiverSeconds": 5.008760833333383,
+          "rttMaxMs": 173.07395833330474,
+          "rttP50Ms": 6.726166666680911,
+          "rttP95Ms": 54.469916666676,
+          "rttSamples": 50,
+          "targetMbps": 24
+        },
+        {
+          "attempt": 1,
+          "frameGapMaxMs": 49.34595833333333,
+          "frameGapP95Ms": 39.53320833329599,
+          "host": {
+            "duration": 5.0005930833285674,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 150,
+            "skippedBusy": 0
+          },
+          "phase": 1,
+          "receivedFrames": 150,
+          "receivedPayloadMbps": 7.9901743177997595,
+          "receiverSeconds": 5.006098541666688,
+          "rttMaxMs": 24.764166666670917,
+          "rttP50Ms": 6.434791666663386,
+          "rttP95Ms": 9.640875000002325,
+          "rttSamples": 51,
+          "targetMbps": 8
+        }
+      ],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 0.062472458333331815,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.148457666666616,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    },
+    {
+      "condition": "exclude-lan-peer-2",
+      "peerEnabled": true,
+      "lastEvent": {
+        "elapsed": 17.250024249999967,
+        "event": "completed",
+        "hostSaved": true
+      },
+      "discovered": [
+        {
+          "elapsed": 0.051619333333349005,
+          "event": "discovered",
+          "interfaces": ["en0"],
+          "milliseconds": 51.593625000009524
+        }
+      ],
+      "authenticated": [
+        {
+          "attempt": 0,
+          "elapsed": 0.10937345833332301,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 57.62216666664699
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.232291083333337,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": true
+          },
+          "milliseconds": 81.5032083333449
+        }
+      ],
+      "first_payload": [
+        {
+          "attempt": 0,
+          "elapsed": 2.1449427499999842,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 2093.184916666644,
+          "sincePhaseMs": 21.509708333326216
+        },
+        {
+          "attempt": 0,
+          "elapsed": 7.1635906249999834,
+          "event": "first_payload",
+          "phase": 2,
+          "sinceConnectMs": 7111.834999999985,
+          "sincePhaseMs": 25.53808333334473
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.247560916666657,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 96.78949999999986,
+          "sincePhaseMs": 14.98483333330114
+        }
+      ],
+      "phases": [
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 0,
+          "frameGapP95Ms": 0,
+          "host": {
+            "duration": 2.004757708404213,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 0,
+            "scheduled": 60,
+            "sent": 0,
+            "skippedBusy": 0
+          },
+          "phase": 0,
+          "receivedFrames": 0,
+          "receivedPayloadMbps": 0,
+          "receiverSeconds": 2.0131913333333387,
+          "rttMaxMs": 86.70887499999935,
+          "rttP50Ms": 5.891916666655561,
+          "rttP95Ms": 18.0762499999787,
+          "rttSamples": 21,
+          "targetMbps": 0
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 84.38924999995834,
+          "frameGapP95Ms": 42.182833333356484,
+          "host": {
+            "duration": 5.002909083268605,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 150,
+            "skippedBusy": 0
+          },
+          "phase": 1,
+          "receivedFrames": 150,
+          "receivedPayloadMbps": 7.979884703976593,
+          "receiverSeconds": 5.01255362500001,
+          "rttMaxMs": 55.56766666666135,
+          "rttP50Ms": 6.3329166666790115,
+          "rttP95Ms": 13.158208333322818,
+          "rttSamples": 50,
+          "targetMbps": 8
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 114.67566666664197,
+          "frameGapP95Ms": 52.5887083333032,
+          "host": {
+            "duration": 5.004921541665681,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 100000,
+            "scheduled": 150,
+            "sent": 145,
+            "skippedBusy": 5
+          },
+          "phase": 2,
+          "receivedFrames": 145,
+          "receivedPayloadMbps": 23.145757146601557,
+          "receiverSeconds": 5.011717666666698,
+          "rttMaxMs": 116.16970833335927,
+          "rttP50Ms": 13.332583333294679,
+          "rttP95Ms": 79.95004166662056,
+          "rttSamples": 50,
+          "targetMbps": 24
+        },
+        {
+          "attempt": 1,
+          "frameGapMaxMs": 72.40699999999833,
+          "frameGapP95Ms": 40.944833333355746,
+          "host": {
+            "duration": 5.002599874977022,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "awdl0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%awdl0",
+              "remote": "redacted%awdl0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 150,
+            "skippedBusy": 0
+          },
+          "phase": 1,
+          "receivedFrames": 150,
+          "receivedPayloadMbps": 7.985729226069799,
+          "receiverSeconds": 5.008885083333325,
+          "rttMaxMs": 26.751166666656445,
+          "rttP50Ms": 6.128125000032014,
+          "rttP95Ms": 17.55241666666052,
+          "rttSamples": 51,
+          "targetMbps": 8
+        }
+      ],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 0.05219862500001682,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.152418749999981,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    },
+    {
+      "condition": "final-lan",
+      "peerEnabled": false,
+      "lastEvent": {
+        "elapsed": 17.393249958333342,
+        "event": "completed",
+        "hostSaved": true
+      },
+      "discovered": [
+        {
+          "elapsed": 0.0031359583333596674,
+          "event": "discovered",
+          "interfaces": ["en0"],
+          "milliseconds": 3.124666666678877
+        }
+      ],
+      "authenticated": [
+        {
+          "attempt": 0,
+          "elapsed": 0.13061637499998824,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": false
+          },
+          "milliseconds": 127.42274999999381
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.242276833333335,
+          "event": "authenticated",
+          "host": {
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "peerEnabled": false
+          },
+          "milliseconds": 47.698708333314244
+        }
+      ],
+      "first_payload": [
+        {
+          "attempt": 0,
+          "elapsed": 2.1851263750000385,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 2181.936708333353,
+          "sincePhaseMs": 25.809166666704186
+        },
+        {
+          "attempt": 0,
+          "elapsed": 7.20546708333336,
+          "event": "first_payload",
+          "phase": 2,
+          "sinceConnectMs": 7202.277374999994,
+          "sincePhaseMs": 25.667541666678062
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.262359375000017,
+          "event": "first_payload",
+          "phase": 1,
+          "sinceConnectMs": 67.7986250000231,
+          "sincePhaseMs": 19.658208333339644
+        }
+      ],
+      "phases": [
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 0,
+          "frameGapP95Ms": 0,
+          "host": {
+            "duration": 2.00404595839791,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 0,
+            "scheduled": 60,
+            "sent": 0,
+            "skippedBusy": 0
+          },
+          "phase": 0,
+          "receivedFrames": 0,
+          "receivedPayloadMbps": 0,
+          "receiverSeconds": 2.0261385416666826,
+          "rttMaxMs": 110.31874999997626,
+          "rttP50Ms": 11.668291666694586,
+          "rttP95Ms": 110.31874999997626,
+          "rttSamples": 19,
+          "targetMbps": 0
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 184.5824583333524,
+          "frameGapP95Ms": 159.7556250000025,
+          "host": {
+            "duration": 5.004986708401702,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 149,
+            "skippedBusy": 1
+          },
+          "phase": 1,
+          "receivedFrames": 149,
+          "receivedPayloadMbps": 7.916789854399457,
+          "receiverSeconds": 5.018819083333369,
+          "rttMaxMs": 173.94400000000587,
+          "rttP50Ms": 11.398750000012114,
+          "rttP95Ms": 171.56658333334462,
+          "rttSamples": 50,
+          "targetMbps": 8
+        },
+        {
+          "attempt": 0,
+          "frameGapMaxMs": 198.12612500004434,
+          "frameGapP95Ms": 181.84191666665583,
+          "host": {
+            "duration": 5.004451500019059,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 100000,
+            "scheduled": 150,
+            "sent": 108,
+            "skippedBusy": 42
+          },
+          "phase": 2,
+          "receivedFrames": 108,
+          "receivedPayloadMbps": 17.236912602286118,
+          "receiverSeconds": 5.012498583333354,
+          "rttMaxMs": 244.80266666665784,
+          "rttP50Ms": 19.205916666635403,
+          "rttP95Ms": 186.52416666668614,
+          "rttSamples": 50,
+          "targetMbps": 24
+        },
+        {
+          "attempt": 1,
+          "frameGapMaxMs": 190.25754166665365,
+          "frameGapP95Ms": 158.6676666666449,
+          "host": {
+            "duration": 5.002634291653521,
+            "path": {
+              "availableInterfaces": [
+                {
+                  "name": "en0",
+                  "type": "wifi"
+                }
+              ],
+              "constrained": false,
+              "expensive": false,
+              "local": "redacted%en0",
+              "remote": "redacted%en0",
+              "status": "satisfied",
+              "usedTypes": ["wifi"]
+            },
+            "payloadBytes": 33333,
+            "scheduled": 150,
+            "sent": 144,
+            "skippedBusy": 6
+          },
+          "phase": 1,
+          "receivedFrames": 144,
+          "receivedPayloadMbps": 7.473216703873544,
+          "receiverSeconds": 5.13829820833331,
+          "rttMaxMs": 173.69216666668308,
+          "rttP50Ms": 10.932833333356484,
+          "rttP95Ms": 147.28404166669407,
+          "rttSamples": 50,
+          "targetMbps": 8
+        }
+      ],
+      "earlyClientPathObservations": [
+        {
+          "attempt": 0,
+          "elapsed": 0.003451208333331124,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        },
+        {
+          "attempt": 1,
+          "elapsed": 12.19633600000003,
+          "event": "client_path",
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "en0",
+                "type": "wifi"
+              },
+              {
+                "name": "en0",
+                "type": "wifi"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "unknown",
+            "remote": "unresolved-service-endpoint",
+            "status": "satisfied",
+            "usedTypes": ["wifi"]
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -4,7 +4,7 @@ November 9, 2026. Reviewed after merging upstream `main` through `6d7d26d` into 
 
 **Start implementation on the existing owners. No preliminary window/networking rearchitecture is needed.** The cleanup supplies the shared native client, per-window state and naming operations we wanted. The worker-delivery experiment proposed below was completed on November 10 for an explicitly owned Codex runtime and real terminal TUI. [Results and limitations](2026-11-10-worker-delivery-results.md). Further streaming checks mostly belong with the production integration and supported-feature qualification.
 
-**November 10 rollout update:** adopt the user's [preview-first sequence](2026-11-10-preview-first-rollout.md): quick isolated peer-link/LAN comparison → manual stream previews → small terminal preview MCP with native Codex CUA → lifecycle/recovery qualification → background Chrome → Pi. Codex calling a preview tool does not require external structured delivery into Codex, so the worker adapter moves to the Pi phase. Enough feasibility work has run to start implementation; the remaining gates qualify the production slices.
+**November 10 rollout update:** adopt the user's [preview-first sequence](2026-11-10-preview-first-rollout.md): quick isolated peer-link/LAN comparison ([completed](2026-11-10-peer-link-live-results.md)) → manual stream previews → small terminal preview MCP with native Codex CUA → lifecycle/recovery qualification → background Chrome → Pi. Codex calling a preview tool does not require external structured delivery into Codex, so the worker adapter moves to the Pi phase. Enough feasibility work has run to start implementation; the remaining gates qualify the production slices.
 
 ## What the merge removes from our work
 

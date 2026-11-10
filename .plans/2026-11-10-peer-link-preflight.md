@@ -1,6 +1,6 @@
 # Direct-link probe: preparation and test log
 
-November 10, 2026. This implements [rollout step 0](2026-11-10-preview-first-rollout.md#0-quick-direct-link-check-before-product-implementation). The [isolated probe and operator instructions](../experiments/peer-link-probe/README.md) define the test. **Local preflight passed; physical LAN/peer-to-peer comparison remains untested.** No network setting, production service, terminal, screen permission or headset installation was changed.
+November 10, 2026. This implements [rollout step 0](2026-11-10-preview-first-rollout.md#0-quick-direct-link-check-before-product-implementation). The [isolated probe and operator instructions](../experiments/peer-link-probe/README.md) define the test. **Local preflight passed. The subsequent [physical comparison is now recorded separately](2026-11-10-peer-link-live-results.md); this section retains the preparation-time evidence.** During preflight, no network setting, production service, terminal, screen permission or headset installation was changed.
 
 ## Prepared experiment
 
@@ -35,7 +35,7 @@ Final loopback run (plumbing evidence **only**, not Wi-Fi predictions):
 
 During preparation, the initial generated Xcode project used incorrect root-file/plist paths and omitted the connection resource. Sources were grouped under `Sources`, plist routing corrected, the resource explicitly included, and subsequent simulator/device builds plus packaged-resource inspection passed. Queue ownership is explicit; the final code builds without the earlier Swift Sendable warnings. Xcode's informational App Intents metadata-extraction warning remains because this app has no App Intents dependency.
 
-## Physical slot — pending
+## Original physical-slot checklist (superseded by the live report)
 
 Run same-AP baseline and peer-eligible cases, no-shared-LAN negative control and eligible case with radios still enabled, then restored LAN. Keep device positions and other active services recorded. About two minutes of automated traffic/deadlines plus setup. The operator manages mode changes, launches and evidence; the user approves initial Local Network access and any necessary association change/restoration. No automatic network reconfiguration.
 

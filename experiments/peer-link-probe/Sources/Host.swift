@@ -3,6 +3,7 @@ import Network
 
 final class LinkHost {
     private var listener: NWListener?
+    private var monitor: NWPathMonitor?
     private var channels: [UUID: Channel] = [:]
     let config: LinkConfig
     let peer: Bool
@@ -11,8 +12,27 @@ final class LinkHost {
     init(config: LinkConfig, peer: Bool, log: @escaping ([String: Any]) -> Void) {
         self.config = config; self.peer = peer; self.log = log
     }
-    func start(identity: URL, loopback: Bool = false) throws {
+    func startExcluding(identity: URL, interfaceName: String) {
+        let monitor = NWPathMonitor(); self.monitor = monitor
+        var resolved = false
+        monitor.pathUpdateHandler = { [weak self, weak monitor] path in
+            guard let self, let monitor, !resolved else { return }
+            resolved = true; monitor.cancel(); self.monitor = nil
+            guard let interface = path.availableInterfaces.first(where: { $0.name == interfaceName }) else {
+                self.log(["event": "exclusion_failed", "reason": "interface unavailable", "name": interfaceName]); exit(2)
+            }
+            self.log(["event": "interface_excluded", "name": interface.name, "type": String(describing: interface.type)])
+            do { try self.start(identity: identity, excluding: [interface]) }
+            catch { self.log(["event": "listener_failed", "reason": String(describing: error)]); exit(2) }
+        }
+        monitor.start(queue: linkQueue)
+        linkQueue.asyncAfter(deadline: .now() + 3) {
+            if !resolved { print("Interface lookup timed out"); exit(2) }
+        }
+    }
+    func start(identity: URL, loopback: Bool = false, excluding: [NWInterface] = []) throws {
         let p = try parameters(config, peer: peer, identityURL: identity)
+        p.prohibitedInterfaces = excluding
         if loopback { p.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any) }
         let listener = try NWListener(using: p)
         if !loopback { listener.service = NWListener.Service(name: config.service, type: serviceType) }
