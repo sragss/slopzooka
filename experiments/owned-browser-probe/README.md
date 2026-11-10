@@ -84,3 +84,8 @@ The extension toolbar badge/title identifies a controlled tab; its action button
 - The worker reconnect delay is fixed for this disposable test. A shipped integration needs bounded/backoff recovery, update handling and diagnostics. No automatic mutation retry should be added.
 
 The probe's source, package lock and redacted evidence are committed. Generated extension configuration, browser profiles, native-host tokens, API credentials and images are not.
+
+
+## Continuous background stream trial
+
+`node probe.mjs --streaming --headed` runs the two-source Mac preflight with independent TLS receivers; add `--serve` to keep the fixture streams available for Vision. See the [live runbook](../surface-live-probe/README.md) for viewer/agent setup and cleanup. Frames are event-driven CDP JPEGs; background screenshots alone are not the acceptance criterion. Browser lease release currently ends its stream as well as input. This remains a disposable Chrome for Testing profile, not normal Chrome installation qualification.

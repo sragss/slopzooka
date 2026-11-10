@@ -1,6 +1,6 @@
 # Experiment B: two controlled background tabs streaming to Vision
 
-Status: planned, November 9, 2026. Continuous browser frame delivery and its receiver instrumentation are **not implemented or ready for device testing yet**. Our [owned browser control](2026-11-09-owned-browser-extension-probe.md) and [real terminal/Pi](2026-11-09-runtime-qualification-results.md) tests established control, screenshots and lifecycle, not background video.
+Status: source/relay implemented, November 9, 2026. [Mac preparation results](2026-11-09-live-surface-preparation-results.md) establish headed background source delivery, independent receivers and real agent composition. [Launch code and a signed viewer](../experiments/surface-live-probe/README.md) are prepared. **B1–B6 have not run on Vision Pro**; deliberate cover/minimize and physical typing interference remain separate checks.
 
 Companion experiment: [real simulator-to-gateway integration](2026-11-09-simulator-gateway-live-plan.md). This media experiment is independent and may run first if its Mac preparation finishes sooner. It can use the isolated ProbeViewer; that result will not count as production `WindowGateway` integration.
 
@@ -92,8 +92,8 @@ At execution, add a dated results note and sanitized evidence alongside the exis
 
 | Case | Current status | Result/evidence |
 | --- | --- | --- |
-| Mac source/relay gate | Not run | Adapter not yet implemented |
-| B1–B6 | Not run | Await source gate and receiver build |
+| Mac source/relay gate | Partially qualified | [Executed source/receiver/agent cases](2026-11-09-live-surface-preparation-results.md); deliberate cover/minimize, full fault cases and resource attribution remain |
+| B1–B6 | Not run on headset | Prepared source and signed viewer; await physical slot |
 | H.264 comparison / four streams | Not run | Conditional follow-up |
 
 For the eventual live slot, the user needs the Vision Pro connected for deployment, permission to open the prepared test viewer, and a few brief visual verdicts. Agent runs handle discovery, connections and fixture actions. Do not ask the user to hunt through stream targets: prepare clearly labeled A/B entries and guide the exact opening steps, or use the production presentation path if Experiment A is ready.

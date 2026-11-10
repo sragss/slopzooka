@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "surfaces": [{
+    "id": "probe:fixture",
+    "title": "Disposable iOS fixture",
+    "workspaceID": "fixture-workspace",
+    "deviceID": "11111111-1111-1111-1111-111111111111",
+    "stream": {
+      "host": "127.0.0.1",
+      "port": 9999,
+      "token": "synthetic-fixture-token-not-a-real-credential",
+      "fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+      "target": "fixture-device"
+    }
+  }]
+}

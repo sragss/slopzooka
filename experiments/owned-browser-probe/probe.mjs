@@ -77,10 +77,16 @@ async function record(name, action) {
     throw error;
   }
 }
-const fixture = await readFile(
+let fixture = await readFile(
   new URL("../browser-runtime-probe/fixture.html", import.meta.url),
   "utf8",
 );
+if (process.argv.includes("--streaming")) {
+  fixture += await readFile(
+    new URL("./stream-fixture.html", import.meta.url),
+    "utf8",
+  );
+}
 const server = createServer(async (req, res) => {
   await appendFile(
     join(run, "fixture-requests.jsonl"),
@@ -278,7 +284,19 @@ try {
       nativeHostPid: nativePid,
     };
   });
-  if (process.argv.includes("--serve")) {
+  if (process.argv.includes("--streaming")) {
+    const { runStreaming } = await import("./streaming.mjs");
+    await runStreaming({
+      bridge,
+      socketPath,
+      origin,
+      run,
+      endpoint,
+      fixtureEvents,
+      headed: process.argv.includes("--headed"),
+      serve: process.argv.includes("--serve"),
+    });
+  } else if (process.argv.includes("--serve")) {
     // A concrete, temporary MCP endpoint for a manually configured terminal agent.
     // No edits to global Codex/Pi configuration or the user's Chrome installation.
     const stopped = new Promise((resolve) => {

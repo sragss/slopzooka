@@ -1,6 +1,6 @@
 # Experiment A: one agent-controlled simulator in the real Vision app
 
-Status: planned, November 9, 2026. The user requested this plan and is preparing a Vision Pro slot. The integrated path below is **not implemented or ready for device testing yet**. Existing capture, simulator control and independent agent-runtime results are prerequisites, not results for this experiment.
+Status: code prepared, November 9, 2026. [The implementation and Mac results](2026-11-09-live-surface-preparation-results.md) and [launch runbook](../experiments/surface-live-probe/README.md) now support the first physical cases. Signed builds are ready; **A1–A6 have not run on Vision Pro**. The model is a separate Mac process calling the companion presentation API, not an embedded production Pi service.
 
 Companion experiment: [two background browser streams](2026-11-09-background-browser-streaming-live-plan.md). Broader context: [execution architecture](orchestrator-execution-path.md), [agent responsibility decision](2026-11-09-agent-control-ownership.md), and [latest runtime qualification](2026-11-09-runtime-qualification-results.md).
 
@@ -50,7 +50,7 @@ Complete these before asking the user to wear the headset:
 3. Exercise presentation intent with a fake client: duplicate delivery, late completion after close, explicit close versus disconnect, conflict rebasing, recovery without the launcher and no duplicate process creation. Reject old-generation input before dispatch. A fake client is not physical presentation evidence.
 4. Verify bounded receiver input, disconnection state and source-generation changes. A source heartbeat must not masquerade as a new image. Record explicit source-unavailable status rather than leaving an old frame labeled live.
 5. Run the repository checks required by [CONTRIBUTING](../CONTRIBUTING.md#verify), including Vision state, typecheck, companion tests, terminal keyboard, formatting, regenerated harness assets and a full visionOS simulator build. Complete any native/provider regression checks affected by extraction.
-6. Write the exact launch/install/connect/cleanup commands, built artifact paths and owned process list into the local run manifest. No unattended launch script is claimed to exist by this plan.
+6. Write the exact launch/install/connect/cleanup commands, built artifact paths and owned process list into the local run manifest. The implementation now supplies explicit build, launch and operator scripts; physical acceptance still requires the user.
 
 If these are incomplete when the headset becomes available, report the missing gate. Use a ready browser experiment first if available; do not substitute ProbeViewer success for the real-gateway claim.
 
@@ -90,7 +90,8 @@ At execution, create a dated results note beside this plan and sanitized evidenc
 
 | Case | Current status | Result/evidence |
 | --- | --- | --- |
-| A1–A6 | Not run | Await implementation and readiness gate |
+| Mac preparation | Passed within documented scope | [Readiness results and remaining limitations](2026-11-09-live-surface-preparation-results.md) |
+| A1–A6 | Not run on headset | Signed test builds and first-case launch code prepared; physical lifecycle/fault injection still pending |
 | Optional Codex handoff | Not run | Follow-up only |
 
 References: [current ownership map](../docs/architecture.md), [repository window invariants](../AGENTS.md#window-architecture), [probe implementation and limits](../experiments/shared-window-probe/README.md), [prior physical results](shared-window-live-results.md).

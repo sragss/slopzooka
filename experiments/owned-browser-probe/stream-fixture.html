@@ -1,0 +1,28 @@
+<style>
+  body { margin: 20px; padding-top: 95px; max-width: 1000px; }
+  #stream-marker { position: fixed; inset: 0 0 auto 0; height: 80px; color: white;
+    padding: 8px 24px; font: bold 24px monospace; z-index: 100; }
+  #motion { display: inline-block; width: 30px; height: 20px; background: white; }
+</style>
+<aside id="stream-marker"><span id="stream-id"></span><br><span id="tick"></span> <i id="motion"></i></aside>
+<button id="animate">Pause animation</button>
+<p style="font: 14px monospace">Small text: ABCDEFG abcdefg 0123456789 — Settings / Administrator</p>
+<script>
+  const slot = location.pathname.split('/').pop().toUpperCase();
+  const nonce = new URLSearchParams(location.search).get('nonce') || 'no-nonce';
+  document.querySelector('#stream-marker').style.background = slot === 'A' ? '#b31c36' : slot === 'B' ? '#1553b7' : '#396331';
+  document.querySelector('#stream-id').textContent = slot + ' / ' + nonce;
+  let animated = true, tick = 0;
+  document.querySelector('#animate').onclick = () => {
+    animated = !animated;
+    document.querySelector('#animate').textContent = animated ? 'Pause animation' : 'Resume animation';
+  };
+  function draw() {
+    if (animated) {
+      document.querySelector('#tick').textContent = 'Frame ' + (++tick);
+      document.querySelector('#motion').style.transform = 'translateX(' + (tick % 250) + 'px)';
+    }
+    requestAnimationFrame(draw);
+  }
+  requestAnimationFrame(draw);
+</script>

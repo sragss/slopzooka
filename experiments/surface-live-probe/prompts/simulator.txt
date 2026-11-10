@@ -1,0 +1,5 @@
+Use the prepared disposable iOS fixture. Find the one active Vision presenter with surface_status; if none or more than one are available, report that instead of guessing. Present this surface through surface_present and check its command, scene and receiver state separately. An accepted request is not proof that a person sees it.
+
+Turn on Dark appearance, fill Draft with gateway-agent-ready, and increment the counter exactly twice from its current value. Choose actions from fresh observations, including screenshots. If an accessibility press has no effect, use surface_tap on the actual control using a fresh screenshot and its observation ID. Verify each requested result. Do not replay an action after an uncertain transport failure.
+
+Leave the result visible. Report the nonce, before/after count, appearance, draft, and presentation state. The user will separately confirm physical visibility.

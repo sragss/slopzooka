@@ -33,6 +33,8 @@ async function release(lease, reason) {
   if (!lease.active) return lease.cleanup;
   lease.active = false; // Before any await: queued work must fail immediately.
   invalidate(lease);
+  clearTimeout(lease.media?.pending?.timer);
+  lease.media = undefined;
   emit({ event: "revoked", tabId: lease.tabId, target: lease.target, reason });
   // Retain the reservation until detach finishes; a new owner cannot race it.
   lease.cleanup = (async () => {
@@ -339,6 +341,33 @@ async function handle(owner, tool, args) {
             "Navigation dispatched; observe the loaded page before acting",
         };
       }
+      case "browser_stream_start": {
+        if (lease.media)
+          return { target: lease.target, streamId: lease.media.id };
+        const media = { id: crypto.randomUUID(), sequence: 0, pending: null };
+        lease.media = media;
+        try {
+          await cdp(lease, "Page.startScreencast", {
+            format: "jpeg",
+            quality: 65,
+            maxWidth: 1280,
+            maxHeight: 960,
+            everyNthFrame: 3,
+          });
+          guard(lease);
+          return { target: lease.target, streamId: media.id };
+        } catch (error) {
+          lease.media = undefined;
+          throw error;
+        }
+      }
+      case "browser_stream_stop": {
+        clearTimeout(lease.media?.pending?.timer);
+        lease.media = undefined;
+        await cdp(lease, "Page.stopScreencast");
+        emit({ event: "media-stopped", target: lease.target });
+        return { stopped: true };
+      }
       case "browser_screenshot": {
         const revision = lease.revision;
         const result = await cdp(
@@ -366,6 +395,54 @@ async function handle(owner, tool, args) {
 chrome.debugger.onEvent.addListener((source, method, params) => {
   const lease = leases.get(source.tabId);
   if (!lease) return;
+  if (method === "Page.screencastFrame") {
+    const ack = () =>
+      chrome.debugger
+        .sendCommand(source, "Page.screencastFrameAck", {
+          sessionId: params.sessionId,
+        })
+        .catch(() => {});
+    const media = lease.media;
+    if (
+      !lease.active ||
+      !media ||
+      media.pending ||
+      params.data.length > 4 * 1024 * 1024
+    ) {
+      void ack();
+      return;
+    }
+    const sequence = ++media.sequence;
+    media.pending = {
+      sequence,
+      ack,
+      timer: setTimeout(() => {
+        if (lease.media === media && media.pending?.sequence === sequence) {
+          media.pending = null;
+          void ack();
+        }
+      }, 1500),
+    };
+    emit({
+      event: "media-frame",
+      target: lease.target,
+      tabId: lease.tabId,
+      streamId: media.id,
+      revision: lease.revision,
+      sequence,
+      metadata: params.metadata,
+      data: params.data,
+    });
+    return;
+  }
+  if (
+    method === "Page.frameNavigated" &&
+    !params.frame.parentId &&
+    !allowed(params.frame.url)
+  ) {
+    void release(lease, "outside fixture origin");
+    return;
+  }
   if (
     (method === "Page.frameNavigated" && !params.frame.parentId) ||
     method === "Page.navigatedWithinDocument" ||
@@ -390,6 +467,20 @@ function connect() {
   const connection = chrome.runtime.connectNative(config.hostName);
   port = connection;
   connection.onMessage.addListener((message) => {
+    if (message.mediaAck) {
+      const { target, streamId, sequence } = message.mediaAck;
+      const lease = [...leases.values()].find(
+        (entry) => entry.target === target,
+      );
+      const media = lease?.media;
+      if (media?.id === streamId && media.pending?.sequence === sequence) {
+        const pending = media.pending;
+        media.pending = null;
+        clearTimeout(pending.timer);
+        void pending.ack();
+      }
+      return;
+    }
     void resetting
       .then(() => {
         if (connection !== port) throw new Error("Obsolete bridge connection");

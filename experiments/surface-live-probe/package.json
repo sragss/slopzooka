@@ -1,0 +1,7 @@
+{
+  "name": "slopzooka-surface-live-probe",
+  "private": true,
+  "type": "module",
+  "scripts": { "test": "node --test test/*.test.mjs" },
+  "dependencies": { "@modelcontextprotocol/sdk": "1.30.0" }
+}

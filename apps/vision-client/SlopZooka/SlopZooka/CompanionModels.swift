@@ -190,6 +190,7 @@ struct PreviewWindowPayload {
     let title: String
     let urlString: String
     var certificateAuthority: String? = nil
+    var stream: ProbeStreamDescriptor? = nil
     var url: URL? { URL(string: urlString) }
 }
 
@@ -305,6 +306,36 @@ struct HostSession: Decodable, Identifiable {
 struct HostSessionsResponse: Decodable {
     let sessions: [HostSession]
     var companionInstanceId: String? = nil
+    var surfaceProbe: Bool? = nil
 }
 struct CreatedSessionResponse: Decodable { let session: HostSession }
 struct APIAcknowledgement: Decodable { let ok: Bool }
+
+// Ephemeral, opt-in live experiment. Never encoded into WindowRecord.
+struct ProbeStreamDescriptor: Codable, Equatable {
+    let host: String
+    let port: Int
+    let token: String
+    let fingerprint: String
+    let target: String
+}
+struct ProbeSurfaceResponse: Decodable {
+    let id: String
+    let title: String
+    let workspaceID: String
+    let deviceID: String
+    let stream: ProbeStreamDescriptor
+}
+struct ProbePresentationCommand: Codable, Equatable {
+    let id: String
+    let action: String
+    let surfaceID: String
+}
+struct ProbePresentationReceipt: Codable {
+    let id: String
+    var error: String? = nil
+}
+struct ProbePresentationBatch: Decodable {
+    let instanceID: String
+    let commands: [ProbePresentationCommand]
+}

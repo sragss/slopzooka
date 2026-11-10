@@ -8,6 +8,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-vision-state-"));
 const binary = path.join(temporary, "checks");
 const suites = {
+  ProbeMediaChecks: ["ProbeMediaParser"],
   LauncherStateChecks: [
     "LauncherState",
     "HostConnection",

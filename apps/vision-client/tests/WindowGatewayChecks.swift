@@ -10,6 +10,7 @@ final class CompanionDiscovery {
 
 @MainActor
 enum CompanionAPI {
+    static var probeSurfaceData = Data()
     static var layouts: [String: WindowLayout] = [:]
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
@@ -70,6 +71,10 @@ enum CompanionAPI {
         if path == "/api/frontends" {
             if let callback = beforeFrontends { beforeFrontends = nil; try await callback() }
             return FrontendCatalog(frontends: [], warning: "Frontend fixture") as! T
+        }
+        if path == "/api/surface-probe/resolve" {
+            if let callback = beforePreview { beforePreview = nil; await callback() }
+            return try JSONDecoder().decode(T.self, from: probeSurfaceData)
         }
         if path == "/api/frontends/open" {
             if let callback = beforePreview { beforePreview = nil; await callback() }
@@ -402,6 +407,35 @@ struct WindowGatewayChecks {
         catch {}
         precondition(!CompanionAPI.requests.dropFirst(requestCount).contains(where: { $0.hasPrefix("PATCH") }))
         print("PASS: shared names and legacy fallback reach launcher payloads, reject stale replies, and recover without replacing scenes or processes")
+
+        let probeFixture = URL(fileURLWithPath: CommandLine.arguments[1]).deletingLastPathComponent().appendingPathComponent("surface-probe.v1.json")
+        let probeJSON = try JSONSerialization.jsonObject(with: Data(contentsOf: probeFixture)) as! [String: Any]
+        CompanionAPI.probeSurfaceData = try JSONSerialization.data(withJSONObject: (probeJSON["surfaces"] as! [[String: Any]])[0])
+        _ = try JSONDecoder().decode(ProbeSurfaceResponse.self, from: CompanionAPI.probeSurfaceData)
+        let probeID = "names-host:probe:fixture"
+        let probeRecord = WindowRecord(id: probeID, kind: .preview, targetID: "probe:fixture")
+        let batch = ProbePresentationBatch(instanceID: "probe-run", commands: [.init(id: "open-1", action: "open", surfaceID: "probe:fixture")])
+        var releaseProbe: CheckedContinuation<Void, Never>?
+        CompanionAPI.beforePreview = { await withCheckedContinuation { releaseProbe = $0 } }
+        nameCommands.removeAll()
+        let probeRequests = CompanionAPI.requests.count
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        await until { releaseProbe != nil }
+        precondition(nameCommands.filter { $0 == .open(probeRecord) }.count == 1)
+        naming.close(id: probeID)
+        releaseProbe!.resume()
+        try? await Task.sleep(for: .milliseconds(30))
+        naming.applyProbeCommands(batch, hostID: "names-host")
+        precondition(naming.previewPayload(for: probeID) == nil, "Late resolve or duplicate command cannot resurrect explicitly closed probe")
+        naming.applyProbeCommands(.init(instanceID: "probe-run", commands: [.init(id: "open-2", action: "open", surfaceID: "probe:fixture")]), hostID: "names-host")
+        await until { naming.previewPayload(for: probeID)?.stream != nil }
+        precondition(!CompanionAPI.requests.dropFirst(probeRequests).contains { $0.hasPrefix("POST /api/workspaces/") })
+        let persistedProbe = try JSONEncoder().encode(CompanionAPI.layouts[nameBase.host!]!)
+        precondition(!String(decoding: persistedProbe, as: UTF8.self).contains("synthetic-fixture-token"))
+        naming.close(id: probeID)
+        print("PASS: live-probe commands use the real gateway, deduplicate, reject late reopen and persist only stable content")
+
 
     }
 

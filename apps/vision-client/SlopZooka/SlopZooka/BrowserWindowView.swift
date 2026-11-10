@@ -12,7 +12,10 @@ struct BrowserWindowView: View {
         Group {
             if let payload {
                 ZStack(alignment: .top) {
-                    if let url = payload.url {
+                    if let descriptor = payload.stream {
+                        ProbeStreamPreview(descriptor: descriptor) { state in windows.updateProbeReceiver(id: payload.id, state: state) }
+                            .id("\(payload.id):\(windows.reloadToken(for: payload.id))")
+                    } else if let url = payload.url {
                         PreviewWebView(url: url, certificateAuthority: payload.certificateAuthority,
                             loadState: $loadState, navigation: navigation,
                             reloadToken: windows.reloadToken(for: payload.id))

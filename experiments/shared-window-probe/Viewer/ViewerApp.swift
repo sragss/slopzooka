@@ -126,7 +126,7 @@ import UIKit
                 case "paused": clearImage(); waitingKey = true; message = packet.header.reason ?? "Paused"
                 case "status":
                     let state = packet.header.reason ?? "unknown"
-                    if !["complete", "idle", "diagnostic_png_1fps", "snapshot_ready", "device_mjpeg"].contains(state) {
+                    if !["complete", "idle", "diagnostic_png_1fps", "snapshot_ready", "device_mjpeg", "browser_screencast"].contains(state) {
                         clearImage(); waitingKey = true
                     }
                     message = "\(state) • \(frames) received frames"

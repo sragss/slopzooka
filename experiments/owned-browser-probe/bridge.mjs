@@ -81,7 +81,18 @@ export async function startBridge({ socketPath, token }) {
         }
         if (role === "extension") {
           if (message.event) {
-            events.emit("event", message);
+            try {
+              events.emit("event", message);
+            } finally {
+              if (message.event === "media-frame" && !peer.destroyed)
+                send(peer, {
+                  mediaAck: {
+                    target: message.target,
+                    streamId: message.streamId,
+                    sequence: message.sequence,
+                  },
+                });
+            }
             return;
           }
           const entry = pending.get(message.id);

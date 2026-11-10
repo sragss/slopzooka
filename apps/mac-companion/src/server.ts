@@ -1,3 +1,4 @@
+import { installSurfaceProbe } from "./surface-probe.js";
 import { ServiceError } from "./errors.js";
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -126,6 +127,8 @@ installWindowLayoutRoutes(
   app,
   new WindowLayoutStore(workspacePaths().slopzookaHome),
 );
+if (process.env.SLOPZOOKA_SURFACE_PROBE_MANIFEST)
+  installSurfaceProbe(app, process.env.SLOPZOOKA_SURFACE_PROBE_MANIFEST);
 const publicRoot = path.join(import.meta.dirname, "..", "public");
 app.use(express.static(publicRoot));
 
@@ -166,6 +169,7 @@ app.get("/api/sessions", async (_req, res) => {
       sessions: info.sessions,
       companionInstanceId,
       serviceInstanceId: info.instanceId,
+      surfaceProbe: !!process.env.SLOPZOOKA_SURFACE_PROBE_MANIFEST,
     });
   } catch (error) {
     sendWorkspaceError(res, error, "Session service unavailable");
