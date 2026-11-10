@@ -70,6 +70,10 @@ files are checked in.
 
 ## Remaining gate
 
+The signed test builds and operator smoke checks are now prepared in the
+[short headset acceptance script](2026-11-10-native-preview-device-slot.md).
+These preparation checks do not change the physical-validation status below.
+
 The feature remains off by default. No new headset install, desktop lock, permission
 prompt, or actual desktop capture was performed for this implementation. Final signed
 permission attribution, physical phone-shaped sizing (including rotation/reload),
