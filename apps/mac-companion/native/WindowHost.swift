@@ -14,7 +14,9 @@ struct WindowHost {
         DispatchQueue.global().async {
             var buffer = Data()
             while true {
-                let chunk = FileHandle.standardInput.readData(ofLength: 4096)
+                // A control pipe must deliver short commands while the parent keeps
+                // stdin open. readData(ofLength:) waits for the requested byte count.
+                let chunk = FileHandle.standardInput.availableData
                 if chunk.isEmpty { exit(0) } // Parent lifeline, including idle captures.
                 buffer.append(chunk)
                 guard buffer.count <= 16_384 else { exit(2) }

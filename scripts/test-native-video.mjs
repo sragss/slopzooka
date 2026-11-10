@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 const root = fileURLToPath(new URL("../", import.meta.url));
+execFileSync(process.execPath, ["scripts/test-window-host.mjs"], { cwd: root, stdio: "inherit", timeout: 65000 });
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-native-video-"));
 try {
   const binary = path.join(temporary, "checks");
