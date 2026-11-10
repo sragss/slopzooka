@@ -181,7 +181,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webView(
         _ webView: WKWebView, decidePolicyFor navigationResponse: WKNavigationResponse,
-        decisionHandler: @escaping (WKNavigationResponsePolicy) -> Void
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationResponsePolicy) -> Void
     ) {
         if navigationResponse.isForMainFrame,
             let response = navigationResponse.response as? HTTPURLResponse, response.statusCode >= 400 {
@@ -205,7 +205,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webView(
         _ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
-        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+        decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
     ) {
         guard let target = navigationAction.request.url, let requestedURL else {
             decisionHandler(.cancel)

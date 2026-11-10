@@ -655,7 +655,9 @@ test(
       if (shutdownChildPID) {
         try {
           process.kill(shutdownChildPID, "SIGKILL");
-        } catch {}
+        } catch {
+          // The process may have already exited during shutdown.
+        }
       }
       if (child.exitCode === null) child.kill("SIGKILL");
       const service = await SessionServiceClient.forHome(home);
