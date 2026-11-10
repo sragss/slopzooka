@@ -141,6 +141,8 @@ struct DiagnosticsChecks {
         let around = "2026-11-10T12:00:00Z"
         var reportRequests: [URLRequest] = []
         var issueURL = "https://github.com/sragss/slopzooka/issues/123"
+        var submitStatus = 200
+        var preparedCount = 0
         let reporter = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: reportCredentials, diagnostics: NativeDiagnostics()) { request in
             precondition(request.httpMethod == "POST")
             precondition(request.value(forHTTPHeaderField: "Authorization") == "Bearer report-native-token")
@@ -148,8 +150,11 @@ struct DiagnosticsChecks {
             switch request.url!.path {
             case "/api/diagnostics/capture": return try json(["reportId": "local-report"], for: request)
             case "/api/diagnostics/bug-report/prepare":
-                return try json(["draftId": "reviewed-draft", "body": "Only public text", "account": "test-user", "browserURL": "https://github.com/sragss/slopzooka/issues/new?title=Bug"], for: request)
-            case "/api/diagnostics/bug-report/submit": return try json(["url": issueURL], for: request)
+                preparedCount += 1
+                return try json(["draftId": "reviewed-draft-\(preparedCount)", "body": "Only public text", "account": "test-user", "browserURL": "https://github.com/sragss/slopzooka/issues/new?title=Bug"], for: request)
+            case "/api/diagnostics/bug-report/submit":
+                if submitStatus != 200 { return try json(["error": "Fixture rejection"], for: request, status: submitStatus) }
+                return try json(["url": issueURL], for: request)
             default: preconditionFailure("Unexpected report request")
             }
         }
@@ -163,7 +168,36 @@ struct DiagnosticsChecks {
         let submitted = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!)
         precondition(submitted.absoluteString == issueURL)
         let submittedBody = try JSONSerialization.jsonObject(with: reportRequests.last!.httpBody!) as! [String: String]
-        precondition(submittedBody == ["draftId": "reviewed-draft"], "Submit references exactly the reviewed public projection")
+        precondition(submittedBody == ["draftId": "reviewed-draft-1"], "Submit references exactly the reviewed public projection")
+        for status in [401, 403, 409, 410, 502] {
+            // Pairing may need restoring after 401; the draft text remains owned by the composer.
+            try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+            submitStatus = status
+            var flow = BugReportState.submitting(draft)
+            do {
+                _ = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!)
+                preconditionFailure("Expected rejected or uncertain submission")
+            } catch { flow.submissionFailed(error) }
+            if status == 502 {
+                precondition(flow == .unconfirmed(draft), "An uncertain write cannot return to editing or submission")
+            } else {
+                precondition(flow == .rejected(draft, expired: status == 410), "A definite rejection requires fresh review")
+                flow = .preparing
+                try reporter.accept(fixtureHealth("report-host", endpoint: reportBase), endpoint: reportBase, authenticated: true)
+                let refreshed = try await reporter.prepareBugReport(hostID: "report-host", title: "Preview broke", description: "After reconnecting", around: around, reportID: reportID)
+                flow = .reviewing(refreshed)
+                precondition(flow.draft?.draftId != draft.draftId && flow.draft?.body == draft.body,
+                    "Re-review gets a fresh ID while keeping the report text")
+            }
+        }
+        submitStatus = 200
+        var cancelledFlow = BugReportState.submitting(draft)
+        cancelledFlow.submissionFailed(CancellationError())
+        precondition(cancelledFlow == .unconfirmed(draft), "Cancellation after send cannot cause implicit resubmission on reappearance")
+        var offlineFlow = BugReportState.submitting(draft)
+        offlineFlow.submissionFailed(URLError(.timedOut))
+        precondition(offlineFlow == .unconfirmed(draft), "A timeout may follow a successful GitHub write")
+        print("PASS: native report rejections require fresh review; timeouts and cancellation keep uncertain writes protected")
         issueURL = "https://other.invalid/sragss/slopzooka/issues/123"
         do { _ = try await reporter.submitBugReport(hostID: "report-host", draftID: draft.draftId!); preconditionFailure("Reject an untrusted issue destination") }
         catch { precondition((error as? URLError)?.code == .badURL) }

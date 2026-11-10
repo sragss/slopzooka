@@ -52,7 +52,7 @@ this workflow.
 
 Use the [architecture map](docs/architecture.md) to find the owner of the behavior you are changing. Keep lifecycle logic in that owner. In particular, preserve the [window invariants](AGENTS.md#window-architecture) and keep the TypeScript and Swift schemas compatible.
 
-Edit browser sources in `apps/mac-companion/src`, then run `pnpm build:harness`. The browser assets under `apps/mac-companion/public` are checked in; commit regenerated output with source changes. `build:harness` builds both the dashboard and terminal renderer.
+Edit browser sources in `apps/mac-companion/src`, then run `pnpm build:harness`. The browser assets under `apps/mac-companion/public` are checked in; commit regenerated output with source changes. `build:harness` builds the dashboard, terminal renderer, and desktop bug-report page.
 
 Run `pnpm format` for TypeScript formatting. Add regression coverage for behavior changes, especially reconnects, cancellation, persistence, and process lifetime. Document user-facing changes in the relevant guide; keep the README focused on getting started.
 
@@ -102,7 +102,10 @@ explicit actions. Keep the public projection in `bug-report-draft.ts` explicit:
 user text, incident time, report ID, and validated build/runtime fingerprints.
 Never serialize a capture wholesale into an issue URL or body. Paired native
 requests prepare a bounded, expiring draft; submission references exactly that
-draft and caches the result to avoid retrying uncertain GitHub writes. GitHub
+draft and caches the result to avoid retrying uncertain GitHub writes. The native
+flow keeps rejected requests separate from uncertain writes: expiry and auth
+rejections require fresh review; cancellation/timeouts cannot rearm submission.
+Account verification and issue creation share one credential snapshot. GitHub
 credentials stay on the Mac. The desktop browser flow uses GitHub’s composer;
 `bug-report.ts` saves/links the authenticated local snapshot. Neither flow uploads
 logs. Test with fake GitHub writers; never create real issues in regression checks.
