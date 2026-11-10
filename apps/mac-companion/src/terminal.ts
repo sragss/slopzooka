@@ -2,6 +2,7 @@ import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { TerminalConnection } from "./terminal-connection.js";
+import { bindTerminalTextInput } from "./terminal-text-input.js";
 
 const mount = document.querySelector<HTMLElement>("#terminal")!;
 const overlay = document.querySelector<HTMLElement>("#connection-overlay")!;
@@ -21,6 +22,7 @@ const terminal = new Terminal({
 const fit = new FitAddon();
 terminal.loadAddon(fit);
 terminal.open(mount);
+const detachTextInput = bindTerminalTextInput(terminal);
 fit.fit();
 // Keep hardware typing ready; the floating keyboard requires an explicit request.
 focusTerminal();
@@ -93,6 +95,7 @@ window.slzSetTerminalZoom = (zoom) => {
 };
 window.addEventListener("online", reconnect);
 function detach() {
+  detachTextInput();
   resizeObserver.disconnect();
   cancelAnimationFrame(resizeFrame);
   window.removeEventListener("online", reconnect);

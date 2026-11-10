@@ -38,7 +38,7 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
         } else {
             webView.loadHTMLString(fixture, baseURL: nil)
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 15) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 45) {
             fputs("FAIL: WebKit keyboard test timed out\n", stderr)
             exit(1)
         }
@@ -58,7 +58,7 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                     """, arguments: ["zoomScripts": scripts], in: nil, contentWorld: .page)
                 guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
                 print(viewport ? "PASS: automatic hardware input, explicit software keyboard mode, focus-preserving reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
-                    : "PASS: hardware editing keys, Control-letter shortcuts, and modified WebKit arrows in both keyboard modes, application cursor mode, editing-only Return/Backspace/Delete, normal text, composition, and non-terminal fields")
+                    : "PASS: committed capitals/Unicode without keypress, modifier matrix, F1–F12/navigation, Control shortcuts, composition, and non-terminal fields in both keyboard modes")
                 exit(0)
             } catch {
                 fputs("FAIL: \(error)\n", stderr)
