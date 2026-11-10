@@ -87,6 +87,8 @@ Both should call the same providers. Do not build both interfaces up front. Tool
 
 ### Workspace naming
 
+**Merged implementation update (November 9):** `WorkspaceService.renameWorkspace`, its PATCH route and `CompanionClient.renameWorkspace` now provide the shared display-name operation; session summaries and native headers carry project/workspace/window labels. Build automatic naming on those owners. Useful task-derived names and protection for explicit user overrides remain orchestration policy to implement. [Cleanup implications and sequence](2026-11-09-post-cleanup-execution-plan.md).
+
 Explicit user requirement: the orchestrator names workspaces automatically so the user can recognize the work without remembering generated worktree names. Manual naming should be optional, not a setup step or a dependency for useful labels.
 
 Use the initial request, task intent and subsequent coding-agent context to choose a concise purpose-based name. “Fix admin permissions” and “iOS settings redesign” distinguish two Poncho2 workspaces better than random worktree names. Include project context where the UI needs it. Launching admin and iOS alone establishes a setup, not a coding goal: use an honest provisional label until the task is known. A transient navigation command such as “open settings” should not automatically redefine the workspace's purpose.

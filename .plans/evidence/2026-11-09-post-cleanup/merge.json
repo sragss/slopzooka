@@ -1,0 +1,87 @@
+{
+  "recordedAt": "2026-11-10T03:59:28.133687+00:00",
+  "mergeCommit": "cdd38a56e728bd59e88a6da629980dbd00ea4e16",
+  "upstream": "6d7d26d5903fb0fb28d729cd23a616dc0802ccf2",
+  "preMerge": "c661adc3ccbb8b2440774b0e8759e2a662f253b2",
+  "resolvedConflicts": [
+    "apps/vision-client/SlopZooka/SlopZooka/WindowGateway.swift",
+    "apps/vision-client/tests/WindowGatewayChecks.swift",
+    "scripts/test-vision-state.mjs"
+  ],
+  "resolution": "Preserve centralized client/window state; migrate probe polling/resolution to typed client requests; retain both native suites.",
+  "regression": "Actual probe poll serializes gateway presence/receipts; delayed response cannot open a window after same-address route replacement.",
+  "validation": [
+    {
+      "command": "pnpm test:vision-state",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-vision-state.log",
+        "bytes": 4869,
+        "sha256": "beea12b24e1e42ffe13cdef6ec3deaaa77090b662427930a3a65ba4e8d4678a5"
+      }
+    },
+    {
+      "command": "pnpm typecheck",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-typecheck.log",
+        "bytes": 289,
+        "sha256": "b0b06a0f824e09c13d4cc253c3b1d093f850565e63e63dc8e0ac2a9faf12428d"
+      }
+    },
+    {
+      "command": "pnpm test",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-tests.log",
+        "bytes": 13900,
+        "sha256": "fa81d5ea9380900fca4fb98cdf0545911326fe27152ba38aac2601f30f866617"
+      }
+    },
+    {
+      "command": "pnpm test:terminal-keyboard",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-keyboard.log",
+        "bytes": 976,
+        "sha256": "bae7045c98852b2c097dffed26d72212c95feef0e4b7d7d635afc899e90ebf6b"
+      }
+    },
+    {
+      "command": "pnpm format:check",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-format.log",
+        "bytes": 279,
+        "sha256": "a39695eaf722d148f3d96d916a1094388d8315b44d97af59ae2cec675319a78f"
+      }
+    },
+    {
+      "command": "pnpm build:harness; verify no extra generated asset diff",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-harness.log",
+        "bytes": 596,
+        "sha256": "3c2f7be3a2b6de21c895bfbf9f7c7c57cc40347ee7e8c6a58301ccd4e9e1969b"
+      }
+    },
+    {
+      "command": "xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj -scheme SlopZooka -sdk xrsimulator -configuration Debug -destination 'generic/platform=visionOS Simulator' -derivedDataPath /tmp/slz-merge-derived CODE_SIGNING_ALLOWED=NO build",
+      "exitCode": 0,
+      "log": {
+        "path": "/tmp/slz-merge-build.log",
+        "bytes": 159720,
+        "sha256": "1f27e6159832b4475d21e5290b4fee981584b9689fee5a12e732255744f1c256"
+      }
+    }
+  ],
+  "companionTestsPassed": 51,
+  "harnessExtraAssetChanges": false,
+  "preExistingResearchFilesVerifiedUnchangedDuringMerge": 10,
+  "physicalDeviceRun": false,
+  "signedDeviceBuildRefreshed": false,
+  "notes": [
+    "Initial xcodebuild invocation had an extra path component and exited 66; corrected project path then passed.",
+    "Earlier physical evidence retains its original revision; these checks do not requalify device behavior."
+  ]
+}
