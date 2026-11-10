@@ -1,6 +1,6 @@
 # Mac → Vision direct-link results
 
-November 10, 2026. **The direct peer-to-peer link worked and had substantially lower loaded ping latency than the LAN path in this slot.** Simply enabling peer eligibility still selected LAN. This completes the narrow [rollout step 0](2026-11-10-preview-first-rollout.md#0-quick-direct-link-check-before-product-implementation); proceed with preview implementation.
+November 10, 2026. **The direct peer-to-peer link worked and had substantially lower loaded ping latency than the LAN path in this slot.** Simply enabling peer eligibility still selected LAN. This completes the narrow [rollout step 0](2026-11-10-preview-first-rollout.md#0-quick-direct-link-check-before-product-implementation); proceed with the [transport-first foundation](2026-11-10-transport-first-rollout.md), then preview implementation.
 
 ## Method and route evidence
 
@@ -39,7 +39,7 @@ The final LAN check remained slower, supporting the observed direction of the di
 
 Keep ScreenCaptureKit → hardware H.264 → native Vision rendering and the current TLS/TCP integration candidate. This experiment is evidence for a useful **direct-link option**, not a codec or media-transport comparison.
 
-Keep ordinary LAN as the first integration default/fallback while implementing previews. Retain peer transport as a measured optimization to expose through the existing native connection owner; neither the agent nor an MCP should manage interfaces. **An `includePeerToPeer` checkbox alone does not deliver “prefer direct.”** Any production selection policy needs explicit candidate/route handling, bounded retries and fallback, and must survive interface changes without hardcoded `en0`/`awdl0` assumptions. The diagnostic listener restriction is not yet that production policy. This is a contained networking follow-up, not a prerequisite for the preview/MCP slice or another coordinator service.
+Keep ordinary LAN as the first integration default/fallback while implementing previews. Retain peer transport as a measured optimization to expose through the existing native connection owner; neither the agent nor an MCP should manage interfaces. **An `includePeerToPeer` checkbox alone does not deliver “prefer direct.”** Any production selection policy needs explicit candidate/route handling, bounded retries and fallback, and must survive interface changes without hardcoded `en0`/`awdl0` assumptions. The diagnostic listener restriction is not yet that production policy. The user subsequently promoted the [shared transport/availability foundation](2026-11-10-transport-first-rollout.md) ahead of the preview/MCP slice. Universal web forwarding and the full no-AP promise remain separate qualification; no new coordinator service is needed.
 
 No more broad discovery is needed before implementation. Integrated rendering quality, buffering under constrained delivery, independent viewers and source/window lifecycle remain the already-planned product gates. Physically disconnected discovery can be qualified later if no-AP operation becomes a supported promise.
 
