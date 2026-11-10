@@ -630,7 +630,12 @@ test("a CLI account refresh during preflight cannot change the reviewed issue's 
       "Reviewed body",
       "first-user",
     );
-    await started;
+    await Promise.race([
+      started,
+      issue.then(() => {
+        throw new Error("Issue creation finished before the account preflight");
+      }),
+    ]);
     process.env.GITHUB_TOKEN = "second-test-token";
     assert.equal(await github.bugReportAccount(), "second-user");
     releaseViewer();
