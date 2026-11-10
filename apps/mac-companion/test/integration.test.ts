@@ -262,6 +262,7 @@ test(
       assert.deepEqual(
         launches.map((r) => r.status),
         [201, 201],
+        JSON.stringify(launches),
       );
       await api("/api/workspaces/workspace-1/sessions", {
         sessionId: "terminal-2",
