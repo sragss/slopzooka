@@ -1,74 +1,32 @@
 import Foundation
 
-struct CompanionHealthResponse: Decodable {
-    struct WorkspacePaths: Decodable {
-        let slopzookaHome: String
-        let workspacesRoot: String
-        let reposRoot: String
-        let worktreesRoot: String
-        let workspaceIndexPath: String
-    }
-
-    let ok: Bool
+struct CompanionHealthResponse: Decodable, Equatable {
     let hostId: String
     let paired: Bool
     let protocolVersion: Int
-    let name: String
-    let version: String
-    let hostname: String
-    let localHostName: String
     let controlOrigin: String
-    let bonjourServiceType: String?
-    let cwd: String
     let logFilePath: String
-    let workspacePaths: WorkspacePaths?
 }
 
 struct RecentReposResponse: Decodable {
-    let viewerLogin: String
     let repos: [RecentRepoSummary]
 }
 
 struct AvailableOwnersResponse: Decodable {
-    let viewerLogin: String
     let owners: [RepoOwnerSummary]
 }
 
-struct RepoOwnerSummary: Decodable, Identifiable, Hashable {
+struct RepoOwnerSummary: Decodable, Identifiable {
     let login: String
-    let name: String?
-    let avatarUrl: String
-    let kind: Kind
-
-    enum Kind: String, Decodable {
-        case user
-        case org
-    }
-
     var id: String { login }
-
-    var badgeTitle: String {
-        switch kind {
-        case .user:
-            return "Personal"
-        case .org:
-            return "Org"
-        }
-    }
 }
 
-struct RecentRepoSummary: Decodable, Identifiable, Hashable {
-    struct OwnerSummary: Decodable, Hashable {
-        let login: String
-        let name: String?
+struct RecentRepoSummary: Decodable, Identifiable {
+    struct OwnerSummary: Decodable {
         let avatarUrl: String
     }
 
-    let name: String
     let nameWithOwner: String
-    let url: String
-    let sshUrl: String
-    let pushedAt: Date
     let isPrivate: Bool
     let defaultBranch: String?
     let owner: OwnerSummary
@@ -76,26 +34,10 @@ struct RecentRepoSummary: Decodable, Identifiable, Hashable {
     var id: String { nameWithOwner }
 }
 
-struct LaunchWorkspaceRequest: Encodable {
-    let nameWithOwner: String
-    let profile: String?
-}
-
 struct LaunchWorkspaceResponse: Decodable {
-    let localCheckoutPath: String
-    let worktreePath: String
     let branchName: String
-    let baseRef: String
-    let wasCloned: Bool
     let workspaceId: String
     let repo: RecentRepoSummary
-}
-
-struct CreateRepoAndLaunchRequest: Encodable {
-    let owner: String
-    let repoName: String
-    let visibility: String
-    let profile: String?
 }
 
 struct RecentWorkspacesResponse: Decodable {
@@ -110,21 +52,11 @@ struct PruneMissingWorkspacesResponse: Decodable {
     let archivedCount: Int
 }
 
-struct ReopenWorkspaceRequest: Encodable {
-    let profile: String?
-}
-
-struct WorkspaceSummary: Decodable, Identifiable, Hashable {
+struct WorkspaceSummary: Decodable, Identifiable {
     let workspaceId: String
     let repo: RecentRepoSummary
-    let profile: String?
-    let localCheckoutPath: String
-    let worktreePath: String
     let branchName: String
-    let baseRef: String
-    let createdAt: Date
-    let updatedAt: Date
-    let archivedAt: Date?
+    var name: String? = nil
     let existsOnDisk: Bool
 
     var id: String { workspaceId }
@@ -151,13 +83,16 @@ struct TerminalWindowPayload {
     let workspaceId: String
     let title: String
     let urlString: String
+    var projectName: String? = nil
+    var workspaceName: String? = nil
+    var displayTitle: String { [projectName, workspaceName, title].compactMap { $0 }.joined(separator: " / ") }
 
     var url: URL? {
         URL(string: urlString)
     }
 }
 
-struct FrontendSummary: Decodable, Hashable, Identifiable {
+struct FrontendSummary: Decodable, Identifiable {
     let id: String
     let hostname: String
     let url: String
@@ -168,8 +103,6 @@ struct FrontendSummary: Decodable, Hashable, Identifiable {
     let category: String?
     let project: String?
     let workspaceId: String?
-    let frontendId: String?
-    let preferred: Bool?
     let workspaceVisible: Bool?
     var displayTitle: String { title ?? hostname }
     var isService: Bool { category == "service" }
@@ -177,6 +110,10 @@ struct FrontendSummary: Decodable, Hashable, Identifiable {
 struct FrontendCatalog: Decodable {
     let frontends: [FrontendSummary]
     let warning: String?
+
+    func visibleFrontends(workspaceID: String?) -> [FrontendSummary] {
+        frontends.filter { workspaceID == nil || ($0.workspaceId == workspaceID && $0.workspaceVisible != false && !$0.isService) }
+    }
 }
 struct OpenFrontendResponse: Decodable {
     let frontend: FrontendSummary
@@ -204,29 +141,29 @@ enum TerminalLoadState: Equatable {
 }
 
 enum HealthState {
+    case reconnecting(String)
     case idle
     case checking
-    case success(CompanionHealthResponse)
+    case success
     case failure(String)
+
+    var connectionError: String? {
+        switch self {
+        case .failure(let message), .reconnecting(let message): return message
+        default: return nil
+        }
+    }
+    var isReconnecting: Bool { if case .reconnecting = self { return true }; return false }
 }
 
 struct DiscoveredCompanion: Identifiable, Hashable {
     let id: String
     let name: String
-    let host: String
-    let hostname: String
-    let port: Int
     let candidateHosts: [String]
+    var host: String { candidateHosts[0] }
 }
 
-enum CompanionDiscoveryState: Equatable {
-    case idle
-    case searching
-    case found(count: Int)
-    case failed(String)
-}
-
-enum LaunchTarget: String, CaseIterable, Identifiable, Codable, Hashable {
+enum LaunchTarget: String, CaseIterable, Identifiable, Hashable {
     case codex
     case claude
     case opencode
@@ -247,45 +184,17 @@ enum LaunchTarget: String, CaseIterable, Identifiable, Codable, Hashable {
         }
     }
 
-    var queryValue: String? {
-        switch self {
-        case .codex:
-            return "codex"
-        case .claude:
-            return "claude"
-        case .opencode:
-            return "opencode"
-        case .terminal:
-            return nil
-        }
-    }
-
-    var subtitle: String {
-        switch self {
-        case .codex:
-            return "Launch Codex in a fresh worktree."
-        case .claude:
-            return "Launch Claude Code in a fresh worktree."
-        case .opencode:
-            return "Launch OpenCode in a fresh worktree."
-        case .terminal:
-            return "Launch a raw shell in a fresh worktree."
-        }
-    }
+    var queryValue: String? { self == .terminal ? nil : rawValue }
 }
 
-enum RepoState {
+enum CatalogState<Value> {
     case idle
-    case loading
-    case loaded(viewerLogin: String, count: Int)
+    case loading(UUID)
+    case loaded(Value)
     case failure(String)
-}
 
-enum WorkspaceState {
-    case idle
-    case loading
-    case loaded(count: Int)
-    case failure(String)
+    var value: Value? { if case .loaded(let value) = self { return value }; return nil }
+    var requestID: UUID? { if case .loading(let id) = self { return id }; return nil }
 }
 
 struct CompanionError: LocalizedError {
@@ -297,11 +206,11 @@ struct CompanionError: LocalizedError {
 struct HostSession: Decodable, Identifiable {
     let id: String
     let workspaceId: String
-    let profile: String?
     let title: String
     let cwd: String
-    let status: String
     var name: String? = nil
+    var projectName: String? = nil
+    var workspaceName: String? = nil
 }
 struct HostSessionsResponse: Decodable {
     let sessions: [HostSession]
@@ -334,6 +243,12 @@ struct ProbePresentationCommand: Codable, Equatable {
 struct ProbePresentationReceipt: Codable {
     let id: String
     var error: String? = nil
+}
+struct ProbePresentationPresence: Encodable {
+    let id: String
+    let surfaceID: String
+    let presented: Bool
+    let receiver: String
 }
 struct ProbePresentationBatch: Decodable {
     let instanceID: String

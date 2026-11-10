@@ -10,7 +10,9 @@
       "cols": 120,
       "rows": 36,
       "status": "running",
-      "exitCode": null
+      "exitCode": null,
+      "projectName": "project",
+      "workspaceName": "nov-09-2104"
     },
     {
       "id": "unnamed-terminal",

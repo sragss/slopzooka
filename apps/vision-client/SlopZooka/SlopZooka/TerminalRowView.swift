@@ -13,7 +13,7 @@ struct TerminalRowView: View {
                 .accessibilityHidden(true)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(session.payload.title)
+                Text(session.payload.displayTitle)
                     .font(.subheadline.weight(.semibold))
                     .lineLimit(1)
 
@@ -41,7 +41,7 @@ struct TerminalRowView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Open terminal, \(session.payload.title)")
+        .accessibilityLabel("Open terminal, \(session.payload.displayTitle)")
         .accessibilityValue(status)
     }
 

@@ -7,7 +7,7 @@ struct RepoRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            avatar
+            RepositoryAvatar(urlString: repo.owner.avatarUrl)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {
@@ -29,7 +29,6 @@ struct RepoRowView: View {
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
                     .background(.quaternary.opacity(0.6), in: Capsule())
-
             }
 
             Spacer()
@@ -40,35 +39,10 @@ struct RepoRowView: View {
             } else {
                 Image(systemName: "arrow.up.forward").font(.caption).foregroundStyle(.secondary)
             }
-
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
         .accessibilityLabel("\(isSelectedToolTerminal ? "Open shell in" : "Open") \(repo.nameWithOwner)")
-    }
-
-    @ViewBuilder
-    private var avatar: some View {
-        if let url = URL(string: repo.owner.avatarUrl) {
-            AsyncImage(url: url) { image in
-                image
-                    .resizable()
-                    .scaledToFill()
-            } placeholder: {
-                Circle()
-                    .fill(.quaternary)
-                    .overlay {
-                        ProgressView()
-                            .scaleEffect(0.75)
-                    }
-            }
-            .frame(width: 40, height: 40)
-            .clipShape(Circle())
-        } else {
-            Circle()
-                .fill(.quaternary)
-                .frame(width: 40, height: 40)
-        }
     }
 }

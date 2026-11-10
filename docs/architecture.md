@@ -40,6 +40,8 @@ Paths below are relative to `apps/mac-companion/src`.
 
 The companion connects to the existing session service or launches it under macOS's kernel-backed `lockf` utility. Local sockets live in a private user-owned directory, with no extra LAN listener or OS service registration. A versioned runtime under `SLOPZOOKA_HOME/session-runtimes` retains Node and native PTY helpers across app replacement. Only the service holding the lifetime lock prunes inactive runtimes at startup. Incompatible services are left running, and the Mac menu retains diagnostics and explicit restart controls. Logs are in `SLOPZOOKA_HOME/session-service.log`.
 
+Workspace display names and stable default window labels live in the Mac workspace index, using its existing serialized mutations and atomic writes. `workspace.ts` enriches HTTP session summaries with project/workspace context and defaults, including sessions from an older retained service. Explicit window renames remain with `SessionManager`; `names.ts` shares the normalization and validation. Naming metadata does not own process or window lifetime. Workspace renames keep Git branches and worktree paths unchanged. Native naming uses one voice controller and gateway route for both targets. Metadata naming availability is independent of renderer readiness and terminal input focus; scene inactivity still pauses capture. The header uses the same diagonal geometry for divider lines, hit targets, and full-height hover fills, clipped once to its outer glass shape; a forced session refresh rejects pre-mutation replies and also works for windows tied to another accepted Mac.
+
 ## Terminal transport
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
@@ -48,19 +50,33 @@ The session service detects BEL, OSC 9, and OSC 777 notifications through the sa
 
 Dictation carries a command ID. A retried request is deduplicated within the most recent 1,000 input commands for that session. IDs cannot be reused with different text.
 
+`terminal-text-input.ts` handles committed hardware text when WebKit omits `keypress`. It observes xterm’s public `onKey` event to suppress duplicate `beforeinput` delivery, forwards through `Terminal.input` and the existing ownership-aware transport, and leaves composition events and screen-reader editing with xterm. Pending strokes clear on keyup, blur, and composition boundaries; listeners detach with the terminal document. Native key normalization supplies missing codes for named terminal keys and Control combinations, preserving modifiers while xterm owns sequence encoding.
+
 ## Vision client ownership
 
 Paths below are relative to `apps/vision-client/SlopZooka/SlopZooka`.
 
 | File                                                              | Responsibility                                                                                                                             |
 | ----------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| `WindowGateway.swift`                                             | Window intent, session launch/end, content resolution, reload, and recovery; shared discovery/refresh lifetime independent of the launcher |
+| `WindowGateway.swift`                                             | Window intent, session launch/end, content resolution, reload, and recovery; starts the shared client from any restored scene |
 | `WindowPersistence.swift`                                         | Layout synchronization and the pending local outbox                                                                                        |
 | `WindowScene.swift`                                               | Native scene actions and lifecycle; permanent discards record close intent, disconnect/background events update presence                   |
-| `HostConnection.swift` / `CompanionAPI.swift`                     | Connection identity and authenticated requests                                                                                             |
+| `CompanionClient.swift`                                          | Mac discovery, accepted host identity, pairing, connection state, refresh lifetime, and typed native control requests                         |
 | `LauncherState.swift`                                             | Shared project browsing and launch state                                                                                                   |
 | `CompanionWebView.swift`                                          | `TerminalSessionController` and the terminal WebView bridge                                                                                |
 | `TerminalVoiceController.swift` / `SpeechCaptureController.swift` | Voice-input state and microphone capture                                                                                                   |
+
+`CompanionClient.swift` owns discovery, accepted routes, pairing, connection state, and native HTTP requests. Any scene can start it through `WindowGateway`, independently of the launcher. Views observe the client; the gateway consumes session snapshots for window recovery. Control callers pass stable host IDs. Health/protocol checks accept a route, and route revisions reject late replies even when an address changes away and back. Replacement routes can refresh while an old request is stalled; network failures publish reconnecting state until a request succeeds.
+
+Each Mac has one shared frontend catalog and poll, independent of session polling and other Macs. Launcher and workspace views read that catalog without local copies or timers. Concurrent reads coalesce; URL edits refresh the shared catalog and supersede older reads. Both poll types use the same client-lifetime loop.
+
+Pairing credentials are keyed by host ID in Keychain. Separate trusted-origin bindings restrict where those credentials may be sent; a matching ID from unauthenticated discovery or health never authorizes a new origin. Successful legacy authentication migrates the existing origin credential. A new origin requires explicit pairing until an authenticated transport can establish route trust. Pairing uses the accepted route and saves credentials only while that selection is current.
+
+The client's injected request exchange exercises the production routes, bodies, timeouts, authentication, and decoding in native checks. Response models contain only consumed fields and use standard JSON decoding; unused Mac metadata is ignored. Terminal WebSockets and preview WebView networking remain separate content transports. Window intent, persistence conflicts, and process lifetime stay with their existing owners.
+
+`LauncherState` represents its mutually exclusive project operations with one operation value. Workspace commands share their operation guard, error handling, and catalog refresh. Repository and workspace catalogs use `CatalogState<Value>` and one loader; loaded data is part of the state, with no separately maintained arrays or counts. Connection changes reset catalogs and cancel their shared parent task. The three catalogs load concurrently, independently of window recovery; connection and request identities reject superseded results.
+
+`WindowGateway` keeps one ephemeral state record per window: stable reference, terminal or preview content, native presence, notifications, errors, and pending work. The record owns reload and unavailable-session cleanup, including invalidating pending renames. Its reload revision also versions preview resolution, replacing a separate refresh list. Newer resolutions replace cancelled work immediately and reject late results and cleanup; the current payload remains available during reload. Durable intent remains solely in `WindowPersistence`.
 
 New window kinds and lifecycle behavior extend the existing gateway and persistence path. Persist stable content identifiers; resolve URLs, tokens, and trust material when needed. visionOS owns physical placement. See [AGENTS.md](../AGENTS.md) for the full window invariants.
 

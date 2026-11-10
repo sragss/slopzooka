@@ -63,15 +63,14 @@ final class WindowPersistence {
     }
 
     // Caller serializes synchronization; changes arriving during a request stay in the outbox.
-    func synchronize(hostID: String, base: URL) async throws {
+    func synchronize(hostID: String, client: CompanionClient) async throws {
         if let loadError { throw loadError }
-        let snapshot = try await CompanionAPI.request(WindowLayout.self, base: base, path: "/api/window-layout").validated()
+        let snapshot = try await client.windowLayout(hostID: hostID).validated()
         snapshots[hostID] = snapshot
         let changes = pending[hostID] ?? [:]
         guard !changes.isEmpty else { return }
         let next = WindowLayout(revision: snapshot.revision, windows: windows(hostID: hostID))
-        let saved = try await CompanionAPI.request(WindowLayout.self, base: base, path: "/api/window-layout",
-            method: "PUT", body: JSONEncoder().encode(next)).validated()
+        let saved = try await client.saveWindowLayout(hostID: hostID, layout: next).validated()
         snapshots[hostID] = saved
         for (id, change) in changes where pending[hostID]?[id] == change { pending[hostID]?.removeValue(forKey: id) }
         if pending[hostID]?.isEmpty == true { pending.removeValue(forKey: hostID) }

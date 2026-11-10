@@ -91,7 +91,7 @@ struct TerminalWindowView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 16) {
-                    WorkspaceFrontendButton(baseURL: payload.url, workspaceId: payload.workspaceId)
+                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId)
 
                     if let statusText = terminalStatusText {
                         Text(statusText)
@@ -162,7 +162,7 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech))
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech, canRename: canRename))
         .overlay {
             if windows.hasUnreadNotification(payload.id) {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -184,24 +184,9 @@ struct TerminalWindowView: View {
         }
         .simultaneousGesture(TapGesture().onEnded { windows.readTerminalNotifications(id: payload.id) })
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
-            Button {
-                voice.activateRename(payload.id)
-            } label: {
-                Text(payload.title)
-                    .font(.system(size: 48, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.5)
-                    .padding(.horizontal, 28)
-                    .padding(.vertical, 14)
-            }
-            .buttonStyle(TerminalGlassControlStyle(shape: RoundedRectangle(cornerRadius: 24, style: .continuous)))
-            .disabled(!canSubmitSpeech || voice.isSubmitting)
-            .frame(maxWidth: 1000)
-            .padding(.bottom, 20)
-            .accessibilityLabel("Rename \(payload.title)")
-            .accessibilityHint("Start voice naming for this terminal")
-            .accessibilityAddTraits(.isHeader)
+            TerminalNameHeader(payload: payload, isAvailable: canRename)
+                .frame(maxWidth: 1000)
+                .padding(.bottom, 20)
         }
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
@@ -342,6 +327,10 @@ struct TerminalWindowView: View {
         case .loading, .disconnected, .idle, .loaded, .ended:
             return AnyShapeStyle(.secondary)
         }
+    }
+
+    private var canRename: Bool {
+        scenePhase == .active && sessionID.map(windows.canRename) == true
     }
 
     private var canSubmitSpeech: Bool {

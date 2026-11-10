@@ -120,7 +120,7 @@ private struct WristTerminalControl: View {
                             Image(systemName: "arrow.up.right").font(.caption2)
                                 .foregroundStyle(.secondary)
                         }
-                        Text(session.payload.title)
+                        Text(session.payload.displayTitle)
                             .font(.caption.weight(.medium)).lineLimit(2)
                             .frame(maxWidth: .infinity, alignment: .leading)
                         Text(session.isFocused ? "ACTIVE" : "TERMINAL")
@@ -132,7 +132,7 @@ private struct WristTerminalControl: View {
                         in: RoundedRectangle(cornerRadius: 22))
                 }
                 .buttonStyle(WristControlStyle(shape: RoundedRectangle(cornerRadius: 22)))
-                .accessibilityLabel("Open terminal, \(session.payload.title)")
+                .accessibilityLabel("Open terminal, \(session.payload.displayTitle)")
                 if let error {
                     Text(error).font(.caption2).foregroundStyle(.orange).frame(width: 160)
                 }
