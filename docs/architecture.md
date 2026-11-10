@@ -50,7 +50,7 @@ The session service detects BEL, OSC 9, and OSC 777 notifications through the sa
 
 Dictation carries a command ID. A retried request is deduplicated within the most recent 1,000 input commands for that session. IDs cannot be reused with different text.
 
-`terminal-text-input.ts` handles committed hardware text when WebKit omits `keypress`. It observes xterm’s public `onKey` event to suppress duplicate `beforeinput` delivery, forwards through `Terminal.input` and the existing ownership-aware transport, and leaves composition events with xterm. Pending strokes clear on keyup, blur, and composition boundaries; listeners detach with the terminal document. Native key normalization supplies missing codes for named terminal keys and Control combinations, preserving modifiers while xterm owns sequence encoding.
+`terminal-text-input.ts` handles committed hardware text when WebKit omits `keypress`. It observes xterm’s public `onKey` event to suppress duplicate `beforeinput` delivery, forwards through `Terminal.input` and the existing ownership-aware transport, and leaves composition events and screen-reader editing with xterm. Pending strokes clear on keyup, blur, and composition boundaries; listeners detach with the terminal document. Native key normalization supplies missing codes for named terminal keys and Control combinations, preserving modifiers while xterm owns sequence encoding.
 
 ## Vision client ownership
 

@@ -227,6 +227,13 @@ window.runKeyboardChecks = async () => {
   check(['x'], 'normal typing');
   edit('insertLineBreak', input, true); check([], 'composition must not submit');
   edit('insertLineBreak', document.getElementById('other')); check([], 'other fields must not submit');
+  terminal.options.screenReaderMode = true;
+  input.dispatchEvent(new KeyboardEvent('keydown', {key: 'A', code: 'KeyA', keyCode: 0, shiftKey: true, bubbles: true}));
+  const accessibleText = new InputEvent('beforeinput', {inputType: 'insertText', data: 'A', bubbles: true, cancelable: true});
+  if (!input.dispatchEvent(accessibleText)) throw Error('Screen-reader mode must retain native text editing');
+  input.dispatchEvent(new KeyboardEvent('keyup', {key: 'A', keyCode: 0, bubbles: true}));
+  check([], 'screen-reader native editing must not be replayed');
+  terminal.options.screenReaderMode = false;
   return 'PASS';
 };`,
   );

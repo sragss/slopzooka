@@ -9397,7 +9397,7 @@ function bindTerminalTextInput(terminal2) {
     pending = !composing && !event.isComposing && !event.ctrlKey && !event.metaKey ? { event, emitted: false } : void 0;
   };
   const beforeinput = (event) => {
-    if (!pending || event.defaultPrevented || !event.cancelable || composing || event.isComposing || event.inputType !== "insertText" || !event.data)
+    if (terminal2.options.screenReaderMode || !pending || event.defaultPrevented || !event.cancelable || composing || event.isComposing || event.inputType !== "insertText" || !event.data)
       return;
     const key = pending;
     reset();

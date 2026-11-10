@@ -22,6 +22,7 @@ export function bindTerminalTextInput(terminal: Terminal): () => void {
   };
   const beforeinput = (event: InputEvent) => {
     if (
+      terminal.options.screenReaderMode ||
       !pending ||
       event.defaultPrevented ||
       !event.cancelable ||
