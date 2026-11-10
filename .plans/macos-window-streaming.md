@@ -254,3 +254,55 @@ Apple's [Foveated Streaming overview](https://developer.apple.com/documentation/
 3. With the selected codec, exercise network contention/reconnect and then the optional peer-to-peer link. Decide whether bounded direct transport is sufficient or a maintained media transport earns its dependency cost.
 
 Measure user-visible action-to-response delay and capture-to-presentation delay with clock alignment or an external recording; do not subtract unrelated device clocks or equate source frame counts with displayed fps. Keep queues bounded, drop obsolete input before encoding, and recover inter-frame streams at valid dependency/keyframe boundaries. The choice is accepted when measured text clarity, interaction delay and resource use satisfy the intended multiple-window workflow. Agent tools and `WindowGateway` remain independent of this codec/transport choice.
+
+## 9. Implementation readiness and transport gate, November 10
+
+The [preview-first rollout](2026-11-10-preview-first-rollout.md) can begin. We have demonstrated the capture/encoding/rendering path and the provider/presentation architecture. We have **not** demonstrated a globally optimal codec or qualified the probe's transport for sustained poor-network use. The first production slice should settle that narrower transport question before its media contract becomes difficult to change. This review adds no live measurement.
+
+### Initial strategy and confidence
+
+| Layer | Initial implementation choice | Evidence and limit |
+| --- | --- | --- |
+| Mac source | Programmatic, exact-window ScreenCaptureKit capture; authoritative geometry from the source | Physical native/Chrome/Simulator window streams worked. General app dialog, resize and permission-recovery behavior still needs qualification. |
+| Compression | Hardware H.264 with real-time, no-reordering settings; source-dependent resolution/cadence | Physical H.264 plus local codec benchmarks support this default. HEVC has a measured text/bandwidth tradeoff, not an established overall win. No need to block manual preview work on another codec bake-off. |
+| Delivery | Reuse the direct authenticated TLS/TCP LAN path as the **first integration candidate** | It ran on the user's LAN. Production acceptance requires fresh-video recovery under constrained bandwidth, receiver stalls and reconnect. Direct LAN is not the same as measured peer-to-peer Wi-Fi or Internet/relay support. |
+| Vision rendering | Native video sample-buffer renderer within the existing Preview/gateway | The physical H.264 renderer lives in the standalone ProbeViewer. The optional receiver currently inside SlopZooka is JPEG-only. Integrating the native video receiver is real work; changing a payload discriminator alone does not supply H.264 support. |
+| Control | Existing authenticated companion operations and native Codex CUA; small preview MCP | Keep media bytes out of terminal/control polling, Node JSON/base64 and agent calls. Model observations remain occasional images/state. |
+
+Keep this one transport implementation small and replaceable at the encoded-media boundary. Do not prebuild TCP/QUIC/WebRTC providers or several codec-negotiation modes. If the LAN candidate meets the measured UX requirements, retain it. If reliable delivery causes persistent stale-frame catch-up or frequent disruptive resets, compare one native QUIC approach or a maintained WebRTC integration before expanding the rollout.
+
+Apple documents reliable streams versus best-effort datagrams, recommends QUIC when choosing a new reliable protocol without an existing preference, and notes that datagrams still need size limits and fragmentation/reassembly. This makes QUIC a legitimate alternative, not an automatic complete media solution. A single ordered QUIC stream still preserves ordering within that stream; changing its transport name alone does not implement video expiration. WebRTC also requires application signaling/connectivity integration. [Apple networking guidance](https://developer.apple.com/documentation/technotes/tn3213-moving-from-multipeer-connectivity-to-network-framework), [WebRTC connection setup](https://webrtc.org/getting-started/peer-connections).
+
+### Why the transport gate remains real
+
+Source inspection of the existing probe found useful safeguards: one application send in flight per peer, dependent-frame dropping followed by a keyframe wait, disconnect on prolonged send stalls, a bounded receiver inbox, and renderer reset after backpressure/failure. Those are worth retaining. They are not a measured upper bound on frame age: lower-level network buffering and ordered delivery can still delay newer video. A send callback, received byte count or renderer enqueue counter does not establish that the user saw a fresh frame.
+
+The probe also synthesizes sample presentation timestamps from `sequence / 30` and timestamps its packet at encoder output. Do not use those as measured source capture times when carrying variable-cadence production video. Preserve actual media timing, label measurement stages honestly, and align clocks or use an independent visible marker for cross-device delay. A static source can legitimately have no new image; health/idle status and connection liveness must distinguish that from a frozen source.
+
+### Small decisive media test during the first implementation
+
+Use the native H.264 path with one source, then three independent sources. Test readable small/colored text, scrolling and animation. Automate bounded bandwidth/receiver stalls on owned test connections, a midstream disconnect and a resize/format change. Keep a second viewer healthy while one is stalled. These injected conditions do not reproduce every real Wi-Fi loss pattern, so include a short actual-headset pass after the automated checks.
+
+Record queue memory, actual payload/transport rate, source/receive/decode-or-enqueue milestones, independently observed frame age or action-to-visible delay, reset count and time to a fresh correctly identified frame after recovery. Preserve the earlier proposed healthy-LAN p95 below 150 ms as an evaluation target, not an achieved result. Source FPS and local decoder latency do not pass that target. Confirm the user's judgment of text and motion quality.
+
+The release gate is bounded memory and bounded stale-video handling, no decoder corruption/wrong target, fresh-keyframe recovery without replaying a long obsolete sequence, and independent progress for other viewers/control requests. Drop superseded work before encoding; after encoding, respect dependencies. Explicitly discard/reset an overdue stream and reacquire a keyframe when its backlog cannot be removed safely. Do not hide a persistent transport failure behind an endless reconnect loop. Agree the numeric recovery/freshness budget against measured behavior before calling the experience reliable.
+
+No new codec, voice/global agent, browser embedder or peer-to-peer-radio implementation is needed for this test. HEVC quality comparison and device-JPEG transcoding remain later optimizations; their absence does not block the initial native-window product.
+
+### Interface to freeze with the first slice
+
+The division of responsibility is understood; exact wire names should be finalized with matching TypeScript/Swift fixtures, not inferred from the disposable packet structs:
+
+- **Catalog/target binding:** stable frontend ID, source kind/title/workspace, current availability, opaque exact target generation and authoritative geometry. Keep capture availability separate from native-control availability.
+- **Preview commands:** list/open/close/rename through existing owners, launch-bound caller/client scope, bounded idempotency and honest acceptance/presentation status. Closing one view does not end its source or another viewer.
+- **Resolved viewer subscription:** short-lived, exact-target media access and trust material; codecs/capabilities and current geometry; release independent of model/MCP connection lifetime. Persist stable window references only.
+- **Media framing:** versioned bounded headers/payloads, codec configuration, stream generation, sequence, real media timing, keyframe/dependency indication and geometry association. Decoder reset/keyframe recovery and explicit state/error events belong here. Encoded resolution is distinct from preferred spatial size.
+- **Receiver feedback:** enough telemetry/recovery signaling to identify stale delivery, request a valid restart/keyframe and preserve independent viewer behavior. Keep it within the stream provider rather than another global control service.
+
+The MCP need not expose bitrate, transport, window dimensions or these packet details to the model. Keep the public preview semantics stable if media delivery changes later.
+
+### One everyday UX case to include: dialogs and child windows
+
+Verify a normal login/modal/popover while native Codex controls the selected source. A successful parent-window stream does not prove every UI the agent can interact with is visible. The installed macOS 26.2 header documents `includeChildWindows` for display-bound window/application sharing, while the probe uses desktop-independent single-window capture. Do not assume that setting the flag fixes that mode or broaden capture to all app windows implicitly. Qualify the selected capture mode; if a related dialog cannot be included, identify/present its exact target explicitly or report that limitation. [Single-window filter](https://developer.apple.com/documentation/screencapturekit/sccontentfilter/init(desktopindependentwindow:)), [child-window configuration](https://developer.apple.com/documentation/screencapturekit/scstreamconfiguration/includechildwindows).
+
+Together with the real interactive terminal-CUA/MCP test and signed-app permission/recovery checks in the rollout plan, these are focused production acceptance gates. They do not require another broad pre-implementation discovery project.
