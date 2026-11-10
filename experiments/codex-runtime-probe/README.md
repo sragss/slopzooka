@@ -8,6 +8,8 @@ This is the small, machine-specific scaffold used on November 8, 2026 to test th
 
 These files are the tested source snapshots, with hashes in the evidence record. The native runtime itself is not copied here. The client must be given only code intended for this fixture; it is not a security sandbox for arbitrary scripts. It reports tool results, not automated pass/fail judgments. Screenshots, installed-app inventory and bootstrap documentation should remain local; committed traces contain only fixture state and redacted inventory summaries.
 
+**November 9 fixture correction:** `Fixture.swift` now tolerates Launch Services relaunch without its original environment, using `SlzFixtureStatePath` from the app plist or a safe temporary fallback. The original fixture source is preserved at commit `ef59ae3ec27e5e16f36ef4dfb6025db2a480dd0f`; earlier hashes describe that snapshot. The [native qualifier](../pi-cua-probe/qualify-native.mjs) builds the corrected fixture in its own temporary directory. The [test journal](../../.plans/2026-11-09-runtime-qualification-results.md) retains the two original fixture crashes and the successful corrected runs.
+
 ## Read-only launcher check
 
 With the exact inspected app/plugin still installed:

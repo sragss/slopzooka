@@ -5,7 +5,11 @@ final class FixtureDelegate: NSObject, NSApplicationDelegate, NSTextFieldDelegat
     private var counter = 0
     private let countLabel = NSTextField(labelWithString: "Counter: 0")
     private let input = NSTextField(string: "")
-    private let statePath = ProcessInfo.processInfo.environment["SLZ_CUA_FIXTURE_STATE"]!
+    // Launch Services can reopen this fixture without the original environment.
+    // A per-run plist path preserves independent observations after that relaunch.
+    private let statePath = ProcessInfo.processInfo.environment["SLZ_CUA_FIXTURE_STATE"]
+        ?? (Bundle.main.object(forInfoDictionaryKey: "SlzFixtureStatePath") as? String)
+        ?? FileManager.default.temporaryDirectory.appendingPathComponent("slz-runtime-fixture-state.json").path
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = NSWindow(contentRect: NSRect(x: 140, y: 140, width: 520, height: 280), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)

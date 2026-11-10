@@ -2,6 +2,8 @@
 
 Date: November 9, 2026. Follow-up to the [runtime integration contract](2026-11-09-runtime-integration-contract.md#an-owned-chrome-extension-is-a-bounded-alternative), implemented at the user's request. [Reproduction and tool reference](../experiments/owned-browser-probe/README.md). [Machine-readable evidence](evidence/2026-11-09-browser-runtimes/owned-extension.json).
 
+**Subsequent qualification:** [the real terminal/native follow-up](2026-11-09-runtime-qualification-results.md) completes actual CLI + Pi browser use, CLI interruption and native cold-start/helper-recovery tests. Statements below about the then-unrun terminal check describe this earlier prototype run.
+
 ## Conclusion
 
 **An independent extension is now a working browser-control path.** Two callers can control different background tabs through our MCP/native-messaging/`chrome.debugger` implementation. Live Pi agents using GPT and Opus both completed the fixture concurrently and received screenshots. This removes the desktop-issued Codex browser-session prerequisite for this particular provider. It does not establish feature parity with Codex's broader browser runtime or settle the global-agent versus terminal-agent ownership policy.

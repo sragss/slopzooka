@@ -34,7 +34,15 @@ To expose a temporary endpoint for a terminal agent or another Pi loop:
 node probe.mjs --headed --serve
 ```
 
-The command prints the permitted fixture origin and exact MCP `command`/`args`. Configure that stdio server for the test session. Open any path under the printed fixture origin; other origins are rejected. Ctrl-C cleans up. This does not change your global agent configuration. A live terminal Codex task has not yet been run against this provider; two independent standards-based MCP clients and live Pi consumers have been tested.
+The command prints a JSON `serve-ready` record with the permitted fixture origin, artifact directory and exact MCP `command`/`args`. Configure that stdio server for the test session. Open any path under the printed fixture origin; other origins are rejected. Ctrl-C cleans up. This does not change your global agent configuration.
+
+The [actual terminal qualification](../../.plans/2026-11-09-runtime-qualification-results.md) now passes a real `codex exec` task alongside Pi, normal CLI cleanup, CLI interruption and peer continuation:
+
+```sh
+node terminal-qualification.mjs --codex /absolute/path/to/codex --key-file /absolute/path/to/local.env
+```
+
+This opens a visible disposable browser and spends normal Codex/API usage. Pin the executable: this machine had two different CLI versions on different PATHs. The runner gives only this fixture-origin-restricted MCP server per-invocation tool approval, retains read-only filesystem sandboxing, and leaves personal configuration unchanged. It does not qualify the final interactive xterm input/Stop UI.
 
 ## Boundary and tools
 

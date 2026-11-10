@@ -62,6 +62,12 @@ On transport timeout or disconnect, the harness stops further dispatch on that c
 
 ## Scope
 
-No durable coordinator, voice layer, alternate CUA provider, production dependencies, window registry or streaming transport is added. The current runtime is unstable and version dependent; successful native reuse does not qualify its shipping terms, independent startup with ChatGPT closed, locked use, browser provisioning, parallel ownership or delivery to Vision. Keep window presentation in the existing `WindowGateway` and process ownership on the Mac.
+### Native lifecycle qualification follow-up
+
+`node qualify-native.mjs` builds and signs an owned temporary fixture, checks three native close/relaunch cycles and closes an owned MCP connection during a bounded script. It uses no model API and leaves ChatGPT and its shared helper running. **Observation through an old app handle may itself reopen that app**; the qualifier records actual PIDs and independent state and cleans up those reopened fixtures. The fixture now has a plist-backed state path so Launch Services relaunch does not depend on its original environment.
+
+`node cold-slot.mjs --approved-slot` is disruptive and is only for a user-approved quiet slot: it quits ChatGPT normally, stops its shared helper, runs `qualify-native.mjs --cold --helper-failure`, and reopens ChatGPT afterward. Never run it just to poll readiness or while unrelated desktop tasks need the helper. The `--cold` qualifier refuses to call the run cold if either process is already present. [Measured results and limits](../../.plans/2026-11-09-runtime-qualification-results.md).
+
+No durable coordinator, voice layer, production dependencies, window registry or streaming transport is added here. Native startup with ChatGPT closed is now measured on this installation; shipping terms, fresh-permission production onboarding, real updates, locked use, exact-window ownership and delivery to Vision remain unqualified. The private Codex browser backend remains unprovisioned; the sibling owned-extension experiment provides the tested independent browser path. Keep window presentation in the existing `WindowGateway` and process ownership on the Mac.
 
 Pinned sources: [Pi Agent](https://github.com/earendil-works/pi/blob/v1.4.0/packages/agent/README.md), [Pi MCP](https://github.com/earendil-works/pi/blob/v1.4.0/packages/mcp/README.md), [Pi AI](https://github.com/earendil-works/pi/blob/v1.4.0/packages/ai/README.md), [OpenAI tool calling](https://developers.openai.com/api/docs/guides/tools). All three Pi packages are pinned to `1.4.0` in this directory's lockfile.

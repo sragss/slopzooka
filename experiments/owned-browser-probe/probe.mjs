@@ -286,19 +286,17 @@ try {
       process.once("SIGTERM", resolve);
     });
     console.log(
-      JSON.stringify(
-        {
-          fixtureOrigin: origin,
-          mcp: {
-            command: process.execPath,
-            args: [join(base, "mcp.mjs"), socketPath],
-          },
-          instructions:
-            "Use only fixture URLs under this origin. Ctrl-C closes this owned test browser and bridge.",
+      JSON.stringify({
+        kind: "serve-ready",
+        artifacts: run,
+        fixtureOrigin: origin,
+        mcp: {
+          command: process.execPath,
+          args: [join(base, "mcp.mjs"), socketPath],
         },
-        null,
-        2,
-      ),
+        instructions:
+          "Use only fixture URLs under this origin. Ctrl-C closes this owned test browser and bridge.",
+      }),
     );
     await stopped;
   } else {

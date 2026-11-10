@@ -2,6 +2,8 @@
 
 November 9, 2026. This consolidates the native reuse, desktop/browser investigation and live Pi work into a decision boundary. **Native control is technically reusable from our own Pi process, with either GPT or Claude. Independent use of Codex's Chrome backend is not yet provisioned. Neither result establishes a supported shipping API.**
 
+**Execution follow-up:** [real CLI and native qualification](2026-11-09-runtime-qualification-results.md) now establishes actual terminal Codex + Pi use of our owned browser MCP, CLI interruption/cleanup, native cold startup with ChatGPT closed, helper termination/recovery and bounded native Stop. The fixture's relaunch crash was fixed and retained in the journal. Native app handles can reopen a closed app and follow its replacement process. Remaining item #1 gates are production permission attribution, real-update qualification and vendor terms/support; the external Codex-specific browser authorization path remains separate and unresolved.
+
 See the [original native experiment](2026-11-08-codex-runtime-reuse.md), [browser bootstrap trace](2026-11-09-background-browser-control.md#8-desktop-bootstrap-traced-after-the-owned-task-failure), [Pi/GPT result](2026-11-09-pi-cua-probe.md), [Pi/Claude result](2026-11-09-claude-cua-compatibility.md) and [new evidence](evidence/2026-11-09-browser-runtimes/claude-and-runtime-contract.json).
 
 ## One integration label hides several separate contracts
@@ -12,8 +14,8 @@ See the [original native experiment](2026-11-08-codex-runtime-reuse.md), [browse
 | MCP client and model-facing tools | Our process plus the genuine packaged runtime | stdio initialize/list/call, current tool descriptions/schemas, first-use guidance, text/images, scoped elicitation and owned-process close all exercised. |
 | Native execution and OS permissions | Installed Codex native helper | Real AX/input/screenshot effects on the disposable app. Existing helper installation and macOS grants are prerequisites; production permission attribution is not qualified. |
 | Specialized browser authorization | Desktop access host and lifecycle registry | Desktop-created tasks pass. Independent MCP and external App Server paths fail different prerequisites. |
-| Browser target control | Browser service, extension, per-session tab ownership | Working desktop fixture evidence; independent Pi/terminal access and concurrent consumers remain open. |
-| Native helper lifetime, updates and redistribution | Vendor installation plus our integration policy | Some process isolation tested; cold start, helper failure, upgrades and shipping permission remain gates. |
+| Browser target control | Provider-specific browser service/extension and tab ownership | Actual terminal Codex and Pi now use our owned browser provider; normal completion and interruption release only the caller's targets. This does not provision the private Codex browser backend. |
+| Native helper lifetime, updates and redistribution | Vendor installation plus our integration policy | Cold startup, helper termination/recovery and bounded Stop now measured. Production permissions, real-update qualification and shipping permission remain gates. |
 
 MCP is the usable boundary. Importing a private JavaScript client, copying a plugin manifest or knowing a socket path is not the same as obtaining the surrounding host lifecycle.
 
@@ -26,7 +28,7 @@ Inspection of the installed `targets/mac/native-pipe.js` shows:
 3. Without that host-services pipe, it uses the trusted runtime's Launch Services capability to open the configured helper app, falling back to the installed helper location or bundle identifier.
 4. It reconnects and validates the client/server API version. Version mismatch is an explicit error.
 
-Our independent launcher does not inherit the desktop host-services pipe. This source path provides a plausible way to start the helper without the desktop UI. **It does not prove cold startup with ChatGPT closed:** our live tests ran with the installed desktop environment available and its helper warm. Do not require the desktop UI to be open solely from habit, but do not advertise independence until the cold case is measured.
+Our independent launcher does not inherit the desktop host-services pipe. At the initial review this startup path was source evidence only. The [subsequent approved cold test](2026-11-09-runtime-qualification-results.md#cold-startup-and-helper-recovery-completed-in-the-approved-slot) verified both ChatGPT and the helper absent before independent startup, then completed observation/input and helper recovery with ChatGPT still closed. The installed runtime and existing macOS grants remain prerequisites; this is not clean-machine onboarding evidence.
 
 We also ran a read-only two-client test against the completed fixture. A and B each attached; we closed A's MCP process; B stayed alive and obtained a fresh observation with the correct counter/text. Both owned child processes exited on cleanup. This qualifies **connection lifetime isolation**, not concurrent native input, separate keyboards, helper-crash isolation or cancellation of a script already executing in the helper.
 
@@ -96,10 +98,10 @@ This is now a concrete candidate to compare with further private-runtime integra
 
 | Gate | Concrete acceptance evidence |
 | --- | --- |
-| Cold native startup | In a coordinated desktop slot, close ChatGPT normally and stop the helper only when no task uses it. Start the companion probe through the genuine launcher; verify helper launch, approval, input and screenshot. Restart the desktop afterward. Record whether the companion's packaged identity changes permission attribution. |
-| Target and capture recovery | Repeat close/relaunch with fresh identities; distinguish AX readiness from capture readiness. Reproduce or bound the observed `-3811` failure. Verify stale targets fail and no input is duplicated after an uncertain result. |
-| Actual Stop and helper failure | Interrupt a bounded operation on the disposable fixture; establish what already happened and when further input stops. Then test recovery from helper failure without claiming rollback. |
-| Browser provisioning | Obtain a legitimate host-issued connection for an outside caller, then demonstrate actual Pi and terminal Codex consumers and correct turn cleanup. If unavailable, make an explicit provider/delegation tradeoff rather than expand a private authorization clone. |
+| Cold native startup | Completed on this installation with the desktop closed and restored afterward. Remaining: actual production app identity and fresh-permission onboarding. |
+| Target and capture recovery | Six corrected warm/cold relaunch cycles completed. Old app handles can relaunch/rebind instead of failing: exact shared-window identity remains item #3 work. Earlier `-3811` was not reproduced and its cause is unresolved. |
+| Actual Stop and helper failure | Bounded native Stop and helper termination/recovery passed in the approved slot. This does not qualify every in-flight native mutation or claim rollback. |
+| Browser provisioning | Actual terminal CLI/Pi consumers and CLI cleanup/interruption pass via our owned extension. Private Codex browser enrollment remains unqualified, but is no longer necessary for this implementation path. |
 | Version changes | Qualify the exact manifest/runtime/helper tuple and tool schema after an update. Detect startup/schema/version mismatch before admitting input; retain the observed failure. Loading guidance dynamically reduces prompt drift but does not remove compatibility work. |
 | Release dependency | Resolve the installed-runtime and cross-model use terms and operational support expectations before promising the feature to others. |
 

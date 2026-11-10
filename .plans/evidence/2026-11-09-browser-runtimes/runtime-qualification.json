@@ -1,0 +1,1453 @@
+{
+  "date": "2026-11-09",
+  "scope": "Actual terminal CLI + Pi browser consumers and native startup/lifecycle qualification; isolated fixture work, not production integration.",
+  "sources": [
+    {
+      "path": "experiments/owned-browser-probe/terminal-qualification.mjs",
+      "sha256": "fe5d2900534594b5e09810a7b30c9011c182b28ab9ffa84fd28e5cee78bb8d66"
+    },
+    {
+      "path": "experiments/owned-browser-probe/probe.mjs",
+      "sha256": "89495e88afc7def6c7ed80afaef5adb92a4e520adcfd12d4cdc902aa5fff7edb"
+    },
+    {
+      "path": "experiments/pi-cua-probe/qualify-native.mjs",
+      "sha256": "817356f2c607373b3b6561e039d7e448a6f7d570b440f6da3813d267c9b011c5"
+    },
+    {
+      "path": "experiments/pi-cua-probe/cold-slot.mjs",
+      "sha256": "dea8e918767edeb1fd3f9544885c8e8bb124d08ec4c2b45442badb57a1569372"
+    },
+    {
+      "path": "experiments/codex-runtime-probe/Fixture.swift",
+      "sha256": "afe930392a57feee1b7d582d64574d27a2b3b3811255e2521e67b3066d3b20c4"
+    }
+  ],
+  "sourceQualification": "Live runs preceded formatting-only changes to new JavaScript files. Fixture source is the corrected source used by warm/cold runs. No vendor source or images are copied into this evidence.",
+  "cliSetupFailure": {
+    "startedAt": "2026-11-09T23:45:22.497Z",
+    "cliVersion": "codex-cli 0.153.4",
+    "checks": {},
+    "passed": false,
+    "error": "AssertionError [ERR_ASSERTION]: Codex did not request a screenshot\n    at file:///Users/samragsdale/Documents/Code/sragss/slopzooka-cursed-mongoose/experiments/owned-browser-probe/terminal-qualification.mjs:134:3",
+    "hostCleanup": {
+      "code": 0,
+      "signal": null
+    }
+  },
+  "cliSetupError": "MCP tool call requires approval, but approval policy is never",
+  "cliAndPi": {
+    "startedAt": "2026-11-09T23:46:46.860Z",
+    "cliCommand": "/Users/samragsdale/.bun/bin/codex",
+    "cliVersion": "codex-cli 0.167.0",
+    "checks": {
+      "concurrentCompletion": {
+        "codex": {
+          "exitCode": 0,
+          "elapsedMs": 49288,
+          "toolCalls": 13,
+          "images": 1,
+          "events": [
+            {
+              "sequence": 5,
+              "fixture": "/codex",
+              "action": "save",
+              "count": 0,
+              "label": "terminal-codex"
+            },
+            {
+              "sequence": 6,
+              "fixture": "/codex",
+              "action": "increment",
+              "count": 1,
+              "label": "terminal-codex"
+            },
+            {
+              "sequence": 7,
+              "fixture": "/codex",
+              "action": "increment",
+              "count": 2,
+              "label": "terminal-codex"
+            },
+            {
+              "sequence": 8,
+              "fixture": "/codex",
+              "action": "settings",
+              "count": 2,
+              "label": "terminal-codex"
+            }
+          ]
+        },
+        "pi": {
+          "images": 1,
+          "events": [
+            {
+              "sequence": 1,
+              "fixture": "/pi-peer",
+              "action": "save",
+              "count": 0,
+              "label": "pi-peer"
+            },
+            {
+              "sequence": 2,
+              "fixture": "/pi-peer",
+              "action": "increment",
+              "count": 1,
+              "label": "pi-peer"
+            },
+            {
+              "sequence": 3,
+              "fixture": "/pi-peer",
+              "action": "increment",
+              "count": 2,
+              "label": "pi-peer"
+            },
+            {
+              "sequence": 4,
+              "fixture": "/pi-peer",
+              "action": "settings",
+              "count": 2,
+              "label": "pi-peer"
+            }
+          ]
+        }
+      },
+      "codexExitReleasedOnlyItsLease": true,
+      "realCodexInterrupt": {
+        "exitCode": 1,
+        "signal": null,
+        "observedThroughQuietPeriodMs": 1188,
+        "completedIncrements": 1,
+        "leaseReleased": true,
+        "noInputAfterReleaseInOneSecond": true
+      },
+      "piContinuedAfterCodexInterrupt": true
+    },
+    "passed": true,
+    "hostCleanup": {
+      "code": 0,
+      "signal": null
+    }
+  },
+  "nativeFixtureFailure": {
+    "startedAt": "2026-11-09T23:49:15.318Z",
+    "requestedCold": false,
+    "sharedBefore": [
+      {
+        "pid": 30225,
+        "command": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+      },
+      {
+        "pid": 30747,
+        "command": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService"
+      }
+    ],
+    "records": [
+      {
+        "label": "initial-attach",
+        "elapsedMs": 374,
+        "isError": false,
+        "images": 0,
+        "textSha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+        "independentState": {
+          "counter": 0,
+          "pid": 87417,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-observe",
+        "elapsedMs": 41,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 87417,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-click-once",
+        "elapsedMs": 530,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 87417,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-closed",
+        "elapsedMs": 5093,
+        "isError": true,
+        "images": 0,
+        "textSha256": "98b750df63568196a0cf162c1d4ef83a1b65d692fc9ae2ac7fda88b7427d5094",
+        "error": "Computer Use server error -10005: timeoutReached",
+        "independentState": {
+          "counter": 1,
+          "pid": 87417,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-after-relaunch",
+        "elapsedMs": 67,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87464,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-fresh-attach",
+        "elapsedMs": 43,
+        "isError": false,
+        "images": 0,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87464,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-observe",
+        "elapsedMs": 62,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 87464,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-click-once",
+        "elapsedMs": 404,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 87464,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-old-handle-closed",
+        "elapsedMs": 5104,
+        "isError": true,
+        "images": 0,
+        "textSha256": "98b750df63568196a0cf162c1d4ef83a1b65d692fc9ae2ac7fda88b7427d5094",
+        "error": "Computer Use server error -10005: timeoutReached",
+        "independentState": {
+          "counter": 1,
+          "pid": 87464,
+          "text": ""
+        }
+      }
+    ],
+    "runtime": {
+      "version": "26.1103.60933",
+      "surface": "computer",
+      "manifestPath": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+      "suppliedDesktopIdentity": false,
+      "mcpServer": {
+        "name": "rmcp",
+        "version": "3.5.1"
+      },
+      "protocolVersion": "2025-11-25",
+      "manifestSha256": "71dfeb09c409ff6327604ecdc2407596029d4db5952a00ef1c94bcf1a5856c68",
+      "catalogSha256": "ee71c64c847da270f90b4ba1a3ed0bf6f41bdef97dc72e93a257747295b4bb86",
+      "toolNames": ["js", "js_add_node_module_dir", "js_reset", "turn_ended"],
+      "executablePaths": {
+        "command": "/bin/sh",
+        "node": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+        "helper": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app"
+      },
+      "inheritedDesktopIdentity": false
+    },
+    "completed": false,
+    "error": "Error: Timed out: fixture independent state\n    at until (file:///Users/samragsdale/Documents/Code/sragss/slopzooka-cursed-mongoose/experiments/pi-cua-probe/qualify-native.mjs:33:9)\n    at async launchFixture (file:///Users/samragsdale/Documents/Code/sragss/slopzooka-cursed-mongoose/experiments/pi-cua-probe/qualify-native.mjs:43:17)\n    at async file:///Users/samragsdale/Documents/Code/sragss/slopzooka-cursed-mongoose/experiments/pi-cua-probe/qualify-native.mjs:114:5"
+  },
+  "fixtureCrashReports": [
+    {
+      "filename": "SlzRuntimeFixture-2026-11-09-184918.ips",
+      "sha256": "a0667f0597a717db83d82da4a9404b6b91b27a13323e4f388b8b034e4af89486",
+      "exceptionType": "EXC_BREAKPOINT",
+      "signal": "SIGTRAP",
+      "triggeredSymbols": [
+        "closure #1 in closure #1 in _assertionFailure(_:_:file:line:flags:)",
+        "_assertionFailure(_:_:file:line:flags:)",
+        "FixtureDelegate.init()",
+        "@objc FixtureDelegate.init()",
+        "FixtureDelegate.__allocating_init()",
+        "main"
+      ]
+    },
+    {
+      "filename": "SlzRuntimeFixture-2026-11-09-184931.ips",
+      "sha256": "b5b70f13458a2c95ea82cb23b7015d2185b907c0539ea0f34813bf5319079d18",
+      "exceptionType": "EXC_BREAKPOINT",
+      "signal": "SIGTRAP",
+      "triggeredSymbols": [
+        "closure #1 in closure #1 in _assertionFailure(_:_:file:line:flags:)",
+        "_assertionFailure(_:_:file:line:flags:)",
+        "FixtureDelegate.init()",
+        "@objc FixtureDelegate.init()",
+        "FixtureDelegate.__allocating_init()",
+        "main"
+      ]
+    }
+  ],
+  "nativeWarm": {
+    "startedAt": "2026-11-09T23:51:21.394Z",
+    "requestedCold": false,
+    "sharedBefore": [
+      {
+        "pid": 30225,
+        "command": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+      },
+      {
+        "pid": 30747,
+        "command": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService"
+      }
+    ],
+    "records": [
+      {
+        "label": "initial-attach",
+        "elapsedMs": 284,
+        "isError": false,
+        "images": 0,
+        "textSha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+        "independentState": {
+          "counter": 0,
+          "pid": 87875,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-observe",
+        "elapsedMs": 42,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 87875,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-click-once",
+        "elapsedMs": 528,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 87875,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-closed",
+        "elapsedMs": 527,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87897,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-after-relaunch",
+        "elapsedMs": 72,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87916,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-fresh-attach",
+        "elapsedMs": 47,
+        "isError": false,
+        "images": 0,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87916,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-observe",
+        "elapsedMs": 39,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 87916,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-click-once",
+        "elapsedMs": 443,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 87916,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-old-handle-closed",
+        "elapsedMs": 558,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87930,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-old-handle-after-relaunch",
+        "elapsedMs": 60,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87945,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-fresh-attach",
+        "elapsedMs": 39,
+        "isError": false,
+        "images": 0,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87945,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-observe",
+        "elapsedMs": 35,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 87945,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-click-once",
+        "elapsedMs": 546,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 87945,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-old-handle-closed",
+        "elapsedMs": 558,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87963,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-old-handle-after-relaunch",
+        "elapsedMs": 55,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 87976,
+          "text": ""
+        }
+      },
+      {
+        "label": "stop-fresh-attach",
+        "elapsedMs": 251,
+        "isError": false,
+        "images": 0,
+        "textSha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+        "independentState": {
+          "counter": 0,
+          "pid": 87976,
+          "text": ""
+        }
+      },
+      {
+        "label": "stop-in-flight-script",
+        "elapsedMs": 104,
+        "isError": true,
+        "images": 0,
+        "textSha256": "e3837532508ebfafa8262bee4277bdbd1382477701dcfa80709d6920297ff88a",
+        "error": "MCP connection closed",
+        "independentState": {
+          "counter": 1,
+          "pid": 87976,
+          "text": ""
+        }
+      },
+      {
+        "label": "after-stop-fresh-connection",
+        "elapsedMs": 597,
+        "isError": false,
+        "images": 0,
+        "textSha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+        "independentState": {
+          "counter": 1,
+          "pid": 87976,
+          "text": ""
+        }
+      }
+    ],
+    "runtime": {
+      "version": "26.1103.60933",
+      "surface": "computer",
+      "manifestPath": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+      "suppliedDesktopIdentity": false,
+      "mcpServer": {
+        "name": "rmcp",
+        "version": "3.5.1"
+      },
+      "protocolVersion": "2025-11-25",
+      "manifestSha256": "71dfeb09c409ff6327604ecdc2407596029d4db5952a00ef1c94bcf1a5856c68",
+      "catalogSha256": "ee71c64c847da270f90b4ba1a3ed0bf6f41bdef97dc72e93a257747295b4bb86",
+      "toolNames": ["js", "js_add_node_module_dir", "js_reset", "turn_ended"],
+      "executablePaths": {
+        "command": "/bin/sh",
+        "node": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+        "helper": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app"
+      },
+      "inheritedDesktopIdentity": false
+    },
+    "nativeStop": {
+      "stopAckMs": 507,
+      "atAck": {
+        "counter": 1,
+        "pid": 87976,
+        "text": ""
+      },
+      "afterQuiet": {
+        "counter": 1,
+        "pid": 87976,
+        "text": ""
+      },
+      "additionalIncrementsAfterAck": 0,
+      "ownedMcpPidExited": true
+    },
+    "sharedAfter": [
+      {
+        "pid": 30225,
+        "command": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+      },
+      {
+        "pid": 30747,
+        "command": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService"
+      }
+    ],
+    "completed": true
+  },
+  "nativeCold": {
+    "startedAt": "2026-11-09T23:53:33.443Z",
+    "requestedCold": true,
+    "sharedBefore": [],
+    "records": [
+      {
+        "label": "initial-attach",
+        "elapsedMs": 1031,
+        "isError": false,
+        "images": 0,
+        "textSha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+        "independentState": {
+          "counter": 0,
+          "pid": 88453,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-observe",
+        "elapsedMs": 56,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 88453,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-click-once",
+        "elapsedMs": 577,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 88453,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-closed",
+        "elapsedMs": 583,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88482,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-0-old-handle-after-relaunch",
+        "elapsedMs": 75,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88491,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-fresh-attach",
+        "elapsedMs": 50,
+        "isError": false,
+        "images": 0,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88491,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-observe",
+        "elapsedMs": 40,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 88491,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-click-once",
+        "elapsedMs": 573,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 88491,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-old-handle-closed",
+        "elapsedMs": 607,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88503,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-1-old-handle-after-relaunch",
+        "elapsedMs": 89,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88511,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-fresh-attach",
+        "elapsedMs": 40,
+        "isError": false,
+        "images": 0,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88511,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-observe",
+        "elapsedMs": 48,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 0,
+          "pid": 88511,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-click-once",
+        "elapsedMs": 572,
+        "isError": false,
+        "images": 1,
+        "textSha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+        "independentState": {
+          "counter": 1,
+          "pid": 88511,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-old-handle-closed",
+        "elapsedMs": 610,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88523,
+          "text": ""
+        }
+      },
+      {
+        "label": "cycle-2-old-handle-after-relaunch",
+        "elapsedMs": 82,
+        "isError": false,
+        "images": 1,
+        "textSha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+        "independentState": {
+          "counter": 0,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "stop-fresh-attach",
+        "elapsedMs": 993,
+        "isError": false,
+        "images": 0,
+        "textSha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+        "independentState": {
+          "counter": 0,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "stop-in-flight-script",
+        "elapsedMs": 104,
+        "isError": true,
+        "images": 0,
+        "textSha256": "e3837532508ebfafa8262bee4277bdbd1382477701dcfa80709d6920297ff88a",
+        "error": "MCP connection closed",
+        "independentState": {
+          "counter": 1,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "after-stop-fresh-connection",
+        "elapsedMs": 999,
+        "isError": false,
+        "images": 0,
+        "textSha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+        "independentState": {
+          "counter": 1,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "helper-exit-existing-connection",
+        "elapsedMs": 822,
+        "isError": false,
+        "images": 1,
+        "textSha256": "b8d9bb77adc77e67d6eab33b21e06e525d5196048b3d2389846ab396222e3e1d",
+        "independentState": {
+          "counter": 1,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "helper-exit-fresh-connection",
+        "elapsedMs": 979,
+        "isError": false,
+        "images": 0,
+        "textSha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+        "independentState": {
+          "counter": 1,
+          "pid": 88531,
+          "text": ""
+        }
+      },
+      {
+        "label": "helper-exit-fresh-screenshot",
+        "elapsedMs": 49,
+        "isError": false,
+        "images": 1,
+        "textSha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+        "independentState": {
+          "counter": 1,
+          "pid": 88531,
+          "text": ""
+        }
+      }
+    ],
+    "runtime": {
+      "version": "26.1103.60933",
+      "surface": "computer",
+      "manifestPath": "/Users/samragsdale/.codex/plugins/cache/openai-bundled/unified-computer-use/26.1103.60933/.mcp.json",
+      "suppliedDesktopIdentity": false,
+      "mcpServer": {
+        "name": "rmcp",
+        "version": "3.5.1"
+      },
+      "protocolVersion": "2025-11-25",
+      "manifestSha256": "71dfeb09c409ff6327604ecdc2407596029d4db5952a00ef1c94bcf1a5856c68",
+      "catalogSha256": "ee71c64c847da270f90b4ba1a3ed0bf6f41bdef97dc72e93a257747295b4bb86",
+      "toolNames": ["js", "js_add_node_module_dir", "js_reset", "turn_ended"],
+      "executablePaths": {
+        "command": "/bin/sh",
+        "node": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node",
+        "helper": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app"
+      },
+      "inheritedDesktopIdentity": false
+    },
+    "nativeStop": {
+      "stopAckMs": 504,
+      "atAck": {
+        "counter": 1,
+        "pid": 88531,
+        "text": ""
+      },
+      "afterQuiet": {
+        "counter": 1,
+        "pid": 88531,
+        "text": ""
+      },
+      "additionalIncrementsAfterAck": 0,
+      "ownedMcpPidExited": true
+    },
+    "helperRecovery": {
+      "oldPid": 88572,
+      "newPid": 88608,
+      "existingConnectionError": false,
+      "freshScreenshot": true,
+      "desktopStayedClosed": true
+    },
+    "sharedAfter": [
+      {
+        "pid": 88608,
+        "command": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService"
+      }
+    ],
+    "completed": true
+  },
+  "approvedColdSlot": {
+    "startedAt": "2026-11-09T23:53:27.486Z",
+    "userApprovedSlot": true,
+    "before": [
+      {
+        "pid": 30225,
+        "command": "/Applications/ChatGPT.app/Contents/MacOS/ChatGPT"
+      },
+      {
+        "pid": 30747,
+        "command": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService"
+      }
+    ],
+    "absentBeforeClientStart": true,
+    "nativeExit": {
+      "code": 0,
+      "signal": null
+    },
+    "afterNativeBeforeDesktopRestore": [],
+    "desktopRestored": true
+  },
+  "runtimeFingerprint": {
+    "desktopVersion": "26.1103.60933",
+    "helperVersion": "26.1102.1001824",
+    "helperSignature": [
+      "Identifier=com.openai.sky.CUAService",
+      "CDHash=1d127a43dc7ffa326c56798c88eb9419fbd8822b",
+      "Authority=Developer ID Application: OpenAI OpCo, LLC (2DC432GLL2)",
+      "Authority=Developer ID Certification Authority",
+      "Authority=Apple Root CA",
+      "TeamIdentifier=2DC432GLL2"
+    ],
+    "files": [
+      {
+        "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/bin/node_repl",
+        "bytes": 20789488,
+        "sha256": "ea870d110c925156840f5d2c68bdcda81df3fb6d61c5b9879b3c78d9cd130bc5"
+      },
+      {
+        "path": "/Applications/ChatGPT.app/Contents/Resources/cua_node/lib/node_modules/@oai/sky/dist/project/cua/sky_js/src/targets/mac/native-pipe.js",
+        "bytes": 8221,
+        "sha256": "60b3653f7ee052007b02a79e11416a89d424d73dac450e429a93b214839c267f"
+      },
+      {
+        "path": "/Users/samragsdale/.codex/computer-use/Codex Computer Use.app/Contents/MacOS/SkyComputerUseService",
+        "bytes": 21633216,
+        "sha256": "469500545c940ecb20541d71a979461ea6bd22e92b513a87fa57eab90cd1061a"
+      }
+    ]
+  },
+  "localArtifacts": [
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/codex-0.jpg",
+      "sha256": "ef6ffacfccee17de28846872b4230924b2b99925e87ec9e2b2ad5bb38848acdf",
+      "bytes": 72753
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/codex-events.jsonl",
+      "sha256": "1ad08908ff97a673dd360480cc1209d7b05f8f1a6b302e7e4a85ddbc0c63a255",
+      "bytes": 21086
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/codex-interrupt-events.jsonl",
+      "sha256": "096b65a2d82a652903f096841d9104b2469963c7e660d6749dd74a34e138798f",
+      "bytes": 4077
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/codex-interrupt-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/codex-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/journal.jsonl",
+      "sha256": "21393485919c8f7b915eb7ff19d688b1ab27371e5823e411d7727a5fc2b0bb92",
+      "bytes": 1387
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/pi-events.json",
+      "sha256": "1ed62055733d735c9224f6083d18be2589ec8c84ba90b83afc870f10ac5494bd",
+      "bytes": 1518
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/pi-peer.jpg",
+      "sha256": "59949e63960083de294eaec4522c37e3fbd655195f14e1f49c3a2cf64a192c8c",
+      "bytes": 72225
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-Y6kVDM/result.json",
+      "sha256": "335ee4123338ff5c8b743ab341a1484e9e73cefc878bb1af65faef7d4cfb67cb",
+      "bytes": 2229
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/after-stop-fresh-connection.txt",
+      "sha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-click-once-0.jpg",
+      "sha256": "4ad8e928ddf24e6145a5855a330da457bc058548fd6581032685770cf4c63fcc",
+      "bytes": 48042
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-old-handle-after-relaunch-0.jpg",
+      "sha256": "7a06b4da66c044074609b47ca874cb0041306bea0b138d59f486361964547e31",
+      "bytes": 40836
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-0-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-click-once-0.jpg",
+      "sha256": "4ad8e928ddf24e6145a5855a330da457bc058548fd6581032685770cf4c63fcc",
+      "bytes": 48042
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-fresh-attach.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-observe-0.jpg",
+      "sha256": "45e6d92cc2e77a1d7b3a13ba4cc2aa66f1fd7e4d792e20afd0290ae29c2f799e",
+      "bytes": 20375
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-old-handle-after-relaunch-0.jpg",
+      "sha256": "45e6d92cc2e77a1d7b3a13ba4cc2aa66f1fd7e4d792e20afd0290ae29c2f799e",
+      "bytes": 20375
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-1-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-click-once-0.jpg",
+      "sha256": "3a92641178f24a0c901b67f7940df7bdc25272b93ff032b6de2dba2df3b68284",
+      "bytes": 48044
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-fresh-attach.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-old-handle-after-relaunch-0.jpg",
+      "sha256": "45e6d92cc2e77a1d7b3a13ba4cc2aa66f1fd7e4d792e20afd0290ae29c2f799e",
+      "bytes": 20375
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/cycle-2-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/initial-attach.txt",
+      "sha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/result.json",
+      "sha256": "63068d4565a4ae1aa56b93e11caea4c525e1e48047c8b062ac2e9e2e978a20bc",
+      "bytes": 7404
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/stop-fresh-attach.txt",
+      "sha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-SBQ2kl/stop-in-flight-script.txt",
+      "sha256": "e3837532508ebfafa8262bee4277bdbd1382477701dcfa80709d6920297ff88a",
+      "bytes": 21
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/after-stop-fresh-connection.txt",
+      "sha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-click-once-0.jpg",
+      "sha256": "3a92641178f24a0c901b67f7940df7bdc25272b93ff032b6de2dba2df3b68284",
+      "bytes": 48044
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-old-handle-after-relaunch-0.jpg",
+      "sha256": "45e6d92cc2e77a1d7b3a13ba4cc2aa66f1fd7e4d792e20afd0290ae29c2f799e",
+      "bytes": 20375
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-0-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-click-once-0.jpg",
+      "sha256": "d16fd31eac0a82fa31431bd459ad4f2cf2570133eb74338484a4bd857acc6fb3",
+      "bytes": 48042
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-fresh-attach.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-old-handle-after-relaunch-0.jpg",
+      "sha256": "7a06b4da66c044074609b47ca874cb0041306bea0b138d59f486361964547e31",
+      "bytes": 40836
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-1-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-click-once-0.jpg",
+      "sha256": "d16fd31eac0a82fa31431bd459ad4f2cf2570133eb74338484a4bd857acc6fb3",
+      "bytes": 48042
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-fresh-attach.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-old-handle-after-relaunch-0.jpg",
+      "sha256": "7a06b4da66c044074609b47ca874cb0041306bea0b138d59f486361964547e31",
+      "bytes": 40836
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-old-handle-closed-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/cycle-2-old-handle-closed.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/helper-exit-existing-connection-0.jpg",
+      "sha256": "3f50e33c01da1026c17d54f83e4960de78c7e67ba7003879c90910c41bae06b2",
+      "bytes": 47594
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/helper-exit-existing-connection.txt",
+      "sha256": "b8d9bb77adc77e67d6eab33b21e06e525d5196048b3d2389846ab396222e3e1d",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/helper-exit-fresh-connection.txt",
+      "sha256": "f9083918d417f8e8ae7938360efaa8a9f73ec1a8504687e150cb45b66e9a6b70",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/helper-exit-fresh-screenshot-0.jpg",
+      "sha256": "3f50e33c01da1026c17d54f83e4960de78c7e67ba7003879c90910c41bae06b2",
+      "bytes": 47594
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/helper-exit-fresh-screenshot.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/initial-attach.txt",
+      "sha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/result.json",
+      "sha256": "618c284be6f62b2c22d0e7d4a2faf9980ceea4b69d5b92711aa64d82bd1dea0c",
+      "bytes": 8161
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/stop-fresh-attach.txt",
+      "sha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-PjWuqS/stop-in-flight-script.txt",
+      "sha256": "e3837532508ebfafa8262bee4277bdbd1382477701dcfa80709d6920297ff88a",
+      "bytes": 21
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/cold-slot-KlyMQs/native-stdout.jsonl",
+      "sha256": "d3df2845acbe7acf1f22f8d3e1871854c6a3811f9fcd5e715a78fcd2eebe46c6",
+      "bytes": 4848
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/cold-slot-KlyMQs/result.json",
+      "sha256": "36c8f5edeacc739985b522282442fca7f3ae7ff99bc4bd5b8aa378782258b54d",
+      "bytes": 503
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-KUpZzZ/codex-events.jsonl",
+      "sha256": "812ffd93a602d2b9742685f53ab2cab1f0d5dc5c9b4e767dc6cc181d1cc41353",
+      "bytes": 1220
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-KUpZzZ/codex-stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-KUpZzZ/journal.jsonl",
+      "sha256": "b24492b854cf7f6a17a6e591933a3049fc0d52548daaf5e5d318ea42c93601d4",
+      "bytes": 308
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-KUpZzZ/pi-events.json",
+      "sha256": "e192605c6d6a4d8981bfca948640916522b48404a60183f826419902eebb386b",
+      "bytes": 1518
+    },
+    {
+      "path": "experiments/owned-browser-probe/build/terminal-KUpZzZ/result.json",
+      "sha256": "e04b30901f3ebac91661e4e28f2872f082219e72b6a47ce1a29c113f9a5f18a5",
+      "bytes": 403
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-click-once-0.jpg",
+      "sha256": "4ad8e928ddf24e6145a5855a330da457bc058548fd6581032685770cf4c63fcc",
+      "bytes": 48042
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-observe-0.jpg",
+      "sha256": "08ea1e44fc06df94373ebf55cdf6885832500fabef95a2af6ed05e27b1ad4e46",
+      "bytes": 47757
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-old-handle-after-relaunch-0.jpg",
+      "sha256": "9c0412626b1ade545865b8f3b64818e55256abba097fd120d07b51ed776db88f",
+      "bytes": 44750
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-old-handle-after-relaunch.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-0-old-handle-closed.txt",
+      "sha256": "98b750df63568196a0cf162c1d4ef83a1b65d692fc9ae2ac7fda88b7427d5094",
+      "bytes": 48
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-click-once-0.jpg",
+      "sha256": "d100c3d5841c499872103b3b8e88945ac12fac09a6286e68dde897f2b46c128e",
+      "bytes": 56779
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-click-once.txt",
+      "sha256": "502567a06ee6d35e407fe7bb616abad95e03250dae4778cedba60010b7d640d6",
+      "bytes": 349
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-fresh-attach.txt",
+      "sha256": "8a64da22cceb2882977fce1151b361deb4507b0e634e310048e8502e4b563519",
+      "bytes": 562
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-observe-0.jpg",
+      "sha256": "74160246db23893760b39d30506bacf2d3cce5147047fa1adcf1aaf3fce868bf",
+      "bytes": 21032
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-observe.txt",
+      "sha256": "6695f5a9a9940411b8eea332b09a5eff2f5eeebfe200b7233b9a4f90381b6ff8",
+      "bytes": 177
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/cycle-1-old-handle-closed.txt",
+      "sha256": "98b750df63568196a0cf162c1d4ef83a1b65d692fc9ae2ac7fda88b7427d5094",
+      "bytes": 48
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/initial-attach.txt",
+      "sha256": "77061fb6f9a50619e2d667239998793eca418d1f5aca7fd7bfa3ea62e83b4e0e",
+      "bytes": 20528
+    },
+    {
+      "path": "experiments/pi-cua-probe/build/native-qualification-I64ntQ/result.json",
+      "sha256": "b1bb1fc5408bd04a9c8f5a2af89582fc485b7bb88ba287fbf16ef0efedd9418d",
+      "bytes": 4658
+    }
+  ],
+  "unitChecks": {
+    "piHarnessPassed": 7,
+    "browserFramingPassed": 2
+  },
+  "limits": [
+    "One CLI version explicitly qualified; interactive xterm stop/input UI not exercised",
+    "No fresh macOS permission state or signed production companion onboarding",
+    "No real runtime upgrade or forced API-version mismatch",
+    "Helper SIGTERM between calls, not forced crash during a mutation",
+    "Native app handles can relaunch/rebind; exact process/window binding remains open",
+    "No vendor embedding/redistribution or cross-model use permission established",
+    "No lock/sleep, general native parallel input or Vision presentation test in this follow-up"
+  ]
+}
