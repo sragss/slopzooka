@@ -8,7 +8,14 @@ Use macOS, Node.js 22+, pnpm 10.28.0 (pinned in `package.json`), and Xcode with 
 
 ```sh
 pnpm install
+pnpm setup:swiftlint
 ```
+
+`setup:swiftlint` downloads the pinned macOS SwiftLint release into the ignored
+`.build/swiftlint` directory and verifies its SHA-256 checksum. Run it again after
+updating the version in `.swiftlint.yml` and the archive checksum in
+`scripts/install-swiftlint.mjs`. TypeScript lint dependencies are pinned in
+`package.json` and `pnpm-lock.yaml`.
 
 ## Run the companion
 
@@ -49,6 +56,21 @@ Edit browser sources in `apps/mac-companion/src`, then run `pnpm build:harness`.
 
 Run `pnpm format` for TypeScript formatting. Add regression coverage for behavior changes, especially reconnects, cancellation, persistence, and process lifetime. Document user-facing changes in the relevant guide; keep the README focused on getting started.
 
+Run `pnpm lint` for both languages, or `pnpm lint:ts` / `pnpm lint:swift`
+individually. CI runs the same checks and fails on warnings. ESLint uses the
+recommended JavaScript and TypeScript correctness rules, with additional promise,
+`await`, and exhaustive-switch checks on companion and shared protocol sources.
+Tests use the recommended rules without typed linting and allow `any` for test
+doubles; unused arguments and caught errors can be prefixed with `_`. SwiftLint
+uses the explicit correctness-rule list in `.swiftlint.yml` for both native apps,
+including image accessibility and private SwiftUI state. A custom rule keeps the
+headset's native window actions in `WindowScene.swift`; `lint:swift` also checks
+that rule against allowed and rejected examples. Both production Swift builds
+enable complete concurrency checking and treat Swift compiler warnings as errors.
+Generated browser assets are excluded. Keep formatting with Prettier, and document
+intentional rule exceptions at the relevant line rather than disabling checks
+across a file.
+
 ### Logging
 
 Use a scoped logger at the existing behavior owner. Node processes create one
@@ -79,6 +101,7 @@ serializes disk work off the main actor. Logs always belong to `SLOPZOOKA_HOME/l
 From the repository root:
 
 ```sh
+pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:vision-state
@@ -94,6 +117,7 @@ xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
 
 | Check                         | Coverage                                                                                                                                                                                      |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pnpm lint`                   | TypeScript sources and tests, shared protocol sources, and both native apps; correctness checks without formatting or size limits                                                               |
 | `pnpm test`                   | Companion integration tests with temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSocket fixtures; authentication, replay, process cleanup, workspace mutations, and frontend lifecycle |
 | `pnpm test:vision-state`      | Native launcher, window gateway/persistence, voice (including utterance boundaries and task rotation), immersion, and zoom state checks on macOS                                              |
 | `pnpm test:terminal-keyboard` | Real WebKit input, renderer zoom/resize behavior, and preview back/forward history                                                                                                                                           |

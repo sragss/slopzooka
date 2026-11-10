@@ -120,6 +120,8 @@ try {
     "swiftc",
     "-swift-version",
     "5",
+    "-strict-concurrency=complete",
+    "-warnings-as-errors",
     "-O",
     "-target",
     target,

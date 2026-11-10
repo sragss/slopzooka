@@ -24,6 +24,8 @@ Terminal rows match project rows’ rounded targets, circular icons, and compact
 
 Frontend rows in the launcher and terminal dropdown use the same bordered, rectangular surfaces as project rows, with compact titles, single-line details, and circular icons. The launcher list sits directly on the page without an extra glass panel. Choose **Add URL** to enter an address in a focused sheet. URL edits update all frontend lists for that Mac together. Windows connected to another Mac keep that Mac's listing; a slow terminal connection does not hold up frontend discovery.
 
+In preview windows, VoiceOver identifies the reload and close controls as **Reload preview** and **Close preview**. Status messages carry the meaning of their adjacent decorative icons.
+
 ## Keyboard and zoom
 
 Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose the **keyboard icon** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.

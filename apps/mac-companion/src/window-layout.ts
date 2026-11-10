@@ -29,6 +29,7 @@ function windows(value: unknown): WindowRecord[] {
     typeof v === "string" &&
     v.length > 0 &&
     v.length <= 512 &&
+    // eslint-disable-next-line no-control-regex -- Reject C0 control characters in window identifiers.
     !/[\x00-\x1f]/.test(v);
   if (!Array.isArray(value) || value.length > 128)
     throw new ServiceError("Expected at most 128 window records", 400);

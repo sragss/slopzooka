@@ -67,6 +67,7 @@ struct BrowserWindowView: View {
                         } label: {
                             Image(systemName: "arrow.clockwise")
                                 .font(.title3)
+                                .accessibilityLabel("Reload preview")
                         }
                         .buttonStyle(.plain)
                         .padding(10)
@@ -77,6 +78,7 @@ struct BrowserWindowView: View {
                         } label: {
                             Image(systemName: "xmark")
                                 .font(.headline.weight(.semibold))
+                                .accessibilityLabel("Close preview")
                         }
                         .buttonStyle(.plain)
                         .padding(12)
@@ -200,7 +202,7 @@ private struct PreviewWebView: UIViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didReceive challenge: URLAuthenticationChallenge,
-            completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
+            completionHandler: @escaping @MainActor @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
             let protection = challenge.protectionSpace
             guard protection.authenticationMethod == NSURLAuthenticationMethodServerTrust,
                 let previewTrust, previewTrust.matches(host: protection.host, port: protection.port)

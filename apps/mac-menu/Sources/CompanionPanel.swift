@@ -11,6 +11,7 @@ struct CompanionPanel: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 10) {
                     Image(nsImage: Self.icon)
+                        .accessibilityHidden(true)
                     VStack(alignment: .leading, spacing: 3) {
                         Text("SlopZooka").font(.headline)
                         HStack(spacing: 5) {
@@ -36,6 +37,7 @@ struct CompanionPanel: View {
                             Text(model.openingDashboard ? "Opening…" : "Open Dashboard")
                             Spacer()
                             Image(systemName: "arrow.up.right")
+                                .accessibilityHidden(true)
                         }.frame(maxWidth: .infinity)
                     }
                     .buttonStyle(.borderedProminent).controlSize(.large)
