@@ -1,6 +1,8 @@
 import Foundation
 import Combine
 
+private final class DiagnosticResult { var count = 0 }
+
 @main
 struct DiagnosticsChecks {
     @MainActor
@@ -52,6 +54,16 @@ struct DiagnosticsChecks {
         precondition(errorMetadata["code"] as? Int == 41 && (errorMetadata["cause"] as? [String: Any])?["code"] as? Int == 42)
         precondition((errorEnvelope["buildId"] as? String)?.count == 64, "Build identity belongs on every native event")
         precondition(!(errorMetadata["message"] as! String).contains("private-error"))
+
+        let operationLog = NativeDiagnostics(), value = DiagnosticResult()
+        let result = await AppLog("operation", diagnostics: operationLog).operation("native.action") {
+            MainActor.assertIsolated()
+            value.count += 1
+            precondition(DiagnosticContext.actionID != nil)
+            return value
+        }
+        precondition(result === value && result.count == 1, "Operations keep non-Sendable results on their owning actor")
+        precondition(DiagnosticContext.actionID == nil, "Action context must end with the operation")
 
         let observed = NativeDiagnostics()
         var publications = 0

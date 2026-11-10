@@ -20,7 +20,7 @@ struct AppLog {
     }
     func info(_ event: String, _ fields: [String: String] = [:]) { write("info", event, fields) }
     func warn(_ event: String, _ fields: [String: String] = [:]) { write("warn", event, fields) }
-    func operation<T>(_ event: String, _ fields: [String: String] = [:], run: () async throws -> T) async rethrows -> T
+    func operation<T>(_ event: String, _ fields: [String: String] = [:], run: @MainActor () async throws -> T) async rethrows -> T
     {
         try await DiagnosticContext.$actionID.withValue(DiagnosticContext.actionID ?? UUID().uuidString) {
             let log = child(fields)
