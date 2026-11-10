@@ -1,0 +1,279 @@
+{
+  "date": "2026-11-10",
+  "baseCandidate": "8aaef647914f409a5d4ed30ad7f2d08d619d25fb",
+  "livePatch": "WindowHost stdin readData(ofLength:4096) replaced with availableData",
+  "isolatedRun": "run-IGpaRm",
+  "permissionPromptObserved": false,
+  "nativeVideo": {
+    "humanFreshReadablePhoneAspect": true,
+    "humanNativePortraitTransition": true,
+    "humanRhythmicStutter": true,
+    "resizeReloadSizePreservation": "not established; resize control obscured",
+    "reopenWithoutLauncher": "not observed",
+    "coveredFreshness": "not established; remaining capture stopped",
+    "lockUnlock": "not run",
+    "streamSummaries": [
+      {
+        "viewerId": "B9720850-DBCE-4EC1-802F-B58907DE858F",
+        "frames": "2123",
+        "dropped": "612",
+        "bytes": "11974125",
+        "durationMs": "93785",
+        "reason": "disconnected",
+        "at": "2026-11-10T23:18:33.760Z",
+        "meanOfferedVideoFPS": 22.64
+      },
+      {
+        "viewerId": "66705704-F807-4145-8FA6-32944F84AD9F",
+        "frames": "2986",
+        "dropped": "834",
+        "bytes": "12494830",
+        "durationMs": "130975",
+        "reason": "disconnected",
+        "at": "2026-11-10T23:19:10.950Z",
+        "meanOfferedVideoFPS": 22.8
+      },
+      {
+        "viewerId": "C4DCF95A-191D-47F4-B4F5-ADF421B8AE50",
+        "frames": "1054",
+        "dropped": "285",
+        "bytes": "4463140",
+        "durationMs": "52020",
+        "reason": "failed",
+        "at": "2026-11-10T23:20:04.146Z",
+        "meanOfferedVideoFPS": 20.26
+      },
+      {
+        "viewerId": "7626A5A9-14A7-4E59-BEF3-B060CAAF82B5",
+        "frames": "1017",
+        "dropped": "300",
+        "bytes": "4666906",
+        "durationMs": "44713",
+        "reason": "disconnected",
+        "at": "2026-11-10T23:24:00.119Z",
+        "meanOfferedVideoFPS": 22.75
+      }
+    ]
+  },
+  "direct": {
+    "twoHumanInputACKsAfterHelperRestart": true,
+    "methodToggleAfterInterruption": false,
+    "launcherClose": "requested; user answered yes to readiness, no independent launcher telemetry",
+    "briefLostConnectionOnFocusMs": 500,
+    "unattendedRecoverySLA": "not established; browser reconnects align with user focus",
+    "timeline": [
+      {
+        "ts": "2026-11-10T23:28:22.303Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.closed",
+        "fields": {
+          "connectionId": "9f17adb4-7334-4569-8c64-c4f2115baac0",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:28:22.303Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.closed",
+        "fields": {
+          "connectionId": "f79d400b-2a6d-471f-80f7-f1b8dc844f05",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:28:22.304Z",
+        "source": "mac-companion",
+        "component": "transport",
+        "event": "helper.exited",
+        "fields": {
+          "pid": 13389,
+          "code": null,
+          "signal": "SIGTERM",
+          "expected": false
+        }
+      },
+      {
+        "ts": "2026-11-10T23:28:23.407Z",
+        "source": "mac-companion",
+        "component": "transport",
+        "event": "helper.ready",
+        "fields": {
+          "pid": 22474
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:06.050Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.retrying",
+        "fields": {
+          "sessionId": "preview-a",
+          "connectionId": "f79d400b-2a6d-471f-80f7-f1b8dc844f05",
+          "attempt": 0,
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:06.051Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.closed",
+        "fields": {
+          "sessionId": "preview-a",
+          "connectionId": "f79d400b-2a6d-471f-80f7-f1b8dc844f05",
+          "code": 1006,
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:06.664Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.opened",
+        "fields": {
+          "connectionId": "437b3aa5-6883-4a64-ad71-a7de4c5155c1",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:06.677Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.accepted",
+        "fields": {
+          "sessionId": "preview-a",
+          "connectionId": "437b3aa5-6883-4a64-ad71-a7de4c5155c1",
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:06.683Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "session.attached",
+        "fields": {
+          "sessionId": "preview-a",
+          "connectionId": "437b3aa5-6883-4a64-ad71-a7de4c5155c1",
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833",
+          "writable": true
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:11.651Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.retrying",
+        "fields": {
+          "sessionId": "preview-b",
+          "connectionId": "9f17adb4-7334-4569-8c64-c4f2115baac0",
+          "attempt": 0,
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:11.652Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.closed",
+        "fields": {
+          "sessionId": "preview-b",
+          "connectionId": "9f17adb4-7334-4569-8c64-c4f2115baac0",
+          "code": 1006,
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:12.146Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.opened",
+        "fields": {
+          "connectionId": "fd94ae96-2ab9-40ef-be22-56a6bdd043aa",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:12.165Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "connection.accepted",
+        "fields": {
+          "sessionId": "preview-b",
+          "connectionId": "fd94ae96-2ab9-40ef-be22-56a6bdd043aa",
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:29:12.172Z",
+        "source": "browser",
+        "component": "terminal",
+        "event": "session.attached",
+        "fields": {
+          "sessionId": "preview-b",
+          "connectionId": "fd94ae96-2ab9-40ef-be22-56a6bdd043aa",
+          "serviceInstanceId": "c9b6dbb6-bd9c-4982-9d05-e7b5fd42c833",
+          "writable": true
+        }
+      },
+      {
+        "ts": "2026-11-10T23:30:22.628Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.closed",
+        "fields": {
+          "connectionId": "fd94ae96-2ab9-40ef-be22-56a6bdd043aa",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:30:22.628Z",
+        "source": "mac-companion",
+        "component": "terminal-relay",
+        "event": "connection.closed",
+        "fields": {
+          "connectionId": "437b3aa5-6883-4a64-ad71-a7de4c5155c1",
+          "connectionMethod": "direct"
+        }
+      },
+      {
+        "ts": "2026-11-10T23:30:22.630Z",
+        "source": "mac-companion",
+        "component": "transport",
+        "event": "helper.exited",
+        "fields": {
+          "pid": 22474,
+          "code": 0,
+          "signal": null,
+          "expected": true
+        }
+      }
+    ],
+    "acks": [
+      {
+        "at": "2026-11-10T23:29:09.193101+00:00",
+        "pid": 13397,
+        "fixtureInput": "final-a"
+      },
+      {
+        "at": "2026-11-10T23:29:13.922445+00:00",
+        "pid": 13398,
+        "fixtureInput": "final-b"
+      }
+    ]
+  },
+  "confounds": [
+    "Headset battery interruption: terminals closed 23:25:48Z and returned 23:26:30Z; user reported power loss. Exact onset relative to earlier capture failure unknown.",
+    "Test client ID was injected via ephemeral launch arguments and changed after autonomous headset restart. Reconnection/partition semantics cannot establish production persistence behavior.",
+    "Full-screen cover could obstruct the Mac chat UI; use source-only cover next time."
+  ],
+  "cleanup": {
+    "testMacHTTPStopped": true,
+    "testSessionServiceStopped": true,
+    "testHeadsetPIDTerminated": 322,
+    "originalMacAppPIDUnchanged": 13544,
+    "originalMacHTTPPIDUnchanged": 13547,
+    "originalSessionServicePIDUnchanged": 32460
+  }
+}

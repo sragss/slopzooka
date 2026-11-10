@@ -72,13 +72,15 @@ files are checked in.
 
 The signed test builds and operator smoke checks are now prepared in the
 [short headset acceptance script](2026-11-10-native-preview-device-slot.md).
-These preparation checks do not change the physical-validation status below.
+The subsequent [physical results](2026-11-10-native-preview-device-results.md)
+supersede the original untested status: live native/Simulator video and aspect
+changes work, but motion, controls, and recovery did not pass the complete gate.
+They also document the native control-pipe fix missed by the initial local checks.
 
-The feature remains off by default. No new headset install, desktop lock, permission
-prompt, or actual desktop capture was performed for this implementation. Final signed
-permission attribution, physical phone-shaped sizing (including rotation/reload),
-visual sharpness and motion, covered-window capture, multi-view hardware capacity,
-channel recovery, and actual lock/unlock behavior require the focused device slot in
-[the implementation plan](2026-11-10-native-preview-implementation.md#focused-device-gate).
-Direct video is explicitly disabled. The prior transport PR also retains its short
-physical two-terminal EOF-recovery confirmation before leaving draft.
+The feature remains off by default. Final signed permission attribution/repair,
+rotation/reload sizing, smooth motion, reliable covered-window capture and recovery,
+multi-view hardware capacity, and actual lock/unlock behavior remain unqualified.
+Direct video is explicitly disabled. The two-terminal Direct recovery rerun produced
+fresh user ACKs in both terminals, with a focus-related reconnection caveat; it does
+not establish an unattended recovery SLA. See the physical report before deciding
+which gates to repeat.

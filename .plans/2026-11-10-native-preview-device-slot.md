@@ -1,5 +1,9 @@
 # Native preview: short headset acceptance slot
 
+Executed with mixed results; see the [physical report](2026-11-10-native-preview-device-results.md).
+The script below preserves the pre-test plan. Before reuse, fix its ephemeral
+client-ID override and full-display cover as described in that report.
+
 Candidate: `8aaef647914f409a5d4ed30ad7f2d08d619d25fb`, draft
 [PR #56](https://github.com/sragss/slopzooka/pull/56), including transport
 [PR #54](https://github.com/sragss/slopzooka/pull/54). This is a prepared test,

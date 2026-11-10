@@ -74,6 +74,12 @@ limits remain. No further headset interaction was requested during this follow-u
 
 ## Integrated verification
 
+Later physical follow-up: the [native-preview device slot](2026-11-10-native-preview-device-results.md#direct-recovery-functional-pass-bounded-idle-recovery-not-established)
+confirmed fresh independent input ACKs in both terminals after the isolated helper
+restart, without a connection-method toggle or duplicate PTYs. User focus coincided
+with ~0.5-second reconnect flashes; unattended recovery timing remains unqualified.
+The earlier remaining-gate paragraph describes the state before that rerun.
+
 Merged upstream through `1766abb` (bug-report PRs #51/#52). The only textual
 conflict was in the headset guide; both transport diagnostics and bug-report
 instructions were retained. New native report requests use the existing shared
