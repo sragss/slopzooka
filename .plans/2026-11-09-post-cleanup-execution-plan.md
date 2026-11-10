@@ -56,9 +56,12 @@ Keep the first command path on existing authenticated request/snapshot machinery
 
 ## Remaining tests, by the decision they answer
 
+The [Codex thread-handoff investigation](2026-11-10-codex-thread-handoff.md) additionally establishes native catalog access on the existing shared server, including this active conversation. Plan a **Continue Codex thread** launcher action through the same worker/session adapter. Preserve the native thread and original cwd; attach to a known live runtime or explicitly resume saved history. Prefer a compatible existing shared runtime when available, while retaining the tested owned-runtime arrangement. Shared history alone does not establish safe live adoption. No additional conversation database or window owner is needed.
+
 | Test | Timing / purpose |
 | --- | --- |
 | Existing-worker idle/busy/queue/steer/exit/lost-reply test | Completed for the owned Codex runtime. See the November 10 ledger. Arbitrary-TUI adoption, backend restart, and real-app navigation while the worker is busy remain separate qualifications. |
+| Desktop / CLI / SlopZooka thread handoff | Native read-only discovery passed. Qualify one disposable persistent thread in both directions, with exact runtime/turn identity, original cwd, required tools and no duplicate worker. Test the inspected desktop deep link; keep different-runtime and missing-cwd behavior explicit. No headset required. |
 | Capture survives agent completion and input Stop; two viewers release independently | Build with step 3 on the Mac. The current browser probe loses capture on caller exit; the ownership correction is already known. This verifies the correction, rather than reopening architecture discovery. |
 | Short integrated headset check after the production slice | Prepared source, explicit close/reconnect with launcher closed, obvious per-stream identity marker, Stop with live viewing. Include the unresolved browser count comparison. This qualifies changed integration; do not repeat the whole original slot. |
 | Real workspace launch with one partial failure | Step 5. Reveals setup/discovery and retry gaps; existing prepared fixtures cannot establish it. |

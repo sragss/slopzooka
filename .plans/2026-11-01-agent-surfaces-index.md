@@ -4,6 +4,8 @@ Research and live discovery from October 31–November 1, 2026, with a streaming
 
 ## Start here
 
+**Codex thread handoff:** the [November 10 investigation](2026-11-10-codex-thread-handoff.md) confirms native catalog access to this active conversation on the existing shared server. Ordinary SlopZooka Codex launches can retain shared local history. Add a proposed **Continue Codex thread** launcher action through the worker adapter, distinguishing live attachment from saved-history resume. The installed desktop has a thread deep link; the actual desktop/SlopZooka round trip and tool parity still need a short qualification.
+
 **Existing-worker delivery now tested:** the [November 10 results](2026-11-10-worker-delivery-results.md) demonstrate a real Codex TUI and external controller sharing one owned runtime/thread. Queue/steer, uncertain-reply reconciliation, interruption and native permission waits work. Duplicate queue submissions still execute twice; Stop preserves the queue; TUI exit is distinct from worker exit. Build a small adapter with those semantics, then connect the production preview/Pi path.
 
 **After merging the latest cleanup:** the [updated execution plan](2026-11-09-post-cleanup-execution-plan.md) maps `CompanionClient`, consolidated window state, shared frontend polling and workspace naming to the remaining work. No preliminary rearchitecture or mandatory new control socket is needed. The worker-delivery experiment has since run; its ownership and retry requirements are recorded above. Stream lifetime and recovery checks accompany integration.

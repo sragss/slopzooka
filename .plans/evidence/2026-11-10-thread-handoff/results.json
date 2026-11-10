@@ -1,0 +1,107 @@
+{
+  "at": "2026-11-10T15:16:36.138Z",
+  "cliVersion": "0.167.0",
+  "appServerVersion": "0.167.0",
+  "backend": "pid",
+  "usedExistingServer": true,
+  "scopedToResearchWorktree": true,
+  "requests": ["initialize", "thread/list", "thread/loaded/list"],
+  "readOnly": true,
+  "sourceSamples": {
+    "cli": {
+      "found": true,
+      "returnedSource": "cli"
+    },
+    "vscode": {
+      "found": true,
+      "returnedSource": "vscode"
+    },
+    "exec": {
+      "found": true,
+      "returnedSource": "exec"
+    },
+    "appServer": {
+      "found": false,
+      "returnedSource": null
+    }
+  },
+  "threadCount": 3,
+  "loadedTotal": 15,
+  "scopedLoadedCount": 3,
+  "currentThreadStatus": "active",
+  "currentThreadInScopedCatalog": true,
+  "currentThreadLoaded": true,
+  "scope": "Research-worktree catalog plus one metadata record per requested source kind; no thread content retained.",
+  "scopedGroups": [
+    {
+      "source": "vscode",
+      "status": "idle",
+      "count": 2
+    },
+    {
+      "source": "vscode",
+      "status": "active",
+      "count": 1
+    }
+  ],
+  "testsNotRun": [
+    "Desktop UI/deep-link opening",
+    "SlopZooka launcher handoff",
+    "Different-runtime adoption",
+    "Model/tool parity across clients"
+  ],
+  "desktop": {
+    "version": "26.1103.60933",
+    "build": "25894",
+    "bundleIdentifier": "com.openai.codex",
+    "inspectedOnly": true,
+    "sharedDaemonTransportConditional": true,
+    "observedThreadLink": "codex://threads/<thread-id>",
+    "threadLinkVisuallyVerified": false
+  },
+  "sources": [
+    "https://learn.chatgpt.com/docs/config-file/environment-variables#core-locations",
+    "https://learn.chatgpt.com/docs/developer-commands#codex-resume",
+    "https://learn.chatgpt.com/docs/app-server#list-threads-with-pagination--filters",
+    "https://learn.chatgpt.com/docs/app-server#start-or-resume-a-thread",
+    "https://learn.chatgpt.com/docs/appshots#limits-and-troubleshooting"
+  ],
+  "artifacts": [
+    {
+      "source": "<desktop>/app.asar/.vite/build/early-bootstrap.js",
+      "bytes": 604667,
+      "sha256": "5fb7f97bb289c4672d3d9e0cbb5e3352ecafa9c9224de20825b2a9f9770fa8ec"
+    },
+    {
+      "source": "<desktop>/app.asar/.vite/build/early-bootstrap-824-8c6252e0131a7fe3.js",
+      "bytes": 290015,
+      "sha256": "135ba428856dcfa52b53be2cc714bef8ed4fe8cefdad6011e61c89f27069b36b"
+    },
+    {
+      "source": "<desktop>/app.asar/webview/assets/async/182735.7f13786b92.js",
+      "bytes": 8273615,
+      "sha256": "119afcc814fe83e733d5b494d3201afe203c51b8d059998b2a8dbf3ed03ccd85"
+    },
+    {
+      "source": "<desktop>/app.asar/webview/assets/async/972499.c4afe1add7.js",
+      "bytes": 186613,
+      "sha256": "b21f8ceba09501c767bf11bba9be976c7ef56cfc23c895505668d37e5cd77a86"
+    },
+    {
+      "source": "<private-temporary-inspection>/catalog.mjs",
+      "bytes": 3066,
+      "sha256": "63c083c1c0b181e75dbfd13be942914c0976474627469bb91659160929334ad8"
+    },
+    {
+      "source": "<generated-stable-schema>/v2/ThreadListParams.json",
+      "bytes": 4375,
+      "sha256": "e9da2e0bf099d21ab7982210073f927a50370c4e28be7140c314f82c524070bd"
+    },
+    {
+      "source": "<generated-stable-schema>/v2/ThreadResumeParams.json",
+      "bytes": 43653,
+      "sha256": "cba2b0a25e99cc2a9ea083f3ad8cea4d1a3a198922d8c2ba5224b6414eff7334"
+    }
+  ],
+  "privacy": "No credentials, personal titles, transcript bodies, native thread IDs, extracted proprietary code or database contents included."
+}
