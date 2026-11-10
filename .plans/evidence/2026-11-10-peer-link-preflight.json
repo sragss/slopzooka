@@ -1,0 +1,268 @@
+{
+  "date": "2026-11-10",
+  "scope": "Mac loopback only; no Bonjour, radio or headset measurement",
+  "baseRevision": "b7806289e5ffb9014618dff045b6a8747e2022bf",
+  "macOS": "26.5.2",
+  "xcode": "26.3 (17C529)",
+  "command": "python3 experiments/peer-link-probe/build.py --checks --device",
+  "sourceSHA256": {
+    "Sources/CLI.swift": "4e8ad5ecfbb71360ccb54054085d4009cc69945cb54ca741736089e5b519cbcb",
+    "Sources/Checks.swift": "e7e7bec68d0cf32f632653f60e4db401bfa238f335024eae4ae080810f90d34f",
+    "Sources/Client.swift": "f65b8be7368b11c613f9242e607f1bbb7b98b37ddf2a0363172f1ac8678edaad",
+    "Sources/Host.swift": "909e04d3f7cd2e4543efcc10111d170028a136d42d827bc46deacd563e1e5e13",
+    "Sources/Link.swift": "4f174f1f30aec1189a698bec785f42608c55c30c123edd3d322bceea6a0991f4",
+    "Sources/Viewer.swift": "e66824dacd0e7b79446534658fb7c8fae1e5c6a83d410959454aff9f06d626ff"
+  },
+  "protocolChecks": [
+    "PASS: fragmented/coalesced framing, limits, kind validation, percentiles",
+    "PASS: wrong pin, wrong token, mode mismatch rejected"
+  ],
+  "loopbackEvents": [
+    {
+      "attempt": 0,
+      "elapsed": 0.005189333227463067,
+      "event": "authenticated",
+      "host": {
+        "path": {
+          "availableInterfaces": [
+            {
+              "name": "lo0",
+              "type": "loopback"
+            }
+          ],
+          "constrained": false,
+          "expensive": false,
+          "local": "127.0.0.1:56227",
+          "remote": "127.0.0.1:63326",
+          "status": "satisfied",
+          "usedTypes": ["loopback"]
+        },
+        "peerEnabled": false
+      },
+      "milliseconds": 4.629291710443795,
+      "wallTime": "2026-11-10T16:11:41Z"
+    },
+    {
+      "elapsed": 2.010473958333023,
+      "event": "phase_result",
+      "result": {
+        "attempt": 0,
+        "frameGapMaxMs": 0,
+        "frameGapP95Ms": 0,
+        "host": {
+          "duration": 2.0046559165930375,
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "lo0",
+                "type": "loopback"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "127.0.0.1:56227",
+            "remote": "127.0.0.1:63326",
+            "status": "satisfied",
+            "usedTypes": ["loopback"]
+          },
+          "payloadBytes": 0,
+          "scheduled": 60,
+          "sent": 0,
+          "skippedBusy": 0
+        },
+        "phase": 0,
+        "receivedFrames": 0,
+        "receivedPayloadMbps": 0,
+        "receiverSeconds": 2.0050630416953936,
+        "rttMaxMs": 0.4177499795332551,
+        "rttP50Ms": 0.31308329198509455,
+        "rttP95Ms": 0.41079160291701555,
+        "rttSamples": 20,
+        "targetMbps": 0
+      },
+      "wallTime": "2026-11-10T16:11:43Z"
+    },
+    {
+      "attempt": 0,
+      "elapsed": 2.0111707082251087,
+      "event": "first_payload",
+      "phase": 1,
+      "sinceConnectMs": 2010.6162499869242,
+      "sincePhaseMs": 0.36987499333918095,
+      "wallTime": "2026-11-10T16:11:43Z"
+    },
+    {
+      "elapsed": 7.01157674996648,
+      "event": "phase_result",
+      "result": {
+        "attempt": 0,
+        "frameGapMaxMs": 38.15783327445388,
+        "frameGapP95Ms": 37.12962497957051,
+        "host": {
+          "duration": 5.0002306250389665,
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "lo0",
+                "type": "loopback"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "127.0.0.1:56227",
+            "remote": "127.0.0.1:63326",
+            "status": "satisfied",
+            "usedTypes": ["loopback"]
+          },
+          "payloadBytes": 33333,
+          "scheduled": 150,
+          "sent": 150,
+          "skippedBusy": 0
+        },
+        "phase": 1,
+        "receivedFrames": 150,
+        "receivedPayloadMbps": 7.998781839916567,
+        "receiverSeconds": 5.000711458385922,
+        "rttMaxMs": 0.46387501060962677,
+        "rttP50Ms": 0.30254165176302195,
+        "rttP95Ms": 0.3576249582692981,
+        "rttSamples": 50,
+        "targetMbps": 8
+      },
+      "wallTime": "2026-11-10T16:11:48Z"
+    },
+    {
+      "attempt": 0,
+      "elapsed": 7.012561041628942,
+      "event": "first_payload",
+      "phase": 2,
+      "sinceConnectMs": 7012.006833334453,
+      "sincePhaseMs": 0.56470837444067,
+      "wallTime": "2026-11-10T16:11:48Z"
+    },
+    {
+      "elapsed": 12.013584583299235,
+      "event": "phase_result",
+      "result": {
+        "attempt": 0,
+        "frameGapMaxMs": 38.51324995048344,
+        "frameGapP95Ms": 37.464375025592744,
+        "host": {
+          "duration": 5.001050666673109,
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "lo0",
+                "type": "loopback"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "127.0.0.1:56227",
+            "remote": "127.0.0.1:63326",
+            "status": "satisfied",
+            "usedTypes": ["loopback"]
+          },
+          "payloadBytes": 100000,
+          "scheduled": 150,
+          "sent": 150,
+          "skippedBusy": 0
+        },
+        "phase": 2,
+        "receivedFrames": 150,
+        "receivedPayloadMbps": 23.992586890020334,
+        "receiverSeconds": 5.001544875092804,
+        "rttMaxMs": 0.3752916818484664,
+        "rttP50Ms": 0.28633337933570147,
+        "rttP95Ms": 0.34437491558492184,
+        "rttSamples": 50,
+        "targetMbps": 24
+      },
+      "wallTime": "2026-11-10T16:11:53Z"
+    },
+    {
+      "elapsed": 12.013904124964029,
+      "event": "deliberate_reconnect",
+      "wallTime": "2026-11-10T16:11:53Z"
+    },
+    {
+      "attempt": 1,
+      "elapsed": 12.017823999980465,
+      "event": "authenticated",
+      "host": {
+        "path": {
+          "availableInterfaces": [
+            {
+              "name": "lo0",
+              "type": "loopback"
+            }
+          ],
+          "constrained": false,
+          "expensive": false,
+          "local": "127.0.0.1:56227",
+          "remote": "127.0.0.1:63643",
+          "status": "satisfied",
+          "usedTypes": ["loopback"]
+        },
+        "peerEnabled": false
+      },
+      "milliseconds": 3.8022083463147283,
+      "wallTime": "2026-11-10T16:11:53Z"
+    },
+    {
+      "attempt": 1,
+      "elapsed": 12.018402749905363,
+      "event": "first_payload",
+      "phase": 1,
+      "sinceConnectMs": 4.385458305478096,
+      "sincePhaseMs": 0.37599995266646147,
+      "wallTime": "2026-11-10T16:11:53Z"
+    },
+    {
+      "elapsed": 17.01873316662386,
+      "event": "phase_result",
+      "result": {
+        "attempt": 1,
+        "frameGapMaxMs": 37.86354174371809,
+        "frameGapP95Ms": 33.550833351910114,
+        "host": {
+          "duration": 5.000164833269082,
+          "path": {
+            "availableInterfaces": [
+              {
+                "name": "lo0",
+                "type": "loopback"
+              }
+            ],
+            "constrained": false,
+            "expensive": false,
+            "local": "127.0.0.1:56227",
+            "remote": "127.0.0.1:63643",
+            "status": "satisfied",
+            "usedTypes": ["loopback"]
+          },
+          "payloadBytes": 33333,
+          "scheduled": 150,
+          "sent": 150,
+          "skippedBusy": 0
+        },
+        "phase": 1,
+        "receivedFrames": 150,
+        "receivedPayloadMbps": 7.998849020828201,
+        "receiverSeconds": 5.000669458298944,
+        "rttMaxMs": 0.46054169069975615,
+        "rttP50Ms": 0.2963750157505274,
+        "rttP95Ms": 0.4106250125914812,
+        "rttSamples": 50,
+        "targetMbps": 8
+      },
+      "wallTime": "2026-11-10T16:11:58Z"
+    },
+    {
+      "elapsed": 17.020004041609354,
+      "event": "completed",
+      "hostSaved": true,
+      "wallTime": "2026-11-10T16:11:58Z"
+    }
+  ]
+}

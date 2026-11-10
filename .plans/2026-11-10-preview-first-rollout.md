@@ -19,6 +19,14 @@ There is no need for another broad multi-agent/headset feasibility slot before c
 
 ## Sequence and release gates
 
+### 0. Quick direct-link check before product implementation
+
+**User-requested addition, November 10:** run the isolated [peer-link probe](../experiments/peer-link-probe/README.md) before step 1. Keep TLS/TCP and the synthetic traffic schedule fixed: idle RTT, 8/24 Mbps receive load, then reconnect. Compare peer-disabled and peer-eligible discovery/connections on the normal LAN; briefly test no shared LAN with Wi-Fi radios still on, including a peer-disabled negative control, then restore LAN. About two minutes of automated traffic/deadlines plus setup; no screen capture, codec change or agent integration. This is a link test, not a rendered-video benchmark.
+
+Log endpoints/interfaces, discovery/authentication/reconnect time, received goodput, frame gaps and RTT under load. `includePeerToPeer` only permits the link: an enabled flag or interface inventory alone is not proof it was used. Classify an ambiguous route as inconclusive. The operator handles the runs and logs; headset involvement is permission and an agreed network-association change/restoration if required. Do not change network settings outside the live slot.
+
+**Exit:** record whether direct-link operation is supported by the observed route/control evidence, whether it helps relative to LAN, and the v1 choice: LAN default, peer eligibility by default, or optional fallback. Failure/inconclusive evidence is a valid conclusion and does not block LAN previews. No transport abstraction or automatic migration is added for this experiment. [Preflight and physical result log](2026-11-10-peer-link-preflight.md).
+
 ### 1. Manual stream previews in the existing product
 
 Extend the existing frontend catalog and preview resolver to describe web content or a bound stream. A stream is content within the existing Preview scene family, not a new window manager. Keep current web previews working. Use `CompanionClient` for authenticated requests and route revisions, `WindowGateway` for lifecycle/resolution and `WindowScene` for native presentation. Keep stable host/content IDs in layouts; resolve stream endpoints, trust and current target generations on use.
@@ -108,8 +116,8 @@ Using native CUA already available in the user's Codex harness avoids building a
 
 ## What remains before starting
 
-No further broad feasibility experiment is required. Finalize the small stream discriminator, exact target reference, open/close/name semantics and existing-owner placement as part of the first implementation review. The defaults above make that concrete. The first integration gate is the real interactive Codex + native CUA + preview MCP + matching rendered source; it can be developed alongside manual preview support.
+Complete the narrow step 0 link comparison first; no further broad feasibility experiment is required. Finalize the small stream discriminator, exact target reference, open/close/name semantics and existing-owner placement as part of the first implementation review. The defaults above make that concrete. The first integration gate is the real interactive Codex + native CUA + preview MCP + matching rendered source; it can be developed alongside manual preview support.
 
 The [November 10 media/interface audit](macos-window-streaming.md#9-implementation-readiness-and-transport-gate-november-10) makes one remaining architecture-sensitive gate explicit: direct TLS/TCP is the working LAN integration candidate, not yet a qualified production transport. Test constrained delivery/stalls, fresh-keyframe recovery and independent viewers before freezing it. Capture/H.264/native rendering are sufficiently supported to proceed. The current in-app probe is JPEG-only; porting the proven native H.264 receiver from the standalone viewer is part of step 1. Include a login dialog/popover so control can neither move to an unseen target nor silently widen capture. Exact wire schemas and receiver feedback are finalized with the first slice; MCP semantics stay independent of codec/transport.
 
-This note changes plans only. It records no new live test, product implementation or permission change. The next action is the manual stream-preview slice, followed by the four-operation MCP and its focused device check.
+The isolated link-probe code is prepared and local preflight passed; its physical results remain pending in the linked log. After that short comparison, the next product action is the manual stream-preview slice, followed by the four-operation MCP and its focused device check.
