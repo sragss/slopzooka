@@ -62,8 +62,8 @@ recommended JavaScript and TypeScript correctness rules, with additional promise
 `await`, and exhaustive-switch checks on companion and shared protocol sources.
 Tests use the recommended rules without typed linting and allow `any` for test
 doubles; unused arguments and caught errors can be prefixed with `_`. SwiftLint
-uses the explicit correctness-rule list in `.swiftlint.yml` for both native apps,
-including image accessibility and private SwiftUI state. A custom rule keeps the
+uses the explicit correctness-rule list in `.swiftlint.yml` for both native apps
+and their shared runtime, including image accessibility and private SwiftUI state. A custom rule keeps the
 headset's native window actions in `WindowScene.swift`; `lint:swift` also checks
 that rule against allowed and rejected examples. Both production Swift builds
 enable complete concurrency checking and treat Swift compiler warnings as errors.

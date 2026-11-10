@@ -325,7 +325,7 @@ test(
     const client = await SessionServiceClient.forHome(home);
     let respond = true;
     let version = 999;
-    let logFilePath: string | undefined;
+    let logFilePath: string | undefined = undefined;
     let capabilities: string[] = [];
     const server = http.createServer((_req, res) => {
       if (respond)

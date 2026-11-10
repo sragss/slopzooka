@@ -22,7 +22,9 @@ process.on("uncaughtExceptionMonitor", (error) => {
       buildId = createHash("sha256")
         .update(fs.readFileSync(process.argv[1]!))
         .digest("hex");
-    } catch {}
+    } catch {
+      /* Preserve the fatal record when the entry file cannot be read. */
+    }
     const event = boundedLogEvent({
       version: 1,
       source,
@@ -46,6 +48,8 @@ process.on("uncaughtExceptionMonitor", (error) => {
   } finally {
     try {
       fs.rmSync(temporary, { force: true });
-    } catch {}
+    } catch {
+      /* Best-effort cleanup must not replace the original failure. */
+    }
   }
 });
