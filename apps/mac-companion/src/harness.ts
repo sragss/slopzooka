@@ -1,6 +1,8 @@
 import "./dashboard.css";
+import { browserLog, loggedFetch } from "./browser-logger.js";
 import type { SessionSummary } from "../../../packages/protocol/src/index.js";
 import type { Frontend } from "./frontend-discovery.js";
+const log = browserLog("harness");
 
 type Workspace = {
   workspaceId: string;
@@ -39,6 +41,10 @@ function message(id: string, text = "") {
   $(id).hidden = !text;
 }
 function failure(id: string, error: unknown, guidance: string) {
+  log.warn("action.failed", {
+    surface: id,
+    errorType: error instanceof Error ? error.name : "unknown",
+  });
   const detail =
     error instanceof Error ? `${error.name}: ${error.message}` : String(error);
   const element = $(id);
@@ -77,7 +83,7 @@ async function api(
 ) {
   let response: Response;
   try {
-    response = await fetch(path, {
+    response = await loggedFetch(path, {
       method,
       signal: AbortSignal.timeout(30_000),
       headers: body ? { "Content-Type": "application/json" } : {},
@@ -135,6 +141,7 @@ function action(
   button.disabled = disabled;
   if (quiet) button.className = "quiet danger";
   button.onclick = async () => {
+    log.info("action.requested", { action: title });
     button.disabled = true;
     busy++;
     try {
@@ -392,6 +399,7 @@ function render(key: Section, force = false) {
 function navigate() {
   const hash = location.hash.slice(1);
   section = Object.hasOwn(sections, hash) ? (hash as Section) : "sessions";
+  log.info("navigation.changed", { section });
   $("page-title").textContent = sections[section];
   $("add-url").hidden = section !== "frontends";
   const filter = $<HTMLInputElement>("filter");
@@ -443,7 +451,10 @@ async function refresh() {
   refreshing = false;
   $<HTMLButtonElement>("refresh").disabled = false;
 }
-$("refresh").onclick = () => void refresh();
+$("refresh").onclick = () => {
+  log.info("refresh.requested");
+  void refresh();
+};
 $("dismiss-notice").onclick = () => {
   $("notice").hidden = true;
 };

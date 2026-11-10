@@ -30,6 +30,7 @@ struct WindowLayout: Codable {
 /// so an offline close or a rebuild during a request cannot resurrect a window.
 @MainActor
 final class WindowPersistence {
+    private let log = AppLog("window-persistence")
     private struct Change: Codable, Equatable {
         let window: WindowRecord
         let isOpen: Bool
@@ -57,6 +58,7 @@ final class WindowPersistence {
     }
 
     func set(_ reference: WindowReference, isOpen: Bool) throws {
+        log.info("intent.queued", ["hostId": reference.hostID, "windowId": reference.window.id, "open": String(isOpen)])
         if let loadError { throw loadError }
         pending[reference.hostID, default: [:]][reference.window.id] = Change(window: reference.window, isOpen: isOpen)
         try save()
@@ -69,12 +71,14 @@ final class WindowPersistence {
         snapshots[hostID] = snapshot
         let changes = pending[hostID] ?? [:]
         guard !changes.isEmpty else { return }
+        log.info("layout.saving", ["hostId": hostID, "revision": String(snapshot.revision), "pending": String(changes.count)])
         let next = WindowLayout(revision: snapshot.revision, windows: windows(hostID: hostID))
         let saved = try await client.saveWindowLayout(hostID: hostID, layout: next).validated()
         snapshots[hostID] = saved
         for (id, change) in changes where pending[hostID]?[id] == change { pending[hostID]?.removeValue(forKey: id) }
         if pending[hostID]?.isEmpty == true { pending.removeValue(forKey: hostID) }
         try save()
+        log.info("layout.acknowledged", ["hostId": hostID, "revision": String(saved.revision)])
     }
 
     private func save() throws {

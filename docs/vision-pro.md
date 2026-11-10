@@ -89,3 +89,16 @@ Every scene can start recovery, including when the launcher is closed. Existing 
 Reloading a preview keeps its current content available while reconnecting. Reloading again, or closing and reopening it, starts fresh recovery without waiting for an older stalled request. Late rename replies cannot restore a terminal whose session has ended.
 
 visionOS owns physical placement and room locking. Recovery preserves scene IDs and reuses restored scenes, but opening a missing window is not a guarantee of its previous physical position. Xcode stop/run, installation over an existing app, system-close behavior, and locked/unlocked room placement require device testing.
+
+## Diagnostics
+
+Native actions, state changes, errors, and terminal WebView events are buffered
+locally and uploaded through the existing paired connection to their Mac. Each
+Mac receives its own events even when another Mac is selected. The buffer is
+limited to 8 MiB in memory; reconnect retries preserve event identity, while an
+app restart loses unsent history. Logging does not wait for the network before
+performing an action. See [Mac diagnostics](mac-companion.md#diagnostics) for
+retention and capturing raw evidence from `SLOPZOOKA_HOME/logs` before logs rotate. The incident timestamp
+is an anchor for future bug-report tooling; capture does not filter device events
+by it. Only the debug panel observes the shared recent-entry ring, so transport
+and outbox state do not invalidate terminal views.

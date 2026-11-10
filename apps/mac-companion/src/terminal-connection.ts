@@ -1,4 +1,6 @@
+import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import type { Terminal } from "@xterm/xterm";
+import type { EventLogger } from "./log-events.js";
 import {
   MAX_TERMINAL_DIMENSION,
   PROTOCOL_VERSION,
@@ -37,6 +39,7 @@ export class TerminalConnection {
       serviceInstanceId: string,
       audible: boolean,
     ) => void = () => {},
+    private log?: EventLogger,
   ) {
     this.inputSubscription = terminal.onData((data) => {
       if (this.attached && this.writable && this.running)
@@ -50,6 +53,7 @@ export class TerminalConnection {
     )
       return;
     this.clearTimers();
+    this.log?.info("connection.connecting", { attempt: this.attempts });
     this.attached = false;
     this.writable = false;
     this.status(
@@ -71,18 +75,21 @@ export class TerminalConnection {
         const message = JSON.parse(String(event.data)) as ServerMessage;
         this.renderTail = this.renderTail
           .then(() => this.receive(message, ws))
-          .catch(() => {
+          .catch((error) => {
+            this.log?.error("render.failed", { error: logError(error) });
             // A retired connection cannot change the status of its replacement.
             if (this.isCurrent(ws))
               this.status("Could not restore terminal", "failed");
             ws.close();
           });
-      } catch {
+      } catch (error) {
+        this.log?.error("protocol.invalid", { error: logError(error) });
         this.status("Invalid response from companion", "failed");
         ws.close();
       }
     };
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      this.log?.info("connection.closed", { code: event.code });
       this.retryConnection(ws);
     };
     ws.onerror = () => {
@@ -98,6 +105,10 @@ export class TerminalConnection {
     this.attached = false;
     this.writable = false;
     this.lostConnection = true;
+    this.log?.warn("connection.retrying", {
+      attempt: this.attempts,
+      cursor: this.cursor,
+    });
     this.status("Lost companion connection.", "disconnected");
     ws.close();
     this.retry = setTimeout(
@@ -128,6 +139,7 @@ export class TerminalConnection {
     });
   }
   takeControl(): void {
+    this.log?.info("control.requested");
     if (
       this.attached &&
       this.running &&
@@ -152,6 +164,7 @@ export class TerminalConnection {
   detach(): void {
     if (this.stopped) return;
     this.stopped = true;
+    this.log?.info("connection.detached", { cursor: this.cursor });
     this.attached = false;
     this.writable = false;
     this.clearTimers();
@@ -168,6 +181,7 @@ export class TerminalConnection {
     if (this.stopped) return;
     switch (m.type) {
       case "ownership":
+        this.log?.info("ownership.changed", { writable: m.writable });
         if (!this.isCurrent(ws) || m.sessionId !== this.sessionId) return;
         this.writable = m.writable;
         this.publishOwnership();
@@ -175,6 +189,11 @@ export class TerminalConnection {
         break;
       case "hello":
         if (!this.isCurrent(ws)) return;
+        this.log = this.log?.child({
+          connectionId: m.connectionId,
+          serviceInstanceId: m.serviceInstanceId,
+        });
+        this.log?.info("connection.accepted");
         if (
           m.serviceInstanceId &&
           this.serviceInstanceId &&
@@ -200,6 +219,11 @@ export class TerminalConnection {
         break;
       case "attached":
         if (m.session.id !== this.sessionId) return;
+        this.log?.info("session.attached", {
+          cursor: m.cursor,
+          checkpoint: m.snapshot !== undefined,
+          writable: m.writable,
+        });
         if (m.snapshot !== undefined) {
           this.terminal.reset();
           this.terminal.resize(m.session.cols, m.session.rows);
@@ -232,6 +256,10 @@ export class TerminalConnection {
         break;
       case "error":
         if (!this.isCurrent(ws)) return;
+        this.log?.warn("protocol.rejected", {
+          code: m.code,
+          message: m.message,
+        });
         // Input already in flight when control moves is an ordinary read-only transition.
         if (
           m.code === "403" &&

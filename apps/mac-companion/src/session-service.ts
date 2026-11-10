@@ -1,3 +1,4 @@
+import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import http from "node:http";
@@ -7,6 +8,8 @@ import express from "express";
 import { WebSocketServer } from "ws";
 import { SessionManager, send } from "./sessions.js";
 import { ServiceError } from "./errors.js";
+import { createDiagnostics, logContext } from "./logger.js";
+import { validLogId } from "../../../packages/protocol/src/diagnostics.js";
 import {
   isClientMessage,
   validId,
@@ -16,6 +19,14 @@ import {
   SESSION_SERVICE_VERSION,
   type ServiceInfo,
 } from "./session-service-protocol.js";
+
+const instanceId = randomUUID();
+const diagnostics = createDiagnostics("session-service", {
+  directory: process.env.SLOPZOOKA_DIAGNOSTICS_DIR,
+  runtimeId: process.argv[3],
+  instanceId,
+});
+const logger = diagnostics.logger("session-service");
 
 // Launched only under lockf: the OS releases the lock when this process exits.
 async function main() {
@@ -55,10 +66,18 @@ async function main() {
         });
     }
   }
-  const manager = new SessionManager();
-  const instanceId = randomUUID();
+  const manager = new SessionManager(diagnostics.logger("sessions"));
+  const diagnosticsTimer = setInterval(
+    () => manager.recordDiagnostics(),
+    10_000,
+  );
+  diagnosticsTimer.unref();
   let stopping = false;
   const app = express();
+  app.use((req, _res, next) => {
+    const actionId = req.header("X-SlopZooka-Action-ID");
+    logContext.run(validLogId(actionId) ? { actionId } : {}, next);
+  });
   app.use(express.json({ limit: "256kb" }));
   app.use((_req, res, next) => {
     if (stopping) {
@@ -74,8 +93,12 @@ async function main() {
       runtimeId,
       pid: process.pid,
       sessions: manager.summaries(),
-      capabilities: ["rename-session"],
+      capabilities: ["rename-session", "diagnostics-v1"],
+      logFilePath: diagnostics.store.file,
     } satisfies ServiceInfo),
+  );
+  app.post("/diagnostics/flush", async (_req, res) =>
+    res.json({ ok: await diagnostics.store.flush() }),
   );
   app.post("/sessions", (req, res) => {
     const { workspaceId, cwd, profile, id, environment } = req.body ?? {};
@@ -126,6 +149,7 @@ async function main() {
       res: express.Response,
       _next: express.NextFunction,
     ) => {
+      logger.warn("service.request.failed", { error: logError(error) });
       res
         .status(
           error instanceof ServiceError
@@ -141,7 +165,11 @@ async function main() {
     path: "/terminal",
     maxPayload: 128 * 1024,
   });
-  wss.on("connection", (ws) => {
+  wss.on("connection", (ws, request) => {
+    const supplied = request.headers["x-slopzooka-connection-id"];
+    const connectionId = validLogId(supplied) ? supplied : randomUUID();
+    const log = diagnostics.logger("terminal-transport", { connectionId });
+    log.info("connection.opened");
     if (stopping) {
       ws.close(1012);
       return;
@@ -155,35 +183,38 @@ async function main() {
         sessions: manager.summaries(),
       }),
     );
-    ws.on("error", () => {});
+    ws.on("error", (error) => log.warn("connection.failed", { error }));
     ws.on("message", (raw) => {
       try {
         const message: unknown = JSON.parse(raw.toString());
         if (!isClientMessage(message))
           throw new ServiceError("Invalid protocol message", 400);
-        switch (message.type) {
-          case "hello":
-            break;
-          case "attach":
-            manager.attach(ws, message.sessionId, message.cursor);
-            break;
-          case "detach":
-            manager.detach(ws, message.sessionId);
-            break;
-          case "take-control":
-            manager.takeControl(ws, message.sessionId);
-            break;
-          case "input":
-            manager.input(ws, message.sessionId, message.data);
-            break;
-          case "resize":
-            manager.resize(ws, message.sessionId, message.cols, message.rows);
-            break;
-          case "ack":
-            manager.acknowledge(ws, message.sessionId, message.cursor);
-            break;
-        }
+        logContext.run({ connectionId }, () => {
+          switch (message.type) {
+            case "hello":
+              break;
+            case "attach":
+              manager.attach(ws, message.sessionId, message.cursor);
+              break;
+            case "detach":
+              manager.detach(ws, message.sessionId);
+              break;
+            case "take-control":
+              manager.takeControl(ws, message.sessionId);
+              break;
+            case "input":
+              manager.input(ws, message.sessionId, message.data);
+              break;
+            case "resize":
+              manager.resize(ws, message.sessionId, message.cols, message.rows);
+              break;
+            case "ack":
+              manager.acknowledge(ws, message.sessionId, message.cursor);
+              break;
+          }
+        });
       } catch (error) {
+        log.warn("message.rejected", { error: logError(error) });
         send(ws, {
           type: "error",
           message: error instanceof Error ? error.message : "Invalid request",
@@ -192,32 +223,44 @@ async function main() {
         });
       }
     });
-    ws.on("close", () => manager.detach(ws));
+    ws.on("close", () => {
+      log.info("connection.closed");
+      logContext.run({ connectionId }, () => manager.detach(ws));
+    });
   });
   async function stop() {
     if (stopping) return;
     stopping = true;
+    clearInterval(diagnosticsTimer);
+    manager.recordDiagnostics();
+    logger.info("service.stopping");
     const deadline = setTimeout(() => process.exit(1), 3000);
     deadline.unref();
     for (const ws of wss.clients) ws.terminate();
     await manager.stop();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));
+    await diagnostics.store.flush();
     process.exit(0);
   }
   for (const signal of ["SIGINT", "SIGTERM"] as const)
     process.on(signal, () => void stop());
   process.on("uncaughtException", (error) => {
-    console.error(error);
+    logger.error("process.uncaught-exception", { error: logError(error) });
     void stop();
   });
   process.on("unhandledRejection", (error) => {
-    console.error(error);
+    logger.error("process.unhandled-rejection", { error: logError(error) });
     void stop();
   });
+  logger.info("service.started", { instanceId, runtimeId, pid: process.pid });
   server.listen(socketPath);
+  void diagnostics.store.flush();
 }
-void main().catch((error) => {
-  console.error(error);
+void main().catch(async (error) => {
+  logger.error("service.start.failed", { error: logError(error) });
+  const deadline = setTimeout(() => process.exit(1), 1000);
+  deadline.unref();
+  await diagnostics.store.flush();
   process.exit(1);
 });

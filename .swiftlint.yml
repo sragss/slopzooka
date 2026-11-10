@@ -1,6 +1,7 @@
 swiftlint_version: 0.65.1
 
 included:
+  - apps/shared
   - apps/mac-menu/Sources
   - apps/vision-client/SlopZooka/SlopZooka
 

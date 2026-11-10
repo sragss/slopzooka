@@ -1,9 +1,11 @@
+import { swiftSources } from "./swift-sources.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const sharedSources = await swiftSources(path.join(root, "apps/shared"));
 process.chdir(root);
 if (process.platform !== "darwin")
   throw new Error("Build the companion app on macOS with Xcode installed.");
@@ -111,9 +113,8 @@ try {
     path.join(source, "Info.plist"),
     path.join(app, "Contents/Info.plist"),
   );
-  const sources = (await fs.readdir(path.join(source, "Sources")))
-    .filter((name) => name.endsWith(".swift"))
-    .map((name) => path.join(source, "Sources", name));
+  const sources = await swiftSources(path.join(source, "Sources"));
+  sources.push(...sharedSources);
   const target = `${process.arch === "arm64" ? "arm64" : "x86_64"}-apple-macosx13.0`;
   run("xcrun", [
     "swiftc",

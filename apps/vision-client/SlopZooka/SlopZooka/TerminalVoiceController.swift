@@ -36,6 +36,7 @@ enum WindowName {
 /// One-shot dictation and persistent voice share capture, draft, and delivery.
 @MainActor
 final class TerminalVoiceController: ObservableObject {
+    private let log = AppLog("voice")
     enum Mode { case dictation, conversation, rename }
     enum NameTarget: String { case window, workspace }
     @Published private(set) var renameTarget: NameTarget = .window
@@ -59,6 +60,7 @@ final class TerminalVoiceController: ObservableObject {
     private let availability: (String, Mode) -> Bool
     private let deliver: (TerminalVoiceCommand) async throws -> Void
     private let rename: (String, String, NameTarget) async throws -> Void
+    private let hostID: (String) -> String?
     private var committedText = ""
     private var pendingCommand: TerminalVoiceCommand?
     private var captureTask: Task<Void, Never>?
@@ -69,12 +71,14 @@ final class TerminalVoiceController: ObservableObject {
     init(capture: any SpeechCapturing, defaults: UserDefaults = .standard,
         isAvailable: @escaping (String, Mode) -> Bool,
         rename: @escaping (String, String, NameTarget) async throws -> Void,
+        hostID: @escaping (String) -> String? = { _ in nil },
         deliver: @escaping (TerminalVoiceCommand) async throws -> Void) {
         self.capture = capture
         self.defaults = defaults
         self.availability = isAvailable
         self.deliver = deliver
         self.rename = rename
+        self.hostID = hostID
         conversationEnabled = defaults.bool(forKey: "conversationVoiceEnabled")
         capture.onUpdate = { [weak self] in self?.captureUpdated() }
         capture.onFinished = { [weak self] in self?.captureFinished() }
@@ -118,6 +122,7 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     private func activate(_ id: String, mode requestedMode: Mode, nameTarget: NameTarget = .window) {
+        log.info("capture.requested", ["sessionId": id, "hostId": hostID(id) ?? "", "mode": String(describing: requestedMode)])
         guard !isSubmitting, availability(id, requestedMode) else { return }
         if mode == requestedMode && targetID == id && renameTarget == nameTarget { stop(); return }
         guard !hasText && pendingCommand == nil else {
@@ -132,6 +137,7 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     func send() {
+        log.info("send.requested", ["sessionId": targetID ?? "", "hostId": targetID.flatMap(hostID) ?? "", "characters": String(transcript.count)])
         guard canSend else { return }
         if captureState == .listening {
             submitWhenFinished = true
@@ -142,6 +148,7 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     func discard() {
+        log.info("draft.discarded", ["sessionId": targetID ?? "", "hostId": targetID.flatMap(hostID) ?? ""])
         guard !isSubmitting else { return }
         stopCaptureKeepingDraft()
         resetDraft()
@@ -194,7 +201,10 @@ final class TerminalVoiceController: ObservableObject {
 
     private func captureUpdated() {
         guard mode != nil else { return }
-        if captureState != capture.state { captureState = capture.state }
+        if captureState != capture.state {
+            captureState = capture.state
+            log.info("capture.changed", ["sessionId": targetID ?? "", "hostId": targetID.flatMap(hostID) ?? "", "state": String(describing: capture.state)])
+        }
         let text = [committedText, capture.transcript].filter { !$0.isEmpty }.joined(separator: " ")
         if transcript != text { transcript = text }
         if audioLevels != capture.audioLevels { audioLevels = capture.audioLevels }

@@ -11,6 +11,7 @@ import type {
 } from "../../../packages/protocol/src/index.js";
 import { ServiceError } from "./errors.js";
 import { normalizedName } from "./names.js";
+import type { Logger } from "./logger.js";
 import { observeTerminalNotifications } from "./terminal-notifications.js";
 
 const REPLAY_LIMIT = 512 * 1024;
@@ -41,6 +42,9 @@ type Session = {
   pendingBytes: number;
   commands: Map<string, string>;
   paused: boolean;
+  inputBytes: number;
+  outputBytes: number;
+  pauses: number;
   ending: boolean;
 };
 export function send(ws: WebSocket, message: ServerMessage): void {
@@ -57,11 +61,16 @@ export class SessionManager {
   private readonly sessions = new Map<string, Session>();
   private readonly terminations = new Set<Promise<void>>();
   private stopping = false;
+  constructor(private readonly logger?: Logger) {}
   summaries(): SessionSummary[] {
     return [...this.sessions.values()].map((s) => ({ ...s.summary }));
   }
   rename(id: string, name: unknown): SessionSummary {
     const session = this.require(id);
+    this.logger?.info("session.renamed", {
+      sessionId: id,
+      reset: name === null,
+    });
     if (name === null) {
       delete session.summary.name;
     } else {
@@ -89,6 +98,10 @@ export class SessionManager {
           "Session ID already used for a different launch",
           409,
         );
+      this.logger?.info("session.create.reused", {
+        sessionId: id,
+        workspaceId,
+      });
       return existing.summary;
     }
     if (this.sessions.size >= 100)
@@ -159,14 +172,24 @@ export class SessionManager {
       pendingBytes: 0,
       commands: new Map(),
       paused: false,
+      inputBytes: 0,
+      outputBytes: 0,
+      pauses: 0,
       ending: false,
     };
     observeTerminalNotifications(screen, () => {
       s.notificationSequence += 1;
     });
     this.sessions.set(id, s);
+    this.logger?.info("session.created", {
+      sessionId: id,
+      workspaceId,
+      profile,
+      pid: term.pid,
+    });
     term.onData((data) => {
       const bytes = Buffer.byteLength(data);
+      s.outputBytes += bytes;
       s.pendingBytes += bytes;
       this.flow(s);
       screen.write(data, () => {
@@ -186,6 +209,7 @@ export class SessionManager {
       });
     });
     term.onExit(({ exitCode }) => {
+      this.logger?.info("session.exited", { sessionId: id, exitCode });
       // Flush the emulator before announcing exit so the final output is not lost.
       screen.write("", () => {
         s.summary.status = "exited";
@@ -203,6 +227,13 @@ export class SessionManager {
     const start = resume ? cursor! : s.cursor;
     if (!s.writer || s.writer.readyState !== s.writer.OPEN) s.writer = ws;
     const snapshot = resume ? undefined : s.serialize.serialize();
+    this.logger?.info("session.attached", {
+      sessionId: id,
+      requestedCursor: cursor,
+      cursor: start,
+      checkpoint: !resume,
+      writable: s.writer === ws,
+    });
     const bytes = snapshot === undefined ? 0 : Buffer.byteLength(snapshot);
     s.clients.set(ws, {
       sent: start,
@@ -228,6 +259,7 @@ export class SessionManager {
         403,
       );
     if (s.writer === ws) return;
+    this.logger?.info("session.control.transferred", { sessionId: id });
     if (s.writer)
       send(s.writer, { type: "ownership", sessionId: id, writable: false });
     s.writer = ws;
@@ -236,7 +268,8 @@ export class SessionManager {
   detach(ws: WebSocket, id?: string): void {
     for (const s of this.sessions.values()) {
       if (id && s.summary.id !== id) continue;
-      s.clients.delete(ws);
+      if (s.clients.delete(ws))
+        this.logger?.info("session.detached", { sessionId: s.summary.id });
       if (s.writer === ws) {
         s.writer = undefined;
         const next = s.clients.keys().next().value;
@@ -264,6 +297,7 @@ export class SessionManager {
     const s = this.requireWriter(ws, id);
     this.requireRunning(s);
     s.pty.write(data);
+    s.inputBytes += Buffer.byteLength(data);
   }
   paste(
     id: string,
@@ -283,6 +317,7 @@ export class SessionManager {
           "Command ID already used for different input",
           409,
         );
+      this.logger?.info("input.deduplicated", { sessionId: id, commandId });
       return;
     }
     this.requireRunning(s);
@@ -292,6 +327,13 @@ export class SessionManager {
       ? `\x1b[200~${normalized}\x1b[201~`
       : normalized.replace(/\n/g, "\r");
     s.pty.write(payload + (sendReturn ? "\r" : ""));
+    s.inputBytes += Buffer.byteLength(payload) + (sendReturn ? 1 : 0);
+    this.logger?.info("input.submitted", {
+      sessionId: id,
+      commandId,
+      characters: text.length,
+      sendReturn,
+    });
     s.commands.set(commandId, fingerprint);
     if (s.commands.size > 1000)
       s.commands.delete(s.commands.keys().next().value!);
@@ -300,6 +342,7 @@ export class SessionManager {
     const s = this.requireWriter(ws, id);
     this.requireRunning(s);
     if (s.summary.cols === cols && s.summary.rows === rows) return;
+    this.logger?.info("session.resized", { sessionId: id, cols, rows });
     s.pty.resize(cols, rows);
     s.screen.resize(cols, rows);
     s.summary.cols = cols;
@@ -312,6 +355,10 @@ export class SessionManager {
   }
   terminate(id: string): void {
     const s = this.require(id);
+    this.logger?.info("session.end.requested", {
+      sessionId: id,
+      status: s.summary.status,
+    });
     if (s.summary.status === "exited") {
       s.screen.dispose();
       this.sessions.delete(id);
@@ -336,6 +383,29 @@ export class SessionManager {
       if (s.summary.status === "running") this.terminate(s.summary.id);
     await Promise.allSettled(this.terminations);
   }
+  recordDiagnostics(): void {
+    for (const s of this.sessions.values()) {
+      if (!s.inputBytes && !s.outputBytes && !s.pendingBytes && !s.pauses)
+        continue;
+      this.logger?.info("traffic.summary", {
+        sessionId: s.summary.id,
+        inputBytes: s.inputBytes,
+        outputBytes: s.outputBytes,
+        pendingBytes: s.pendingBytes,
+        viewers: s.clients.size,
+        cursor: s.cursor,
+        outstandingBytes: [...s.clients.values()].reduce(
+          (sum, client) => sum + client.bytes,
+          0,
+        ),
+        pauses: s.pauses,
+        paused: s.paused,
+      });
+      s.inputBytes = 0;
+      s.outputBytes = 0;
+      s.pauses = 0;
+    }
+  }
   private require(id: string): Session {
     const s = this.sessions.get(id);
     if (!s) throw new ServiceError(`Unknown session: ${id}`, 404);
@@ -353,6 +423,7 @@ export class SessionManager {
   }
   private flow(s: Session): void {
     if (!s.paused && s.pendingBytes > WINDOW) {
+      s.pauses++;
       s.paused = true;
       s.pty.pause();
     }

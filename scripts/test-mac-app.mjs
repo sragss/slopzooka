@@ -52,7 +52,6 @@ const environment = {
   SLOPZOOKA_PORT: String(port),
   SLOPZOOKA_HOST: "127.0.0.1",
   PORTLESS_STATE_DIR: path.join(home, "portless"),
-  SLOPZOOKA_LOG_DIR: home,
   SLOPZOOKA_DESKTOP: "1",
   SHELL: "/bin/sh",
   PATH: "/usr/bin:/bin:/usr/sbin:/sbin",
@@ -141,11 +140,23 @@ try {
     sessionSocketPath,
     "private status identifies the isolated service endpoint",
   );
+  const health = await (await fetch(base + "/health")).json();
   assert.equal(
     status.sessionLogPath,
-    path.join(await fs.realpath(home), "session-service.log"),
+    path.join(
+      path.dirname(path.dirname(health.logFilePath)),
+      "session-service",
+      "current.jsonl",
+    ),
   );
-  await fs.access(status.sessionLogPath);
+  await until(async () => {
+    try {
+      await fs.access(status.sessionLogPath);
+      return true;
+    } catch {
+      return false;
+    }
+  });
   assert.match(status.code, /^[0-9]{6}$/);
   assert.equal(status.sessions, 0);
   assert.equal(
@@ -314,7 +325,7 @@ try {
     ).status,
     200,
   );
-  const logs = await fs.readFile(path.join(home, "mac-companion.log"), "utf8");
+  const logs = await fs.readFile(health.logFilePath, "utf8");
   assert.ok(!logs.includes(status.code), "pairing code stays off disk logs");
   // A running service must not depend on files being retained in the old .app.
   const runtime = path.join(resources, "session-runtime");
@@ -371,6 +382,36 @@ try {
     }
   });
   assert.equal((await fetch(base + "/")).status, 200);
+  // Capture includes collected evidence; it cannot flush another process's
+  // in-memory outbox. Wait for the menu's independent disk writer first.
+  const menuDirectory = path.join(
+    path.dirname(path.dirname(health.logFilePath)),
+    "mac-menu",
+  );
+  await until(async () => {
+    const files = await fs.readdir(menuDirectory).catch(() => []);
+    const contents = await Promise.all(
+      files.map((file) =>
+        fs.readFile(path.join(menuDirectory, file), "utf8").catch(() => ""),
+      ),
+    );
+    return contents.some((text) => text.endsWith("\n"));
+  });
+  const manifest = await (
+    await fetch(base + "/api/diagnostics/capture", {
+      method: "POST",
+      headers: apiHeaders,
+    })
+  ).json();
+  const report = await (
+    await fetch(base + manifest.download, { headers: apiHeaders })
+  ).json();
+  for (const source of ["mac-companion", "session-service", "mac-menu"])
+    assert.ok(
+      report.events.some((event) => event.source === source),
+      `${source} shares the reported log root and appears in captures`,
+    );
+
   await fetch(base + "/api/sessions/after-replacement/input", {
     method: "POST",
     headers: apiHeaders,

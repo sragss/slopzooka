@@ -1,10 +1,10 @@
 name: visionOS build
 on:
   pull_request:
-    paths: ['apps/vision-client/**', '.github/workflows/vision.yml']
+    paths: ['apps/vision-client/**', 'apps/shared/**', '.github/workflows/vision.yml']
   push:
     branches: [main, master]
-    paths: ['apps/vision-client/**', '.github/workflows/vision.yml']
+    paths: ['apps/vision-client/**', 'apps/shared/**', '.github/workflows/vision.yml']
 permissions:
   contents: read
 concurrency:

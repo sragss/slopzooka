@@ -29,6 +29,11 @@
 			path = SlopZooka;
 			sourceTree = "<group>";
 		};
+		4D4941474E4F53544943530001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "../../shared";
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -46,6 +51,7 @@
 			isa = PBXGroup;
 			children = (
 				4B6BDCE02F70AB1400516A78 /* SlopZooka */,
+				4D4941474E4F53544943530001 /* Shared */,
 				4B6BDCDF2F70AB1400516A78 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,6 +81,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				4B6BDCE02F70AB1400516A78 /* SlopZooka */,
+				4D4941474E4F53544943530001 /* Shared */,
 			);
 			name = SlopZooka;
 			packageProductDependencies = (

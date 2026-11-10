@@ -30,6 +30,8 @@ export type ServerMessage =
       type: "hello";
       version: number;
       hostId: string;
+      /** Optional diagnostics correlation; older renderers ignore it. */
+      connectionId?: string;
       serviceInstanceId?: string;
       supportsTakeControl?: boolean;
       sessions: SessionSummary[];

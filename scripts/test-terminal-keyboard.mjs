@@ -1,3 +1,4 @@
+import { swiftSources } from "./swift-sources.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -5,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const sharedSources = await swiftSources(path.join(root, "apps/shared"));
 const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-keyboard-"));
 const run = (command, args) =>
   execFileSync(command, args, { cwd: root, stdio: "inherit", timeout: 60_000 });
@@ -304,7 +306,7 @@ class ViewportSocket {
       cursor: 0, snapshot: '', writable: true
     }));
   }
-  close() { this.readyState = 3; this.onclose?.(); }
+  close() { this.readyState = 3; this.onclose?.({code: 1000}); }
 }
 window.WebSocket = ViewportSocket;
 ${renderer}
@@ -472,6 +474,7 @@ window.runViewportChecks = async () => {
     "-swift-version",
     "5",
     "-parse-as-library",
+    ...sharedSources,
     ...[
       "CompanionWebView",
       "CompanionModels",

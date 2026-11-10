@@ -8,6 +8,7 @@ The Mac owns workspaces and terminal processes. The headset owns native presenta
 
 | Path                                                | Responsibility                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [apps/shared](../apps/shared) | Native diagnostics runtime and Mac file sink shared by both apps |
 | [apps/mac-menu](../apps/mac-menu)                   | SwiftUI menu-bar app, companion supervision, pairing display, and login startup |
 | [apps/mac-companion/src](../apps/mac-companion/src) | HTTP companion, session service, workspace management, and browser UI           |
 | [apps/vision-client](../apps/vision-client)         | Native visionOS launcher, windows, WebViews, and speech input                   |
@@ -21,6 +22,8 @@ Paths below are relative to `apps/mac-companion/src`.
 | File                                     | Responsibility                                                                                                                    |
 | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
 | `server.ts`                              | HTTP routes, authenticated WebSocket transport, discovery, and shutdown                                                           |
+| `logger.ts` / `log-events.ts`             | Process diagnostics composition and portable scoped logging; component loggers have no storage API |
+| `log-store.ts` / `diagnostics-http.ts`    | Per-process log rings, raw incident capture/export, and paired-client batch intake; future report tooling owns time filtering |
 | `bonjour.ts`                             | Service registration through macOS DNS-SD; macOS owns hostname/address records, and a private pipe bounds registration to the HTTP companion lifetime |
 | `sessions.ts`                            | `SessionManager`: PTYs, screen state, replay, resize ownership, and input deduplication; instantiated only by the session service |
 | `session-service.ts`                     | Private service entry point, terminal dispatch, shutdown, and lock-protected socket/runtime cleanup                               |
@@ -38,7 +41,7 @@ Paths below are relative to `apps/mac-companion/src`.
 
 [`scripts/build-mac-app.mjs`](../scripts/build-mac-app.mjs) packages the signed Mac app. [`build-session-runtime.mjs`](../apps/mac-companion/scripts/build-session-runtime.mjs) builds the retained terminal runtime using existing dependencies.
 
-The companion connects to the existing session service or launches it under macOS's kernel-backed `lockf` utility. Local sockets live in a private user-owned directory, with no extra LAN listener or OS service registration. A versioned runtime under `SLOPZOOKA_HOME/session-runtimes` retains Node and native PTY helpers across app replacement. Only the service holding the lifetime lock prunes inactive runtimes at startup. Incompatible services are left running, and the Mac menu retains diagnostics and explicit restart controls. Logs are in `SLOPZOOKA_HOME/session-service.log`.
+The companion connects to the existing session service or launches it under macOS's kernel-backed `lockf` utility. Local sockets live in a private user-owned directory, with no extra LAN listener or OS service registration. A versioned runtime under `SLOPZOOKA_HOME/session-runtimes` retains Node and native PTY helpers across app replacement. Only the service holding the lifetime lock prunes inactive runtimes at startup. Incompatible services are left running, and the Mac menu retains diagnostics and explicit restart controls. Logs share [`SLOPZOOKA_HOME/logs`](mac-companion.md#diagnostics). Each process owns its writer; diagnostics never own terminal lifetime or require another daemon. The session service reports its actual log path; a retained writer is never relocated implicitly. Older services keep their legacy log until explicitly restarted.
 
 Workspace display names and stable default window labels live in the Mac workspace index, using its existing serialized mutations and atomic writes. `workspace.ts` enriches HTTP session summaries with project/workspace context and defaults, including sessions from an older retained service. Explicit window renames remain with `SessionManager`; `names.ts` shares the normalization and validation. Naming metadata does not own process or window lifetime. Workspace renames keep Git branches and worktree paths unchanged. Native naming uses one voice controller and gateway route for both targets. Metadata naming availability is independent of renderer readiness and terminal input focus; scene inactivity still pauses capture. The header uses the same diagonal geometry for divider lines, hit targets, and full-height hover fills, clipped once to its outer glass shape; a forced session refresh rejects pre-mutation replies and also works for windows tied to another accepted Mac.
 
@@ -79,6 +82,8 @@ The client's injected request exchange exercises the production routes, bodies, 
 `WindowGateway` keeps one ephemeral state record per window: stable reference, terminal or preview content, native presence, notifications, errors, and pending work. The record owns reload and unavailable-session cleanup, including invalidating pending renames. Its reload revision also versions preview resolution, replacing a separate refresh list. Newer resolutions replace cancelled work immediately and reject late results and cleanup; the current payload remains available during reload. Durable intent remains solely in `WindowPersistence`.
 
 New window kinds and lifecycle behavior extend the existing gateway and persistence path. Persist stable content identifiers; resolve URLs, tokens, and trust material when needed. visionOS owns physical placement. See [AGENTS.md](../AGENTS.md) for the full window invariants.
+
+`apps/shared/Diagnostics.swift` owns the scoped `AppLog` facade, recent-entry ring, and bounded native outbox. `apps/shared/NativeLogFile.swift` is the serial Mac file writer; fresh segments avoid tail repair, with pruning only when opening a segment. Only the debug panel observes its published recent-entry ring; routing and delivery state do not publish changes. `CompanionClient` uploads host-scoped batches through existing pairing credentials; first-party terminal WebViews forward events through a validated main-frame bridge. Both native targets compile the shared runtime directly, without depending on another application’s source folder. Diagnostics use an additive versioned envelope and a shared fixture in `packages/protocol`, independently of the terminal protocol version.
 
 ## Design history
 

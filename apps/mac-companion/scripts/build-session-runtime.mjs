@@ -10,12 +10,16 @@ const root = path.resolve(import.meta.dirname, "..");
 const destination = path.resolve(process.argv[2]);
 await fs.mkdir(destination, { recursive: true });
 await build({
-  entryPoints: [path.join(root, "src/session-service.ts")],
+  entryPoints: {
+    service: path.join(root, "src/session-service.ts"),
+    bootstrap: path.join(root, "src/diagnostics-bootstrap.ts"),
+  },
   bundle: true,
   platform: "node",
   format: "cjs",
   external: ["node-pty", "bufferutil", "utf-8-validate"],
-  outfile: path.join(destination, "service.cjs"),
+  outdir: destination,
+  outExtension: { ".js": ".cjs" },
 });
 const require = createRequire(import.meta.url);
 await fs.cp(
