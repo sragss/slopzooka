@@ -6,6 +6,8 @@ November 9, 2026. Reviewed after merging upstream `main` through `6d7d26d` into 
 
 **November 10 rollout update:** adopt the user's [preview-first sequence](2026-11-10-preview-first-rollout.md): quick isolated peer-link/LAN comparison ([completed](2026-11-10-peer-link-live-results.md)) → [shared transport/availability foundation](2026-11-10-transport-first-rollout.md) → manual stream previews → small terminal preview MCP with native Codex CUA → lifecycle/recovery qualification → background Chrome → Pi. Codex calling a preview tool does not require external structured delivery into Codex, so the worker adapter moves to the Pi phase. Enough feasibility work has run to start implementation; the remaining gates qualify the production slices.
 
+**PR boundary:** the first implementation PR is shared transport plus manual Local Network/Direct Settings selection and route-specific preview availability. No automatic cross-method fallback; new preview types and the preview MCP follow separately. The existing research draft remains the evidence record.
+
 ## What the merge removes from our work
 
 | Existing implementation | Effect on this plan | Remaining addition |
