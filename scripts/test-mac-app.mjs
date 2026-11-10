@@ -14,9 +14,9 @@ const app =
   process.env.SLOPZOOKA_TEST_APP ??
   path.join(root, "build/mac-app/SlopZooka.app");
 const resources = path.join(app, "Contents/Resources");
-const { WebSocket } = createRequire(path.join(resources, "host/package.json"))(
-  "ws",
-);
+const requireHost = createRequire(path.join(resources, "host/package.json"));
+const { WebSocket } = requireHost("ws");
+const { Terminal } = requireHost("@xterm/headless");
 execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
 const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-desktop-test-"));
 const listener = http.createServer();
@@ -246,6 +246,46 @@ try {
     terminalOutput.includes("\x1b[38;2;12;120;240mRGB"),
     terminalOutput,
   );
+  const closed = once(colorViewer, "close");
+  colorViewer.close();
+  await closed;
+  // Reconnect through the shipped service, then render its checkpoint to verify
+  // that serialization preserves color attributes, not just the output text.
+  colorViewer = new WebSocket(base.replace("http:", "ws:") + "/ws", {
+    headers: { Authorization: `Bearer ${paired.token}` },
+  });
+  let snapshot;
+  let ready = false;
+  colorViewer.on("message", (data) => {
+    const message = JSON.parse(data);
+    if (message.type === "hello") ready = true;
+    if (message.type === "attached") snapshot = message.snapshot;
+  });
+  await until(() => ready);
+  colorViewer.send(
+    JSON.stringify({ type: "attach", sessionId: "desktop-colors" }),
+  );
+  const screen = new Terminal({ cols: 120, rows: 36, allowProposedApi: true });
+  try {
+    await until(() => snapshot !== undefined);
+    await new Promise((resolve) => screen.write(snapshot, resolve));
+    const lines = Array.from(
+      { length: screen.buffer.active.length },
+      (_, row) => screen.buffer.active.getLine(row),
+    );
+    const line = lines.find((line) =>
+      line.translateToString().includes("RED INDEXED RGB"),
+    );
+    assert.ok(line, "reconnected screen must retain the colored output");
+    const text = line.translateToString();
+    assert.equal(line.getCell(text.indexOf("RED")).getFgColor(), 1);
+    assert.equal(line.getCell(text.indexOf("INDEXED")).getFgColor(), 202);
+    const rgb = line.getCell(text.indexOf("RGB"));
+    assert.ok(rgb.isFgRGB());
+    assert.equal(rgb.getFgColor(), (12 << 16) | (120 << 8) | 240);
+  } finally {
+    screen.dispose();
+  }
   colorViewer.close();
   const apiHeaders = {
     "Content-Type": "application/json",
