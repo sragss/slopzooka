@@ -58,3 +58,9 @@ A3–A6/B4–B6 remain acceptance cases. Duplicate/late-response, bounded buffer
 Known prototype limits: browser Stop also ends its view; explicit new lease/run is needed. Simulator Resume is operator-only and rejects unavailable media. A live transport heartbeat is not a fresh image: inspect image/frame changes and challenge a static page with an actual mutation. Sustained hangs without transport failure, clean permission onboarding, cold locked preparation, final video transcoding, CPU/GPU/power attribution, native Mac window binding and arbitrary spatial placement remain unqualified.
 
 Preserve this narrow boundary if the tests pass. There is no new durable coordinator, workspace registry, window persistence owner, Chromium embedder or production dependency in this change.
+
+## Latest-main integration before the headset slot
+
+Merged `origin/main` at `dcb5537` into the prepared test branch on November 9. This includes terminal notifications, neutral glass controls, separate Stop/Close actions, modified-arrow handling, macOS DNS-SD discovery and frontend badge fixes. The only conflict was additive gateway test coverage; both suites were retained. Pre-existing research edits were left unchanged.
+
+The merged tree passed **50 companion tests**, typecheck, Vision state (including both gateway suites), terminal keyboard, formatting, harness regeneration with no further asset changes, and the full visionOS simulator build. Signed Gateway Probe and ProbeViewer artifacts were rebuilt from this tree. No headset install or live physical test occurred. [Merge validation evidence](evidence/2026-11-09-live-surface-preparation/merge-main.json).

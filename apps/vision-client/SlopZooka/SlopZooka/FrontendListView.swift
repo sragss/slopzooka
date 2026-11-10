@@ -6,26 +6,45 @@ struct WorkspaceFrontendButton: View {
     @State private var expanded = false
     @State private var frontends: [FrontendSummary] = []
     @State private var warning: String?
+    @State private var isLoading = true
+
     var body: some View {
-        HStack(spacing: 0) {
-            if !frontends.isEmpty || warning != nil {
-                Button { expanded.toggle() } label: {
-                    Image(systemName: "globe").font(.title3)
-                }
-                .buttonStyle(.plain)
-                .padding(10)
-                .background(.regularMaterial, in: Circle())
-                .help("Workspace frontends").accessibilityLabel("Show workspace frontends")
-                .popover(isPresented: $expanded) {
-                    ScrollView {
-                        FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL, workspaceId: workspaceId)
-                    }.frame(width: 420).frame(maxHeight: 420)
-                }
+        Button { expanded.toggle() } label: {
+            Image(systemName: "globe")
+                .font(.system(size: 26, weight: .medium))
+                .frame(width: 72, height: 72)
+        }
+        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+        // The badge has its own foreground plane, outside the globe's glass.
+        .overlay(alignment: .topTrailing) {
+            if !frontends.isEmpty {
+                Text(frontends.count > 99 ? "99+" : "\(frontends.count)")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.black)
+                    .padding(.horizontal, 6)
+                    .frame(minWidth: 24, minHeight: 24)
+                    .background(Color("AccentHighlight"), in: Capsule())
+                    .compositingGroup()
+                    .clipShape(Capsule())
+                    .offset(x: -2, y: 2)
+                    .offset(z: 1)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
+        }
+        .disabled(baseURL == nil)
+        .accessibilityLabel("Show workspace frontends")
+        .accessibilityValue(accessibilityStatus)
+        .popover(isPresented: $expanded, arrowEdge: .top) {
+            ScrollView {
+                FrontendListView(frontends: frontends, warning: warning, baseURL: baseURL, workspaceId: workspaceId)
+            }
+            .frame(width: 420).frame(maxHeight: 420)
         }
         .task(id: baseURL) {
             frontends = []
             warning = nil
+            isLoading = baseURL != nil
             guard let baseURL else { return }
             while !Task.isCancelled {
                 do {
@@ -38,9 +57,17 @@ struct WorkspaceFrontendButton: View {
                     guard !Task.isCancelled else { return }
                     warning = error.localizedDescription
                 }
+                isLoading = false
                 try? await Task.sleep(for: .seconds(3))
             }
         }
+    }
+
+    private var accessibilityStatus: String {
+        guard baseURL != nil else { return "Unavailable" }
+        if isLoading { return "Searching" }
+        if warning != nil { return "\(frontends.count) frontends, discovery notice" }
+        return "\(frontends.count) frontends"
     }
 }
 
@@ -88,7 +115,10 @@ struct FrontendListView: View {
                 }.font(.caption)
             }
             if visibleFrontends.allSatisfy({ $0.isService }) && warning == nil {
-                Text("Ask your agent to start a web app on your Mac, or add a URL.").font(.caption)
+                Text(workspaceId == nil
+                    ? "Ask your agent to start a web app on your Mac, or add a URL."
+                    : "No frontends for this workspace yet. Ask your agent to start a web app on your Mac.")
+                    .font(.caption)
                     .foregroundStyle(.secondary)
             }
             ForEach(visibleFrontends.filter { !$0.isService }) { frontend in

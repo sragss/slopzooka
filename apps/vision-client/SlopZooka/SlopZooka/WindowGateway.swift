@@ -35,6 +35,7 @@ final class WindowGateway: ObservableObject {
     @Published private var previews: [String: PreviewWindowPayload] = [:]
     @Published private var failures: [String: String] = [:]
     @Published private var reloads: [String: Int] = [:]
+    @Published private var notifications: [String: TerminalNotifications] = [:]
     @Published private(set) var persistenceError: String?
     @Published private var references: [String: WindowReference] = [:]
     private var refreshPreviews: Set<String> = []
@@ -80,6 +81,7 @@ final class WindowGateway: ObservableObject {
             let ids = Set(sessions.map(\.id))
             for (id, reference) in self.references where reference.hostID == hostID && reference.window.kind == .terminal && !ids.contains(id) {
                 self.terminals.removeValue(forKey: id)
+                self.notifications.removeValue(forKey: id)
                 self.failures[id] = "This terminal is no longer available. Its session may have ended or the Mac session service restarted."
             }
             for session in sessions { self.registerTerminal(session, hostID: hostID, base: base) }
@@ -149,6 +151,20 @@ final class WindowGateway: ObservableObject {
     func contentError(for id: String) -> String? { failures[id] }
     func reloadToken(for id: String) -> Int { reloads[id, default: 0] }
     func updateTerminalLoadState(id: String, loadState: TerminalLoadState) { terminals[id]?.loadState = loadState }
+
+    func hasUnreadNotification(_ id: String) -> Bool { notifications[id]?.hasUnread == true }
+    @discardableResult
+    func receiveTerminalNotification(id: String, sequence: Int, serviceInstanceID: String) -> Bool {
+        guard terminals[id] != nil else { return false }
+        var next = notifications[id] ?? TerminalNotifications()
+        let isNew = next.receive(sequence: sequence, serviceInstanceID: serviceInstanceID)
+        if notifications[id] != next { notifications[id] = next }
+        return isNew
+    }
+    func readTerminalNotifications(id: String) {
+        guard notifications[id]?.hasUnread == true else { return }
+        notifications[id]?.markRead()
+    }
 
     func canReceiveVoice(_ id: String) -> Bool {
         guard let scene = presence[id], scene.isPresented, scene.isFocused,

@@ -14,8 +14,8 @@ enum CompanionIcon {
             if application {
                 let tile = NSBezierPath(roundedRect: NSRect(x: 1, y: 1, width: 30, height: 30), xRadius: 7, yRadius: 7)
                 NSGradient(
-                    starting: NSColor(red: 0.20, green: 0.26, blue: 0.42, alpha: 1),
-                    ending: NSColor(red: 0.06, green: 0.09, blue: 0.17, alpha: 1))!.draw(in: tile, angle: -70)
+                    starting: NSColor(white: 0.27, alpha: 1),
+                    ending: NSColor(white: 0.09, alpha: 1))!.draw(in: tile, angle: -70)
             }
             let placement = NSAffineTransform()
             placement.translateX(by: application ? 16 : 23.2, yBy: 16)
@@ -23,7 +23,7 @@ enum CompanionIcon {
             placement.scale(by: application ? 0.69 : 1.05)
             placement.translateX(by: -20, yBy: -14)
             placement.concat()
-            (application ? NSColor(red: 0.63, green: 0.94, blue: 0.85, alpha: 1) : NSColor.black).set()
+            (application ? NSColor(srgbRed: 216 / 255, green: 216 / 255, blue: 216 / 255, alpha: 1) : NSColor.black).set()
 
             // The uninterrupted, slender launch tube is the identifying feature.
             NSBezierPath(rect: NSRect(x: 3.5, y: 14, width: 32.5, height: 2.8)).fill()

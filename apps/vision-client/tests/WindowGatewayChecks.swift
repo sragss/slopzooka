@@ -26,11 +26,18 @@ enum CompanionAPI {
     static var inputBodies: [Data] = []
     static var loseInputReply = false
     static var beforeRenameReply: (() async throws -> Void)?
+    static var beforeEndSessionReply: (() async throws -> Void)?
     static func baseURL(host: String) -> URL? { URL(string: host.contains("://") ? host : "http://\(host)") }
     static func pair(base: URL, code: String) async throws {}
     static func request<T: Decodable>(_ type: T.Type, base: URL, path: String,
         method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20) async throws -> T {
         requests.append("\(method) \(path)")
+        if method == "DELETE", path.hasPrefix("/api/sessions/") {
+            if let callback = beforeEndSessionReply { beforeEndSessionReply = nil; try await callback() }
+            let key = base.host!, id = String(path.dropFirst("/api/sessions/".count))
+            sessions[key]?.removeAll { $0.id == id }
+            return APIAcknowledgement(ok: true) as! T
+        }
         if method == "PATCH", path.hasPrefix("/api/sessions/") {
             let key = base.host!, id = String(path.dropFirst("/api/sessions/".count))
             guard let index = sessions[key]?.firstIndex(where: { $0.id == id }) else {
@@ -182,6 +189,14 @@ struct WindowGatewayChecks {
         precondition(gateway.terminalPayload(for: terminal.id) != nil)
         precondition(gateway.terminalSessions.first?.id == terminal.id)
         precondition(gateway.terminalSessions.first?.isFocused == true, "Presence observed before payload resolution is retained")
+        precondition(gateway.receiveTerminalNotification(id: terminal.id, sequence: 1, serviceInstanceID: "test"))
+        precondition(gateway.hasUnreadNotification(terminal.id))
+        gateway.readTerminalNotifications(id: "other-window")
+        precondition(gateway.hasUnreadNotification(terminal.id))
+        gateway.readTerminalNotifications(id: terminal.id)
+        precondition(!gateway.hasUnreadNotification(terminal.id))
+        precondition(!gateway.receiveTerminalNotification(id: terminal.id, sequence: 1, serviceInstanceID: "test"))
+        precondition(!gateway.hasUnreadNotification(terminal.id), "reattachment cannot re-alert after selection")
         let lastFocused = gateway.terminalSessions.first!.lastFocusedAt
         gateway.openLauncher()
         precondition(commands.last == .openLauncher)
@@ -190,7 +205,9 @@ struct WindowGatewayChecks {
         gateway.reload(id: preview.id)
         precondition(gateway.reloadToken(for: preview.id) == 1, "Existing content reloads without waiting for the companion")
         await until { gateway.previewPayload(for: preview.id)?.url?.port == 12346 }
+        precondition(gateway.receiveTerminalNotification(id: terminal.id, sequence: 2, serviceInstanceID: "test"))
         gateway.reload(id: terminal.id)
+        precondition(gateway.hasUnreadNotification(terminal.id), "content reload retains unread state")
         precondition(gateway.reloadToken(for: terminal.id) == 1)
         precondition(opened == [preview.id], "Content reload must not reopen scenes or open detached sessions")
         gateway.observe(id: terminal.id, isPresented: false, isFocused: false)
@@ -437,6 +454,56 @@ struct WindowGatewayChecks {
         print("PASS: live-probe commands use the real gateway, deduplicate, reject late reopen and persist only stable content")
 
 
+        try await checkClosingAndEnding()
+    }
+
+    @MainActor
+    static func checkClosingAndEnding() async throws {
+        let suite = "WindowGatewayStopChecks.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let base = URL(string: "http://stop-fixture.invalid:7777")!
+        let target = ConnectedHost(id: "stop-host", endpoint: base)
+        let window = WindowRecord(id: "stop-session", kind: .terminal, targetID: "stop-session")
+        let reference = WindowReference(hostID: target.id, window: window)
+        let session = HostSession(id: window.id, workspaceId: "workspace", profile: nil,
+            title: "Shell", cwd: "/project", status: "running")
+        let other = HostSession(id: "other-session", workspaceId: "workspace", profile: nil,
+            title: "Other shell", cwd: "/project", status: "running")
+        CompanionAPI.layouts[base.host!] = WindowLayout(windows: [window])
+        CompanionAPI.sessions[base.host!] = [session, other]
+        let store = WindowPersistence(defaults: defaults)
+        try store.set(reference, isOpen: true)
+        let gateway = WindowGateway(persistence: store)
+        var dismissals = 0
+        gateway.attachPresenter(UUID()) { if case .close = $0 { dismissals += 1 } }
+        await gateway.launcher.onSessionSnapshot?(HostSessionsResponse(sessions: [session, other]), target)
+        gateway.observe(id: window.id, isPresented: true, isFocused: true)
+        let requestStart = CompanionAPI.requests.count
+
+        gateway.close(id: window.id)
+        precondition(dismissals == 1 && store.windows(hostID: target.id).isEmpty)
+        precondition(CompanionAPI.sessions[base.host!]?.count == 2, "Close Window keeps every Mac session")
+        precondition(!CompanionAPI.requests.dropFirst(requestStart).contains(where: { $0.hasPrefix("DELETE") }))
+
+        gateway.observe(id: window.id, isPresented: false, isFocused: false)
+        try gateway.open(id: window.id)
+        gateway.observe(id: window.id, isPresented: true, isFocused: true)
+        CompanionAPI.beforeEndSessionReply = { throw URLError(.networkConnectionLost) }
+        do { try await gateway.endSession(id: window.id); preconditionFailure("Expected end-session failure") }
+        catch {}
+        precondition(dismissals == 1 && store.windows(hostID: target.id) == [window],
+            "Failed termination must leave the window open for retry")
+        precondition(CompanionAPI.sessions[base.host!]?.count == 2)
+
+        try await gateway.endSession(id: window.id)
+        precondition(dismissals == 2 && store.windows(hostID: target.id).isEmpty)
+        precondition(CompanionAPI.sessions[base.host!]?.map(\.id) == [other.id], "End Session stops only its target")
+        let requests = Array(CompanionAPI.requests.dropFirst(requestStart))
+        precondition(requests.filter { $0 == "DELETE /api/sessions/\(window.id)" }.count == 2)
+        precondition(!requests.contains(where: { $0.hasPrefix("POST /api/workspaces/") }),
+            "Closing and reopening must not create replacement processes")
+        print("PASS: closing preserves Mac sessions; ending waits for acknowledgement, survives failure, and stops only its target")
     }
 
     @MainActor

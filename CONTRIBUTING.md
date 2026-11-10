@@ -93,7 +93,9 @@ Simulator compilation and macOS state tests do not establish device behavior. Be
 
 - Pair; open an agent and a shell in one workspace; close/reopen windows; sleep/wake during output.
 - Type through Mac Virtual Display immediately after opening, switching, and recovering terminals. Request and dismiss the floating keyboard, then repeat.
+- With both a directly connected keyboard and Mac Virtual Display keyboard sharing, use Option+Up (Alt+Up) in Codex; check modified arrows and key repeat with the floating keyboard requested and dismissed.
 - Rebuild over the existing installation; recover without the launcher; check system close, room lock, and placement. visionOS owns placement, so reopening content does not guarantee its previous position.
 - Dictate across pauses, repeated sends, and the 50-second recognition handoff (including any clipped words); switch terminals; deny permission; interrupt the connection during send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
 - Open Next.js/Vite apps with HMR, authentication, and cross-service requests. Validate LAN certificate trust and framework origin policies.
+- Put two terminals on opposite sides of the room; emit `printf '\a'` in each. Check that each chime comes from its own window, its orange border clears when selected, and reconnect/reload does not repeat the sound. Repeat while dictating.
 - Check physical wrist tracking and comfort in immersive mode.

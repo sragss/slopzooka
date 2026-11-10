@@ -1,6 +1,6 @@
 import SwiftUI
 
-private let voiceAccent = Color(red: 0.63, green: 0.94, blue: 0.85)
+private let voiceAccent = Color("AccentHighlight")
 
 struct TerminalVoiceButton: View {
     let id: String
@@ -14,7 +14,8 @@ struct TerminalVoiceButton: View {
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
                 audioLevels: voice.audioLevels)
                 .frame(width: 88, height: 88)
-                .frame(width: 112, height: 112)
+                .glassBackgroundEffect(in: Circle())
+                .frame(width: 120, height: 120)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)
@@ -23,14 +24,13 @@ struct TerminalVoiceButton: View {
         .hoverEffect(.lift)
         .accessibilityLabel(voice.targetID == id ? "Stop voice input" : "Dictate to terminal")
         .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
-        .help(voice.targetID == id ? "Stop voice input" : "Dictate to terminal")
         .opacity(isAvailable ? 1 : 0.45)
         .disabled(!isAvailable || voice.isSubmitting)
     }
 }
 
-/// Solid navy and the app icon's mint accent. Listening motion comes only from
-/// microphone energy; the fixed hit area never moves with the waveform.
+/// Foreground content only; visionOS owns the button's glass material and lighting.
+/// Listening motion follows microphone energy inside a fixed hit area.
 private struct VoiceOrb: View {
     let isSelected: Bool
     let isListening: Bool
@@ -40,40 +40,35 @@ private struct VoiceOrb: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(Color(red: 0.06, green: 0.09, blue: 0.17))
             if isBusy {
                 TimelineView(.animation(minimumInterval: 1 / 30, paused: reduceMotion)) { context in
                     let angle = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
                         .truncatingRemainder(dividingBy: 1) * 360
                     Circle().trim(from: 0.12, to: 0.85)
-                        .stroke(voiceAccent, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .frame(width: 24, height: 24)
+                        .stroke(voiceAccent, style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+                        .frame(width: 28, height: 28)
                         .rotationEffect(.degrees(angle))
                 }
             } else if isListening {
-                HStack(spacing: 3) {
+                HStack(spacing: 4) {
                     ForEach(audioLevels.indices, id: \.self) { index in
                         Capsule().fill(voiceAccent)
                             .frame(width: 4, height: 6 + 28 * audioLevels[index])
                     }
                 }
-                .frame(width: 36, height: 36)
+                .frame(width: 40, height: 40)
                 .animation(reduceMotion ? nil : .linear(duration: 0.05), value: audioLevels)
             } else {
                 Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: 28, weight: .semibold))
-                    .foregroundStyle(voiceAccent)
+                    .font(.system(size: 30, weight: .medium))
+                    .foregroundStyle(isSelected ? voiceAccent : .white)
             }
         }
-        .overlay {
-            Circle().strokeBorder(isSelected ? voiceAccent : .white.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-        }
-        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
         .accessibilityHidden(true)
     }
 }
 
-/// Shared UI for the original one-shot flow and the compact conversation dock.
+/// All voice tasks share a centered glass draft; the microphone stays bottom right.
 struct TerminalVoiceOverlay: ViewModifier {
     let id: String
     let isAvailable: Bool
@@ -89,20 +84,16 @@ struct TerminalVoiceOverlay: ViewModifier {
                 }
             }
             .overlay {
-                if voice.targetID == id && (voice.mode == .dictation || voice.mode == .rename) {
+                if voice.targetID == id {
                     TerminalVoiceDraft()
                         .frame(maxWidth: 520)
                         .padding(20)
                 }
             }
             .overlay(alignment: .bottomTrailing) {
-                HStack(alignment: .bottom, spacing: 16) {
-                    if voice.targetID == id && voice.mode == .conversation {
-                        TerminalVoiceDraft().frame(maxWidth: 520)
-                    }
-                    TerminalVoiceButton(id: id, isAvailable: isAvailable).fixedSize()
-                }
-                .padding(20)
+                TerminalVoiceButton(id: id, isAvailable: isAvailable)
+                    .fixedSize()
+                    .padding(20)
             }
             .onChange(of: isAvailable) { _, available in
                 if !available { voice.targetUnavailable(id) }
@@ -150,7 +141,7 @@ private struct TerminalVoiceDraft: View {
             .buttonStyle(.bordered)
         }
         .padding(16)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20))
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 20))
     }
 
     private var placeholder: String {
