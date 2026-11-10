@@ -6,7 +6,6 @@ struct TerminalWindowView: View {
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.scenePhase) private var scenePhase
-    @StateObject private var debugLog = AppDebugLog.shared
     @State private var loadState: TerminalLoadState = .idle
     @State private var isUtilitiesExpanded = false
     @State private var confirmEndSession = false
@@ -52,6 +51,7 @@ struct TerminalWindowView: View {
             if let url = payload.url {
                 CompanionWebView(
                     url: url,
+                    hostID: windows.reference(for: payload.id)?.hostID,
                     reloadToken: windows.reloadToken(for: payload.id),
                     loadState: $loadState,
                     isActive: scenePhase == .active,
@@ -251,7 +251,7 @@ struct TerminalWindowView: View {
 
                     labeledDetailRow(label: "Terminal URL", value: payload.urlString)
 
-                    debugLogView
+                    DebugLogView()
                 }
                 .padding(.top, 8)
             } label: {
@@ -264,26 +264,6 @@ struct TerminalWindowView: View {
         .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
-    private var debugLogView: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Debug Log")
-                .font(.headline)
-
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 6) {
-                    ForEach(Array(debugLog.entries.suffix(20).enumerated()), id: \.offset) { _, entry in
-                        Text(entry)
-                            .font(.caption2)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .textSelection(.enabled)
-                    }
-                }
-            }
-            .frame(minHeight: 120, maxHeight: 180)
-        }
-        .padding(16)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-    }
 
     private func labeledDetailRow(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -347,4 +327,31 @@ struct TerminalWindowView: View {
         do { try await windows.endSession(id: payload.id) }
         catch { loadState = .failed(error.localizedDescription) }
     }
+}
+
+/// Observe diagnostic updates only in the debug panel, not in every terminal.
+private struct DebugLogView: View {
+    @ObservedObject private var debugLog = NativeDiagnostics.shared
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Debug Log")
+                .font(.headline)
+
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 6) {
+                    ForEach(Array(debugLog.recentEntries.suffix(20).enumerated()), id: \.offset) { _, entry in
+                        Text(entry)
+                            .font(.caption2)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+            .frame(minHeight: 120, maxHeight: 180)
+        }
+        .padding(16)
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
 }

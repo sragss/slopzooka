@@ -12,6 +12,8 @@ export type ServiceInfo = {
   pid: number;
   sessions: SessionSummary[];
   capabilities?: string[];
+  /** The retained process owns its writer, even after companion configuration changes. */
+  logFilePath?: string;
 };
 export type SessionLaunch = {
   workspaceId: string;

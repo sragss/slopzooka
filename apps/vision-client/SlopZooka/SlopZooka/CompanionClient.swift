@@ -8,13 +8,16 @@ import Security
 @MainActor
 final class CompanionClient: NSObject, ObservableObject {
     typealias Exchange = @MainActor (URLRequest) async throws -> (Data, URLResponse)
-    private let exchange: Exchange
-    private let usesNativeTransport: Bool
+    private let exchangeOverride: Exchange?
     private let defaults: UserDefaults
     private let credentials: CompanionCredentials
+    private let diagnostics: NativeDiagnostics
+    private let log: AppLog
+    private var diagnosticsPoll: Task<Void, Never>?
+    private var sendingDiagnostics = false
     private struct Route: Equatable {
         let endpoint: URL
-        let revision = UUID()
+        let revision: UUID
         let health: CompanionHealthResponse
         let paired: Bool
         let remoteEndpoint: URL
@@ -27,19 +30,21 @@ final class CompanionClient: NSObject, ObservableObject {
     private var selectedIdentity: String?
     private var currentRoute: Route? { current.flatMap { routes[$0.id] } }
 
-    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, exchange: Exchange? = nil) {
-        self.exchange = exchange ?? { try await CompanionTransportRoute.exchange($0) }
-        self.usesNativeTransport = exchange == nil
+    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, diagnostics: NativeDiagnostics? = nil, exchange: Exchange? = nil) {
+        self.exchangeOverride = exchange
         let lastHost = defaults.string(forKey: "companionHostID")
         self.selectedIdentity = lastHost
         self.connectionMethod = lastHost.flatMap { defaults.string(forKey: "connectionMethod:\($0)") }.flatMap(ConnectionMethod.init(rawValue:)) ?? .localNetwork
         self.defaults = defaults
         self.credentials = credentials ?? .live
+        self.diagnostics = diagnostics ?? .shared
+        self.log = AppLog("network", diagnostics: self.diagnostics)
         super.init()
         browser.delegate = self
     }
 
     isolated deinit {
+        diagnosticsPoll?.cancel()
         for route in routes.values { route.transport?.stop() }
         pendingTransport?.cancel()
         sessionPoll?.cancel()
@@ -135,7 +140,7 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     func accept(_ health: CompanionHealthResponse, endpoint: URL, authenticated: Bool,
-                remoteEndpoint: URL? = nil, transport: CompanionTransportRoute? = nil) throws {
+                remoteEndpoint: URL? = nil, transport: CompanionTransportRoute? = nil, revision: UUID = UUID()) throws {
         guard health.protocolVersion == 1 else {
             throw CompanionError(message: "Update the companion and headset app together")
         }
@@ -143,7 +148,7 @@ final class CompanionClient: NSObject, ObservableObject {
         refreshingFrontends.removeValue(forKey: health.hostId)
         selection = UUID()
         routes[health.hostId]?.transport?.stop()
-        let route = Route(endpoint: endpoint, health: health, paired: authenticated,
+        let route = Route(endpoint: endpoint, revision: revision, health: health, paired: authenticated,
             remoteEndpoint: remoteEndpoint ?? endpoint, transport: transport, method: connectionMethod)
         routes[health.hostId] = route
         let target = ConnectedHost(id: health.hostId, revision: route.revision)
@@ -151,6 +156,11 @@ final class CompanionClient: NSObject, ObservableObject {
         selectedIdentity = health.hostId
         needsPairing = !authenticated
         healthState = .success
+        diagnostics.bind(to: health.hostId)
+        log.info("connection.accepted", ["hostId": health.hostId, "paired": String(authenticated), "connectionMethod": connectionMethod.rawValue, "routeRevision": revision.uuidString])
+        if authenticated && health.diagnosticsVersion == 1 && diagnosticsPoll == nil {
+            diagnosticsPoll = poll { await $0.flushDiagnostics() }
+        }
         onConnected?(target)
         if sessionPoll != nil { startFrontendPoll(hostID: health.hostId) }
     }
@@ -158,6 +168,7 @@ final class CompanionClient: NSObject, ObservableObject {
     func setConnectionMethod(_ method: ConnectionMethod) async {
         guard method != connectionMethod else { return }
         let id = selectedHostID
+        log.info("connection.method.changed", ["hostId": id ?? "unpaired", "from": connectionMethod.rawValue, "to": method.rawValue])
         connectionMethod = method
         if let id, credentials.read("host:\(id)") != nil { defaults.set(method.rawValue, forKey: "connectionMethod:\(id)") }
         selection = UUID()
@@ -171,7 +182,10 @@ final class CompanionClient: NSObject, ObservableObject {
         companions.removeAll()
         if let id {
             onRouteRetiring?(id)
-            routes.removeValue(forKey: id)?.transport?.stop()
+            if let route = routes.removeValue(forKey: id) {
+                log.info("connection.retired", ["hostId": id, "routeRevision": route.revision.uuidString, "connectionMethod": route.method.rawValue])
+                route.transport?.stop()
+            }
             frontendCatalogs.removeValue(forKey: id)
             refreshingFrontends.removeValue(forKey: id)
             frontendPolls.removeValue(forKey: id)?.cancel()
@@ -230,10 +244,30 @@ final class CompanionClient: NSObject, ObservableObject {
 
     @discardableResult
     func connect(expectedHostID: String? = nil) async -> Bool {
+        await DiagnosticContext.$actionID.withValue(DiagnosticContext.actionID ?? UUID().uuidString) {
+            await connectAttempt(expectedHostID: expectedHostID)
+        }
+    }
+
+    private func connectAttempt(expectedHostID: String?) async -> Bool {
         pendingTransport?.cancel()
         selection = UUID()
         let attempt = selection
+        let started = ProcessInfo.processInfo.systemUptime
+        var fields = ["connectionMethod": connectionMethod.rawValue, "routeRevision": attempt.uuidString, "actionId": DiagnosticContext.actionID ?? attempt.uuidString]
+        fields["hostId"] = selectedHostID
+        let attemptLog = AppLog("transport", fields: fields, diagnostics: diagnostics)
+        attemptLog.info("connection.started")
+        var outcome = "cancelled"
+        defer { attemptLog.info("connection.\(outcome)", ["durationMs": String(Int((ProcessInfo.processInfo.systemUptime - started) * 1000))]) }
+        let observe: StreamObservation.Sink = { observation in
+            Task { @MainActor in
+                if observation.event.hasSuffix("failed") { attemptLog.warn(observation.event, observation.fields) }
+                else { attemptLog.info(observation.event, observation.fields) }
+            }
+        }
         guard let remote = Self.baseURL(host: normalizedHost) else {
+            outcome = "invalidAddress"
             healthState = .failure("Enter a valid companion host")
             return false
         }
@@ -251,14 +285,14 @@ final class CompanionClient: NSObject, ObservableObject {
             if method == .direct, expectedHost == nil || directToken == nil || authority == nil {
                 throw CompanionError(message: "Reconnect using Local Network with an updated Mac companion first to prepare Direct to Mac.")
             }
-            if usesNativeTransport {
+            if exchangeOverride == nil {
                 let localToken = credentials.token(for: remote)
                 let task = Task {
                     switch method {
-                    case .localNetwork: return try await CompanionTransportRoute.localNetwork(remote, token: localToken)
+                    case .localNetwork: return try await CompanionTransportRoute.localNetwork(remote, token: localToken, observe: observe)
                     case .direct:
                         guard let expectedHost, let directToken, let authority else { throw URLError(.userAuthenticationRequired) }
-                        return try await CompanionTransportRoute.direct(hostID: expectedHost, authority: authority, token: directToken)
+                        return try await CompanionTransportRoute.direct(hostID: expectedHost, authority: authority, token: directToken, observe: observe)
                     }
                 }
                 pendingTransport = task
@@ -266,7 +300,7 @@ final class CompanionClient: NSObject, ObservableObject {
             }
             guard selection == attempt, !Task.isCancelled else { return false }
             var base = transport?.endpoint ?? remote
-            let health: CompanionHealthResponse = try await request(base: base, path: "/health", timeout: connectionMethod == .direct ? 15 : 4)
+            let health: CompanionHealthResponse = try await request(base: base, transport: transport, path: "/health", timeout: connectionMethod == .direct ? 15 : 4)
             guard !Task.isCancelled, selection == attempt else { return false }
             if (connectionMethod == .direct && health.hostId != expectedHost) || (expectedHostID != nil && health.hostId != expectedHostID) {
                 throw CompanionError(message: "The connection did not authenticate the selected Mac.")
@@ -286,14 +320,15 @@ final class CompanionClient: NSObject, ObservableObject {
                     try credentials.write("transportCA:\(health.hostId)", authority)
                 }
             }
-            if usesNativeTransport, method == .localNetwork, health.transport?.version != 1 {
+            if exchangeOverride == nil, method == .localNetwork, health.transport?.version != 1 {
                 // Older companions derive preview certificates from Host and do
                 // not understand gatewayHostname. Preserve their LAN URL path.
                 transport?.stop()
                 transport = CompanionTransportRoute.legacyLocalNetwork(remote, token: credentials.token(for: remote))
                 base = remote
             }
-            try accept(health, endpoint: base, authenticated: authenticated, remoteEndpoint: remote, transport: transport)
+            try accept(health, endpoint: base, authenticated: authenticated, remoteEndpoint: remote, transport: transport, revision: attempt)
+            outcome = "ready"
             acceptedTransport = true
             pendingTransport = nil
             retryDelay = 1
@@ -312,6 +347,8 @@ final class CompanionClient: NSObject, ObservableObject {
             return current == accepted
         } catch {
             guard !Task.isCancelled, selection == attempt else { return false }
+            outcome = "unavailable"
+            attemptLog.warn("connection.failed", ["errorType": String(describing: type(of: error)), "errorCode": String((error as NSError).code), "retryDelaySeconds": String(retryDelay)])
             retryAfter = Date().addingTimeInterval(retryDelay)
             retryDelay = min(30, retryDelay * 2)
             let message = "\(connectionMethod.title): \(error.localizedDescription)"
@@ -333,7 +370,7 @@ final class CompanionClient: NSObject, ObservableObject {
                 let token: String
                 let hostId: String
             }
-            let response: PairResponse = try await request(base: base, path: "/api/pair", method: "POST",
+            let response: PairResponse = try await request(base: base, transport: currentRoute?.transport, path: "/api/pair", method: "POST",
                 body: Self.json(["code": pairingCode]))
             guard !Task.isCancelled, selection == attempt else { return }
             guard let remote = currentRoute?.remoteEndpoint else { return }
@@ -349,7 +386,7 @@ final class CompanionClient: NSObject, ObservableObject {
     func showConnectionCode() async {
         guard needsPairing, let base = currentRoute?.endpoint else { return }
         // Optional convenience: older companions still expose their code in the menu.
-        let _: APIAcknowledgement? = try? await request(base: base, path: "/api/pair/display", method: "POST", timeout: 4)
+        let _: APIAcknowledgement? = try? await request(base: base, transport: currentRoute?.transport, path: "/api/pair/display", method: "POST", timeout: 4)
     }
 
     func refreshSessions(hostID: String? = nil, force: Bool = false) async {
@@ -496,7 +533,7 @@ final class CompanionClient: NSObject, ObservableObject {
         let attempt = selection
         guard route.paired else { throw CompanionError(message: "Pair with this Mac first", statusCode: 401) }
         do {
-            let result: T = try await request(base: route.endpoint, path: path, method: method, body: body, timeout: timeout)
+            let result: T = try await request(base: route.endpoint, transport: route.transport, path: path, hostID: hostID, method: method, body: body, timeout: timeout)
             guard routes[hostID] == route else { throw URLError(.cancelled) }
             if current?.id == hostID, selection == attempt, !needsPairing {
                 if case .reconnecting = healthState { healthState = .success }
@@ -515,24 +552,107 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     private func request<T: Decodable>(
-        base: URL, path: String, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20
+        base: URL, transport: CompanionTransportRoute? = nil, path: String, hostID: String? = nil, method: String = "GET", body: Data? = nil, timeout: TimeInterval = 20
     ) async throws -> T {
         guard let url = URL(string: path, relativeTo: base)?.absoluteURL else { throw URLError(.badURL) }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body
         request.timeoutInterval = timeout
+        var trace = DiagnosticRequest(method: method, path: path, hostID: hostID, diagnostics: diagnostics)
+        request.setValue(trace.actionID, forHTTPHeaderField: "X-SlopZooka-Action-ID")
         if body != nil { request.setValue("application/json", forHTTPHeaderField: "Content-Type") }
-        let (data, response) = try await exchange(Self.authorized(request, credentials: credentials))
-        guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
-        guard (200..<300).contains(response.statusCode) else {
-            let error = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
-            throw CompanionError(
-                message: "\(method) \(path) — HTTP \(response.statusCode): \(error?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode))", statusCode: response.statusCode)
+        do {
+            let (data, response) = try await send(request, over: transport)
+            guard let response = response as? HTTPURLResponse else { throw URLError(.badServerResponse) }
+            trace.completed(response)
+            guard (200..<300).contains(response.statusCode) else {
+                let error = try? JSONDecoder().decode(APIErrorResponse.self, from: data)
+                throw CompanionError(
+                    message: "\(method) \(path) — HTTP \(response.statusCode): \(error?.error ?? HTTPURLResponse.localizedString(forStatusCode: response.statusCode))", statusCode: response.statusCode)
+            }
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            trace.failed(error)
+            throw error
         }
-        return try JSONDecoder().decode(T.self, from: data)
     }
 
+    // One route-owned send path for control, pairing, and diagnostic delivery.
+    // Tracing stays above it so uploading logs cannot recursively log the upload.
+    private func send(_ request: URLRequest, over transport: CompanionTransportRoute?) async throws -> (Data, URLResponse) {
+        let authorized = Self.authorized(request, credentials: credentials)
+        if let exchangeOverride { return try await exchangeOverride(authorized) }
+        guard let transport else { throw URLError(.cancelled) }
+        return try await transport.exchange(authorized)
+    }
+
+    /// Best-effort diagnostics never use the control request wrapper or change
+    /// connection state. A failed upload must not generate another upload error.
+    func flushDiagnostics() async {
+        guard !sendingDiagnostics else { return }
+        sendingDiagnostics = true
+        defer { sendingDiagnostics = false }
+        for (hostID, route) in routes where route.paired && route.health.diagnosticsVersion == 1 {
+            let batch = diagnostics.batch(for: hostID)
+            guard !batch.isEmpty, let url = URL(string: "/api/diagnostics/events", relativeTo: route.endpoint)?.absoluteURL else { continue }
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"; request.timeoutInterval = 4
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.setValue(hostID, forHTTPHeaderField: "X-SlopZooka-Host-ID")
+            request.httpBody = diagnostics.body(for: batch)
+            do {
+                let (_, response) = try await send(request, over: route.transport)
+                if let response = response as? HTTPURLResponse, (200..<300).contains(response.statusCode) { diagnostics.acknowledge(batch) }
+            } catch { /* Retain the bounded outbox until reconnect. */ }
+        }
+    }
+
+}
+
+/// A request's timing/correlation state; it never owns decoding or connection state.
+@MainActor
+private struct DiagnosticRequest {
+    let actionID = DiagnosticContext.actionID ?? UUID().uuidString
+    private let diagnostics: NativeDiagnostics
+    private let log: AppLog
+    private let method: String
+    private let hostID: String?
+    private let started = ProcessInfo.processInfo.systemUptime
+    private var responseStatus: Int?
+
+    init(method: String, path: String, hostID: String?, diagnostics: NativeDiagnostics) {
+        self.method = method
+        self.hostID = hostID
+        self.diagnostics = diagnostics
+        var fields = ["actionId": actionID, "route": String(path.split(separator: "?", maxSplits: 1).first ?? ""), "method": method]
+        if let hostID { fields["hostId"] = hostID }
+        self.log = AppLog("network", fields: fields, diagnostics: diagnostics)
+        if method != "GET" { log.info("http.started") }
+    }
+
+    private var durationMs: Double { (ProcessInfo.processInfo.systemUptime - started) * 1000 }
+
+    mutating func completed(_ response: HTTPURLResponse) {
+        responseStatus = response.statusCode
+        if let hostID {
+            diagnostics.calibrate(hostID: hostID, serverTime: response.value(forHTTPHeaderField: "X-SlopZooka-Time"), durationMs: durationMs)
+        }
+        var fields = ["status": String(response.statusCode), "durationMs": String(durationMs)]
+        fields["requestId"] = response.value(forHTTPHeaderField: "X-SlopZooka-Request-ID")
+        if response.statusCode >= 400 { log.warn("http.completed", fields) }
+        else if method != "GET" { log.info("http.completed", fields) }
+    }
+
+    func failed(_ error: Error) {
+        guard (responseStatus ?? 0) < 400 else { return } // The HTTP failure was already recorded.
+        if error is CancellationError || (error as? URLError)?.code == .cancelled {
+            log.info("http.cancelled", ["durationMs": String(durationMs)])
+            return
+        }
+        // Server bodies remain with the caller; diagnostics only retain error type/code.
+        log.warn("http.failed", ["errorType": String(describing: type(of: error)), "code": String((error as NSError).code), "durationMs": String(durationMs)])
+    }
 }
 
 struct ConnectedHost: Equatable {

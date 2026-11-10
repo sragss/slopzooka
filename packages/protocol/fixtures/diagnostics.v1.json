@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "source": "browser",
+  "instanceId": "fixture-document",
+  "sequence": 7,
+  "ts": "2026-11-10T12:00:00.123Z",
+  "monotonicMs": 100.25,
+  "level": "warn",
+  "component": "terminal",
+  "event": "connection.retrying",
+  "fields": {
+    "sessionId": "fixture-session",
+    "connectionId": "fixture-connection",
+    "attempt": 2,
+    "checkpoint": false,
+    "error": {
+      "name": "NetworkError",
+      "message": "Fixture reconnect",
+      "code": "ECONNRESET",
+      "cause": {
+        "message": "Connection interrupted"
+      }
+    }
+  },
+  "buildId": "fixture-browser-build",
+  "runtimeId": "fixture-webkit"
+}

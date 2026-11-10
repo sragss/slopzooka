@@ -149,6 +149,7 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
                 try await windows.rename(id: id, name: name, target: target)
             },
+            hostID: { [weak windows] id in windows?.reference(for: id)?.hostID },
             deliver: { [weak windows] command in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
                 try await windows.submitVoiceInput(command)

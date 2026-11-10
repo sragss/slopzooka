@@ -47,15 +47,26 @@ nonisolated enum NativeStream {
     }
 }
 
+/// Transport reports metadata to its owner; it never owns a logger or log store.
+/// Successful byte channels are counted, not logged (including log-upload traffic).
+nonisolated struct StreamObservation: Sendable {
+    typealias Sink = @Sendable (StreamObservation) -> Void
+    let event: String
+    let fields: [String: String]
+}
+
 /// One read/send in flight in each direction, at most 64 KiB per direction.
 /// All state is confined to NativeStream.queue. Cancellation never replays bytes.
+/// A waiting byte channel fails promptly; retry belongs to the API/WebSocket owner,
+/// which knows whether its operation can be retried safely.
 nonisolated final class StreamPipe: @unchecked Sendable {
     private let incoming: NWConnection
     private let outgoing: NWConnection
     private let admit: @Sendable (NWConnection) -> Bool
     private let readAdmission: Bool
     private let writeAdmission: Bool
-    private let onClose: @Sendable () -> Void
+    private let onClose: @Sendable ([String: String]?) -> Void
+    private let started = ProcessInfo.processInfo.systemUptime
     private var stopped = false
     private var incomingReady = false
     private var outgoingReady = false
@@ -66,7 +77,7 @@ nonisolated final class StreamPipe: @unchecked Sendable {
     init(incoming: NWConnection, outgoing: NWConnection,
          readAdmission: Bool = false, writeAdmission: Bool = false,
          admit: @escaping @Sendable (NWConnection) -> Bool = { _ in true },
-         onClose: @escaping @Sendable () -> Void) {
+         onClose: @escaping @Sendable ([String: String]?) -> Void) {
         self.incoming = incoming
         self.outgoing = outgoing
         self.readAdmission = readAdmission
@@ -80,12 +91,13 @@ nonisolated final class StreamPipe: @unchecked Sendable {
             guard let self, !self.stopped else { return }
             switch state {
             case .ready:
-                guard self.admit(self.incoming) else { self.stop(); return }
+                guard self.admit(self.incoming) else { self.stop(stage: "admission"); return }
                 self.incomingReady = true
                 self.outgoing.start(queue: NativeStream.queue)
                 self.beginIfReady()
-            case .failed, .cancelled: self.stop()
-            case .waiting: if self.pumping { self.stop() }
+            case .failed(let error): self.stop(stage: "incoming", error: error)
+            case .cancelled: self.stop()
+            case .waiting(let error): self.stop(stage: "incoming", error: error)
             default: break
             }
         }
@@ -93,22 +105,23 @@ nonisolated final class StreamPipe: @unchecked Sendable {
             guard let self, !self.stopped else { return }
             switch state {
             case .ready: self.outgoingReady = true; self.beginIfReady()
-            case .failed, .cancelled: self.stop()
-            case .waiting: if self.pumping { self.stop() }
+            case .failed(let error): self.stop(stage: "outgoing", error: error)
+            case .cancelled: self.stop()
+            case .waiting(let error): self.stop(stage: "outgoing", error: error)
             default: break
             }
         }
         incoming.pathUpdateHandler = { [weak self] _ in
             guard let self, self.incomingReady, !self.stopped else { return }
-            if !self.admit(self.incoming) { self.stop() }
+            if !self.admit(self.incoming) { self.stop(stage: "path") }
         }
         incoming.start(queue: NativeStream.queue)
         NativeStream.queue.asyncAfter(deadline: .now() + 12) { [weak self] in
-            if let self, !self.admitted { self.stop() }
+            if let self, !self.admitted { self.stop(stage: "deadline") }
         }
     }
 
-    func stop() {
+    func stop(stage: String? = nil, error: NWError? = nil) {
         guard !stopped else { return }
         stopped = true
         incoming.pathUpdateHandler = nil
@@ -116,7 +129,15 @@ nonisolated final class StreamPipe: @unchecked Sendable {
         outgoing.stateUpdateHandler = nil
         incoming.cancel()
         outgoing.cancel()
-        onClose()
+        var failure: [String: String]?
+        if let stage {
+            failure = ["stage": stage, "durationMs": String(Int((ProcessInfo.processInfo.systemUptime - started) * 1000))]
+            if let error {
+                failure?["errorDomain"] = (error as NSError).domain
+                failure?["errorCode"] = String((error as NSError).code)
+            }
+        }
+        onClose(failure)
     }
 
     private func beginIfReady() {
@@ -126,13 +147,13 @@ nonisolated final class StreamPipe: @unchecked Sendable {
             outgoing.receive(minimumIncompleteLength: NativeStream.admission.count,
                              maximumLength: NativeStream.admission.count) { [weak self] data, _, end, error in
                 guard let self else { return }
-                guard error == nil, !end, data == NativeStream.admission else { self.stop(); return }
+                guard error == nil, !end, data == NativeStream.admission else { self.stop(stage: "admission", error: error); return }
                 self.pump()
             }
         } else if writeAdmission {
             incoming.send(content: NativeStream.admission, completion: .contentProcessed { [weak self] error in
                 guard let self else { return }
-                if error != nil { self.stop() } else { self.pump() }
+                if let error { self.stop(stage: "admission", error: error) } else { self.pump() }
             })
         } else { pump() }
     }
@@ -148,10 +169,10 @@ nonisolated final class StreamPipe: @unchecked Sendable {
         guard !stopped else { return }
         from.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, end, error in
             guard let self, !self.stopped else { return }
-            guard error == nil else { self.stop(); return }
+            guard error == nil else { self.stop(stage: "read", error: error); return }
             to.send(content: data, isComplete: end, completion: .contentProcessed { [weak self] error in
                 guard let self, !self.stopped else { return }
-                if error != nil { self.stop() }
+                if let error { self.stop(stage: "write", error: error) }
                 else if end {
                     self.endedDirections += 1
                     if self.endedDirections == 2 { self.stop() }
@@ -172,12 +193,18 @@ nonisolated final class StreamListener: @unchecked Sendable {
     private var pipes: [UUID: StreamPipe] = [:]
     private var stopped = false
     private var answered = false
+    private let observe: StreamObservation.Sink
+    private var reportedFailures: Set<String> = []
+    private var opened = 0
+    private var failures = 0
 
     init(parameters: NWParameters, serviceName: String? = nil,
+         observe: @escaping StreamObservation.Sink = { _ in },
          readAdmission: Bool = false, writeAdmission: Bool = false,
          admit: @escaping @Sendable (NWConnection) -> Bool = { _ in true },
          destination: @escaping @Sendable () throws -> NWConnection) throws {
         self.listener = try NWListener(using: parameters)
+        self.observe = observe
         self.destination = destination
         self.readAdmission = readAdmission
         self.writeAdmission = writeAdmission
@@ -192,8 +219,13 @@ nonisolated final class StreamListener: @unchecked Sendable {
                 guard let self else { return }
                 switch state {
                 case .ready:
-                    if !self.answered, let port = self.listener.port { self.answered = true; completion(.success(port.rawValue)) }
+                    if !self.answered, let port = self.listener.port {
+                        self.answered = true
+                        self.observe(StreamObservation(event: "listener.ready", fields: [:]))
+                        completion(.success(port.rawValue))
+                    }
                 case .failed(let error):
+                    self.observe(StreamObservation(event: "listener.failed", fields: ["errorDomain": (error as NSError).domain, "errorCode": String((error as NSError).code)]))
                     if !self.answered { self.answered = true; completion(.failure(error)) }
                     self.stopOnQueue()
                 case .cancelled:
@@ -202,15 +234,29 @@ nonisolated final class StreamListener: @unchecked Sendable {
                 }
             }
             listener.newConnectionHandler = { [weak self] incoming in
-                guard let self, !self.stopped, self.pipes.count < 64 else { incoming.cancel(); return }
+                guard let self, !self.stopped else { incoming.cancel(); return }
+                guard self.pipes.count < 64 else {
+                    self.failed(["stage": "capacity"])
+                    incoming.cancel(); return
+                }
                 do {
                     let id = UUID()
                     let pipe = StreamPipe(incoming: incoming, outgoing: try self.destination(),
                         readAdmission: self.readAdmission, writeAdmission: self.writeAdmission, admit: self.admit,
-                        onClose: { [weak self] in self?.pipes.removeValue(forKey: id) })
+                        onClose: { [weak self] failure in
+                            self?.pipes.removeValue(forKey: id)
+                            if var failure {
+                                failure["connectionId"] = id.uuidString
+                                self?.failed(failure)
+                            }
+                        })
+                    self.opened += 1
                     self.pipes[id] = pipe
                     pipe.start()
-                } catch { incoming.cancel() }
+                } catch {
+                    self.failed(["stage": "destination", "errorDomain": (error as NSError).domain, "errorCode": String((error as NSError).code)])
+                    incoming.cancel()
+                }
             }
             listener.start(queue: NativeStream.queue)
             NativeStream.queue.asyncAfter(deadline: .now() + 10) { [weak self] in
@@ -222,10 +268,19 @@ nonisolated final class StreamListener: @unchecked Sendable {
         }
     }
 
+    // One sample per finite failure stage for this route. In particular, repeated
+    // failed diagnostics uploads cannot recursively refill their own log outbox.
+    private func failed(_ fields: [String: String]) {
+        failures += 1
+        guard reportedFailures.insert(fields["stage"] ?? "unknown").inserted else { return }
+        observe(StreamObservation(event: "stream.failed", fields: fields))
+    }
+
     func stop() { NativeStream.queue.async { [self] in stopOnQueue() } }
     private func stopOnQueue() {
         guard !stopped else { return }
         stopped = true
+        observe(StreamObservation(event: "listener.stopped", fields: ["opened": String(opened), "failed": String(failures), "active": String(pipes.count)]))
         listener.cancel()
         for pipe in Array(pipes.values) { pipe.stop() }
         pipes.removeAll()

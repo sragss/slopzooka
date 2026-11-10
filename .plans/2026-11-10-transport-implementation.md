@@ -1,6 +1,6 @@
 # First implementation: shared companion transport
 
-Base: `origin/main` at `c5b8cad` (linting and complete Swift concurrency checks). The research branch was separately merged with this revision without conflicts. Product changes live on `feat/centralized-transport`, without the research harness binaries or experiments. Research history remains in [draft PR 39](https://github.com/sragss/slopzooka/pull/39).
+Initial base: `origin/main` at `c5b8cad` (linting and complete Swift concurrency checks). The research branch was separately merged with this revision without conflicts. Product changes live on `feat/centralized-transport`, without the research harness binaries or experiments. Research history remains in [draft PR 39](https://github.com/sragss/slopzooka/pull/39).
 
 ## Implemented boundary
 
@@ -69,3 +69,50 @@ Cold startup without an access point, hotel/airplane behavior, sleep/wake, and m
 - [Apple: moving from Multipeer Connectivity](https://developer.apple.com/documentation/technotes/tn3213-moving-from-multipeer-connectivity-to-network-framework) — bounded discovery, stopping browsing before connecting, and TLS guidance. We use certificate-authenticated TLS 1.3 rather than TLS-PSK's older API/version constraints.
 - [Apple: prohibited interfaces](https://developer.apple.com/documentation/network/nwparameters/prohibitedinterfaces) — interface exclusion is public API; socket admission remains separately checked.
 - [GitHub macOS 15 runner inventory](https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md#xcode) — Xcode 26.3 is available; the runner's default Xcode is older.
+
+## Diagnostics integration — upstream PR #50
+
+Merged `cc801a6` into the transport branch. The integration preserves one Node
+diagnostics runtime per process and the shared native `AppLog`/outbox. The helper
+has no separate log store. Its bounded, versioned stdout protocol carries only
+ready messages and closed-schema stream metadata into the companion logger.
+
+Native API calls, pairing, and diagnostic uploads now send through the explicit
+route object. The origin registry only supplies first-party WebView credentials;
+it no longer chooses a URLSession. Retired routes reject new sends. Uploads stay
+outside request tracing, retain failed batches, and use the same authentication
+and connection as control traffic.
+
+Evidence available for the live pass: method changes, action IDs, host IDs,
+route revisions, connection IDs, helper instance/PID and recovery delays,
+TLS/network error domains and codes, the first admitted peer interface, admission/path failures, and listener
+retirement counts. Both HTTP and WebSocket upgrade logs identify their real
+accepting ingress. No raw terminal bytes, credentials, certificates, or helper
+stderr are copied into these events. One failure sample per finite stream stage
+per listener bounds diagnostics recursion and repeated connection noise.
+
+A wrong-CA test exposed connections waiting below the HTTP timeout without
+reporting their underlying TLS failure. Waiting byte channels now fail promptly
+to their existing API/WebSocket owner. That owner retains retry/replay policy;
+the transport does not retry uncertain writes.
+
+Validation results and the remaining device acceptance are recorded below.
+
+| Integration check | Result / limit |
+| --- | --- |
+| Companion suite after merge | 62 tests passed; real native LAN/TLS HTTP, WebSocket, and isolated PTY checks included. |
+| Diagnostics over native routes | Failed authenticated uploads retained event identities and retried; idle delivery did not generate recursive HTTP events; credentials were absent from uploaded evidence. Tested legacy and transport-v1 LAN adapters. |
+| Failure sampling / helper framing | Wrong-CA attempts never reached the backend and emitted one failure sample per stage/route. Split/coalesced helper frames decoded; oversized, malformed, unknown-version/event/field frames rejected without echoing bytes. |
+| Accepting-route attribution | HTTP and WebSocket upgrades reported their accepting listener despite spoofed transport headers. |
+| Route retirement | Retired route rejected sends; terminal process survived; native state tests retained late-reply, host-isolation, restoration, and explicit-close guarantees. |
+| Static / native verification | Typecheck, TypeScript/Swift lint, formatting, native state, terminal keyboard, regenerated asset parity, and visionOS simulator build passed. |
+| Packaged Mac app | Ad-hoc signed build and isolated packaging/supervision/PTY-survival/HTTPS-preview checks passed. |
+| Production helper recovery | Killed only the isolated test helper. A new helper recovered with the same CA. Central log contained start, ready, unexpected exit, retry, new helper ID, and expected shutdown/retirement events. This proves listener lifecycle, not a headset data path. |
+
+Live debugging: retain the incident timestamp; reconnect the headset before
+capturing so its queued events can reach the Mac. Use the existing diagnostics
+capture API and report collection, not a transport-specific exporter. Correlate
+host/action/connection IDs and route revisions; `peer.admitted` records the first
+validated scoped link-local Wi-Fi interface per helper lifetime. The physical
+acceptance list above is still pending. No installed app or user session service
+was restarted for these checks.

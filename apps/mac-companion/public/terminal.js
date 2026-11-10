@@ -9137,6 +9137,115 @@ var Dl = class extends D {
   }
 };
 
+// ../../packages/protocol/src/diagnostics.ts
+var MAX_LOG_EVENT_BYTES = 8 * 1024;
+var MAX_LOG_BATCH = 32;
+var correlationKeys = [
+  "hostId",
+  "clientId",
+  "actionId",
+  "requestId",
+  "sessionId",
+  "workspaceId",
+  "windowId",
+  "commandId",
+  "connectionId"
+];
+var validLogId = (value) => typeof value === "string" && /^[a-zA-Z0-9._:-]{1,120}$/.test(value);
+var privateKey = /authorization|cookie|token|ticket|password|secret|api[_-]?key|credential|private[_-]?key|pairingCode|transcript|^(text|data|body|environment|payload|command)$/i;
+function safeLogText(value) {
+  return value.slice(0, 2048).replace(/\b(?:https?|wss?):\/\/[^\s"'<>]+/gi, (text) => {
+    try {
+      const url = new URL(text);
+      return `${url.protocol}//${url.host}${url.pathname}`;
+    } catch {
+      return "[url]";
+    }
+  }).replace(/\bBearer\s+[^\s,;]+/gi, "Bearer [redacted]").replace(
+    /\b(token|ticket|password|secret|api[_ -]?key|credentials?|private[_ -]?key|pairing[ -]?code|authorization)\s*[:=]\s*[^\s,;]+/gi,
+    "$1=[redacted]"
+  );
+}
+function logError(value, depth = 0) {
+  try {
+    if (!value || typeof value !== "object")
+      return {
+        message: safeLogText(
+          typeof value === "string" ? value : "Unknown error"
+        )
+      };
+    const error = value;
+    const result = {
+      message: safeLogText(
+        typeof error.message === "string" ? error.message : "Unknown error"
+      )
+    };
+    for (const key of ["name", "stack"])
+      if (typeof error[key] === "string") result[key] = safeLogText(error[key]);
+    if (typeof error.code === "string") result.code = safeLogText(error.code);
+    else if (typeof error.code === "number" && Number.isFinite(error.code))
+      result.code = error.code;
+    if (error.cause !== void 0 && depth < 2)
+      result.cause = logError(error.cause, depth + 1);
+    return result;
+  } catch {
+    return { message: "Unreadable error details" };
+  }
+}
+function safeLogFields(fields) {
+  const result = /* @__PURE__ */ Object.create(null);
+  for (const key of correlationKeys)
+    if (validLogId(fields[key])) result[key] = fields[key];
+  if (fields.error !== void 0) result.error = logError(fields.error);
+  let remaining = 24;
+  for (const key of Object.keys(fields)) {
+    if (key === "error" || correlationKeys.includes(key))
+      continue;
+    if (remaining-- <= 0) break;
+    const descriptor = Object.getOwnPropertyDescriptor(fields, key);
+    if (!descriptor || !("value" in descriptor)) continue;
+    const value = descriptor.value;
+    if (privateKey.test(key)) result[key.slice(0, 80)] = "[redacted]";
+    else if (typeof value === "string")
+      result[key.slice(0, 80)] = safeLogText(value);
+    else if (value === null || typeof value === "boolean" || typeof value === "number" && Number.isFinite(value))
+      result[key.slice(0, 80)] = value;
+  }
+  return result;
+}
+function boundedLogEvent(event) {
+  const result = {
+    version: 1,
+    source: event.source,
+    instanceId: event.instanceId,
+    sequence: event.sequence,
+    ts: event.ts,
+    monotonicMs: event.monotonicMs,
+    level: event.level,
+    component: safeLogText(event.component).slice(0, 120),
+    event: safeLogText(event.event).slice(0, 160),
+    fields: safeLogFields(event.fields),
+    ...event.buildId ? { buildId: event.buildId } : {},
+    ...event.runtimeId ? { runtimeId: event.runtimeId } : {},
+    ...event.receivedAt ? { receivedAt: event.receivedAt } : {},
+    ...event.clock ? { clock: event.clock } : {}
+  };
+  if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_LOG_EVENT_BYTES) {
+    result.fields = {
+      truncated: true,
+      ...Object.fromEntries(
+        correlationKeys.filter((key) => validLogId(event.fields[key])).map((key) => [key, event.fields[key]])
+      ),
+      ...result.fields.error ? { error: result.fields.error } : {}
+    };
+    if (new TextEncoder().encode(JSON.stringify(result)).length > MAX_LOG_EVENT_BYTES)
+      result.fields.error = {
+        message: result.fields.error.message.slice(0, 256)
+      };
+  }
+  return result;
+}
+
 // ../../packages/protocol/src/index.ts
 var PROTOCOL_VERSION = 1;
 var MAX_TERMINAL_DIMENSION = 500;
@@ -9144,12 +9253,13 @@ var MAX_TERMINAL_DIMENSION = 500;
 // src/terminal-connection.ts
 var TerminalConnection = class {
   constructor(terminal2, sessionId2, status, fit2, notification = () => {
-  }) {
+  }, log3) {
     this.terminal = terminal2;
     this.sessionId = sessionId2;
     this.status = status;
     this.fit = fit2;
     this.notification = notification;
+    this.log = log3;
     this.inputSubscription = terminal2.onData((data) => {
       if (this.attached && this.writable && this.running)
         this.send({ type: "input", sessionId: sessionId2, data });
@@ -9174,6 +9284,7 @@ var TerminalConnection = class {
     if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
       return;
     this.clearTimers();
+    this.log?.info("connection.connecting", { attempt: this.attempts });
     this.attached = false;
     this.writable = false;
     this.status(
@@ -9191,17 +9302,20 @@ var TerminalConnection = class {
       if (this.socket !== ws2) return;
       try {
         const message = JSON.parse(String(event.data));
-        this.renderTail = this.renderTail.then(() => this.receive(message, ws2)).catch(() => {
+        this.renderTail = this.renderTail.then(() => this.receive(message, ws2)).catch((error) => {
+          this.log?.error("render.failed", { error: logError(error) });
           if (this.isCurrent(ws2))
             this.status("Could not restore terminal", "failed");
           ws2.close();
         });
-      } catch {
+      } catch (error) {
+        this.log?.error("protocol.invalid", { error: logError(error) });
         this.status("Invalid response from companion", "failed");
         ws2.close();
       }
     };
-    ws2.onclose = () => {
+    ws2.onclose = (event) => {
+      this.log?.info("connection.closed", { code: event.code });
       this.retryConnection(ws2);
     };
     ws2.onerror = () => {
@@ -9215,6 +9329,10 @@ var TerminalConnection = class {
     this.attached = false;
     this.writable = false;
     this.lostConnection = true;
+    this.log?.warn("connection.retrying", {
+      attempt: this.attempts,
+      cursor: this.cursor
+    });
     this.status("Lost companion connection.", "disconnected");
     ws2.close();
     this.retry = setTimeout(
@@ -9243,6 +9361,7 @@ var TerminalConnection = class {
     });
   }
   takeControl() {
+    this.log?.info("control.requested");
     if (this.attached && this.running && !this.writable && this.supportsTakeControl)
       this.send({ type: "take-control", sessionId: this.sessionId });
   }
@@ -9261,6 +9380,7 @@ var TerminalConnection = class {
   detach() {
     if (this.stopped) return;
     this.stopped = true;
+    this.log?.info("connection.detached", { cursor: this.cursor });
     this.attached = false;
     this.writable = false;
     this.clearTimers();
@@ -9275,6 +9395,7 @@ var TerminalConnection = class {
     if (this.stopped) return;
     switch (m.type) {
       case "ownership":
+        this.log?.info("ownership.changed", { writable: m.writable });
         if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
         this.writable = m.writable;
         this.publishOwnership();
@@ -9282,6 +9403,11 @@ var TerminalConnection = class {
         break;
       case "hello":
         if (!this.isCurrent(ws2)) return;
+        this.log = this.log?.child({
+          connectionId: m.connectionId,
+          serviceInstanceId: m.serviceInstanceId
+        });
+        this.log?.info("connection.accepted");
         if (m.serviceInstanceId && this.serviceInstanceId && m.serviceInstanceId !== this.serviceInstanceId)
           this.cursor = void 0;
         this.serviceInstanceId = m.serviceInstanceId;
@@ -9303,6 +9429,11 @@ var TerminalConnection = class {
         break;
       case "attached":
         if (m.session.id !== this.sessionId) return;
+        this.log?.info("session.attached", {
+          cursor: m.cursor,
+          checkpoint: m.snapshot !== void 0,
+          writable: m.writable
+        });
         if (m.snapshot !== void 0) {
           this.terminal.reset();
           this.terminal.resize(m.session.cols, m.session.rows);
@@ -9335,6 +9466,10 @@ var TerminalConnection = class {
         break;
       case "error":
         if (!this.isCurrent(ws2)) return;
+        this.log?.warn("protocol.rejected", {
+          code: m.code,
+          message: m.message
+        });
         if (m.code === "403" && this.attached && this.running && !this.writable) {
           this.publishOwnership();
           break;
@@ -9426,6 +9561,132 @@ function bindTerminalTextInput(terminal2) {
   };
 }
 
+// src/log-events.ts
+function logId() {
+  const bytes2 = new Uint8Array(16);
+  if (globalThis.crypto?.getRandomValues)
+    globalThis.crypto.getRandomValues(bytes2);
+  else
+    for (let index = 0; index < bytes2.length; index++)
+      bytes2[index] = Math.floor(Math.random() * 256);
+  return Array.from(bytes2, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+}
+function eventLogger(source, sink, options = {}) {
+  const instanceId = options.instanceId ?? logId();
+  let sequence = 0;
+  function scoped(component, fields = {}) {
+    const bound = { ...fields };
+    function write(level, event, fields2 = {}) {
+      if (level === "debug" && !options.debug) return;
+      try {
+        sink({
+          version: 1,
+          source,
+          instanceId,
+          sequence: ++sequence,
+          ts: (/* @__PURE__ */ new Date()).toISOString(),
+          monotonicMs: performance.now(),
+          level,
+          component,
+          event,
+          buildId: options.buildId,
+          runtimeId: options.runtimeId,
+          fields: { ...options.context?.current(), ...bound, ...fields2 }
+        });
+      } catch {
+      }
+    }
+    return {
+      debug: (event, fields2) => write("debug", event, fields2),
+      info: (event, fields2) => write("info", event, fields2),
+      warn: (event, fields2) => write("warn", event, fields2),
+      error: (event, fields2) => write("error", event, fields2),
+      child: (fields2) => scoped(component, { ...bound, ...fields2 })
+    };
+  }
+  return scoped;
+}
+
+// src/browser-logger.ts
+var queue = [];
+var bytes = 0;
+var dropped = 0;
+var sending = false;
+var clock;
+var size = (event) => new TextEncoder().encode(JSON.stringify(event)).length;
+var browserLog = eventLogger(
+  "browser",
+  (event) => {
+    event = boundedLogEvent(event);
+    const bridge = window.webkit?.messageHandlers?.diagnostics;
+    if (bridge) {
+      bridge.postMessage(event);
+      return;
+    }
+    const length = size(event);
+    while (queue.length && bytes + length > 256 * 1024) {
+      bytes -= queue.shift().bytes;
+      dropped++;
+    }
+    queue.push({ event, bytes: length });
+    bytes += length;
+  },
+  {
+    buildId: true ? "36682c2779a0abc36de13367164c83e1b807f3c0af5bbbd5dfe6b046573846bb" : "unknown"
+  }
+);
+var log = browserLog("diagnostics");
+async function flush() {
+  if (sending || !queue.length) return;
+  sending = true;
+  try {
+    let length = 0;
+    const batch = [];
+    for (const pending of queue.slice(0, MAX_LOG_BATCH)) {
+      length += pending.bytes;
+      if (length > 48 * 1024) break;
+      batch.push(pending.event);
+    }
+    const response = await fetch("/api/diagnostics/events", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ version: 1, clock, events: batch }),
+      signal: AbortSignal.timeout(4e3)
+    });
+    if (response.ok) {
+      const sent = new Set(batch.map((event) => event.sequence));
+      for (let index = queue.length - 1; index >= 0; index--) {
+        if (sent.has(queue[index].event.sequence))
+          bytes -= queue.splice(index, 1)[0].bytes;
+      }
+      if (dropped) {
+        const count = dropped;
+        dropped = 0;
+        log.warn("logs.dropped", { count });
+      }
+    }
+  } catch {
+  } finally {
+    sending = false;
+  }
+}
+setInterval(() => void flush(), 2e3);
+window.addEventListener("online", () => void flush());
+window.addEventListener(
+  "error",
+  (event) => browserLog("browser").error("browser.error", {
+    error: event.error ?? event.message
+  })
+);
+window.addEventListener(
+  "unhandledrejection",
+  (event) => browserLog("browser").error("browser.unhandled-rejection", {
+    error: event.reason
+  })
+);
+
 // src/terminal.ts
 var mount = document.querySelector("#terminal");
 var overlay = document.querySelector("#connection-overlay");
@@ -9459,6 +9720,7 @@ function focusTerminal(showKeyboard = false) {
   terminal.focus();
 }
 var sessionId = new URLSearchParams(location.search).get("sessionId");
+var log2 = browserLog("terminal", { sessionId });
 var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
@@ -9482,7 +9744,8 @@ var connection = sessionId ? new TerminalConnection(
       serviceInstanceId,
       audible
     });
-  }
+  },
+  log2
 ) : void 0;
 document.title = sessionId ? `Terminal \u2022 ${sessionId.slice(0, 8)}` : "Missing session";
 if (!sessionId) messageLabel.textContent = "Missing terminal session";
@@ -9502,6 +9765,7 @@ window.slzSetTerminalZoom = (zoom) => {
   if (!Number.isFinite(zoom) || zoom < 0.1 || zoom > 2) return;
   const fontSize = 16 * zoom;
   if (terminal.options.fontSize === fontSize) return;
+  log2.info("zoom.changed", { zoom });
   terminal.options.fontSize = fontSize;
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => connection?.resize());
@@ -9519,7 +9783,10 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = focusTerminal;
-window.slzInterruptTerminal = () => terminal.input("\x1B", true);
+window.slzInterruptTerminal = () => {
+  log2.info("interrupt.requested");
+  terminal.input("\x1B", true);
+};
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
 var selectTerminal = () => window.webkit?.messageHandlers?.terminalNotification?.postMessage({

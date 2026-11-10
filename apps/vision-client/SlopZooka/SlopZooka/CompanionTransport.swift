@@ -14,7 +14,6 @@ final class CompanionTransportRoute {
     private struct Origin {
         let id: UUID
         let token: String?
-        let session: URLSession
     }
     private static var origins: [String: Origin] = [:]
     private let id = UUID()
@@ -25,21 +24,24 @@ final class CompanionTransportRoute {
     private init(endpoint: URL, listener: StreamListener?, token: String?) {
         self.endpoint = endpoint
         self.listener = listener
-        Self.origins[Self.key(endpoint)] = Origin(id: id, token: token, session: session)
+        Self.origins[Self.key(endpoint)] = Origin(id: id, token: token)
     }
 
     private static func key(_ url: URL) -> String {
         "\(url.scheme?.lowercased() ?? "http")://\(url.host?.lowercased() ?? ""):\(url.port ?? (url.scheme == "https" ? 443 : 80))"
     }
 
-    static func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
-        guard let url = request.url, let origin = origins[key(url)] else { throw URLError(.cancelled) }
-        return try await origin.session.data(for: request)
+    private var stopped = false
+    func exchange(_ request: URLRequest) async throws -> (Data, URLResponse) {
+        guard !stopped, let url = request.url, Self.key(url) == Self.key(endpoint) else { throw URLError(.cancelled) }
+        return try await session.data(for: request)
     }
 
     static func token(for url: URL) -> String? { origins[key(url)]?.token }
 
     func stop() {
+        guard !stopped else { return }
+        stopped = true
         session.invalidateAndCancel()
         // A renewed legacy route may have the same origin as its predecessor.
         // Retiring that predecessor must not revoke the new route's credential.
@@ -53,30 +55,30 @@ final class CompanionTransportRoute {
         CompanionTransportRoute(endpoint: url, listener: nil, token: token)
     }
 
-    static func localNetwork(_ url: URL, token: String?) async throws -> CompanionTransportRoute {
+    static func localNetwork(_ url: URL, token: String?, observe: @escaping StreamObservation.Sink = { _ in }) async throws -> CompanionTransportRoute {
         guard let host = url.host, let port = NWEndpoint.Port(rawValue: UInt16(exactly: url.port ?? (url.scheme == "https" ? 443 : 80)) ?? 0),
               port.rawValue > 0 else { throw URLError(.badURL) }
-        return try await open(token: token) {
+        return try await open(token: token, observe: observe) {
             NWConnection(host: NWEndpoint.Host(host), port: port, using: url.scheme == "https" ? .tls : .tcp)
         }
     }
 
-    static func direct(hostID: String, authority: Data, token: String) async throws -> CompanionTransportRoute {
+    static func direct(hostID: String, authority: Data, token: String, observe: @escaping StreamObservation.Sink = { _ in }) async throws -> CompanionTransportRoute {
         let endpoint = try await PeerDiscovery.find(hostID: hostID)
-        return try await direct(endpoint: endpoint, authority: authority, token: token)
+        return try await direct(endpoint: endpoint, authority: authority, token: token, observe: observe)
     }
 
-    static func direct(endpoint: NWEndpoint, authority: Data, token: String) async throws -> CompanionTransportRoute {
-        return try await open(token: token, readAdmission: true) {
+    static func direct(endpoint: NWEndpoint, authority: Data, token: String, observe: @escaping StreamObservation.Sink = { _ in }) async throws -> CompanionTransportRoute {
+        return try await open(token: token, readAdmission: true, observe: observe) {
             NWConnection(to: endpoint, using: try NativeStream.clientParameters(authority: authority))
         }
     }
 
-    private static func open(token: String?, readAdmission: Bool = false,
+    private static func open(token: String?, readAdmission: Bool = false, observe: @escaping StreamObservation.Sink,
                              destination: @escaping @Sendable () throws -> NWConnection) async throws -> CompanionTransportRoute {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(host: "127.0.0.1", port: .any)
-        let listener = try StreamListener(parameters: parameters, readAdmission: readAdmission, destination: destination)
+        let listener = try StreamListener(parameters: parameters, observe: observe, readAdmission: readAdmission, destination: destination)
         do {
             let port: UInt16 = try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in listener.start { continuation.resume(with: $0) } }

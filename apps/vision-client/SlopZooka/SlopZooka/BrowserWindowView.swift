@@ -13,7 +13,7 @@ struct BrowserWindowView: View {
             if let payload {
                 ZStack(alignment: .top) {
                     if let url = payload.url {
-                        PreviewWebView(url: url, certificateAuthority: payload.certificateAuthority,
+                        PreviewWebView(url: url, hostID: windows.reference(for: payload.id)?.hostID, certificateAuthority: payload.certificateAuthority,
                             loadState: $loadState, navigation: navigation,
                             reloadToken: windows.reloadToken(for: payload.id))
                             .id(payload.id)
@@ -132,6 +132,7 @@ private enum BrowserLoadState: Equatable {
 
 private struct PreviewWebView: UIViewRepresentable {
     let url: URL
+    let hostID: String?
     let certificateAuthority: String?
     @Binding var loadState: BrowserLoadState
     let navigation: BrowserNavigation
@@ -139,7 +140,7 @@ private struct PreviewWebView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator {
         Coordinator(loadState: $loadState, fallbackURL: url, reloadToken: reloadToken,
-            certificateAuthority: certificateAuthority)
+            certificateAuthority: certificateAuthority, hostID: hostID)
     }
 
     func makeUIView(context: Context) -> WKWebView {
@@ -191,8 +192,10 @@ private struct PreviewWebView: UIViewRepresentable {
         var fallbackURL: URL
         var reloadToken: Int
         var previewTrust: PreviewTrust?
+        private let log: AppLog
 
-        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL, reloadToken: Int, certificateAuthority: String?) {
+        init(loadState: Binding<BrowserLoadState>, fallbackURL: URL, reloadToken: Int, certificateAuthority: String?, hostID: String?) {
+            self.log = AppLog("preview-webview", fields: ["hostId": hostID ?? ""])
             self.loadState = loadState
             self.fallbackURL = fallbackURL
             self.reloadToken = reloadToken
@@ -229,10 +232,12 @@ private struct PreviewWebView: UIViewRepresentable {
             didFailProvisionalNavigation navigation: WKNavigation!,
             withError error: any Error
         ) {
+            log.error("navigation.failed", error: error)
             loadState.wrappedValue = .failed(error.localizedDescription)
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+            log.error("navigation.failed", error: error)
             loadState.wrappedValue = .failed(error.localizedDescription)
         }
     }

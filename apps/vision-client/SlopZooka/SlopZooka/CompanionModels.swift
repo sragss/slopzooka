@@ -6,6 +6,7 @@ struct CompanionHealthResponse: Decodable, Equatable {
     let protocolVersion: Int
     let controlOrigin: String
     let logFilePath: String
+    var diagnosticsVersion: Int? = nil
     var transport: CompanionTransportSupport? = nil
 }
 

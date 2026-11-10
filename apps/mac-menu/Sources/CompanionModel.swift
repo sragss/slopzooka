@@ -5,6 +5,8 @@ import ServiceManagement
 
 @MainActor
 final class CompanionModel: ObservableObject {
+    private let log = AppLog("supervision")
+    init() { NativeDiagnostics.shared.enableMacLogging() }
     @Published var state = "Starting"
     @Published var detail = "Getting your Mac ready"
     @Published var code = ""
@@ -27,7 +29,6 @@ final class CompanionModel: ObservableObject {
     private var child: Process?
     private var input: Pipe?
     private var output: Pipe?
-    private var stderr: FileHandle?
     private var buffer = Data()
     private var retry: Task<Void, Never>?
     private var startupDeadline: Task<Void, Never>?
@@ -39,8 +40,7 @@ final class CompanionModel: ObservableObject {
     private var quitting = false
     var onStopped: (() -> Void)?
     var logDirectory: URL {
-        if let path = ProcessInfo.processInfo.environment["SLOPZOOKA_LOG_DIR"] { return URL(fileURLWithPath: path) }
-        return FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Logs/SlopZooka")
+        NativeDiagnostics.shared.logDirectory ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".slopzooka/logs")
     }
 
     func showLogs() {
@@ -52,6 +52,7 @@ final class CompanionModel: ObservableObject {
 
     func start() {
         guard child == nil, !quitting else { return }
+        log.info("companion.start.requested")
         retry?.cancel()
         state = "Starting"
         detail = "Getting your Mac ready"
@@ -69,7 +70,10 @@ final class CompanionModel: ObservableObject {
         }
         let process = Process()
         process.executableURL = resources.appendingPathComponent("runtime/node")
-        process.arguments = [resources.appendingPathComponent("host/src/server.mjs").path]
+        process.arguments = [
+            "--require", resources.appendingPathComponent("session-runtime/bootstrap.cjs").path,
+            resources.appendingPathComponent("host/src/server.mjs").path,
+        ]
         process.currentDirectoryURL = FileManager.default.homeDirectoryForCurrentUser
         var environment = ProcessInfo.processInfo.environment
         // Finder has a minimal PATH. The host's login shells still load the user's agent configuration.
@@ -82,6 +86,9 @@ final class CompanionModel: ObservableObject {
                 environment["PATH"] ?? "/usr/bin:/bin:/usr/sbin:/sbin"
             ]).joined(separator: ":")
         environment["SLOPZOOKA_DESKTOP"] = "1"
+        environment["SLOPZOOKA_HOME"] = logDirectory.deletingLastPathComponent().path
+        environment["SLOPZOOKA_DIAGNOSTICS_DIR"] = logDirectory.path
+        environment["SLOPZOOKA_DIAGNOSTICS_ROLE"] = "mac-companion"
         process.environment = environment
         let stdin = Pipe()
         let stdout = Pipe()
@@ -89,16 +96,10 @@ final class CompanionModel: ObservableObject {
         output = stdout
         process.standardInput = stdin
         process.standardOutput = stdout
+        // Fatal startup failures use the bounded preload fallback. stdout remains
+        // the private credential-bearing control pipe and is never captured.
+        process.standardError = FileHandle.nullDevice
         do {
-            try FileManager.default.createDirectory(at: logDirectory, withIntermediateDirectories: true)
-            let log = logDirectory.appendingPathComponent("desktop-stderr.log")
-            if !FileManager.default.fileExists(atPath: log.path) {
-                FileManager.default.createFile(atPath: log.path, contents: nil)
-            }
-            let handle = try FileHandle(forWritingTo: log)
-            try handle.seekToEnd()
-            stderr = handle
-            process.standardError = handle
             stdout.fileHandleForReading.readabilityHandler = { [weak self, weak process] handle in
                 let data = handle.availableData
                 guard !data.isEmpty else {
@@ -127,12 +128,11 @@ final class CompanionModel: ObservableObject {
                 if let process { self.terminateOwnedProcess(process) }
             }
         } catch {
+            log.error("companion.launch.failed", error: error)
             output?.fileHandleForReading.readabilityHandler = nil
             child = nil
             input = nil
             output = nil
-            try? stderr?.close()
-            stderr = nil
             fail("Could not start the bundled companion. Rebuild the app or check logs.")
         }
     }
@@ -195,6 +195,7 @@ final class CompanionModel: ObservableObject {
 
     private func ended(_ process: Process) {
         guard child === process else { return }
+        log.info("companion.exited", ["status": String(process.terminationStatus), "reason": String(process.terminationReason.rawValue)])
         startupDeadline?.cancel()
         stopDeadline?.cancel()
         finishOpeningDashboard()
@@ -204,8 +205,6 @@ final class CompanionModel: ObservableObject {
         output?.fileHandleForReading.readabilityHandler = nil
         input = nil
         output = nil
-        try? stderr?.close()
-        stderr = nil
         ready = false
         code = ""
         sessions = 0
@@ -243,6 +242,7 @@ final class CompanionModel: ObservableObject {
         }
     }
     private func fail(_ message: String) {
+        log.warn("companion.unavailable", ["reason": message])
         state = "Needs attention"
         detail = message
         ready = false
@@ -283,6 +283,7 @@ final class CompanionModel: ObservableObject {
         openingDashboard = false
     }
     func restartCompanion() {
+        log.info("companion.restart.requested")
         guard let child, !quitting else { return }
         restartingCompanion = true
         ready = false
@@ -326,6 +327,7 @@ final class CompanionModel: ObservableObject {
         serviceBusy = false
     }
     func setLogin(_ enabled: Bool) {
+        log.info("login.changed", ["enabled": String(enabled)])
         do {
             if enabled { try SMAppService.mainApp.register() } else { try SMAppService.mainApp.unregister() }
             loginEnabled = SMAppService.mainApp.status == .enabled
@@ -335,6 +337,7 @@ final class CompanionModel: ObservableObject {
         } catch { loginNotice = "Could not update login settings. Move the app to Applications and try again." }
     }
     func stop() {
+        log.info("companion.stop.requested")
         quitting = true
         restartingCompanion = false
         finishServiceCommand()

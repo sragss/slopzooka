@@ -2,11 +2,14 @@ import fs from "node:fs/promises";
 import { constants } from "node:fs";
 import path from "node:path";
 import http from "node:http";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { WebSocket } from "ws";
 import { ServiceError } from "./errors.js";
+import { logContext, type Logger } from "./logger.js";
+import { resolveLogDir } from "./log-store.js";
+import type { ServerMessage } from "../../../packages/protocol/src/index.js";
 import {
   SESSION_SERVICE_VERSION,
   type ServiceInfo,
@@ -18,14 +21,20 @@ const absent = (error: unknown) =>
   ["ENOENT", "ECONNREFUSED"].includes(
     (error as NodeJS.ErrnoException).code ?? "",
   );
+type ViewerHello = Omit<Extract<ServerMessage, { type: "hello" }>, "sessions">;
 
 /** One local terminal-service client. No cached session registry or automatic mutation retries. */
 export class SessionServiceClient {
+  private serviceLogPath?: string;
   private constructor(
     readonly socketPath: string,
     private readonly home: string,
+    private readonly logger?: Logger,
   ) {}
-  static async forHome(home: string): Promise<SessionServiceClient> {
+  static async forHome(
+    home: string,
+    logger?: Logger,
+  ): Promise<SessionServiceClient> {
     await fs.mkdir(home, { recursive: true, mode: 0o700 });
     const canonical = await fs.realpath(home);
     // macOS has a short Unix-socket path limit; don't put the socket in a worktree.
@@ -50,13 +59,16 @@ export class SessionServiceClient {
     return new SessionServiceClient(
       path.join(directory, "service.sock"),
       canonical,
+      logger,
     );
   }
   get logPath(): string {
-    return path.join(this.home, "session-service.log");
+    return this.serviceLogPath ?? path.join(this.home, "session-service.log");
   }
   async info(): Promise<ServiceInfo> {
     const info = await this.request<ServiceInfo>("/info");
+    this.serviceLogPath =
+      info.logFilePath ?? path.join(this.home, "session-service.log");
     if (info.version !== SESSION_SERVICE_VERSION)
       throw new ServiceError(
         "The running session service needs an explicit update. End its sessions before restarting it.",
@@ -77,40 +89,44 @@ export class SessionServiceClient {
     let launcherExit: number | undefined;
     const launch = async () => {
       launcherExit = undefined;
-      const log = await fs.open(this.logPath, "a", 0o600);
-      try {
-        // lockf holds a kernel lock for the lifetime of its command. Competing
-        // launchers exit immediately; stale sockets are handled only by the winner.
-        const child = spawn(
-          "/usr/bin/lockf",
-          [
-            "-ks",
-            "-t",
-            "0",
-            path.join(path.dirname(this.socketPath), "service.lock"),
-            path.join(runtime, "node"),
-            path.join(runtime, "service.cjs"),
-            this.socketPath,
-            id,
-          ],
-          {
-            detached: true,
-            stdio: ["ignore", log.fd, log.fd],
-            cwd: this.home,
-            env: { PATH: process.env.PATH, HOME: process.env.HOME },
+      // lockf holds a kernel lock for the lifetime of its command. Competing
+      // launchers exit immediately; stale sockets are handled only by the winner.
+      const child = spawn(
+        "/usr/bin/lockf",
+        [
+          "-ks",
+          "-t",
+          "0",
+          path.join(path.dirname(this.socketPath), "service.lock"),
+          path.join(runtime, "node"),
+          "--require",
+          path.join(runtime, "bootstrap.cjs"),
+          path.join(runtime, "service.cjs"),
+          this.socketPath,
+          id,
+        ],
+        {
+          detached: true,
+          // The preload catches fatal bootstrap failures independently of the
+          // structured runtime. Never inherit an append-only log descriptor.
+          stdio: "ignore",
+          cwd: this.home,
+          env: {
+            PATH: process.env.PATH,
+            HOME: process.env.HOME,
+            SLOPZOOKA_DIAGNOSTICS_DIR: resolveLogDir(this.home),
+            SLOPZOOKA_DIAGNOSTICS_ROLE: "session-service",
           },
-        );
-        await new Promise<void>((resolve, reject) => {
-          child.once("spawn", resolve);
-          child.once("error", reject);
-        });
-        child.once("exit", (code) => {
-          launcherExit = code ?? -1;
-        });
-        child.unref();
-      } finally {
-        await log.close();
-      }
+        },
+      );
+      await new Promise<void>((resolve, reject) => {
+        child.once("spawn", resolve);
+        child.once("error", reject);
+      });
+      child.once("exit", (code) => {
+        launcherExit = code ?? -1;
+      });
+      child.unref();
     };
     await launch();
     const deadline = Date.now() + 8000;
@@ -123,7 +139,7 @@ export class SessionServiceClient {
       if (launcherExit !== undefined) {
         if (launcherExit !== 75)
           throw new ServiceError(
-            "Session service failed to start. See session-service.log.",
+            `Session service failed to start (exit ${launcherExit}). See diagnostics.`,
             503,
           );
         // A previous lockf may still be reaping a crashed service. Retry only
@@ -134,7 +150,7 @@ export class SessionServiceClient {
       await delay(50);
     }
     throw new ServiceError(
-      "Session service did not start. See session-service.log; existing sessions were not stopped.",
+      "Session service did not start. See diagnostics; existing sessions were not stopped.",
       503,
     );
   }
@@ -142,6 +158,20 @@ export class SessionServiceClient {
     return this.request<
       import("../../../packages/protocol/src/index.js").SessionSummary
     >("/sessions", "POST", launch);
+  }
+  async flushLogs(): Promise<boolean> {
+    const info = await this.info();
+    if (
+      !info.capabilities?.includes("diagnostics-v1") ||
+      info.logFilePath !==
+        path.join(resolveLogDir(this.home), "session-service", "current.jsonl")
+    )
+      return false;
+    const reply = await this.request<{ ok: boolean }>(
+      "/diagnostics/flush",
+      "POST",
+    );
+    return reply.ok;
   }
   end(id: string) {
     return this.request(`/sessions/${encodeURIComponent(id)}`, "DELETE");
@@ -182,6 +212,9 @@ export class SessionServiceClient {
     body?: unknown,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
+      const started = performance.now();
+      const logRoute = route.replace(/\/sessions\/[^/]+/, "/sessions/:id");
+      const actionId = logContext.current().actionId;
       const data = body === undefined ? undefined : JSON.stringify(body);
       const request = http.request(
         {
@@ -189,12 +222,17 @@ export class SessionServiceClient {
           path: route,
           method,
           agent: false,
-          headers: data
-            ? {
-                "Content-Type": "application/json",
-                "Content-Length": Buffer.byteLength(data),
-              }
-            : {},
+          headers: {
+            ...(typeof actionId === "string"
+              ? { "X-SlopZooka-Action-ID": actionId }
+              : {}),
+            ...(data
+              ? {
+                  "Content-Type": "application/json",
+                  "Content-Length": Buffer.byteLength(data),
+                }
+              : {}),
+          },
         },
         (response) => {
           const chunks: Buffer[] = [];
@@ -207,6 +245,13 @@ export class SessionServiceClient {
           });
           response.on("error", reject);
           response.on("end", () => {
+            if (method !== "GET" && !route.startsWith("/diagnostics"))
+              this.logger?.info("service.request.completed", {
+                method,
+                route: logRoute,
+                status: response.statusCode,
+                durationMs: performance.now() - started,
+              });
             try {
               const result = JSON.parse(Buffer.concat(chunks).toString());
               if (response.statusCode !== 200)
@@ -232,15 +277,25 @@ export class SessionServiceClient {
         5000,
       );
       request.once("close", () => clearTimeout(deadline));
-      request.on("error", reject);
+      request.on("error", (error) => {
+        this.logger?.warn("service.request.failed", {
+          method,
+          route: logRoute,
+          error,
+        });
+        reject(error);
+      });
       request.end(data);
     });
   }
   /** Each viewer keeps its own attachment and writer identity in SessionManager. */
-  async relay(viewer: WebSocket, hello: object): Promise<void> {
+  async relay(viewer: WebSocket, hello: ViewerHello): Promise<void> {
     // The service handshake and viewer hello come from the same live connection.
     if (viewer.readyState !== WebSocket.OPEN) return;
     const upstream = new WebSocket(`ws+unix://${this.socketPath}:/terminal`, {
+      headers: {
+        "X-SlopZooka-Connection-ID": hello.connectionId ?? randomUUID(),
+      },
       // A bounded xterm checkpoint can be larger than an ordinary output frame.
       maxPayload: 64 * 1024 * 1024,
       handshakeTimeout: 5000,

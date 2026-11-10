@@ -10,6 +10,7 @@ import { build } from "esbuild";
 import { spawn } from "node:child_process";
 import { WebSocket, WebSocketServer } from "ws";
 import { SessionServiceClient } from "../src/session-service-client.js";
+import { logContext } from "../src/logger.js";
 import { SESSION_SERVICE_VERSION } from "../src/session-service-protocol.js";
 
 const delay = (ms = 30) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -104,6 +105,11 @@ test(
       second.pid,
       "kernel lock chooses one service under concurrent startup",
     );
+    assert.equal(
+      client.logPath,
+      first.logFilePath,
+      "The retained service owns its diagnostic path",
+    );
     const launch = {
       workspaceId: "workspace",
       cwd: home,
@@ -117,6 +123,22 @@ test(
     ]);
     assert.deepEqual(sessions[0], sessions[1]);
     assert.equal((await client.info()).sessions.length, 1);
+    await logContext.run({ actionId: "fixture-launch" }, () =>
+      client.create(launch),
+    );
+    assert.equal(await client.flushLogs(), true);
+    const diagnostics = (await fs.readFile(client.logPath, "utf8"))
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+    assert.ok(
+      diagnostics.some(
+        (event) =>
+          event.event === "session.create.reused" &&
+          event.fields.actionId === "fixture-launch",
+      ),
+      "The private transport preserves action identity without creating another process",
+    );
     await client.rename("same-session", "  Shared terminal  ");
     const named = (await peer.info()).sessions[0];
     assert.equal(named.name, "Shared-terminal");
@@ -303,9 +325,18 @@ test(
     const client = await SessionServiceClient.forHome(home);
     let respond = true;
     let version = 999;
+    let logFilePath: string | undefined = undefined;
+    let capabilities: string[] = [];
     const server = http.createServer((_req, res) => {
       if (respond)
-        res.end(JSON.stringify({ version, sessions: [{ id: "keep-me" }] }));
+        res.end(
+          JSON.stringify({
+            version,
+            sessions: [{ id: "keep-me" }],
+            logFilePath,
+            capabilities,
+          }),
+        );
     });
     server.listen(client.socketPath);
     await once(server, "listening");
@@ -322,6 +353,32 @@ test(
     version = SESSION_SERVICE_VERSION;
     assert.equal((await client.info()).sessions[0].id, "keep-me");
     await assert.rejects(client.rename("keep-me", "Name"), /explicit update/);
+    assert.equal(
+      client.logPath,
+      path.join(await fs.realpath(home), "session-service.log"),
+    );
+    assert.equal(
+      await client.flushLogs(),
+      false,
+      "A legacy service cannot promise diagnostics coverage",
+    );
+    logFilePath = path.join(
+      home,
+      "previous-log-root",
+      "session-service",
+      "current.jsonl",
+    );
+    capabilities = ["diagnostics-v1"];
+    assert.equal(
+      await client.flushLogs(),
+      false,
+      "Retained writers outside the capture root remain incomplete",
+    );
+    assert.equal(
+      client.logPath,
+      logFilePath,
+      "View Logs retains the running service's actual path",
+    );
     respond = false;
     await assert.rejects(client.connectOrStart(), /timed out/);
     assert.equal(
@@ -552,7 +609,6 @@ test(
         env: {
           ...process.env,
           SLOPZOOKA_HOME: home,
-          SLOPZOOKA_LOG_DIR: home,
           SLOPZOOKA_PORT: String(port),
           SLOPZOOKA_HOST: "127.0.0.1",
           SLOPZOOKA_DESKTOP: "1",

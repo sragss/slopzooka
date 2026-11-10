@@ -3,6 +3,7 @@ swiftlint_version: 0.65.1
 included:
   - packages/transport
   - apps/mac-companion/native
+  - apps/shared
   - apps/mac-menu/Sources
   - apps/vision-client/SlopZooka/SlopZooka
 

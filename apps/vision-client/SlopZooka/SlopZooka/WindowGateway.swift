@@ -58,6 +58,7 @@ enum WindowCommand: Equatable {
 /// Views never persist payloads or call native window actions directly.
 @MainActor
 final class WindowGateway: ObservableObject {
+    private let log = AppLog("windows")
     let immersiveWorkspace = ImmersiveWorkspaceState()
     let launcher: LauncherState
     let client: CompanionClient
@@ -126,6 +127,7 @@ final class WindowGateway: ObservableObject {
     func terminalPayload(for id: String) -> TerminalWindowPayload? { windows[id]?.terminal }
 
     func rename(id: String, name: String, target: TerminalVoiceController.NameTarget = .window) async throws {
+        log.info("rename.requested", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "target": target.rawValue])
         guard canRename(id), let reference = windows[id]?.reference else {
             throw CompanionError(message: "Reconnect to this terminal before renaming it.")
         }
@@ -203,6 +205,7 @@ final class WindowGateway: ObservableObject {
 
     func open(id: String) throws {
         guard let reference = windows[id]?.reference else { throw CompanionError(message: "Reconnect to your Mac before opening this window.") }
+        log.info("window.open.requested", ["windowId": id, "hostId": reference.hostID, "kind": reference.window.kind.rawValue])
         try persistence.set(reference, isOpen: true)
         windows[id]?.error = nil
         present(reference.window, explicit: true)
@@ -219,6 +222,7 @@ final class WindowGateway: ObservableObject {
         close(reference)
     }
     func close(_ reference: WindowReference, dismiss: Bool = true) {
+        log.info("window.close.requested", ["windowId": reference.window.id, "hostId": reference.hostID, "dismiss": String(dismiss)])
         do {
             try persistence.set(reference, isOpen: false)
             remember(reference)
@@ -237,10 +241,12 @@ final class WindowGateway: ObservableObject {
         try await launchTerminal(workspaceID: payload.workspaceId, hostID: reference.hostID, profile: nil)
     }
     private func launchTerminal(workspaceID: String, hostID: String, profile: String?) async throws {
-        let result = try await client.launchSession(hostID: hostID, workspaceID: workspaceID, sessionID: UUID().uuidString, profile: profile)
-        try Task.checkCancellation()
-        registerTerminal(result.session, hostID: hostID)
-        try open(id: result.session.id)
+        try await log.operation("session.launch", ["workspaceId": workspaceID, "hostId": hostID]) {
+            let result = try await client.launchSession(hostID: hostID, workspaceID: workspaceID, sessionID: UUID().uuidString, profile: profile)
+            try Task.checkCancellation()
+            registerTerminal(result.session, hostID: hostID)
+            try open(id: result.session.id)
+        }
     }
     func endSession(id: String) async throws {
         guard let reference = windows[id]?.reference else { return }
@@ -250,6 +256,7 @@ final class WindowGateway: ObservableObject {
 
     /// Reload content while preserving native scenes, placement, and running PTYs.
     func reload(id: String? = nil) {
+        log.info("content.reload.requested", ["windowId": id ?? "all", "hostId": id.flatMap { windows[$0]?.reference?.hostID } ?? client.current?.id ?? ""])
         for windowID in id.map({ [$0] }) ?? windows.compactMap({ $0.value.isPresented ? $0.key : nil }) {
             windows[windowID]?.invalidateContent()
         }
@@ -259,6 +266,9 @@ final class WindowGateway: ObservableObject {
     // Called only by WindowScene. Presence is ephemeral and never writes close intent.
     func observe(id: String?, isPresented: Bool, isFocused: Bool) {
         guard let id else { return }
+        if windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused {
+            log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
+        }
         windows[id, default: WindowState()].openRequested = true // A background scene is also already restored.
         windows[id]?.isPresented = isPresented
         windows[id]?.isFocused = isFocused
@@ -291,7 +301,10 @@ final class WindowGateway: ObservableObject {
         for hostID in client.knownHostIDs {
             do {
                 try await persistence.synchronize(hostID: hostID, client: client)
-            } catch { firstError = firstError ?? "Window recovery needs attention: \(error.localizedDescription)" }
+            } catch {
+                log.error("recovery.failed", error: error, ["hostId": hostID])
+                firstError = firstError ?? "Window recovery needs attention: \(error.localizedDescription)"
+            }
             restoreWindows(hostID: hostID)
             for record in persistence.windows(hostID: hostID) where record.kind == .preview {
                 resolve(record, hostID: hostID)
@@ -314,7 +327,9 @@ final class WindowGateway: ObservableObject {
                 windows[record.id]?.content = .preview(payload, revision: revision)
                 windows[record.id]?.error = nil
             } catch {
-                if !Task.isCancelled, reloadToken(for: record.id) == revision { windows[record.id]?.error = error.localizedDescription }
+                guard !Task.isCancelled, reloadToken(for: record.id) == revision else { return }
+                log.error("preview.resolve.failed", error: error, ["hostId": hostID, "windowId": record.id, "revision": String(revision)])
+                windows[record.id]?.error = error.localizedDescription
             }
         }
         windows[record.id]?.previewRequest = (revision, task)

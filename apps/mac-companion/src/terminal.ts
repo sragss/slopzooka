@@ -3,6 +3,7 @@ import { Terminal } from "@xterm/xterm";
 import "@xterm/xterm/css/xterm.css";
 import { TerminalConnection } from "./terminal-connection.js";
 import { bindTerminalTextInput } from "./terminal-text-input.js";
+import { browserLog } from "./browser-logger.js";
 
 const mount = document.querySelector<HTMLElement>("#terminal")!;
 const overlay = document.querySelector<HTMLElement>("#connection-overlay")!;
@@ -40,6 +41,7 @@ function focusTerminal(showKeyboard = false) {
   terminal.focus();
 }
 const sessionId = new URLSearchParams(location.search).get("sessionId");
+const log = browserLog("terminal", { sessionId });
 const connection = sessionId
   ? new TerminalConnection(
       terminal,
@@ -65,6 +67,7 @@ const connection = sessionId
           audible,
         });
       },
+      log,
     )
   : undefined;
 document.title = sessionId
@@ -89,6 +92,7 @@ window.slzSetTerminalZoom = (zoom) => {
   if (!Number.isFinite(zoom) || zoom < 0.1 || zoom > 2) return;
   const fontSize = 16 * zoom;
   if (terminal.options.fontSize === fontSize) return;
+  log.info("zoom.changed", { zoom });
   terminal.options.fontSize = fontSize;
   cancelAnimationFrame(resizeFrame);
   resizeFrame = requestAnimationFrame(() => connection?.resize());
@@ -108,7 +112,10 @@ window.addEventListener("pageshow", (event) => {
 window.slzFocusTerminal = focusTerminal;
 // Synthetic keydowns make xterm focus its textarea, reopening the keyboard.
 // Direct input uses the same onData/ownership path without changing focus.
-window.slzInterruptTerminal = () => terminal.input("\u001b", true);
+window.slzInterruptTerminal = () => {
+  log.info("interrupt.requested");
+  terminal.input("\u001b", true);
+};
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
 // Only user interaction acknowledges an alert; programmatic focus/reconnect does not.
@@ -129,6 +136,7 @@ declare global {
       messageHandlers?: {
         terminalState?: { postMessage: (value: unknown) => void };
         terminalNotification?: { postMessage: (value: unknown) => void };
+        diagnostics?: { postMessage: (value: unknown) => void };
       };
     };
   }

@@ -61,7 +61,8 @@ test(
         "apps/vision-client/SlopZooka/SlopZooka/CompanionClient.swift",
         "apps/vision-client/SlopZooka/SlopZooka/CompanionModels.swift",
         "apps/vision-client/SlopZooka/SlopZooka/WindowPersistence.swift",
-        "apps/vision-client/SlopZooka/SlopZooka/AppDebugLog.swift",
+        "apps/shared/Diagnostics.swift",
+        "apps/shared/NativeLogFile.swift",
         "apps/vision-client/tests/TransportFixture.swift",
         "-o",
         binary,
@@ -91,10 +92,13 @@ test(
     pairing.install(app);
     let requests = 0;
     let transportVersion: number | undefined;
+    let failDiagnostics = true;
+    const uploads: any[] = [];
     app.get("/health", (req, res) =>
       res.json({
         hostId: "fixture",
         paired: pairing.authorized(req),
+        diagnosticsVersion: 1,
         protocolVersion: 1,
         controlOrigin: "http://fixture.local",
         logFilePath: "",
@@ -103,6 +107,13 @@ test(
           : {}),
       }),
     );
+    app.post("/api/diagnostics/events", (req, res) => {
+      assert.equal(req.header("X-SlopZooka-Host-ID"), "fixture");
+      assert.ok(pairing.authorized(req));
+      uploads.push(req.body);
+      res.status(failDiagnostics ? 503 : 200).json({ ok: !failDiagnostics });
+      failDiagnostics = false;
+    });
     app.get("/api/sessions", (_req, res) => res.json({ sessions: [] }));
     app.get("/api/frontends", (_req, res) => res.json({ frontends: [] }));
     app.use((_req, _res, next) => {
@@ -190,8 +201,28 @@ test(
 
     for (const version of [undefined, 1]) {
       transportVersion = version;
+      failDiagnostics = true;
+      uploads.length = 0;
       const { stdout } = await exec(binary, [base, token, "client"]);
       const accepted = JSON.parse(stdout.trim()).url;
+      assert.ok(uploads.length >= 2, "Failed native upload must be retried");
+      const ids = (body: any) =>
+        body.events.map(
+          (event: any) => `${event.instanceId}:${event.sequence}`,
+        );
+      assert.ok(
+        ids(uploads[0]).every((id: string) => ids(uploads[1]).includes(id)),
+        "Unacknowledged event identities survive retry",
+      );
+      const serialized = JSON.stringify(uploads);
+      assert.ok(
+        !serialized.includes(token),
+        "Diagnostics never include credentials",
+      );
+      assert.ok(
+        !serialized.includes('"route":"/api/diagnostics/events"'),
+        "Log delivery must not trace itself",
+      );
       assert.equal(
         accepted === base,
         version === undefined,
@@ -230,6 +261,25 @@ test(
               signal: AbortSignal.timeout(1500),
             }),
           );
+          await until(() => output.includes('"event":"stream.failed"'));
+          await assert.rejects(
+            fetch(url + "/api/check", {
+              headers,
+              signal: AbortSignal.timeout(1500),
+            }),
+          );
+          const samples = output
+            .split("\n")
+            .filter((line) => line.includes('"event":"stream.failed"'))
+            .map((line) => JSON.parse(line));
+          assert.equal(
+            samples.length,
+            1,
+            "Repeated TLS failures are sampled once per stage and route",
+          );
+          assert.equal(samples[0].fields.stage, "outgoing");
+          assert.ok(samples[0].fields.errorCode);
+          assert.ok(!JSON.stringify(samples).includes(token));
           assert.equal(
             requests,
             before,
@@ -302,7 +352,7 @@ test(
           "Route replacement never creates a terminal process",
         );
       } catch (error) {
-        throw new Error(`${mode}: ${String(error)}\n${errors}`);
+        throw new Error(`${mode}: ${String(error)}\n${errors}\n${output}`);
       } finally {
         fixture.stdin.end();
         await closed;
@@ -335,9 +385,23 @@ test("presentation support follows the accepting route, not a spoofed header or 
       ...webPresentation(req, frontend),
     }),
   );
+  const upgrades = new WebSocketServer({ noServer: true });
+  t.after(() => upgrades.close());
+  const upgrade = (
+    req: http.IncomingMessage,
+    socket: import("node:stream").Duplex,
+    head: Buffer,
+  ) => {
+    upgrades.handleUpgrade(req, socket, head, (ws) => {
+      ws.send(connectionMethod(req));
+      ws.close();
+    });
+  };
+  const lan = http.createServer(app);
+  lan.on("upgrade", upgrade);
   for (const [server, method] of [
-    [http.createServer(app), "localNetwork"],
-    [createPeerIngress(app, (_req, socket) => socket.destroy()), "direct"],
+    [lan, "localNetwork"],
+    [createPeerIngress(app, upgrade), "direct"],
   ] as const) {
     const base = await listen(server);
     t.after(() => {
@@ -353,6 +417,19 @@ test("presentation support follows the accepting route, not a spoofed header or 
       })
     ).json()) as any;
     assert.equal(result.method, method);
+    const ws = new WebSocket(base, {
+      headers: {
+        "X-SlopZooka-Transport":
+          method === "direct" ? "localNetwork" : "direct",
+      },
+    });
+    const [acceptedMethod] = await once(ws, "message");
+    assert.equal(
+      acceptedMethod.toString(),
+      method,
+      "Upgrade attribution follows the accepting listener too",
+    );
+    await once(ws, "close");
     const { method: _acceptedMethod, ...presentation } = result;
     assert.deepEqual(presentation, presentations[method]);
     assert.equal(result.available, method === "localNetwork");

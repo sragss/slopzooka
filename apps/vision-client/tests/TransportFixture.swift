@@ -15,10 +15,21 @@ struct TransportFixture {
             var values: [String: String] = [:]
             let credentials = CompanionCredentials(read: { values[$0] }, write: { values[$0] = $1 })
             try credentials.pair(remote, hostID: "fixture", token: token)
-            let client = CompanionClient(defaults: defaults, credentials: credentials)
+            let diagnostics = NativeDiagnostics()
+            let client = CompanionClient(defaults: defaults, credentials: credentials, diagnostics: diagnostics)
             client.host = remote.absoluteString
             guard await client.connect(), await client.connect() else { throw URLError(.cannotConnectToHost) }
             _ = try await client.sessions(hostID: "fixture")
+            // Deliver a failed batch, then retry the same identities on the
+            // route-owned native adapter. Successful idle flushes stay silent.
+            await Task.yield()
+            await client.flushDiagnostics()
+            await client.flushDiagnostics()
+            await Task.yield()
+            await client.flushDiagnostics()
+            precondition(diagnostics.pendingCount == 0)
+            for _ in 0..<3 { await client.flushDiagnostics() }
+            precondition(diagnostics.pendingCount == 0)
             let endpoint = try client.endpoint(for: "fixture")
             print("{\"url\":\"\(endpoint.absoluteString)\"}"); fflush(stdout)
             return
@@ -40,17 +51,25 @@ struct TransportFixture {
             peerEndpoint = .hostPort(host: "127.0.0.1", port: NWEndpoint.Port(rawValue: port)!)
             authority = try Data(contentsOf: URL(fileURLWithPath: args[4]))
         }
+        let observe: StreamObservation.Sink = { observation in
+            let data = try! JSONSerialization.data(withJSONObject: ["event": observation.event, "fields": observation.fields])
+            FileHandle.standardOutput.write(data + Data([10]))
+        }
         func open() async throws -> CompanionTransportRoute {
             if let peerEndpoint, let authority {
-                return try await CompanionTransportRoute.direct(endpoint: peerEndpoint, authority: authority, token: token)
+                return try await CompanionTransportRoute.direct(endpoint: peerEndpoint, authority: authority, token: token, observe: observe)
             }
-            return try await CompanionTransportRoute.localNetwork(remote, token: token)
+            return try await CompanionTransportRoute.localNetwork(remote, token: token, observe: observe)
         }
         var route = try await open()
         func report() { print("{\"url\":\"\(route.endpoint.absoluteString)\"}"); fflush(stdout) }
         report()
         for try await command in FileHandle.standardInput.bytes.lines {
-            if command == "stop" { route.stop(); print("{\"stopped\":true}"); fflush(stdout) }
+            if command == "stop" {
+                route.stop()
+                do { _ = try await route.exchange(URLRequest(url: route.endpoint)); preconditionFailure("Retired route must reject sends") }
+                catch { precondition((error as? URLError)?.code == .cancelled) }
+                print("{\"stopped\":true}"); fflush(stdout) }
             if command == "restart" { route.stop(); route = try await open(); report() }
         }
         route.stop()

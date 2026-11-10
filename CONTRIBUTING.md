@@ -64,14 +64,39 @@ recommended JavaScript and TypeScript correctness rules, with additional promise
 `await`, and exhaustive-switch checks on companion and shared protocol sources.
 Tests use the recommended rules without typed linting and allow `any` for test
 doubles; unused arguments and caught errors can be prefixed with `_`. SwiftLint
-uses the explicit correctness-rule list in `.swiftlint.yml` for both native apps,
-including image accessibility and private SwiftUI state. A custom rule keeps the
+uses the explicit correctness-rule list in `.swiftlint.yml` for both native apps
+and their shared runtime, including image accessibility and private SwiftUI state. A custom rule keeps the
 headset's native window actions in `WindowScene.swift`; `lint:swift` also checks
 that rule against allowed and rejected examples. Both production Swift builds
 enable complete concurrency checking and treat Swift compiler warnings as errors.
 Generated browser assets are excluded. Keep formatting with Prettier, and document
 intentional rule exceptions at the relevant line rather than disabling checks
 across a file.
+
+### Logging
+
+Use a scoped logger at the existing behavior owner. Node processes create one
+runtime with `createDiagnostics`; components receive `diagnostics.logger("component")`.
+Only process bootstrap and diagnostics routes access `diagnostics.store`.
+Browser components use `browserLog("component")`; native components use
+`AppLog("component")`. Bind stable IDs with `child`, use named events and structured
+flat scalar metadata, and pass `Error` values directly. Use `logError` for unknown
+catch values; rich errors retain name, message, stack, code, and bounded causes.
+Node request boundaries establish action/request correlation with `logContext.run`;
+scoped loggers read that context. Native `AppLog.operation` records duration and
+outcome and carries its action ID through native requests. Never log raw
+input, transcripts, credentials, request bodies, or environment dumps. Summarize
+high-volume traffic rather than adding events to every output/ack/input frame.
+
+The diagnostic envelope and native bridge fixture live in `packages/protocol`.
+`pnpm test` exercises storage, intake, redaction, clock observations, bootstrap failures, and incident export;
+`pnpm test:vision-state` also checks native buffering and authenticated retries.
+Both native apps compile the UI-independent runtime and file sink in `apps/shared`.
+Only the debug panel observes `NativeDiagnostics.recentEntries`. Outbox routing,
+clock calibration, and delivery do not publish UI updates. Both Node and native
+writers begin fresh segments after startup or write failure, reserve a whole
+segment’s capacity, and prune only when opening a segment. The native file actor
+serializes disk work off the main actor. Logs always belong to `SLOPZOOKA_HOME/logs`.
 
 ## Verify
 

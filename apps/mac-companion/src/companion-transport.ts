@@ -1,4 +1,5 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fs from "node:fs/promises";
 import http, { type IncomingMessage } from "node:http";
 import path from "node:path";
@@ -8,6 +9,8 @@ import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import type { Express } from "express";
 import type { Logger } from "./logger.js";
+import { logError } from "../../../packages/protocol/src/diagnostics.js";
+import { TransportHelperDecoder } from "./transport-helper.js";
 import { PreviewTLS } from "./preview-tls.js";
 
 export type Upgrade = (
@@ -22,7 +25,10 @@ export function createPeerIngress(app: Express, upgrade: Upgrade): http.Server {
     peerRequests.add(req);
     app(req, res);
   });
-  server.on("upgrade", upgrade);
+  server.on("upgrade", (req, socket, head) => {
+    peerRequests.add(req);
+    upgrade(req, socket, head);
+  });
   return server;
 }
 export const connectionMethod = (req: IncomingMessage) =>
@@ -71,6 +77,7 @@ export class CompanionTransport {
 
   private scheduleRetry() {
     if (this.stopped || this.retry) return;
+    this.logger.info("helper.retry.scheduled", { delayMs: this.retryDelay });
     this.retry = setTimeout(() => {
       this.retry = undefined;
       void this.start();
@@ -80,7 +87,12 @@ export class CompanionTransport {
   }
 
   private async startAttempt(): Promise<void> {
-    if (this.stopped || this.ready || process.env.SLOPZOOKA_DIRECT === "0")
+    if (
+      this.stopped ||
+      this.ready ||
+      this.child ||
+      process.env.SLOPZOOKA_DIRECT === "0"
+    )
       return;
     // Memory-only TLS identity import requires macOS 15 (Darwin 24).
     if (
@@ -88,6 +100,9 @@ export class CompanionTransport {
       Number(os.release().split(".")[0]) < 24
     )
       return;
+    const started = performance.now();
+    const helperId = randomUUID();
+    this.logger.info("helper.starting", { helperId });
     const binary = fileURLToPath(
       new URL("../native/transport-host", import.meta.url),
     );
@@ -150,11 +165,17 @@ export class CompanionTransport {
           { stdio: ["pipe", "pipe", "pipe"] },
         );
         this.child = child;
+        const context = { helperId, pid: child.pid };
+        let renewing = false;
         // Rotate the leaf before expiry while retaining the paired CA. This uses
         // the same helper recovery path as an exit; PTYs remain in their service.
         clearTimeout(this.renewal);
         this.renewal = setTimeout(
-          () => child.stdin.end(),
+          () => {
+            renewing = true;
+            this.logger.info("helper.renewing", context);
+            child.stdin.end();
+          },
           Math.max(
             1000,
             Math.min(
@@ -165,52 +186,98 @@ export class CompanionTransport {
         );
         this.renewal.unref();
         this.closed = new Promise((resolve) =>
-          child.once("close", () => {
+          child.once("close", (code, signal) => {
+            clearTimeout(this.renewal);
+            if (this.child === child) this.child = undefined;
             this.ready = false;
+            this.logger[this.stopped || renewing ? "info" : "warn"](
+              "helper.exited",
+              {
+                ...context,
+                code,
+                signal,
+                expected: this.stopped || renewing,
+                durationMs: Math.round(performance.now() - started),
+              },
+            );
             this.scheduleRetry();
             resolve();
           }),
         );
         child.stdin.on("error", () => {});
-        child.stderr.on("data", () => {}); // TLS diagnostics never include HTTP payloads in application logs.
+        child.stderr.on("data", () => {}); // Only typed stdout metadata enters application logs.
         await new Promise<void>((resolve, reject) => {
+          let awaitingReady = true;
           const timer = setTimeout(() => {
+            awaitingReady = false;
             child.stdin.end();
             reject(new Error("Direct ingress startup timed out"));
           }, 8_000);
           child.once("error", (error) => {
+            awaitingReady = false;
             clearTimeout(timer);
             reject(error);
           });
           child.once("close", () => {
+            awaitingReady = false;
             clearTimeout(timer);
             reject(new Error("Direct ingress unavailable"));
           });
-          let output = "";
-          child.stdout.on("data", (data: Buffer) => {
-            output = (output + data.toString()).slice(-4096);
-            if (!output.includes('"ready":true')) return;
+          const decoder = new TransportHelperDecoder((message) => {
+            if (message.type === "observation") {
+              this.logger[message.event.endsWith("failed") ? "warn" : "info"](
+                message.event,
+                { ...context, ...message.fields },
+              );
+              return;
+            }
+            if (!awaitingReady || this.stopped) return;
+            awaitingReady = false;
             clearTimeout(timer);
-            this.ready = !this.stopped;
+            this.ready = true;
             this.retryDelay = 1000;
+            this.logger.info("helper.ready", {
+              ...context,
+              port: message.port,
+              durationMs: Math.round(performance.now() - started),
+            });
             resolve();
+          });
+          let invalid = false;
+          child.stdout.on("data", (data: Buffer) => {
+            if (invalid) return;
+            try {
+              decoder.push(data);
+            } catch (error) {
+              invalid = true;
+              awaitingReady = false;
+              this.ready = false;
+              clearTimeout(timer);
+              this.logger.warn("helper.protocol.failed", {
+                ...context,
+                error: logError(error),
+              });
+              child.stdin.end();
+              reject(error);
+            }
           });
         });
       } finally {
         await fs.rm(temporary, { recursive: true, force: true });
       }
     } catch (error) {
-      this.logger.info(
-        "Direct transport unavailable; Local Network remains available",
-        {
-          error: error instanceof Error ? error.message : String(error),
-        },
-      );
+      this.logger.warn("helper.unavailable", {
+        helperId,
+        error: logError(error),
+        durationMs: Math.round(performance.now() - started),
+      });
     }
   }
 
   async stop(): Promise<void> {
+    if (this.stopped) return;
     this.stopped = true;
+    this.logger.info("transport.stopping");
     clearTimeout(this.retry);
     clearTimeout(this.renewal);
     this.ready = false;
