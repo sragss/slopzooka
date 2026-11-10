@@ -6,6 +6,13 @@ struct CompanionHealthResponse: Decodable, Equatable {
     let protocolVersion: Int
     let controlOrigin: String
     let logFilePath: String
+    var transport: CompanionTransportSupport? = nil
+}
+
+struct CompanionTransportSupport: Decodable, Equatable {
+    let version: Int
+    let direct: Bool
+    let certificateAuthority: String?
 }
 
 struct RecentReposResponse: Decodable {
@@ -104,8 +111,16 @@ struct FrontendSummary: Decodable, Identifiable {
     let project: String?
     let workspaceId: String?
     let workspaceVisible: Bool?
+    var presentation: PresentationAvailability? = nil
     var displayTitle: String { title ?? hostname }
     var isService: Bool { category == "service" }
+}
+struct PresentationAvailability: Decodable {
+    let presentation: String
+    let available: Bool
+    let reasonCode: String?
+    let message: String?
+    let alternatives: [String]
 }
 struct FrontendCatalog: Decodable {
     let frontends: [FrontendSummary]

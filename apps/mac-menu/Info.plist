@@ -13,5 +13,5 @@
     <key>LSUIElement</key><true/>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSLocalNetworkUsageDescription</key><string>Connect Vision Pro to this Mac and its local development servers.</string>
-    <key>NSBonjourServices</key><array><string>_slopzooka._tcp</string></array>
+    <key>NSBonjourServices</key><array><string>_slopzooka._tcp</string><string>_slz-direct._tcp</string></array>
 </dict></plist>

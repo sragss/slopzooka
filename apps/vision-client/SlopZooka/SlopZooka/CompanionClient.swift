@@ -9,6 +9,7 @@ import Security
 final class CompanionClient: NSObject, ObservableObject {
     typealias Exchange = @MainActor (URLRequest) async throws -> (Data, URLResponse)
     private let exchange: Exchange
+    private let usesNativeTransport: Bool
     private let defaults: UserDefaults
     private let credentials: CompanionCredentials
     private struct Route: Equatable {
@@ -16,24 +17,36 @@ final class CompanionClient: NSObject, ObservableObject {
         let revision = UUID()
         let health: CompanionHealthResponse
         let paired: Bool
+        let remoteEndpoint: URL
+        let transport: CompanionTransportRoute?
+        let method: ConnectionMethod
+        static func == (lhs: Route, rhs: Route) -> Bool { lhs.revision == rhs.revision }
     }
     private var routes: [String: Route] = [:]
     private var selection = UUID()
+    private var selectedIdentity: String?
     private var currentRoute: Route? { current.flatMap { routes[$0.id] } }
 
-    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, exchange: @escaping Exchange = { try await URLSession.shared.data(for: $0) }) {
-        self.exchange = exchange
+    init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, exchange: Exchange? = nil) {
+        self.exchange = exchange ?? { try await CompanionTransportRoute.exchange($0) }
+        self.usesNativeTransport = exchange == nil
+        let lastHost = defaults.string(forKey: "companionHostID")
+        self.selectedIdentity = lastHost
+        self.connectionMethod = lastHost.flatMap { defaults.string(forKey: "connectionMethod:\($0)") }.flatMap(ConnectionMethod.init(rawValue:)) ?? .localNetwork
         self.defaults = defaults
         self.credentials = credentials ?? .live
         super.init()
         browser.delegate = self
     }
 
-    deinit {
+    isolated deinit {
+        for route in routes.values { route.transport?.stop() }
+        pendingTransport?.cancel()
         sessionPoll?.cancel()
         for task in frontendPolls.values { task.cancel() }
     }
 
+    @Published private(set) var connectionMethod: ConnectionMethod
     @Published var host = ""
     @Published var pairingCode = ""
     @Published private(set) var current: ConnectedHost?
@@ -44,6 +57,7 @@ final class CompanionClient: NSObject, ObservableObject {
     @Published private(set) var companions: [DiscoveredCompanion] = []
     @Published private(set) var discoveryError: String?
     @Published private var frontendCatalogs: [String: FrontendCatalog] = [:]
+    var onRouteRetiring: ((String) -> Void)?
     var onConnected: ((ConnectedHost) -> Void)?
     var onSessionSnapshot: ((HostSessionsResponse, ConnectedHost) async -> Void)?
     private let browser = NetServiceBrowser()
@@ -52,13 +66,39 @@ final class CompanionClient: NSObject, ObservableObject {
     private var frontendPolls: [String: Task<Void, Never>] = [:]
     private var refreshingFrontends: [String: UUID] = [:]
     private var connecting = false
+    private var pendingTransport: Task<CompanionTransportRoute, Error>?
+    private var retryAfter = Date.distantPast
+    private var retryDelay: TimeInterval = 1
     private var refreshingSessions: [String: (route: UUID, request: UUID)] = [:]
     private var pendingHosts: [String] = []
+    private var selectedHostID: String? { selectedIdentity }
+    var connectionDescription: String {
+        isReady ? "Connected via \(currentRoute?.method.title ?? connectionMethod.title)" : "\(connectionMethod.title) · Not connected"
+    }
     var normalizedHost: String { host.trimmingCharacters(in: .whitespacesAndNewlines) }
     var health: CompanionHealthResponse? { currentRoute?.health }
     var knownHostIDs: Set<String> { Set(routes.keys) }
     // URL access is limited to content adapters; control callers address the host.
     func endpoint(for hostID: String) throws -> URL { try route(for: hostID).endpoint }
+    func previewHostname(for hostID: String) throws -> String {
+        guard let host = try route(for: hostID).remoteEndpoint.host else { throw URLError(.badURL) }
+        return host.contains(":") ? "[\(host)]" : host
+    }
+    func frontendOpenError(id: String, hostID: String) -> String? {
+        guard let route = routes[hostID], route.paired, current?.id != hostID || isReady else {
+            return "Reconnect to this Mac before opening a preview."
+        }
+        guard let frontend = frontendCatalogs[hostID]?.frontends.first(where: { $0.id == id }) else {
+            return "Wait for this connection’s frontend list to refresh."
+        }
+        if let result = frontend.presentation { return result.available ? nil : result.message ?? "Preview unavailable on this connection." }
+        // Explicit compatibility for older LAN companions only. Unknown new
+        // capability combinations must not turn a stale catalog into permission.
+        guard route.method == .localNetwork, route.health.transport?.version != 1 else {
+            return "Update the Mac companion and headset app together to open previews."
+        }
+        return frontend.status == "stopped" ? "Start this app on your Mac first." : nil
+    }
     private func route(for hostID: String) throws -> Route {
         guard let route = routes[hostID] else { throw URLError(.cannotFindHost) }
         return route
@@ -72,7 +112,7 @@ final class CompanionClient: NSObject, ObservableObject {
     func start() {
         guard sessionPoll == nil else { return }
         host = defaults.string(forKey: "companionHost") ?? ""
-        browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.")
+        if connectionMethod == .localNetwork { browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.") }
         sessionPoll = poll { client in
             if client.current == nil { await client.maybeAutoConnect(candidateHosts: []) }
             else { await client.refreshSessions() }
@@ -94,24 +134,63 @@ final class CompanionClient: NSObject, ObservableObject {
         frontendPolls[hostID] = poll { await $0.refreshFrontends(hostID: hostID) }
     }
 
-    func accept(_ health: CompanionHealthResponse, endpoint: URL, authenticated: Bool) throws {
+    func accept(_ health: CompanionHealthResponse, endpoint: URL, authenticated: Bool,
+                remoteEndpoint: URL? = nil, transport: CompanionTransportRoute? = nil) throws {
         guard health.protocolVersion == 1 else {
             throw CompanionError(message: "Update the companion and headset app together")
         }
         frontendCatalogs.removeValue(forKey: health.hostId)
         refreshingFrontends.removeValue(forKey: health.hostId)
         selection = UUID()
-        let route = Route(endpoint: endpoint, health: health, paired: authenticated)
+        routes[health.hostId]?.transport?.stop()
+        let route = Route(endpoint: endpoint, health: health, paired: authenticated,
+            remoteEndpoint: remoteEndpoint ?? endpoint, transport: transport, method: connectionMethod)
         routes[health.hostId] = route
         let target = ConnectedHost(id: health.hostId, revision: route.revision)
         current = target
+        selectedIdentity = health.hostId
         needsPairing = !authenticated
         healthState = .success
         onConnected?(target)
         if sessionPoll != nil { startFrontendPoll(hostID: health.hostId) }
     }
 
+    func setConnectionMethod(_ method: ConnectionMethod) async {
+        guard method != connectionMethod else { return }
+        let id = selectedHostID
+        connectionMethod = method
+        if let id, credentials.read("host:\(id)") != nil { defaults.set(method.rawValue, forKey: "connectionMethod:\(id)") }
+        selection = UUID()
+        pendingTransport?.cancel()
+        retryAfter = .distantPast
+        retryDelay = 1
+        pendingHosts.removeAll()
+        browser.stop()
+        for service in services.values { service.stop() }
+        services.removeAll()
+        companions.removeAll()
+        if let id {
+            onRouteRetiring?(id)
+            routes.removeValue(forKey: id)?.transport?.stop()
+            frontendCatalogs.removeValue(forKey: id)
+            refreshingFrontends.removeValue(forKey: id)
+            frontendPolls.removeValue(forKey: id)?.cancel()
+        }
+        current = nil
+        needsPairing = false
+        if method == .localNetwork { browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.") }
+        await connect()
+    }
+
     func select(_ address: String) async {
+        if let url = Self.baseURL(host: address), let id = credentials.hostID(for: url), id != selectedHostID {
+            current = nil
+            selectedIdentity = id
+            defaults.set(id, forKey: "companionHostID")
+            connectionMethod = defaults.string(forKey: "connectionMethod:\(id)").flatMap(ConnectionMethod.init(rawValue:)) ?? .localNetwork
+            browser.stop()
+            if connectionMethod == .localNetwork { browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.") }
+        }
         host = address
         pairingCode = ""
         pairingError = nil
@@ -119,6 +198,14 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     func maybeAutoConnect(candidateHosts: [String]) async {
+        guard Date() >= retryAfter else { return }
+        if connectionMethod == .direct {
+            guard !connecting else { return }
+            connecting = true
+            defer { connecting = false }
+            await connect()
+            return
+        }
         let candidates = connecting ? candidateHosts : [normalizedHost] + candidateHosts
         for candidate in candidates where !candidate.isEmpty && !pendingHosts.contains(candidate) {
             if connecting && candidate == normalizedHost { continue }
@@ -134,7 +221,7 @@ final class CompanionClient: NSObject, ObservableObject {
                 return
             }
             host = candidate
-            if await connect() || host != candidate {
+            if await connect(expectedHostID: defaults.string(forKey: "companionHostID")) || host != candidate {
                 pendingHosts.removeAll()
                 return
             }
@@ -142,22 +229,79 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     @discardableResult
-    func connect() async -> Bool {
+    func connect(expectedHostID: String? = nil) async -> Bool {
+        pendingTransport?.cancel()
         selection = UUID()
         let attempt = selection
-        guard let base = Self.baseURL(host: normalizedHost) else {
+        guard let remote = Self.baseURL(host: normalizedHost) else {
             healthState = .failure("Enter a valid companion host")
             return false
         }
         needsPairing = false
         pairingError = nil
         healthState = .checking
+        var transport: CompanionTransportRoute?
+        var acceptedTransport = false
+        defer { if !acceptedTransport { transport?.stop() } }
         do {
-            let health: CompanionHealthResponse = try await request(base: base, path: "/health", timeout: 4)
+            let expectedHost = selectedHostID
+            let method = connectionMethod
+            let directToken = expectedHost.flatMap { credentials.read("host:\($0)") }
+            let authority = expectedHost.flatMap { credentials.read("transportCA:\($0)") }.flatMap { Data(base64Encoded: $0) }
+            if method == .direct, expectedHost == nil || directToken == nil || authority == nil {
+                throw CompanionError(message: "Reconnect using Local Network with an updated Mac companion first to prepare Direct to Mac.")
+            }
+            if usesNativeTransport {
+                let localToken = credentials.token(for: remote)
+                let task = Task {
+                    switch method {
+                    case .localNetwork: return try await CompanionTransportRoute.localNetwork(remote, token: localToken)
+                    case .direct:
+                        guard let expectedHost, let directToken, let authority else { throw URLError(.userAuthenticationRequired) }
+                        return try await CompanionTransportRoute.direct(hostID: expectedHost, authority: authority, token: directToken)
+                    }
+                }
+                pendingTransport = task
+                transport = try await task.value
+            }
+            guard selection == attempt, !Task.isCancelled else { return false }
+            var base = transport?.endpoint ?? remote
+            let health: CompanionHealthResponse = try await request(base: base, path: "/health", timeout: connectionMethod == .direct ? 15 : 4)
             guard !Task.isCancelled, selection == attempt else { return false }
-            let authenticated = health.paired && credentials.token(for: base) != nil
-            if authenticated { try credentials.migrate(base, hostID: health.hostId) }
-            try accept(health, endpoint: base, authenticated: authenticated)
+            if (connectionMethod == .direct && health.hostId != expectedHost) || (expectedHostID != nil && health.hostId != expectedHostID) {
+                throw CompanionError(message: "The connection did not authenticate the selected Mac.")
+            }
+            if connectionMethod == .direct {
+                guard health.transport?.version == 1 else {
+                    throw CompanionError(message: "Update the Mac companion and headset app together to use Direct to Mac.")
+                }
+                guard health.paired else {
+                    throw CompanionError(message: "Pair again using Local Network before using Direct to Mac.", statusCode: 401)
+                }
+            }
+            let authenticated = health.paired && (CompanionTransportRoute.token(for: base) ?? credentials.token(for: remote)) != nil
+            if authenticated, connectionMethod == .localNetwork {
+                try credentials.migrate(remote, hostID: health.hostId)
+                if let support = health.transport, support.version == 1, let authority = support.certificateAuthority {
+                    try credentials.write("transportCA:\(health.hostId)", authority)
+                }
+            }
+            if usesNativeTransport, method == .localNetwork, health.transport?.version != 1 {
+                // Older companions derive preview certificates from Host and do
+                // not understand gatewayHostname. Preserve their LAN URL path.
+                transport?.stop()
+                transport = CompanionTransportRoute.legacyLocalNetwork(remote, token: credentials.token(for: remote))
+                base = remote
+            }
+            try accept(health, endpoint: base, authenticated: authenticated, remoteEndpoint: remote, transport: transport)
+            acceptedTransport = true
+            pendingTransport = nil
+            retryDelay = 1
+            retryAfter = .distantPast
+            if authenticated {
+                defaults.set(health.hostId, forKey: "companionHostID")
+                defaults.set(connectionMethod.rawValue, forKey: "connectionMethod:\(health.hostId)")
+            }
             let accepted = current
             defaults.set(normalizedHost, forKey: "companionHost")
             if !needsPairing {
@@ -168,8 +312,10 @@ final class CompanionClient: NSObject, ObservableObject {
             return current == accepted
         } catch {
             guard !Task.isCancelled, selection == attempt else { return false }
-            let message = "\(base.absoluteString)\n\(error.localizedDescription)"
-            healthState = currentRoute?.endpoint == base ? .reconnecting(message) : .failure(message)
+            retryAfter = Date().addingTimeInterval(retryDelay)
+            retryDelay = min(30, retryDelay * 2)
+            let message = "\(connectionMethod.title): \(error.localizedDescription)"
+            healthState = currentRoute?.remoteEndpoint == remote ? .reconnecting(message) : .failure(message)
             return false
         }
     }
@@ -190,8 +336,9 @@ final class CompanionClient: NSObject, ObservableObject {
             let response: PairResponse = try await request(base: base, path: "/api/pair", method: "POST",
                 body: Self.json(["code": pairingCode]))
             guard !Task.isCancelled, selection == attempt else { return }
-            try credentials.pair(base, hostID: response.hostId, token: response.token)
-            await select(base.absoluteString)
+            guard let remote = currentRoute?.remoteEndpoint else { return }
+            try credentials.pair(remote, hostID: response.hostId, token: response.token)
+            await select(remote.absoluteString)
         } catch {
             guard !Task.isCancelled, selection == attempt else { return }
             pairingCode = ""
@@ -300,7 +447,7 @@ final class CompanionClient: NSObject, ObservableObject {
     }
     func openFrontend(hostID: String, id: String) async throws -> OpenFrontendResponse {
         try await request(hostID: hostID, path: "/api/frontends/open", method: "POST",
-            body: Self.json(["id": id]))
+            body: Self.json(["id": id, "gatewayHostname": try previewHostname(for: hostID)]))
     }
     func addFrontend(hostID: String, url: String) async throws {
         let _: OpenFrontendResponse = try await request(hostID: hostID, path: "/api/frontends", method: "POST",
@@ -336,7 +483,7 @@ final class CompanionClient: NSObject, ObservableObject {
     private static func authorized(_ request: URLRequest, credentials: CompanionCredentials) -> URLRequest {
         var request = request
         request.setValue(clientID, forHTTPHeaderField: "X-SlopZooka-Client-ID")
-        if let url = request.url, let token = credentials.token(for: url) {
+        if let url = request.url, let token = CompanionTransportRoute.token(for: url) ?? credentials.token(for: url) {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
         return request
@@ -411,6 +558,7 @@ extension CompanionClient: @preconcurrency NetServiceBrowserDelegate, @preconcur
         slzLog(discoveryError!)
     }
     func netServiceDidResolveAddress(_ service: NetService) {
+        guard connectionMethod == .localNetwork else { return }
         guard services[key(service)] === service, service.port > 0,
             let name = service.hostName?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return }
         let hostname = name.hasSuffix(".") ? String(name.dropLast()) : name
@@ -469,6 +617,7 @@ struct CompanionCredentials {
         }
     })
 
+    func hostID(for url: URL) -> String? { read("route:\(Self.origin(url))") }
     func token(for url: URL) -> String? {
         let origin = Self.origin(url)
         if let hostID = read("route:\(origin)") { return read("host:\(hostID)") }

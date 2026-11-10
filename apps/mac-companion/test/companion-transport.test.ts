@@ -1,0 +1,364 @@
+import assert from "node:assert/strict";
+import { execFile, spawn } from "node:child_process";
+import { once } from "node:events";
+import fs from "node:fs/promises";
+import http from "node:http";
+import os from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
+import test from "node:test";
+import express from "express";
+import { WebSocket, WebSocketServer } from "ws";
+import { Pairing } from "../src/auth.js";
+import {
+  createPeerIngress,
+  connectionMethod,
+} from "../src/companion-transport.js";
+import { webPresentation } from "../src/presentation.js";
+import { PreviewTLS } from "../src/preview-tls.js";
+import { SessionManager } from "../src/sessions.js";
+
+const exec = promisify(execFile);
+const root = path.resolve(import.meta.dirname, "../../..");
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+async function until<T>(read: () => T | undefined | false): Promise<T> {
+  const end = Date.now() + 8000;
+  while (Date.now() < end) {
+    const result = read();
+    if (result) return result;
+    await sleep(10);
+  }
+  throw new Error("Transport fixture timed out");
+}
+async function listen(server: http.Server) {
+  server.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const address = server.address();
+  assert.ok(address && typeof address !== "string");
+  return `http://127.0.0.1:${address.port}`;
+}
+
+test(
+  "native routes carry authenticated assets, HTTP and PTYs; retirement preserves the process and TLS rejects an impostor",
+  { timeout: 60000 },
+  async (t) => {
+    const home = await fs.mkdtemp(
+      path.join(os.tmpdir(), "slz-transport-check-"),
+    );
+    t.after(() => fs.rm(home, { recursive: true, force: true }));
+    const binary = path.join(home, "transport-fixture");
+    await exec(
+      "xcrun",
+      [
+        "swiftc",
+        "-swift-version",
+        "5",
+        "-strict-concurrency=complete",
+        "-warnings-as-errors",
+        "-parse-as-library",
+        "packages/transport/NativeStream.swift",
+        "apps/vision-client/SlopZooka/SlopZooka/CompanionTransport.swift",
+        "apps/vision-client/SlopZooka/SlopZooka/CompanionClient.swift",
+        "apps/vision-client/SlopZooka/SlopZooka/CompanionModels.swift",
+        "apps/vision-client/SlopZooka/SlopZooka/WindowPersistence.swift",
+        "apps/vision-client/SlopZooka/SlopZooka/AppDebugLog.swift",
+        "apps/vision-client/tests/TransportFixture.swift",
+        "-o",
+        binary,
+      ],
+      { cwd: root },
+    );
+    const sessions = new SessionManager();
+    t.after(() => sessions.stop());
+    await fs.writeFile(
+      path.join(home, "reader.py"),
+      "import os, tty\ntty.setraw(0)\nprint('TRANSPORT_READY', flush=True)\nwhile True:\n data=os.read(0,1024)\n print('RECEIVED:'+data.hex(), flush=True)\n",
+    );
+    const session = sessions.create(
+      "transport",
+      home,
+      "codex",
+      "transport-session",
+      {
+        ...process.env,
+        SHELL: "/bin/sh",
+        SLOPZOOKA_CODEX_COMMAND: "/usr/bin/python3 -u ./reader.py",
+      },
+    );
+    const pairing = new Pairing(home);
+    const app = express();
+    app.use(express.json());
+    pairing.install(app);
+    let requests = 0;
+    let transportVersion: number | undefined;
+    app.get("/health", (req, res) =>
+      res.json({
+        hostId: "fixture",
+        paired: pairing.authorized(req),
+        protocolVersion: 1,
+        controlOrigin: "http://fixture.local",
+        logFilePath: "",
+        ...(transportVersion
+          ? { transport: { version: transportVersion, direct: false } }
+          : {}),
+      }),
+    );
+    app.get("/api/sessions", (_req, res) => res.json({ sessions: [] }));
+    app.get("/api/frontends", (_req, res) => res.json({ frontends: [] }));
+    app.use((_req, _res, next) => {
+      if (_req.path === "/api/check") requests++;
+      next();
+    });
+    app.get("/api/check", (_req, res) => res.json({ ok: true }));
+    app.get("/terminal", (_req, res) =>
+      res.sendFile(path.join(root, "apps/mac-companion/public/terminal.html")),
+    );
+    app.use(express.static(path.join(root, "apps/mac-companion/public")));
+    const wss = new WebSocketServer({ noServer: true });
+    t.after(() => {
+      for (const ws of wss.clients) ws.terminate();
+      wss.close();
+    });
+    const server = http.createServer(app);
+    server.on("upgrade", (req, socket, head) => {
+      if (!pairing.authorized(req) || !pairing.sameOrigin(req)) {
+        socket.destroy();
+        return;
+      }
+      wss.handleUpgrade(req, socket, head, (ws) => {
+        ws.on("message", (data) => {
+          const message = JSON.parse(data.toString());
+          if (message.type === "attach")
+            sessions.attach(ws, session.id, message.cursor);
+          if (message.type === "input")
+            sessions.input(ws, session.id, message.data);
+          if (message.type === "ack")
+            sessions.acknowledge(ws, session.id, message.cursor);
+        });
+        ws.on("close", () => sessions.detach(ws));
+      });
+    });
+    const base = await listen(server);
+    t.after(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+    const pair = await fetch(base + "/api/pair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: pairing.code }),
+    });
+    const { token } = (await pair.json()) as { token: string };
+    const identity = await new PreviewTLS(path.join(home, "tls")).certificate(
+      "slopzooka.local",
+    );
+    await fs.writeFile(path.join(home, "key.pem"), identity.key, {
+      mode: 0o600,
+    });
+    await fs.writeFile(path.join(home, "cert.pem"), identity.cert);
+    await fs.writeFile(
+      path.join(home, "ca.der"),
+      Buffer.from(identity.certificateAuthority, "base64"),
+    );
+    await exec(
+      "/usr/bin/openssl",
+      [
+        "pkcs12",
+        "-export",
+        "-inkey",
+        "key.pem",
+        "-in",
+        "cert.pem",
+        "-out",
+        "identity.p12",
+        "-passout",
+        "pass:slopzooka-local",
+        "-keypbe",
+        "PBE-SHA1-3DES",
+        "-certpbe",
+        "PBE-SHA1-3DES",
+      ],
+      { cwd: home },
+    );
+    const wrong = await new PreviewTLS(path.join(home, "wrong")).certificate(
+      "slopzooka.local",
+    );
+    await fs.writeFile(
+      path.join(home, "wrong.der"),
+      Buffer.from(wrong.certificateAuthority, "base64"),
+    );
+
+    for (const version of [undefined, 1]) {
+      transportVersion = version;
+      const { stdout } = await exec(binary, [base, token, "client"]);
+      const accepted = JSON.parse(stdout.trim()).url;
+      assert.equal(
+        accepted === base,
+        version === undefined,
+        "Legacy companions retain their Host header; current companions share the native route adapter",
+      );
+    }
+    for (const mode of ["lan", "tls", "wrong"] as const) {
+      const args = [
+        base,
+        token,
+        ...(mode === "lan"
+          ? []
+          : [
+              path.join(home, "identity.p12"),
+              path.join(home, mode === "wrong" ? "wrong.der" : "ca.der"),
+            ]),
+      ];
+      const fixture = spawn(binary, args, { stdio: ["pipe", "pipe", "pipe"] });
+      let output = "",
+        errors = "";
+      fixture.stdout.on("data", (data) => {
+        output += data;
+      });
+      fixture.stderr.on("data", (data) => {
+        errors = (errors + data).slice(-2000);
+      });
+      const closed = once(fixture, "close");
+      try {
+        const url = await until(() => output.match(/"url":"([^"]+)"/)?.[1]);
+        const headers = { Authorization: `Bearer ${token}` };
+        if (mode === "wrong") {
+          const before = requests;
+          await assert.rejects(
+            fetch(url + "/api/check", {
+              headers,
+              signal: AbortSignal.timeout(1500),
+            }),
+          );
+          assert.equal(
+            requests,
+            before,
+            "TLS rejection must happen before HTTP or credentials reach the backend",
+          );
+          continue;
+        }
+        assert.equal((await fetch(url + "/api/check")).status, 401);
+        assert.equal(
+          (await fetch(url + "/api/check", { headers })).status,
+          200,
+        );
+        const terminal = await fetch(
+          url + "/terminal?sessionId=transport-session",
+          { headers },
+        );
+        assert.equal(terminal.status, 200);
+        assert.match(await terminal.text(), /terminal.js/);
+        assert.equal((await fetch(url + "/terminal.js")).status, 200);
+        const attach = async (endpoint: string) => {
+          const ws = new WebSocket(endpoint.replace("http:", "ws:") + "/ws", {
+            headers: { ...headers, Origin: endpoint },
+          });
+          const messages: any[] = [];
+          ws.on("message", (data) => {
+            const message = JSON.parse(data.toString());
+            messages.push(message);
+          });
+          await once(ws, "open");
+          ws.send(JSON.stringify({ type: "attach" }));
+          await until(() =>
+            messages.find((message) => message.type === "attached"),
+          );
+          return {
+            ws,
+            text: () =>
+              messages
+                .map((message) => message.data ?? message.snapshot ?? "")
+                .join(""),
+          };
+        };
+        const first = await attach(url);
+        const input = "Aé😀\u001b[D";
+        first.ws.send(JSON.stringify({ type: "input", data: input }));
+        await until(() =>
+          first
+            .text()
+            .includes("RECEIVED:" + Buffer.from(input).toString("hex")),
+        );
+        const disconnected = once(first.ws, "close");
+        fixture.stdin.write("stop\n");
+        await disconnected;
+        assert.equal(sessions.summaries().length, 1);
+        assert.equal(sessions.summaries()[0].status, "running");
+        await assert.rejects(fetch(url + "/api/check", { headers }));
+        output = "";
+        fixture.stdin.write("restart\n");
+        const next = await until(() => output.match(/"url":"([^"]+)"/)?.[1]);
+        const second = await attach(next);
+        second.ws.send(JSON.stringify({ type: "input", data: "reconnected" }));
+        await until(() =>
+          second
+            .text()
+            .includes("RECEIVED:" + Buffer.from("reconnected").toString("hex")),
+        );
+        second.ws.close();
+        assert.equal(
+          sessions.summaries().length,
+          1,
+          "Route replacement never creates a terminal process",
+        );
+      } catch (error) {
+        throw new Error(`${mode}: ${String(error)}\n${errors}`);
+      } finally {
+        fixture.stdin.end();
+        await closed;
+      }
+    }
+  },
+);
+
+test("presentation support follows the accepting route, not a spoofed header or frontend URL type", async (t) => {
+  const presentations = JSON.parse(
+    await fs.readFile(
+      path.join(root, "packages/protocol/fixtures/presentation.v1.json"),
+      "utf8",
+    ),
+  );
+  const frontend = {
+    id: "web",
+    hostname: "example.com",
+    title: "Web",
+    port: 443,
+    url: "https://example.com",
+    source: "manual" as const,
+    status: "ready" as const,
+    transport: "direct" as const,
+  };
+  const app = express();
+  app.get("/", (req, res) =>
+    res.json({
+      method: connectionMethod(req),
+      ...webPresentation(req, frontend),
+    }),
+  );
+  for (const [server, method] of [
+    [http.createServer(app), "localNetwork"],
+    [createPeerIngress(app, (_req, socket) => socket.destroy()), "direct"],
+  ] as const) {
+    const base = await listen(server);
+    t.after(() => {
+      server.closeAllConnections();
+      server.close();
+    });
+    const result = (await (
+      await fetch(base, {
+        headers: {
+          "X-SlopZooka-Transport":
+            method === "direct" ? "localNetwork" : "direct",
+        },
+      })
+    ).json()) as any;
+    assert.equal(result.method, method);
+    const { method: _acceptedMethod, ...presentation } = result;
+    assert.deepEqual(presentation, presentations[method]);
+    assert.equal(result.available, method === "localNetwork");
+    if (method === "direct") {
+      assert.equal(result.reasonCode, "presentation_unsupported_on_route");
+      assert.deepEqual(result.alternatives, []);
+    }
+  }
+});

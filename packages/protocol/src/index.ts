@@ -86,3 +86,12 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       return false;
   }
 }
+
+/** Per-destination route result; a frontend's URL transport is a separate concept. */
+export type PresentationAvailability = {
+  presentation: "web";
+  available: boolean;
+  reasonCode?: "source_stopped" | "presentation_unsupported_on_route";
+  message?: string;
+  alternatives: string[];
+};

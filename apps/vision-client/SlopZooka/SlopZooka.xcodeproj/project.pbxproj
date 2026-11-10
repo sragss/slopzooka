@@ -21,6 +21,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+        A15A00000000000000000001 /* Transport */ = {
+            isa = PBXFileSystemSynchronizedRootGroup;
+            path = ../../../packages/transport;
+            sourceTree = "<group>";
+        };
 		4B6BDCE02F70AB1400516A78 /* SlopZooka */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -46,6 +51,7 @@
 			isa = PBXGroup;
 			children = (
 				4B6BDCE02F70AB1400516A78 /* SlopZooka */,
+                A15A00000000000000000001 /* Transport */,
 				4B6BDCDF2F70AB1400516A78 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -75,6 +81,7 @@
 			);
 			fileSystemSynchronizedGroups = (
 				4B6BDCE02F70AB1400516A78 /* SlopZooka */,
+                A15A00000000000000000001 /* Transport */,
 			);
 			name = SlopZooka;
 			packageProductDependencies = (

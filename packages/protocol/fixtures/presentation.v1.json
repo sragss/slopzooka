@@ -1,0 +1,14 @@
+{
+  "localNetwork": {
+    "presentation": "web",
+    "available": true,
+    "alternatives": []
+  },
+  "direct": {
+    "presentation": "web",
+    "available": false,
+    "reasonCode": "presentation_unsupported_on_route",
+    "message": "Web previews are not supported on Direct to Mac yet. Choose Local Network in Settings.",
+    "alternatives": []
+  }
+}

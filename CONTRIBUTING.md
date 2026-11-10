@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-Use macOS, Node.js 22+, pnpm 10.28.0 (pinned in `package.json`), and Xcode with the visionOS SDK. Native checks require Xcode command-line tools; HTTPS fixtures require `openssl`. Install the project tools you intend to run, and authenticate GitHub CLI with `gh auth login` for repository browsing, or set `GITHUB_TOKEN` / `GH_TOKEN`.
+Use macOS, Node.js 22+, pnpm 10.28.0 (pinned in `package.json`), and Xcode 26.3 (Swift 6.2) with the visionOS SDK. Native checks require Xcode command-line tools; HTTPS fixtures require `openssl`. Install the project tools you intend to run, and authenticate GitHub CLI with `gh auth login` for repository browsing, or set `GITHUB_TOKEN` / `GH_TOKEN`.
 
 ```sh
 pnpm install
@@ -20,6 +20,8 @@ updating the version in `.swiftlint.yml` and the archive checksum in
 ## Run the companion
 
 For companion development, run `pnpm dev:companion` instead of the menu-bar app. This prints the pairing code in Terminal. Open `http://localhost:7777/dashboard` for the desktop dashboard and pair with the same code.
+
+`pnpm dev:companion` also builds the small native transport helper. Set `SLOPZOOKA_DIRECT=0` to omit peer advertising for an isolated fixture or when working only on Local Network behavior. `pnpm --filter @slz/mac-companion build:transport` rebuilds the helper directly. Direct requires macOS 15+; ordinary Local Network remains available on older supported Macs.
 
 `pnpm dev:companion` does **not** restart on source changes. Use `pnpm --filter @slz/mac-companion dev:watch` to restart the HTTP companion on changes while the same session service keeps its terminals running. Terminal-engine changes require an explicit session-service restart, which ends its sessions. Rebuild the Mac app after changing its bundled host or native code.
 
@@ -93,7 +95,7 @@ xcodebuild -project apps/vision-client/SlopZooka/SlopZooka.xcodeproj \
 | Check                         | Coverage                                                                                                                                                                                      |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm lint`                   | TypeScript sources and tests, shared protocol sources, and both native apps; correctness checks without formatting or size limits                                                               |
-| `pnpm test`                   | Companion integration tests with temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSocket fixtures; authentication, replay, process cleanup, workspace mutations, and frontend lifecycle |
+| `pnpm test`                   | Companion integration tests with temporary homes, real PTYs, and isolated HTTP/HTTPS/WebSocket fixtures; authentication, replay, process cleanup, workspace mutations, frontend lifecycle, and native HTTP/WebSocket/TLS transport with a real PTY |
 | `pnpm test:vision-state`      | Native launcher, window gateway/persistence, voice (including utterance boundaries and task rotation), immersion, and zoom state checks on macOS                                              |
 | `pnpm test:terminal-keyboard` | Real WebKit input, renderer zoom/resize behavior, and preview back/forward history                                                                                                                                           |
 | `pnpm format:check`           | TypeScript sources and companion tests                                                                                                                                                        |

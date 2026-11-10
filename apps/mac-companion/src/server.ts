@@ -1,3 +1,5 @@
+import { CompanionTransport, connectionMethod } from "./companion-transport.js";
+import { webPresentation } from "./presentation.js";
 import { ServiceError } from "./errors.js";
 import { randomUUID } from "node:crypto";
 import { execFileSync } from "node:child_process";
@@ -146,6 +148,10 @@ app.get("/health", (_req, res) => {
     sessionServiceAvailable,
     runtime: import.meta.url.endsWith(".ts") ? "development" : "packaged",
     paired: pairing.authorized(_req),
+    transport: {
+      ...transport.health,
+      connectionMethod: connectionMethod(_req),
+    },
     protocolVersion: PROTOCOL_VERSION,
     name: "slopzooka-mac-companion",
     version: "0.2.0",
@@ -463,9 +469,16 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
   }
 });
 
-app.get("/api/frontends", async (_req, res) =>
-  res.json(await frontendService.getCatalog()),
-);
+app.get("/api/frontends", async (req, res) => {
+  const catalog = await frontendService.getCatalog();
+  res.json({
+    ...catalog,
+    frontends: catalog.frontends.map((frontend) => ({
+      ...frontend,
+      presentation: webPresentation(req, frontend),
+    })),
+  });
+});
 app.post("/api/frontends", async (req, res) => {
   try {
     if (typeof req.body?.url !== "string")
@@ -489,7 +502,18 @@ app.post("/api/frontends/open", async (req, res) => {
   try {
     if (typeof req.body?.id !== "string")
       throw new ServiceError("Frontend id required", 400);
-    const hostname = new URL(`http://${req.headers.host}`).hostname;
+    const frontend = (await frontendService.getCatalog()).frontends.find(
+      (item) => item.id === req.body.id,
+    );
+    if (!frontend) throw new ServiceError("Frontend not found", 404);
+    const presentation = webPresentation(req, frontend);
+    if (!presentation.available) {
+      res.status(409).json({ error: presentation.message, presentation });
+      return;
+    }
+    const hostname = new URL(
+      `http://${typeof req.body.gatewayHostname === "string" ? req.body.gatewayHostname : req.headers.host}`,
+    ).hostname;
     res.json(await frontendService.openFrontend(req.body.id, hostname));
   } catch (error) {
     sendWorkspaceError(res, error, "Could not open frontend");
@@ -537,7 +561,11 @@ app.use(
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true, maxPayload: 128 * 1024 });
 
-server.on("upgrade", (request, socket, head) => {
+const upgrade: import("./companion-transport.js").Upgrade = (
+  request,
+  socket,
+  head,
+) => {
   if (
     shuttingDown ||
     request.url !== "/ws" ||
@@ -549,7 +577,15 @@ server.on("upgrade", (request, socket, head) => {
     return;
   }
   wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws));
-});
+};
+server.on("upgrade", upgrade);
+const transport = new CompanionTransport(
+  app,
+  upgrade,
+  workspacePaths().slopzookaHome,
+  pairing.hostId,
+  logger,
+);
 const alive = new Set<WebSocket>();
 const heartbeat = setInterval(() => {
   for (const ws of wss.clients) {
@@ -601,6 +637,7 @@ server.listen(
     }
     admissionReady = true;
     dashboardAddress.start();
+    void transport.start();
     publishDesktopStatus();
     logger.info("Companion listening", {
       controlOrigin: CONTROL_ORIGIN,
@@ -849,6 +886,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
     server.close(() => resolve()),
   );
   await Promise.allSettled([
+    transport.stop(),
     frontendService.stop(),
     dashboardAddress.stop(),
     bonjourAdvertiser?.stop(),

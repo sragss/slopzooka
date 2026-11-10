@@ -4,13 +4,21 @@
 
 ## Connect to your Mac
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback. On startup, the headset tries the saved companion address before discovered alternatives, one connection attempt at a time. Pairing errors show the attempted URL so companions on different ports can be distinguished.
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback. On startup, the headset reconnects using the saved method for the selected Mac. Initial Local Network discovery tries candidate addresses one at a time; a previously selected paired Mac is not replaced by another discovered Mac automatically. Pairing errors show the attempted URL so companions on different ports can be distinguished.
 
 The display dismisses after 45 seconds, successful pairing, or an authenticated reconnection by the device that requested it. Late display requests from a recently connected device do not reopen the prompt; other devices can still pair. Repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 
 Pairings are remembered by Mac identity. Existing pairings migrate automatically; a new address needs pairing once before it can use that Mac’s credential. During a connection loss, the launcher shows **Reconnecting to your Mac…** and retries its refresh. Switching the accepted route refreshes existing terminal and preview content while keeping their window and session identities. Switching Macs clears the previous Mac’s projects, repository owners, and frontend listing while the new catalogs load.
 
 Pairing stays on the accepted Mac after an unsuccessful address change. Project, workspace, and repository-owner listings load independently, so one slow request does not hold up the others.
+
+## Connection method
+
+In **Settings → Connected Mac**, choose **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and currently supports control and terminals. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
+
+The choice is remembered for each paired Mac on this headset. A failed Direct connection stays on Direct: use **Try Again** or explicitly choose **Use Local Network**. The app does not silently switch methods. Manual IP/hostname entry belongs to Local Network.
+
+Changing methods reconnects the existing windows while Mac terminals keep running. Web previews show an unavailable placeholder on Direct; their catalog entries remain visible with a reason. Switching back reloads still-open previews and may lose unsaved in-page edits. A preview closed while unavailable stays closed. From a disconnected window, **Open Launcher → Settings → Connected Mac** provides the same recovery controls.
 
 ## Launcher
 

@@ -537,6 +537,36 @@ struct WindowGatewayChecks {
         }
         print("PASS: repeated reload and close/reopen replace stalled preview work without losing content or accepting late results")
 
+        // A connection-method switch removes the live documents, not the scenes
+        // or saved intent. Exercise it with a preview resolution still in flight.
+        var releaseSwitch: CheckedContinuation<Void, Never>?
+        Fixture.beforePreview = { await withCheckedContinuation { releaseSwitch = $0 } }
+        routed.reload(id: preview.id)
+        await until { releaseSwitch != nil }
+        let commandsBeforeSwitch = routeCommands.count
+        let mutationsBeforeSwitch = Fixture.requests.filter { $0.hasPrefix("POST /api/workspaces") || $0.hasPrefix("DELETE /api/sessions") }.count
+        let retiringHostID = routed.client.current!.id
+        await routed.client.setConnectionMethod(.direct)
+        precondition(routed.previewPayload(for: preview.id) == nil)
+        precondition(routed.terminalPayload(for: terminal.id) == nil)
+        precondition(routeCommands.count == commandsBeforeSwitch, "Transport retirement never dismisses native scenes")
+        let staleFrontend = try JSONDecoder().decode(FrontendSummary.self, from: Data("""
+            {"id":"stale-preview","hostname":"example.com","url":"https://example.com","transport":"direct"}
+            """.utf8))
+        do {
+            try routed.openPreview(staleFrontend, hostID: retiringHostID)
+            preconditionFailure("A stale caller must not create a preview window during route retirement")
+        } catch is CompanionError {}
+        precondition(routed.reference(for: "\(retiringHostID):stale-preview") == nil)
+        precondition(routeCommands.count == commandsBeforeSwitch)
+        routed.close(id: preview.id)
+        releaseSwitch?.resume()
+        for _ in 0..<20 { await Task.yield() }
+        precondition(routed.previewPayload(for: preview.id) == nil, "A late payload cannot revive the retired document")
+        precondition(Fixture.requests.filter { $0.hasPrefix("POST /api/workspaces") || $0.hasPrefix("DELETE /api/sessions") }.count == mutationsBeforeSwitch,
+            "Changing method or closing an unavailable preview must not create or end a process")
+        print("PASS: method switch retires documents without scene/process mutation; late preview replies and explicit close stay closed")
+
     }
 
     @MainActor

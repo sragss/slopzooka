@@ -75,6 +75,16 @@ final class WindowGateway: ObservableObject {
         launcher.launchTerminal = { [weak self] workspaceID, hostID, profile in
             try await self?.launchTerminal(workspaceID: workspaceID, hostID: hostID, profile: profile)
         }
+        self.client.onRouteRetiring = { [weak self] hostID in
+            guard let self else { return }
+            for (id, window) in self.windows where window.reference?.hostID == hostID {
+                self.windows[id]?.invalidateContent()
+                self.windows[id]?.content = nil
+                self.windows[id]?.loadState = .idle
+                self.windows[id]?.renameRequest = nil
+                self.windows[id]?.error = "Reconnecting using \(self.client.connectionMethod.title)…"
+            }
+        }
         self.client.onSessionSnapshot = { [weak self] snapshot, target in
             guard let self else { return }
             let hostID = target.id
@@ -199,6 +209,7 @@ final class WindowGateway: ObservableObject {
         Task { await synchronize() }
     }
     func openPreview(_ frontend: FrontendSummary, hostID: String) throws {
+        if let message = client.frontendOpenError(id: frontend.id, hostID: hostID) { throw CompanionError(message: message) }
         let id = "\(hostID):\(frontend.id)"
         remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: frontend.id)))
         try open(id: id)
@@ -332,7 +343,8 @@ final class WindowGateway: ObservableObject {
             if result.frontend.url.hasPrefix("https://") && url.scheme != "https" {
                 throw CompanionError(message: "Update the Mac companion to open this HTTPS app securely.")
             }
-            url.host = try client.endpoint(for: hostID).host
+            let hostname = try client.previewHostname(for: hostID)
+            url.host = hostname
             url.port = port
             url.path = "/__slz_access"
             url.fragment = nil

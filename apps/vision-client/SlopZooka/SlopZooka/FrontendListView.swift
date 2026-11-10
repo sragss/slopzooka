@@ -124,7 +124,10 @@ struct FrontendListView: View {
                         Text(frontend.displayTitle)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
-                        if frontend.status == "starting" || frontend.status == "stopped" {
+                        if let availability = frontend.presentation, !availability.available {
+                            Text(availability.message ?? "Unavailable on this connection")
+                                .font(.caption).foregroundStyle(.orange)
+                        } else if frontend.status == "starting" || frontend.status == "stopped" {
                             Text(frontend.status == "stopped" ? "Stopped" : "Waiting for response")
                                 .font(.caption).foregroundStyle(.orange)
                         } else {
@@ -144,10 +147,10 @@ struct FrontendListView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(hostID.map { client.frontendOpenError(id: frontend.id, hostID: $0) != nil } != false)
             .hoverEffectDisabled()
         }
         .modifier(LauncherRowSurface())
-        .disabled(frontend.status == "stopped")
         .contextMenu {
             if frontend.source == "manual" {
                 Button("Remove URL", role: .destructive) { Task { await remove(frontend) } }

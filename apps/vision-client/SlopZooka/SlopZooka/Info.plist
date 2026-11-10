@@ -12,6 +12,7 @@
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_slopzooka._tcp</string>
+        <string>_slz-direct._tcp</string>
 	</array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>SlopZooka uses the microphone for native terminal dictation.</string>
