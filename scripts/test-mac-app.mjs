@@ -165,7 +165,7 @@ try {
   );
   await until(async () => {
     try {
-      await fs.access(status.sessionLogPath);
+      await fs.access(readyStatus.sessionLogPath);
       return true;
     } catch {
       return false;

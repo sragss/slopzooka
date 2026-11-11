@@ -14,7 +14,7 @@ Pairing stays on the accepted Mac after an unsuccessful address change. Project,
 
 ## Connection method
 
-In **Settings → Connected Mac**, choose **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and currently supports control and terminals. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
+In **Settings → Connected Mac**, choose **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and supports control, terminals, and experimental native Mac window previews. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
 
 The choice is remembered for each paired Mac on this headset. A failed Direct connection stays on Direct: use **Try Again** or explicitly choose **Use Local Network**. The app does not silently switch methods. Manual IP/hostname entry belongs to Local Network.
 
@@ -151,7 +151,9 @@ can open as a tall preview. Reload and the actions menu sit above the content,
 leaving the bottom resize handles clear. **Close Preview** is in that menu;
 closing a preview does not quit the source app or end any terminal.
 
-This first version requires Local Network and macOS 14+. It reports Screen
+Native previews use the selected Local Network or Direct to Mac route. Local
+Network capture requires macOS 14+; Direct requires macOS 15+ and prior LAN pairing.
+Direct video remains experimental pending device throughput/recovery qualification. It reports Screen
 Recording permission and offers **Allow Screen Recording on Mac** and **Open Mac
 Privacy Settings**. Complete the system prompt on your Mac. The signed provider's
 permission identity still needs final device qualification; development or ad-hoc
@@ -163,6 +165,6 @@ Mac computer-use tools. A locked Mac, closed source, revoked permission, or stal
 stream clears the image and reports its state. Temporary stream interruptions get
 three bounded reconnect attempts; Reload remains available. After the capture
 provider restarts, select the current window again: SlopZooka will not silently
-substitute another window with a similar title. Direct video, locked-desktop
+substitute another window with a similar title. Locked-desktop
 fallbacks, attention-based quality changes, and automatic app launching are later
 steps. The feature stays off by default until the integrated headset test passes.

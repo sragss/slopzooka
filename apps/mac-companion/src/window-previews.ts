@@ -7,7 +7,6 @@ import type { IncomingMessage } from "node:http";
 import type { PresentationAvailability } from "../../../packages/protocol/src/index.js";
 import type { Logger } from "./logger.js";
 import { ServiceError } from "./errors.js";
-import { connectionMethod } from "./companion-transport.js";
 
 export type WindowSource = {
   id: string;
@@ -214,9 +213,9 @@ export class WindowPreviews {
         });
     return this.catalogTask;
   }
-  async resolve(id: string, request: IncomingMessage): Promise<WindowSource> {
+  async resolve(id: string): Promise<WindowSource> {
     const catalog = await this.catalog();
-    const availability = windowPresentation(request, catalog);
+    const availability = windowPresentation(catalog);
     if (!availability.available)
       throw new ServiceError(
         availability.message ?? "Window sharing unavailable",
@@ -250,7 +249,6 @@ export class WindowPreviews {
     socket.pause();
     this.channels.add(socket);
     try {
-      assertWindowRoute(request);
       if (
         head.length ||
         request.headers.upgrade !== "slz-window-v1" ||
@@ -260,7 +258,7 @@ export class WindowPreviews {
       const id = decodeURIComponent(
         request.url!.slice("/api/window-stream/".length),
       );
-      await this.resolve(id, request);
+      await this.resolve(id);
       const opened = (await this.command("open", id)) as { ticket: string };
       if (
         !/^[a-f0-9-]{36}$/i.test(opened.ticket) ||
@@ -317,25 +315,12 @@ function validSource(value: WindowSource): boolean {
     )
   );
 }
-export function assertWindowRoute(request: IncomingMessage): void {
-  if (connectionMethod(request) === "direct")
-    throw new ServiceError(
-      "Mac window previews are not supported on Direct to Mac yet. Choose Local Network in Settings.",
-      409,
-    );
-}
-
 export function windowPresentation(
-  request: IncomingMessage,
   catalog: WindowCatalog,
 ): PresentationAvailability {
   let reasonCode: PresentationAvailability["reasonCode"];
   let message: string | undefined;
-  if (connectionMethod(request) === "direct") {
-    reasonCode = "presentation_unsupported_on_route";
-    message =
-      "Mac window previews are not supported on Direct to Mac yet. Choose Local Network in Settings.";
-  } else if (catalog.state === "permissionRequired") {
+  if (catalog.state === "permissionRequired") {
     reasonCode = "permission_required";
     message = "Allow Screen Recording on your Mac to share windows.";
   } else if (catalog.state === "locked") {

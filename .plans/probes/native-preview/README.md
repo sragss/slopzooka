@@ -52,3 +52,8 @@ mode-0600 files inside private temporary directories. Commit only selected sanit
 summaries. `stop` checks the private session socket's home ownership before shutting
 down test PTYs, and stops only its own Mac app, fixture and dedicated simulator.
 It never stops installed SlopZooka, its existing session service or their terminals.
+
+The next headset slot follows the [combined Direct-video and scene-restoration
+script](../../2026-11-10-direct-native-video.md#combined-headset-slot-approximately-35-minutes-after-pairing).
+It exercises both native streams alongside terminal input, then app restart and
+LAN return; do not use the historical Direct-unavailable expectation.

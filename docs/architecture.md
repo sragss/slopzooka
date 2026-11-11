@@ -136,7 +136,10 @@ receive separate acknowledgements, which cannot grant frame credit; silent viewe
 are closed after two seconds even when the source is static. Receiver enqueue acknowledgements
 are not proof of physical display. A stalled renderer drops its old connection
 instead of replaying a backlog. Native flow control stays separate from terminal
-flow control. Direct video remains explicitly unavailable until qualified.
+flow control. Native video uses this same route on Local Network and Direct: the catalog and
+Open depend on capture state, not connection method. The peer ingress forwards
+the same authenticated binary upgrade; no separate media transport or endpoint
+is introduced. Direct media throughput/recovery still needs device qualification.
 
 The provider emits bounded lifecycle summaries into the companion's existing
 `window-previews` logger. No image data, window titles, user input, or media tickets

@@ -513,7 +513,7 @@ app.get("/api/frontends", async (req, res) => {
       ? {
           windows: {
             ...windows,
-            presentation: windowPresentation(req, windows),
+            presentation: windowPresentation(windows),
           },
         }
       : {}),
@@ -527,7 +527,7 @@ app.post("/api/window-previews/open", async (req, res) => {
   try {
     if (typeof req.body?.id !== "string")
       throw new ServiceError("Window source required", 400);
-    res.json({ source: await windowPreviews.resolve(req.body.id, req) });
+    res.json({ source: await windowPreviews.resolve(req.body.id) });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not open Mac window");
   }

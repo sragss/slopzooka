@@ -90,7 +90,10 @@ The corrected signed headset binary is staged at the existing isolated path.
 It has **not** been installed or tested on the headset. Mac streaming bits are
 unchanged from this physical slot.
 
-## Only remaining immediate wearer check
+## Prior focused check (now combined with Direct video)
+
+Use the newer [combined Direct-video and restart slot](2026-11-10-direct-native-video.md) next.
+The original narrow lifecycle script is retained below for context.
 
 Approximately **two minutes after pairing**, one focused lifecycle test:
 

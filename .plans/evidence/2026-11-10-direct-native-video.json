@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-11-11T00:58:00.811797+00:00",
+  "scope": "Enable opt-in native window video on the existing Direct route; no transport or media-protocol changes",
+  "verification": {
+    "companionTests": {
+      "passed": 71,
+      "failed": 0,
+      "log": "tests-confirmed.log"
+    },
+    "lint": "passed",
+    "typecheck": "passed",
+    "format": "passed",
+    "visionStateAndNativeMedia": "passed",
+    "keyboardWebKit": "passed",
+    "browserAssetsAndParity": "passed",
+    "visionSimulatorBuild": "passed",
+    "signedMacAndHeadsetBuilds": "passed",
+    "codesignDeepStrict": "passed",
+    "packagedAppSupervisionAndPTYSurvival": "passed",
+    "isolatedTwoPTYRigSmoke": "passed",
+    "macFixtureAndDedicatedIOSFixtureLaunchAndCatalog": "passed"
+  },
+  "coverage": [
+    "350000 byte binary upgrade through native LAN and pinned TLS/Direct adapters alongside real WebKit/PTYS",
+    "Media channel closes on route retirement while PTYs survive",
+    "Same provider catalog, byte-exact bridge, source/permission/lock failure and provider recovery through LAN and peer ingress",
+    "Legacy companion availability remains honored by WindowGateway"
+  ],
+  "qualificationLimits": [
+    "Local TLS tests do not establish physical AWDL video performance",
+    "No new physical-headset installation or test in this preparation",
+    "Delayed scene-discard fix and Direct media will be tested together in the next slot"
+  ],
+  "initialFailures": [
+    {
+      "failure": "Provider fixture stalled under the full suite",
+      "resolution": "Handle coalesced ticket and binary payload; avoid expensive large-buffer diff; final LAN and Direct cases both pass"
+    },
+    {
+      "failure": "Packaged-app test waited on early session log path",
+      "resolution": "Use the ready private status; final package test passed"
+    },
+    {
+      "failure": "One session-service crash-test cleanup failed with ENOTEMPTY",
+      "resolution": "Unchanged session-service code; final complete rerun passed all 71"
+    }
+  ],
+  "cleanup": {
+    "ownedMacRig": "stopped",
+    "dedicatedSimulator": "shutdown",
+    "originalMacAppHTTPAndSessionService": "preserved",
+    "physicalHeadset": "untouched"
+  },
+  "artifacts": {
+    "macExecutable": {
+      "path": "/tmp/slz-preview-validation/mac/SlopZooka.app/Contents/MacOS/SlopZooka",
+      "sha256": "8a75e7cfb792f92d5b165869db28a4a3780378c356f3cda25abb81b11c70d3e0"
+    },
+    "companionServer": {
+      "path": "/tmp/slz-preview-validation/mac/SlopZooka.app/Contents/Resources/host/src/server.mjs",
+      "sha256": "c777900084eb8202eae86777172214e367823d854530dcab12632a98e1509fd8"
+    },
+    "headsetExecutable": {
+      "path": "/tmp/slz-preview-validation/vp/Build/Products/Debug-xros/SlopZooka.app/SlopZooka",
+      "sha256": "96171808f91a00b9928c28f6dc69410f5a39333dfdff9223f01dc23ac4cec650"
+    },
+    "decodeProbe": {
+      "path": "/tmp/slz-preview-hardening/receiver",
+      "sha256": "7fb851cd3acc1bdf7ca29df53321a084bcd21a2eb84f93882e66aa1a09061a3d"
+    }
+  },
+  "localLogDirectory": "/tmp/slz-direct-video",
+  "logSHA256": {
+    "tests-confirmed.log": "b7fdc82a4f0e5965e7a391e94445277793d9d6ee63400f0182b2a4ceb69db3ca",
+    "lint-final.log": "3d5cca0714f1f9a33cff9f239d32c16e15bb5bcfd47e21c2cfe6ec1a700afc62",
+    "typecheck-final.log": "1966a76a9c6ea7779706b7823988647c33d6758e844b9917dde77311e8d74854",
+    "format-final.log": "282fffd695a42a7a6b58fd4837cf0f1c1419ce9e5fd369d925cdc916daca49ef",
+    "vision-state.log": "4d173d72ac0fd26edfdabfccdfd6712c3d9d6bd2d0d9996931ffb434f7503e16",
+    "keyboard.log": "07a08479d304b13d2cc1d12dda7b30ed882023632ac034d2c4b12121670925b7",
+    "harness.log": "f8e169c3ae779e53679558892c1583b2fd83e296035d2b0f31c3c60184d39914",
+    "simulator.log": "814d5e32a35923987b17a8252382fba455835c2f473bce52db6ff78851e1760d",
+    "package-final.log": "11cbc14f0fc8c60ab87e87841ea6b6ea039436f3832b8a7a62866ffd1b3b7b3a",
+    "smoke.log": "5d8ddfbe40a421f9d20b2b88984bbb1df3496c76da0243d06d8c634d8ffa26b0",
+    "prepare.log": "e00c1578102f1696020279c0fe0e21c33a1359efe1abb7ac040e8428565505b0"
+  }
+}

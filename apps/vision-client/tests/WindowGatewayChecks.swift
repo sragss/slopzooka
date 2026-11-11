@@ -680,13 +680,13 @@ struct WindowGatewayChecks {
         defer { emptyDefaults.removePersistentDomain(forName: emptySuite) }
         Fixture.layouts[base.host!] = WindowLayout()
         Fixture.nativeWindows!["presentation"] = ["presentation": "window", "available": false,
-            "reasonCode": "presentation_unsupported_on_route", "message": "Native preview unavailable on Direct", "alternatives": []]
+            "reasonCode": "presentation_unsupported_on_route", "message": "Older companion: native preview unavailable on Direct", "alternatives": []]
         let restoredNative = WindowGateway(persistence: WindowPersistence(defaults: emptyDefaults), client: nativeClient)
         restoredNative.remember(nativeRecord)
         restoredNative.observe(id: nativeID, isPresented: true, isFocused: false)
         await nativeClient.refreshFrontends(hostID: hostID)
         await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
-        precondition(restoredNative.message(for: nativeID) == "Native preview unavailable on Direct",
+        precondition(restoredNative.message(for: nativeID) == "Older companion: native preview unavailable on Direct",
             "A restored scene must not claim to reconnect to an unsupported preview route")
         precondition(Fixture.layouts[base.host!]!.windows.isEmpty, "Availability repair must not create desired-open intent")
         print("PASS: remote reopen survives late observations, unpaired Macs cannot poison recovery, and restored previews show route availability")

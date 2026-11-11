@@ -13,14 +13,17 @@ const server = net.createServer((socket) => {
   sockets.add(socket); socket.once('close', () => sockets.delete(socket));
   socket.on('error', () => {});
   let admitted = false;
-  let header = '';
+  let header = Buffer.alloc(0);
   socket.on('data', (data) => {
     if (!admitted) {
-      header += data.toString();
-      if (!header.endsWith('\n')) return;
-      if (!tickets.delete(header.trim())) { socket.destroy(); return; }
+      header = Buffer.concat([header, data]);
+      const end = header.indexOf(10);
+      if (end < 0) return;
+      if (!tickets.delete(header.subarray(0, end).toString())) { socket.destroy(); return; }
       admitted = true;
       socket.write(Buffer.from([0, 255, 1, 254]));
+      if (header.length > end + 1) socket.write(header.subarray(end + 1));
+      header = Buffer.alloc(0);
     } else socket.write(data); // Binary echo proves the bridge never interprets media.
   });
 });
