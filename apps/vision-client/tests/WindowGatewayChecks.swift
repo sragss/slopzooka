@@ -243,13 +243,13 @@ struct WindowGatewayChecks {
         precondition(gateway.terminalSessions.first?.isPresented == false)
         precondition(gateway.terminalSessions.first?.isFocused == false)
         precondition(gateway.terminalSessions.first?.lastFocusedAt == lastFocused, "Catalog refresh does not reset scene activity")
-        gateway.close(WindowReference(hostID: hostID, window: preview), dismiss: false)
+        gateway.discardScene(WindowReference(hostID: hostID, window: preview), remainingScenes: [])
         await until { Fixture.layouts[base.host!]!.windows.count == 1 }
         precondition(dismissed.isEmpty, "System discard must not recursively request another dismissal")
 
         // Restored scenes may be discarded before connection/bootstrap completes.
         let next = WindowGateway(persistence: WindowPersistence(defaults: defaults), client: Fixture.api)
-        next.close(reference, dismiss: false)
+        next.discardScene(reference, remainingScenes: [])
         next.attachPresenter(UUID()) { if case .open(let window) = $0 { opened.append(window.id) } }
         await next.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         await until { Fixture.layouts[base.host!]!.windows.isEmpty }
@@ -271,6 +271,25 @@ struct WindowGatewayChecks {
         await background.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
         precondition(missingOpens == 1, "A restored background scene must not be pulled forward")
         print("PASS: missing sessions stay unavailable and restored background scenes stay in place")
+
+        // The reopened replacement is in UIKit's archived open-session inventory,
+        // but no view has connected/observed yet. A stale discard must not queue
+        // an offline close that later removes the replacement from the Mac layout.
+        let archiveSuite = "ArchivedReplacement.\(UUID().uuidString)"
+        let archiveDefaults = UserDefaults(suiteName: archiveSuite)!
+        defer { archiveDefaults.removePersistentDomain(forName: archiveSuite) }
+        Fixture.layouts[base.host!] = WindowLayout(windows: [terminal])
+        let archived = WindowGateway(persistence: WindowPersistence(defaults: archiveDefaults), client: Fixture.api)
+        archived.discardScene(reference, remainingScenes: [reference])
+        await archived.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
+        precondition(Fixture.layouts[base.host!]!.windows == [terminal], "An archived replacement must survive a delayed discard of its old scene")
+        let afterArchiveRestart = WindowGateway(persistence: WindowPersistence(defaults: archiveDefaults), client: Fixture.api)
+        await afterArchiveRestart.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session]), target)
+        precondition(Fixture.layouts[base.host!]!.windows == [terminal], "Ignoring an old discard must not leave a persisted close in the outbox")
+        // Matching content on another Mac is not a replacement for this window.
+        archived.discardScene(reference, remainingScenes: [WindowReference(hostID: "another-host", window: terminal)])
+        await until { Fixture.layouts[base.host!]!.windows.isEmpty }
+        print("PASS: archived replacement sessions survive delayed cold-start discards; genuine final closes still persist")
 
         // Closing a preview while its gateway is being resolved cannot resurrect it.
         Fixture.layouts[base.host!] = WindowLayout(windows: [preview])

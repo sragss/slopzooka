@@ -1,0 +1,430 @@
+{
+  "version": 1,
+  "physicalCandidate": "989369774e58475e2e876cf659745de7f0f30204",
+  "localDate": "2026-11-10",
+  "utcDate": "2026-11-11",
+  "verdict": "mixed: streaming/reopen/Direct messages passed; reopened Mac preview lost its desired record at restart, so final LAN restoration failed",
+  "wearerNotes": [
+    {
+      "event": "slot.started",
+      "at": "2026-11-11T00:24:25.175069+00:00",
+      "run": "run-KqK9Hb",
+      "candidate": "989369774e58475e2e876cf659745de7f0f30204",
+      "testApp": "com.slopzooka.probe.nativepreview",
+      "originalProcesses": [
+        13544,
+        13547,
+        32460
+      ]
+    },
+    {
+      "at": "2026-11-11T00:27:22.306880+00:00",
+      "event": "wearer.batch1",
+      "verdict": "looks good",
+      "notes": [
+        "Rhythmic stutter remains and wearer reports the same in regular Mac-to-VP display connection; cause unproven.",
+        "Match macOS rounded corners: square VP rendering exposes black corners.",
+        "Resize changes window size with fixed aspect ratio; acceptable for this slice."
+      ],
+      "reloadScale": "Broad affirmative response to combined check; no separately quantified scale measurement."
+    },
+    {
+      "at": "2026-11-11T00:28:14.197881+00:00",
+      "event": "wearer.close_ready",
+      "macPreviewClosed": true,
+      "launcherClosed": true,
+      "operatorActions": [
+        "verified desired layout omitted Mac preview",
+        "covered only owned Mac source",
+        "pulsed nonce f9326efa / counter 2",
+        "requested same source via normal layout API",
+        "changed source to portrait"
+      ],
+      "observed": "new native scene observed and stream.connecting after remote open"
+    },
+    {
+      "at": "2026-11-11T00:28:36.004229+00:00",
+      "event": "wearer.batch2",
+      "verdict": "Reopened; both fresh and streaming",
+      "qualified": [
+        "remote reopen with launcher closed",
+        "covered Mac source freshness",
+        "portrait aspect transition",
+        "Mac Count 2 and both nonce f9326efa per combined prompt"
+      ]
+    },
+    {
+      "at": "2026-11-11T00:30:14.659Z",
+      "event": "wearer.batch3_before_restart",
+      "verdict": "Wide again; Direct works; launcher closed"
+    },
+    {
+      "at": "2026-11-11T00:33:32.404Z",
+      "event": "wearer.final",
+      "restart": "Both ACKs; correct Direct messages",
+      "lanReturn": "Only iPhone resumes",
+      "headsetInteractionFinished": true
+    },
+    {
+      "at": "2026-11-11T00:35:01.605Z",
+      "event": "headset.test.stopped",
+      "pid": 583,
+      "verifiedBundle": "com.slopzooka.probe.nativepreview",
+      "originalHeadsetPid": 320
+    }
+  ],
+  "initialLayout": {
+    "version": 1,
+    "revision": 2,
+    "windows": [
+      {
+        "id": "preview-a",
+        "kind": "terminal",
+        "targetID": "preview-a"
+      },
+      {
+        "id": "preview-b",
+        "kind": "terminal",
+        "targetID": "preview-b"
+      },
+      {
+        "id": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "kind": "preview",
+        "targetID": "window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775"
+      },
+      {
+        "id": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:11926:142757",
+        "kind": "preview",
+        "targetID": "window:e3370d76-2652-4aa1-881e-f41c142f4c7f:11926:142757"
+      }
+    ]
+  },
+  "finalLayout": {
+    "version": 1,
+    "revision": 5,
+    "windows": [
+      {
+        "id": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:11926:142757",
+        "kind": "preview",
+        "targetID": "window:e3370d76-2652-4aa1-881e-f41c142f4c7f:11926:142757"
+      },
+      {
+        "id": "preview-a",
+        "kind": "terminal",
+        "targetID": "preview-a"
+      },
+      {
+        "id": "preview-b",
+        "kind": "terminal",
+        "targetID": "preview-b"
+      }
+    ]
+  },
+  "sameSessionService": true,
+  "initialSessions": [
+    "preview-a",
+    "preview-b"
+  ],
+  "finalSessions": [
+    "preview-a",
+    "preview-b"
+  ],
+  "originalFixturePids": [
+    67367,
+    67368
+  ],
+  "manualRestartInputReceipts": {
+    "restart-a": false,
+    "restart-b": false
+  },
+  "selectedEvents": [
+    {
+      "at": "2026-11-11T00:23:55.429Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:23:55.616Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.ready",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:24:31.256Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:24:31.596Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.ready",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.493Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "window.close.requested",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "dismiss": "true"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.493Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "intent.queued",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "open": "false"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.702Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "layout.saving",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "pending": "1",
+        "revision": "2"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.743Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "window.close.requested",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "dismiss": "false"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.743Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "intent.queued",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "open": "false"
+      }
+    },
+    {
+      "at": "2026-11-11T00:27:26.753Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "layout.acknowledged",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "revision": "3"
+      }
+    },
+    {
+      "at": "2026-11-11T00:29:38.276Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "at": "2026-11-11T00:29:39.905Z",
+      "instance": "9D822F2B-DDE5-4298-84D1-0A8CF5376ED1",
+      "event": "connection.ready",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:17.179Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "window.close.requested",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "dismiss": "false"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:17.180Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "intent.queued",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "d943b842-8c29-42a5-9d97-2f7045f26830:window:e3370d76-2652-4aa1-881e-f41c142f4c7f:67647:142775",
+        "open": "false"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:17.211Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:19.728Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "layout.saving",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "pending": "1",
+        "revision": "4"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:19.759Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "layout.acknowledged",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "revision": "5"
+      }
+    },
+    {
+      "at": "2026-11-11T00:30:19.785Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "connection.ready",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "direct"
+      }
+    },
+    {
+      "at": "2026-11-11T00:32:36.793Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:32:36.954Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "connection.started",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    },
+    {
+      "at": "2026-11-11T00:32:37.352Z",
+      "instance": "51FCCB65-D08E-4BB5-81A3-5F15D2E8AEF2",
+      "event": "connection.ready",
+      "fields": {
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "connectionMethod": "localNetwork"
+      }
+    }
+  ],
+  "completedNonemptyStreamSummaries": [
+    {
+      "at": "2026-11-11T00:25:40.070Z",
+      "viewerId": "7320C152-F778-4939-836F-40D5C816CE52",
+      "frames": "1639",
+      "captured": "1899",
+      "coalesced": "260",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "errorCode": "",
+      "durationMs": "66028"
+    },
+    {
+      "at": "2026-11-11T00:25:46.129Z",
+      "viewerId": "9710B7F0-518D-4AF4-A341-64EBAF2A1FDD",
+      "frames": "135",
+      "captured": "161",
+      "coalesced": "25",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "errorCode": "",
+      "durationMs": "5622"
+    },
+    {
+      "at": "2026-11-11T00:27:26.540Z",
+      "viewerId": "E6CDF7C6-8F0C-4AAF-92F7-68FFC675CD44",
+      "frames": "2464",
+      "captured": "2906",
+      "coalesced": "442",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "errorCode": "",
+      "durationMs": "100160"
+    },
+    {
+      "at": "2026-11-11T00:29:38.303Z",
+      "viewerId": "5C488738-CCCF-4253-A19A-44402B596B3B",
+      "frames": "7537",
+      "captured": "8811",
+      "coalesced": "1273",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "errorCode": "",
+      "durationMs": "304259"
+    },
+    {
+      "at": "2026-11-11T00:29:38.308Z",
+      "viewerId": "7908FE57-E31E-4304-93B9-0B19B12B78F3",
+      "frames": "2869",
+      "captured": "3367",
+      "coalesced": "496",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "errorCode": "",
+      "durationMs": "116143"
+    }
+  ],
+  "offeredFrameTotal": 14644,
+  "encodedDropTotal": 0,
+  "captureFailureCount": 0,
+  "cleanup": {
+    "operatorStopped": true,
+    "headsetTestPid583Absent": true,
+    "originalHeadsetPid320Present": true,
+    "originalMacPidsPresent": true
+  },
+  "followup": {
+    "deviceTested": false,
+    "change": "Use all surviving UIApplication openSessions, including archived replacements, and decide closure through WindowGateway. Exclude all members of the discard batch.",
+    "test": "Archived replacement before scene connection preserves desired state across gateway restart; true final close and host isolation still enforced.",
+    "stagedHeadsetBinary": "/tmp/slz-preview-validation/vp/Build/Products/Debug-xros/SlopZooka.app/SlopZooka",
+    "sha256": "455a3335049d5522ac6a9812df37f7ab1487565920d74576fab4fbb26befed9c",
+    "checks": {
+      "archived_replacement_and_genuine_discard_regressions": "pass",
+      "vision_state_and_native_sockets": "pass",
+      "70_companion_tests": "pass",
+      "lint": "pass",
+      "typecheck": "pass",
+      "terminal_keyboard_webkit": "pass",
+      "format": "pass",
+      "harness_asset_parity": "pass",
+      "vision_simulator_build": "pass",
+      "signed_headset_build_and_codesign_verification": "pass",
+      "rig_smoke": "pass"
+    }
+  }
+}

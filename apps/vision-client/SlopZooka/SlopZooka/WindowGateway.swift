@@ -245,6 +245,15 @@ final class WindowGateway: ObservableObject {
             Task { await synchronize() }
         } catch { persistenceError = "Could not save the window layout: \(error.localizedDescription)" }
     }
+    // Native discard may arrive on the next launch. A replacement can still be
+    // archived, so the adapter supplies all surviving OS sessions, not just views.
+    func discardScene(_ reference: WindowReference, remainingScenes: Set<WindowReference>) {
+        guard !remainingScenes.contains(reference) else {
+            log.info("scene.discard.superseded", ["windowId": reference.window.id, "hostId": reference.hostID])
+            return
+        }
+        close(reference, dismiss: false)
+    }
     func openLauncher() { presenters.values.first?(.openLauncher) }
 
     func newShell(for id: String) async throws {

@@ -158,19 +158,21 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didDiscardSceneSessions sessions: Set<UISceneSession>) {
-        // Discard is permanent scene closure. Disconnect/background/onDisappear are not.
-        // UIKit may deliver this on the next launch, so read the identity from the session.
-        for session in sessions {
-            guard let data = session.userInfo?[referenceKey] as? Data,
-                let reference = try? JSONDecoder().decode(WindowReference.self, from: data) else { continue }
-            // An older instance can finish closing after the same content was reopened.
-            let replacementExists = application.connectedScenes.contains { scene in
-                guard scene.session.persistentIdentifier != session.persistentIdentifier,
-                    let replacement = scene.session.userInfo?[referenceKey] as? Data else { return false }
-                return (try? JSONDecoder().decode(WindowReference.self, from: replacement)) == reference
-            }
-            if replacementExists { continue }
-            windows.close(reference, dismiss: false)
+        // Open sessions include archived replacements that have no connected
+        // scene yet. Exclude the entire discard batch: two discarded copies
+        // must not protect each other from a genuine close.
+        let discardedIDs = Set(sessions.map(\.persistentIdentifier))
+        func reference(_ session: UISceneSession) -> WindowReference? {
+            guard let data = session.userInfo?[referenceKey] as? Data else { return nil }
+            return try? JSONDecoder().decode(WindowReference.self, from: data)
+        }
+        let surviving = application.openSessions.filter { !discardedIDs.contains($0.persistentIdentifier) }
+        let remaining = Set(surviving.compactMap(reference))
+        AppLog("window-scene").info("scenes.discarded", ["discarded": String(sessions.count),
+            "surviving": String(surviving.count), "archived": String(surviving.filter { $0.scene == nil }.count),
+            "identified": String(remaining.count)])
+        for window in Set(sessions.compactMap(reference)) {
+            windows.discardScene(window, remainingScenes: remaining)
         }
     }
 }

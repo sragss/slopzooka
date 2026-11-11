@@ -1,9 +1,12 @@
-# Native previews: hardening and the next headset gate
+# Native previews: hardening and second headset gate
 
 Follow-up to the [first physical slot](2026-11-10-native-preview-device-results.md),
 on draft [#56](https://github.com/sragss/slopzooka/pull/56), stacked on transport
 [#54](https://github.com/sragss/slopzooka/pull/54). Feature remains opt-in. This
 records local preparation, not a second headset pass.
+
+The slot has now run: [second physical results and focused follow-up](2026-11-10-native-preview-retest.md).
+Use that follow-up, not the four-batch script below, for the next slot.
 
 ## Changes motivated by the slot
 
@@ -115,7 +118,7 @@ existing PTYs are left running. Pairing codes are read just before entry; no cod
 in this document should be reused. These new binaries have not been installed or
 launched on the physical headset during preparation.
 
-## Next slot: four short wearer batches
+## Executed slot: four short wearer batches
 
 Target **5–7 minutes after pairing**, with a charged headset. No timed shutdown.
 Stop on the first failed gate and save evidence; do not spend the wearer's slot

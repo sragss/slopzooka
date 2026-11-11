@@ -68,7 +68,7 @@ process.stdout.write = function(chunk, ...args) {
 };
 `);
 await fs.writeFile(path.join(home, 'workspaces/index.json'), JSON.stringify([{
-  workspaceId: 'preview-test', repo: { nameWithOwner: 'test/preview-test', owner: { login: 'test' }, name: 'preview-test' },
+  workspaceId: 'preview-test', repo: { nameWithOwner: 'test/preview-test', owner: { login: 'test', avatarUrl: '' }, name: 'preview-test', isPrivate: false, defaultBranch: 'main' },
   profile: null, localCheckoutPath: run, worktreePath: run, branchName: 'preview-validation', baseRef: 'main',
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
 }]));
