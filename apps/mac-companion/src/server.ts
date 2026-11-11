@@ -1,3 +1,5 @@
+import { CompanionTransport, connectionMethod } from "./companion-transport.js";
+import { webPresentation } from "./presentation.js";
 import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
 import { randomUUID } from "node:crypto";
@@ -117,7 +119,12 @@ const catalogTimer = setInterval(() => {
 catalogTimer.unref();
 
 const app = express();
-app.use(logRequests(diagnostics));
+app.use(
+  logRequests(diagnostics, (req) => ({
+    connectionMethod: connectionMethod(req),
+    hostId: pairing.hostId,
+  })),
+);
 app.use(express.json({ limit: "128kb" }));
 app.use((req, res, next) => {
   if (shuttingDown || !admissionReady) {
@@ -169,6 +176,10 @@ app.get("/health", (_req, res) => {
     sessionServiceAvailable,
     runtime: import.meta.url.endsWith(".ts") ? "development" : "packaged",
     paired: pairing.authorized(_req),
+    transport: {
+      ...transport.health,
+      connectionMethod: connectionMethod(_req),
+    },
     protocolVersion: PROTOCOL_VERSION,
     name: "slopzooka-mac-companion",
     version: "0.2.0",
@@ -487,9 +498,16 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
   }
 });
 
-app.get("/api/frontends", async (_req, res) =>
-  res.json(await frontendService.getCatalog()),
-);
+app.get("/api/frontends", async (req, res) => {
+  const catalog = await frontendService.getCatalog();
+  res.json({
+    ...catalog,
+    frontends: catalog.frontends.map((frontend) => ({
+      ...frontend,
+      presentation: webPresentation(req, frontend),
+    })),
+  });
+});
 app.post("/api/frontends", async (req, res) => {
   try {
     if (typeof req.body?.url !== "string")
@@ -513,7 +531,18 @@ app.post("/api/frontends/open", async (req, res) => {
   try {
     if (typeof req.body?.id !== "string")
       throw new ServiceError("Frontend id required", 400);
-    const hostname = new URL(`http://${req.headers.host}`).hostname;
+    const frontend = (await frontendService.getCatalog()).frontends.find(
+      (item) => item.id === req.body.id,
+    );
+    if (!frontend) throw new ServiceError("Frontend not found", 404);
+    const presentation = webPresentation(req, frontend);
+    if (!presentation.available) {
+      res.status(409).json({ error: presentation.message, presentation });
+      return;
+    }
+    const hostname = new URL(
+      `http://${typeof req.body.gatewayHostname === "string" ? req.body.gatewayHostname : req.headers.host}`,
+    ).hostname;
     res.json(await frontendService.openFrontend(req.body.id, hostname));
   } catch (error) {
     sendWorkspaceError(res, error, "Could not open frontend");
@@ -561,7 +590,11 @@ app.use(
 const server = http.createServer(app);
 const wss = new WebSocketServer({ noServer: true, maxPayload: 128 * 1024 });
 
-server.on("upgrade", (request, socket, head) => {
+const upgrade: import("./companion-transport.js").Upgrade = (
+  request,
+  socket,
+  head,
+) => {
   if (
     shuttingDown ||
     request.url !== "/ws" ||
@@ -572,8 +605,18 @@ server.on("upgrade", (request, socket, head) => {
     socket.destroy();
     return;
   }
-  wss.handleUpgrade(request, socket, head, (ws) => wss.emit("connection", ws));
-});
+  wss.handleUpgrade(request, socket, head, (ws) =>
+    wss.emit("connection", ws, request),
+  );
+};
+server.on("upgrade", upgrade);
+const transport = new CompanionTransport(
+  app,
+  upgrade,
+  workspacePaths().slopzookaHome,
+  pairing.hostId,
+  diagnostics.logger("transport", { hostId: pairing.hostId }),
+);
 const alive = new Set<WebSocket>();
 const heartbeat = setInterval(() => {
   for (const ws of wss.clients) {
@@ -585,9 +628,13 @@ const heartbeat = setInterval(() => {
   }
 }, 15_000);
 heartbeat.unref();
-wss.on("connection", (ws) => {
+wss.on("connection", (ws, request) => {
   const connectionId = randomUUID();
-  const log = diagnostics.logger("terminal-relay", { connectionId });
+  const log = diagnostics.logger("terminal-relay", {
+    connectionId,
+    hostId: pairing.hostId,
+    connectionMethod: connectionMethod(request),
+  });
   log.info("connection.opened");
   alive.add(ws);
   ws.on("pong", () => alive.add(ws));
@@ -599,12 +646,10 @@ wss.on("connection", (ws) => {
       connectionId,
     })
     .catch((error) => {
-      logger.warn("Session relay unavailable", { error: String(error) });
+      log.warn("relay.unavailable", { error: logError(error) });
       ws.close(1013, "Session service unavailable; retry from the Mac menu");
     });
-  ws.on("error", (error) =>
-    logger.warn("Socket error", { error: error.message }),
-  );
+  ws.on("error", (error) => log.warn("socket.failed", { error }));
   ws.on("close", () => {
     log.info("connection.closed");
     alive.delete(ws);
@@ -630,6 +675,7 @@ server.listen(
     }
     admissionReady = true;
     dashboardAddress.start();
+    void transport.start();
     publishDesktopStatus();
     logger.info("Companion listening", {
       controlOrigin: CONTROL_ORIGIN,
@@ -883,6 +929,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
     server.close(() => resolve()),
   );
   await Promise.allSettled([
+    transport.stop(),
     frontendService.stop(),
     dashboardAddress.stop(),
     bonjourAdvertiser?.stop(),

@@ -10,11 +10,25 @@ struct MacConnectionView: View {
 
     private var selectedMacName: String {
         client.companions.first(where: { $0.candidateHosts.contains(client.normalizedHost) })?.name
-            ?? client.current.flatMap { try? client.endpoint(for: $0.id).host() } ?? "your Mac"
+            ?? client.health.flatMap { URL(string: $0.controlOrigin)?.host() } ?? "your Mac"
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
+            Picker("Connection method", selection: Binding(get: { client.connectionMethod }, set: { method in
+                Task { await client.setConnectionMethod(method) }
+            })) {
+                Text("Local Network").tag(ConnectionMethod.localNetwork)
+                Text("Direct to Mac (Experimental)").tag(ConnectionMethod.direct)
+            }
+            .disabled(client.isPairing || state.isMutatingWorkspace)
+            Text("Changing methods reconnects your windows. Mac terminals keep running; web pages may reload.")
+                .font(.caption).foregroundStyle(.secondary)
+            if client.connectionMethod == .direct {
+                Text("Connects to a nearby paired Mac. Web previews are unavailable. Initial pairing requires Local Network.")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+
             if client.needsPairing {
                 Text("Connect to \(selectedMacName)").font(.title3.weight(.semibold))
                 Text("Enter the six-digit code displayed on your Mac.")
@@ -46,15 +60,18 @@ struct MacConnectionView: View {
                     .font(.caption).foregroundStyle(.secondary)
             } else if client.isReady {
                 Label(selectedMacName, systemImage: "desktopcomputer").font(.title3.weight(.semibold))
-                Text("Connected").foregroundStyle(.secondary)
+                Text(client.connectionDescription).foregroundStyle(.secondary)
             } else {
                 Text("Find your Mac").font(.title3.weight(.semibold))
-                Text("Open SlopZooka on your Mac and use the same Wi-Fi network.")
+                Text(client.connectionMethod == .direct ? "Keep your paired Mac nearby with SlopZooka running and Wi-Fi enabled." : "Open SlopZooka on your Mac and use the same Wi-Fi network.")
                     .foregroundStyle(.secondary)
                 if let message = client.healthState.connectionError {
                     Text(client.healthState.isReconnecting ? "Reconnecting to your Mac…" : "Couldn’t reach your Mac.").foregroundStyle(.orange)
                     DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
                     Button("Try Again") { Task { await client.connect() } }
+                    Button(client.connectionMethod == .direct ? "Use Local Network" : "Use Direct to Mac") {
+                        Task { await client.setConnectionMethod(client.connectionMethod == .direct ? .localNetwork : .direct) }
+                    }
                 } else if let message = client.discoveryError {
                     Text("Mac discovery is unavailable.").foregroundStyle(.orange)
                     DisclosureGroup("Details") { Text(message).font(.caption).textSelection(.enabled) }
@@ -62,13 +79,14 @@ struct MacConnectionView: View {
                     ProgressView("Looking for your Mac…")
                 }
             }
-            if client.companions.count > 1 {
+            if client.connectionMethod == .localNetwork && client.companions.count > 1 {
                 Menu("Choose another Mac") {
                     ForEach(client.companions) { companion in
                         Button(companion.name) { selectMac(companion.host) }
                     }
                 }.disabled(client.isPairing || state.isMutatingWorkspace)
             }
+            if client.connectionMethod == .localNetwork {
             Button(showManualAddress ? "Hide manual address" : "Enter address manually") {
                 showManualAddress.toggle()
             }.font(.subheadline)
@@ -79,6 +97,7 @@ struct MacConnectionView: View {
                     Button("Find Mac") { selectMac(connectionHost) }
                         .disabled(client.isPairing || state.isMutatingWorkspace || connectionHost.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
+            }
             }
         }
         .onAppear { connectionHost = client.host }

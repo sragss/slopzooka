@@ -140,9 +140,23 @@ try {
     sessionSocketPath,
     "private status identifies the isolated service endpoint",
   );
-  const health = await (await fetch(base + "/health")).json();
+  // Private status can arrive while the HTTP admission gate is still starting.
+  const health = await until(async () => {
+    const response = await fetch(base + "/health");
+    if (!response.ok) return undefined;
+    const health = await response.json();
+    return health.ok === true ? health : undefined;
+  });
+  // The first private frame can precede service admission. Inspect a fresh
+  // ready frame, rather than asserting logger metadata from that early snapshot.
+  const readyStatus = await until(() => {
+    const line = output.split("\n").findLast((item) => item.startsWith("SLZ_DESKTOP "));
+    if (!line) return undefined;
+    const value = JSON.parse(line.slice("SLZ_DESKTOP ".length));
+    return value.sessionServiceAvailable ? value : undefined;
+  });
   assert.equal(
-    status.sessionLogPath,
+    readyStatus.sessionLogPath,
     path.join(
       path.dirname(path.dirname(health.logFilePath)),
       "session-service",
@@ -151,7 +165,7 @@ try {
   );
   await until(async () => {
     try {
-      await fs.access(status.sessionLogPath);
+      await fs.access(readyStatus.sessionLogPath);
       return true;
     } catch {
       return false;

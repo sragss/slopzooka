@@ -183,6 +183,7 @@ private struct PreviewWebView: UIViewRepresentable {
         coordinator.navigation?.detach(from: webView)
         webView.navigationDelegate = nil
         webView.stopLoading()
+        webView.loadHTMLString("", baseURL: nil) // End timers, scripts and sockets on a retired route.
     }
 
     final class Coordinator: NSObject, WKNavigationDelegate {

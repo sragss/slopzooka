@@ -66,6 +66,7 @@ try {
   await fs.mkdir(path.join(app, "Contents/MacOS"), { recursive: true });
   await fs.mkdir(path.join(resources, "runtime"), { recursive: true });
   run("pnpm", ["build:harness"]);
+  run("pnpm", ["--filter", "@slz/mac-companion", "build:transport"]);
   run("pnpm", [
     "--filter",
     "@slz/mac-companion",
@@ -74,6 +75,10 @@ try {
     "--legacy",
     path.join(resources, "host"),
   ]);
+  await fs.mkdir(path.join(resources, "host/native"), { recursive: true });
+  await fs.copyFile(path.join(root, "apps/mac-companion/native/transport-host"), path.join(resources, "host/native/transport-host"));
+  await fs.chmod(path.join(resources, "host/native/transport-host"), 0o755);
+  run("codesign", ["--force", "--sign", signingIdentity, path.join(resources, "host/native/transport-host")]);
   // Legacy deploy leaves a workspace self-link pointing back to the checkout.
   await fs.rm(
     path.join(

@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, RequestHandler } from "express";
 import {
   isLogEvent,
   isLogClock,
@@ -7,6 +7,7 @@ import {
   MAX_LOG_EVENT_BYTES,
   validLogId,
   type LogEvent,
+  type LogFields,
   validTimestamp,
 } from "../../../packages/protocol/src/diagnostics.js";
 import { captureLogs } from "./log-store.js";
@@ -14,14 +15,17 @@ import path from "node:path";
 import { logContext, type Diagnostics } from "./logger.js";
 
 /** Install before parsing/authentication; never record headers, queries, or bodies. */
-export function logRequests(diagnostics: Diagnostics): RequestHandler {
+export function logRequests(
+  diagnostics: Diagnostics,
+  requestFields: (request: Request) => LogFields = () => ({}),
+): RequestHandler {
   const log = diagnostics.logger("http");
   return (req, res, next) => {
     const requested = req.header("X-SlopZooka-Action-ID");
     const actionId = validLogId(requested) ? requested : randomUUID();
     const requestId = randomUUID(),
       started = performance.now();
-    const context = { actionId, requestId };
+    const context = { ...requestFields(req), actionId, requestId };
     res.setHeader("X-SlopZooka-Request-ID", requestId);
     res.setHeader("X-SlopZooka-Time", new Date().toISOString());
     const diagnosticsRequest = req.path.startsWith("/api/diagnostics");

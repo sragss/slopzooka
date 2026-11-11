@@ -11,6 +11,7 @@ const temporary = await fs.mkdtemp(path.join(os.tmpdir(), "slz-vision-state-"));
 const binary = path.join(temporary, "checks");
 const companionSources = [
   "CompanionClient",
+  "CompanionTransport",
   "CompanionModels",
   "WindowPersistence",
 ];
@@ -45,6 +46,7 @@ try {
         "-swift-version",
         "5",
         "-parse-as-library",
+        ...(sources.includes("CompanionTransport") ? [path.join(root, "packages/transport/NativeStream.swift")] : []),
         ...sharedSources,
         ...sources.map((name) =>
           path.join(
@@ -83,7 +85,9 @@ try {
                 "packages/protocol/fixtures/session-names.v1.json",
               ),
             ]
-          : [];
+          : suite === "CompanionClientChecks"
+            ? [path.join(root, "packages/protocol/fixtures/presentation.v1.json")]
+            : [];
     execFileSync(binary, args, {
       stdio: "inherit",
       timeout: 10_000,

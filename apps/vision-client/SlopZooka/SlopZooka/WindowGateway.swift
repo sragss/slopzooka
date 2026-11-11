@@ -76,6 +76,16 @@ final class WindowGateway: ObservableObject {
         launcher.launchTerminal = { [weak self] workspaceID, hostID, profile in
             try await self?.launchTerminal(workspaceID: workspaceID, hostID: hostID, profile: profile)
         }
+        self.client.onRouteRetiring = { [weak self] hostID in
+            guard let self else { return }
+            for (id, window) in self.windows where window.reference?.hostID == hostID {
+                self.windows[id]?.invalidateContent()
+                self.windows[id]?.content = nil
+                self.windows[id]?.loadState = .idle
+                self.windows[id]?.renameRequest = nil
+                self.windows[id]?.error = "Reconnecting using \(self.client.connectionMethod.title)…"
+            }
+        }
         self.client.onSessionSnapshot = { [weak self] snapshot, target in
             guard let self else { return }
             let hostID = target.id
@@ -202,6 +212,7 @@ final class WindowGateway: ObservableObject {
         Task { await synchronize() }
     }
     func openPreview(_ frontend: FrontendSummary, hostID: String) throws {
+        if let message = client.frontendOpenError(id: frontend.id, hostID: hostID) { throw CompanionError(message: message) }
         let id = "\(hostID):\(frontend.id)"
         remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: frontend.id)))
         try open(id: id)
@@ -306,6 +317,18 @@ final class WindowGateway: ObservableObject {
         guard windows[record.id]?.resolvedPreviewRevision != revision,
             windows[record.id]?.previewRequest?.revision != revision else { return }
         windows[record.id]?.previewRequest?.task.cancel()
+        // Restoration uses the same server-authored capability as the launcher.
+        // Expected unavailability is state, not a failing Open every poll. A new
+        // catalog/route can make it available again without another window cache.
+        if let availability = client.frontends(for: hostID).frontends.first(where: { $0.id == record.targetID })?.presentation,
+           !availability.available {
+            let message = availability.message ?? "Preview unavailable on this connection."
+            if windows[record.id]?.error != message {
+                windows[record.id]?.error = message
+                log.info("preview.unavailable", ["hostId": hostID, "windowId": record.id, "reasonCode": availability.reasonCode ?? "unavailable"])
+            }
+            return
+        }
         // Content availability never blocks intent persistence or other windows.
         let task = Task {
             defer { if windows[record.id]?.previewRequest?.revision == revision { windows[record.id]?.previewRequest = nil } }
@@ -347,7 +370,8 @@ final class WindowGateway: ObservableObject {
             if result.frontend.url.hasPrefix("https://") && url.scheme != "https" {
                 throw CompanionError(message: "Update the Mac companion to open this HTTPS app securely.")
             }
-            url.host = try client.endpoint(for: hostID).host
+            let hostname = try client.previewHostname(for: hostID)
+            url.host = hostname
             url.port = port
             url.path = "/__slz_access"
             url.fragment = nil

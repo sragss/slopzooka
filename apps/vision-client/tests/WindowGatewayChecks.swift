@@ -7,6 +7,7 @@ enum Fixture {
     static var layouts: [String: WindowLayout] = [:]
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
+    static var frontends: [[String: Any]] = []
     static var beforeFrontends: (() async throws -> Void)?
     static var beforeSessions: (() async throws -> Void)?
     static var sessions: [String: [HostSession]] = [:]
@@ -96,7 +97,7 @@ enum Fixture {
         }
         if path == "/api/frontends" {
             if let callback = beforeFrontends { beforeFrontends = nil; try await callback() }
-            return try json(["frontends": [], "warning": "Frontend fixture"], for: request)
+            return try json(["frontends": frontends, "warning": "Frontend fixture"], for: request)
         }
         if path == "/api/frontends/open" {
             let port = previewPort
@@ -536,6 +537,61 @@ struct WindowGatewayChecks {
                 "A late resolution cannot replace newer content or clear its pending work")
         }
         print("PASS: repeated reload and close/reopen replace stalled preview work without losing content or accepting late results")
+
+        // A connection-method switch removes the live documents, not the scenes
+        // or saved intent. Exercise it with a preview resolution still in flight.
+        var releaseSwitch: CheckedContinuation<Void, Never>?
+        Fixture.beforePreview = { await withCheckedContinuation { releaseSwitch = $0 } }
+        routed.reload(id: preview.id)
+        await until { releaseSwitch != nil }
+        let commandsBeforeSwitch = routeCommands.count
+        let mutationsBeforeSwitch = Fixture.requests.filter { $0.hasPrefix("POST /api/workspaces") || $0.hasPrefix("DELETE /api/sessions") }.count
+        let retiringHostID = routed.client.current!.id
+        await routed.client.setConnectionMethod(.direct)
+        precondition(routed.previewPayload(for: preview.id) == nil)
+        precondition(routed.terminalPayload(for: terminal.id) == nil)
+        precondition(routeCommands.count == commandsBeforeSwitch, "Transport retirement never dismisses native scenes")
+        let staleFrontend = try JSONDecoder().decode(FrontendSummary.self, from: Data("""
+            {"id":"stale-preview","hostname":"example.com","url":"https://example.com","transport":"direct"}
+            """.utf8))
+        do {
+            try routed.openPreview(staleFrontend, hostID: retiringHostID)
+            preconditionFailure("A stale caller must not create a preview window during route retirement")
+        } catch is CompanionError {}
+        precondition(routed.reference(for: "\(retiringHostID):stale-preview") == nil)
+        precondition(routeCommands.count == commandsBeforeSwitch)
+        routed.close(id: preview.id)
+        releaseSwitch?.resume()
+        for _ in 0..<20 { await Task.yield() }
+        precondition(routed.previewPayload(for: preview.id) == nil, "A late payload cannot revive the retired document")
+        precondition(Fixture.requests.filter { $0.hasPrefix("POST /api/workspaces") || $0.hasPrefix("DELETE /api/sessions") }.count == mutationsBeforeSwitch,
+            "Changing method or closing an unavailable preview must not create or end a process")
+        print("PASS: method switch retires documents without scene/process mutation; late preview replies and explicit close stay closed")
+
+        let unavailableSuite = "UnavailablePreviewChecks.\(UUID().uuidString)"
+        let unavailableDefaults = UserDefaults(suiteName: unavailableSuite)!
+        defer { unavailableDefaults.removePersistentDomain(forName: unavailableSuite); Fixture.frontends = [] }
+        Fixture.layouts[base.host!] = WindowLayout(windows: [terminal, preview])
+        let unavailable = WindowGateway(persistence: WindowPersistence(defaults: unavailableDefaults), client: Fixture.api)
+        let unavailableTarget = unavailable.client.current!
+        Fixture.frontends = [["id": preview.targetID, "hostname": "localhost", "url": "https://localhost/app", "transport": "gateway",
+            "presentation": ["presentation": "web", "available": false, "reasonCode": "presentation_unsupported_on_route", "message": "Use Local Network for this preview", "alternatives": []]]]
+        await unavailable.client.refreshFrontends(hostID: hostID)
+        let opensBefore = Fixture.requests.filter { $0 == "POST /api/frontends/open" }.count
+        for _ in 0..<4 { await unavailable.client.onSessionSnapshot?(sameInstance, unavailableTarget) }
+        for _ in 0..<10 { await Task.yield() }
+        precondition(Fixture.requests.filter { $0 == "POST /api/frontends/open" }.count == opensBefore,
+            "A restored unavailable preview must not repeatedly invoke Open or produce 409/error logs")
+        precondition(unavailable.previewPayload(for: preview.id) == nil && unavailable.message(for: preview.id) == "Use Local Network for this preview")
+        precondition(unavailable.terminalPayload(for: terminal.id) != nil && unavailable.reference(for: preview.id) != nil,
+            "Unavailable preview intent and independent terminal recovery survive")
+        Fixture.frontends[0]["presentation"] = ["presentation": "web", "available": true, "alternatives": []]
+        await unavailable.client.refreshFrontends(hostID: hostID)
+        await unavailable.client.onSessionSnapshot?(sameInstance, unavailableTarget)
+        await until { unavailable.previewPayload(for: preview.id) != nil }
+        precondition(Fixture.requests.filter { $0 == "POST /api/frontends/open" }.count == opensBefore + 1,
+            "A newly available catalog resolves the same saved preview exactly once")
+        print("PASS: known unavailable previews retain intent without repeated Open requests, then recover when the catalog permits them")
 
     }
 

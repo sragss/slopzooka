@@ -12,6 +12,8 @@ There is one list and one Open action for three sources:
 
 In a headset preview window, use **Back** and **Forward** beside Reload to move through that window's browsing history. Each button is disabled when there is no page in that direction. Reload keeps the current WebView and its history; closing the window or restarting the headset app starts a fresh history.
 
+Web previews currently require **Local Network** in the headset's **Settings → Connected Mac**. With **Direct to Mac (Experimental)** selected, the catalog keeps previews visible but disables Open with an explanation; the Mac API enforces the same limitation before creating a gateway. Switching methods preserves the preview's window record, and returning to Local Network reloads it unless it was closed. Saved URLs can still be removed while unavailable. Streamed native previews are a later feature.
+
 ## Workspace configuration
 
 Servers inside a managed worktree automatically appear beside that workspace and its terminals. This works with ordinary HTTP servers and Portless; no config or special launch command is required. Nested packages belong to their containing worktree, and simultaneous worktrees remain separate. The host dashboard offers an Open app button or a frontend picker; Vision Pro terminals show a workspace-only frontend popover. Apps without an identifiable workspace remain available in the global Frontends tab.

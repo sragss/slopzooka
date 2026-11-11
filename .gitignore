@@ -29,3 +29,5 @@ DerivedData/
 xcuserdata/
 
 apps/vision-client/SlopZooka/.git.xcode-template-disabled/
+
+apps/mac-companion/native/transport-host

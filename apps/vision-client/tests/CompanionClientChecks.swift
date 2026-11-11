@@ -5,6 +5,12 @@ struct CompanionClientChecks {
     @MainActor
     static func main() async throws {
         defer { CompanionTestPreferences.clean() }
+        let presentations = try JSONDecoder().decode([String: PresentationAvailability].self,
+            from: Data(contentsOf: URL(fileURLWithPath: CommandLine.arguments[1])))
+        precondition(presentations["localNetwork"]?.available == true)
+        precondition(presentations["direct"]?.available == false)
+        precondition(presentations["direct"]?.reasonCode == "presentation_unsupported_on_route")
+        precondition(presentations["direct"]?.alternatives.isEmpty == true)
         let base = URL(string: "http://fixture.invalid:7777/terminal?sessionId=old")!
         var requests: [URLRequest] = []
         let api = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: testCredentials()) { request in
@@ -98,6 +104,7 @@ struct CompanionClientChecks {
         try await credentialChecks()
         try await catalogChecks()
         try await pairingChecks()
+        try await connectionMethodChecks()
         try await frontendSharingChecks()
         print("PASS: production companion client preserves request identity, command bodies, minimal responses, timeouts, HTTP status, and transport errors")
     }
@@ -392,4 +399,53 @@ struct CompanionClientChecks {
         print("PASS: pairing stays on the accepted Mac and superseded successful replies cannot change credentials")
     }
 
+    @MainActor
+    static func connectionMethodChecks() async throws {
+        let name = "SlzMethodChecks.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: name)!
+        defer { defaults.removePersistentDomain(forName: name) }
+        let base = URL(string: "http://method.invalid:7777")!, credentials = testCredentials()
+        try credentials.pair(base, hostID: "mac", token: "fixture-token")
+        var pause = false, offline = false, healthRequests = 0
+        var release: CheckedContinuation<Void, Never>?
+        let client = CompanionClient(defaults: defaults, credentials: credentials) { request in
+            switch request.url!.path {
+            case "/health":
+                healthRequests += 1
+                if pause { pause = false; await withCheckedContinuation { release = $0 } }
+                if offline { throw URLError(.cannotConnectToHost) }
+                var body = healthJSON("mac", endpoint: base)
+                body["transport"] = ["version": 1, "direct": true, "certificateAuthority": Data([1]).base64EncodedString()]
+                return try json(body, for: request)
+            case "/api/frontends": return try json(["frontends": []], for: request)
+            case "/api/sessions": return try json(["sessions": []], for: request)
+            default: preconditionFailure("No mutation should be needed to change transport")
+            }
+        }
+        precondition(client.connectionMethod == .localNetwork)
+        client.host = base.absoluteString
+        let connected = await client.connect()
+        precondition(connected && credentials.read("transportCA:mac") != nil)
+        var retired: [String] = []
+        client.onRouteRetiring = { retired.append($0) }
+        pause = true
+        let old = Task { await client.setConnectionMethod(.direct) }
+        while release == nil { await Task.yield() }
+        precondition(client.current == nil && retired == ["mac"], "Retire old content before waiting for a new route")
+        await client.setConnectionMethod(.localNetwork)
+        let accepted = client.current
+        release?.resume(); await old.value
+        precondition(client.current == accepted && client.connectionMethod == .localNetwork, "Late Direct success must not win a rapid toggle")
+        offline = true
+        await client.setConnectionMethod(.direct)
+        precondition(client.connectionMethod == .direct && client.current == nil && !client.isReady)
+        let before = healthRequests
+        await client.maybeAutoConnect(candidateHosts: ["other-mac.invalid:7777"])
+        precondition(healthRequests == before, "Reconnect backoff must not scan other Macs or try LAN")
+        let restarted = CompanionClient(defaults: defaults, credentials: credentials, exchange: { _ in throw URLError(.cannotConnectToHost) })
+        precondition(restarted.connectionMethod == .direct, "A failed manual choice survives app restart")
+        precondition(defaults.string(forKey: "connectionMethod:mac") == "direct")
+        precondition(defaults.string(forKey: "connectionMethod:other") == nil)
+        print("PASS: manual methods retire routes before connecting, reject late success, retain failed choice and never fall back")
+    }
 }
