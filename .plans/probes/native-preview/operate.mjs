@@ -19,6 +19,30 @@ const simulator = '761C24A5-F683-49C2-A87D-5899350E65D4';
 const vpBundle = 'com.slopzooka.probe.nativepreview';
 const iosBundle = 'com.slopzooka.probe.nativefixture.ios';
 const smoke = process.argv.includes('--smoke');
+const mcpMode = process.argv.includes('--mcp');
+let mcpClient;
+async function connectMCP() {
+  if (mcpClient) return mcpClient;
+  if (!smoke && clientID === operatorClientID) throw new Error('Pair and adopt the isolated headset before MCP commands');
+  const require = createRequire(path.join(root, 'apps/mac-companion/package.json'));
+  const { Client } = require('@modelcontextprotocol/client');
+  const { StdioClientTransport } = require('@modelcontextprotocol/client/stdio');
+  const config = path.join(run, 'mcp.private.json');
+  await fs.writeFile(config, JSON.stringify({origin:base,hostId:hostID,clientId:clientID,token}), {mode:0o600});
+  const candidate = new Client({name:'slz-device-operator',version:'1.0.0'});
+  try {
+    await candidate.connect(new StdioClientTransport({command:path.join(resources,'runtime/node'),args:[path.join(resources,'host/src/preview-mcp.mjs'),config],cwd:run,stderr:'inherit'}));
+    mcpClient = candidate;
+    return candidate;
+  } catch (error) { await candidate.close(); throw error; }
+}
+async function callMCP(name, args = {}) {
+  const client = await connectMCP();
+  const result = await client.callTool({name,arguments:args});
+  await journal('mcp.tool.completed',{tool:name,isError:result.isError===true});
+  console.log(JSON.stringify({event:'mcp.result',tool:name,result}));
+  return result;
+}
 if (!smoke && !process.argv.includes('--live')) throw new Error('Choose --smoke or --live. Live opens only disposable Mac fixtures; launch installs the headset test app.');
 process.umask(0o077);
 const run = await fs.mkdtemp(path.join(baseDir, smoke ? 'smoke-' : 'run-'));
@@ -165,6 +189,7 @@ async function restartHelper() {
 }
 async function stop() {
   if (stopped) return; stopped=true;
+  if (mcpClient) { await mcpClient.close(); mcpClient=undefined; }
   await writeFixture({covered:false,closed:true});
   try {
     const desktop=await readPrivateStatus();
@@ -208,11 +233,22 @@ try {
       });
     }
     console.log(JSON.stringify({event:'smoke.passed',checks:['packaged-health','private-status','normal-pairing','two-real-PTYs','layout-CAS','fresh-input-ACKs','two-WebSocket-replays']}));
+    if (mcpMode) {
+      const client=await connectMCP();
+      const tools=(await client.listTools()).tools.map(t=>t.name).sort();
+      if(JSON.stringify(tools)!==JSON.stringify(['preview_close','preview_list','preview_open','preview_rename']))throw new Error('Unexpected packaged MCP tools');
+      const listed=await callMCP('preview_list');
+      if(listed.isError)throw new Error('Packaged MCP catalog failed');
+      const unavailable=await callMCP('preview_open',{source_id:'window:smoke-unavailable'});
+      if(!unavailable.isError)throw new Error('Disabled capture accepted open');
+      await journal('mcp.smoke.passed',{tools:tools.join(',')});
+    }
     await journal('smoke.passed');
   } else {
     // Only --live, after the user gives the slot, creates visible fixture windows.
     execFileSync('xcrun',['simctl','boot',simulator],{stdio:'pipe',timeout:15000});
     execFileSync('xcrun',['simctl','bootstatus',simulator,'-b'],{stdio:'pipe',timeout:120000});
+    execFileSync('xcrun',['simctl','install',simulator,path.join(baseDir,'fixtures/IOSFixture.app')],{stdio:'pipe',timeout:30000});
     const iosContainer=execFileSync('xcrun',['simctl','get_app_container',simulator,iosBundle,'data'],{encoding:'utf8',timeout:10000}).trim();
     iosStateFile=path.join(iosContainer,'Documents/preview-state.json');
     await fs.mkdir(path.dirname(iosStateFile),{recursive:true});
@@ -221,7 +257,7 @@ try {
     execFileSync('/usr/bin/open',['-a','Simulator','--args','-CurrentDeviceUDID',simulator],{stdio:'pipe',timeout:10000});
     fixture=spawn(path.join(baseDir,'fixtures/NativeFixture.app/Contents/MacOS/NativeFixture'),[stateFile],{stdio:'ignore'});
     await journal('live.ready',{pid:child.pid,fixturePID:fixture.pid});
-    console.log(JSON.stringify({event:'ready',run,commands:['status','code','permission','settings','sources','open','launch','adopt','restart-viewer','pulse','portrait','landscape','cover','uncover','close-source','restart-helper','stop']}));
+    console.log(JSON.stringify({event:'ready',run,commands:['status','code','permission','settings','sources','open','launch','adopt','mcp <tool> <JSON>','restart-viewer','pulse','portrait','landscape','cover','uncover','close-source','restart-helper','stop']}));
     for await(const line of createInterface({input:process.stdin})) {
       try {
         const command=line.trim();
@@ -230,8 +266,13 @@ try {
         else if(command==='code'){const s=await readPrivateStatus();if(Date.now()-s.at>10000)throw new Error('Private status stale');console.log(JSON.stringify({pairingCode:s.code,address:`${address}:${port}`}));}
         else if(command==='permission'||command==='settings')await api('/api/window-previews/permission','POST',{settings:command==='settings'});
         else if(command==='sources')console.log(JSON.stringify((await sources()).map(s=>({id:s.id,width:s.contentWidth,height:s.contentHeight}))));
-        else if(command==='open')await openPreviews();
-        else if(command==='adopt'){await adoptHeadset();await openPreviews();}
+        else if(command==='open'){if(mcpMode)throw new Error('Use mcp preview_open in MCP validation mode');await openPreviews();}
+        else if(command==='adopt'){await adoptHeadset();if(mcpClient){await mcpClient.close();mcpClient=undefined;}if(!mcpMode)await openPreviews();}
+        else if(command.startsWith('mcp ')){
+          const match=command.match(/^mcp (preview_(?:list|open|rename|close))(?: (.*))?$/);
+          if(!match)throw new Error('Expected mcp preview_<tool> followed by optional JSON arguments');
+          await callMCP(match[1],match[2]?JSON.parse(match[2]):{});
+        }
         else if(command==='restart-viewer'){
           if(clientID===operatorClientID)throw new Error('Adopt the real headset client before restart');
           execFileSync('xcrun',['devicectl','device','process','launch','--device',device,'--terminate-existing','--',vpBundle],{stdio:'pipe',timeout:60000});

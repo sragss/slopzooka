@@ -146,3 +146,20 @@ claim visibility from layout acknowledgement alone.
 Automatic credential/client-context provisioning for newly launched terminal agents
 is still deferred; current setup is explicitly operator provisioned. The first-launch
 diagnostic gap is tracked separately in [#57](https://github.com/sragss/slopzooka/issues/57).
+
+### Headset preparation, November 11
+
+Both PR #58 CI checks passed at product commit 7ba2598. Rebuilt the isolated signed
+Mac and physical visionOS apps from that product revision; verified both signatures.
+Fixtures rebuilt, including a verified IOSSIMULATOR-targeted binary. The operator
+rig now supports `--mcp` and real SDK calls to the packaged server, and disables
+its historical preview-layout bypass in that mode. The fresh no-UI smoke run
+passed tool discovery, authenticated listing, explicit unavailable-source rejection,
+PTY ACK/replay and owned cleanup. Evidence: `/tmp/slz-release/mcp-device-smoke.log`;
+private run `/tmp/slz-preview-validation/smoke-WgbZq9`.
+
+Staged artifacts: `/tmp/slz-preview-validation/mac/SlopZooka.app` and
+`/tmp/slz-preview-validation/vp/Build/Products/Debug-xros/SlopZooka.app`.
+The headset is paired/available, but the test app has not been reinstalled or launched.
+No live SlopZooka application, terminal service or simulator was restarted for prep.
+Pairing, Mac capture availability and wearer-visible results remain live gates.
