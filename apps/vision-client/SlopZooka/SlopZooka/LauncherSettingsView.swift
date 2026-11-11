@@ -24,14 +24,14 @@ struct LauncherSettingsView: View {
                     Text("Saved across launches. Terminals without a custom zoom use this value. Reset Zoom applies it to any terminal.")
                 }
                 Section {
-                    Toggle("Persistent voice input", isOn: $voice.conversationEnabled)
+                    Text("Hold to talk · Release to send")
                     if voice.targetID != nil {
                         Button("Stop Voice Input", role: .destructive) { voice.stop() }
                     }
                 } header: {
                     Text("Voice")
                 } footer: {
-                    Text("Pinch the microphone orb at a terminal’s bottom right to start. Pauses keep your draft; tap Send to submit and keep listening. Works in either workspace mode. Off restores one-shot dictation.")
+                    Text("Pinch and hold the terminal microphone while speaking, then release. A three-second countdown gives you time to cancel with × before sending. Works in either workspace mode.")
                 }
                 Section {
                     ImmersiveWorkspaceControl()

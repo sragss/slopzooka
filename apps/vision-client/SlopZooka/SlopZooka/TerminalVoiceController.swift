@@ -26,6 +26,11 @@ struct TerminalVoiceCommand: Equatable {
     let text: String
 }
 
+struct TerminalVoiceSubmission: Equatable {
+    let targetID: String
+    let commandID: String
+}
+
 enum WindowName {
     static func normalized(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: "-")
@@ -33,20 +38,14 @@ enum WindowName {
 }
 
 /// Owns transient voice intent only. WindowGateway resolves IDs and delivers input.
-/// One-shot dictation and persistent voice share capture, draft, and delivery.
+/// Hold-to-talk, naming, and composition share capture, draft, and delivery.
 @MainActor
 final class TerminalVoiceController: ObservableObject {
     private let log = AppLog("voice")
-    enum Mode { case dictation, conversation, rename, draft }
+    enum Mode { case terminal, rename, draft }
     enum NameTarget: String { case window, workspace }
     @Published private(set) var renameTarget: NameTarget = .window
 
-    @Published var conversationEnabled: Bool {
-        didSet {
-            defaults.set(conversationEnabled, forKey: "conversationVoiceEnabled")
-            if oldValue != conversationEnabled { stop() }
-        }
-    }
     @Published private(set) var mode: Mode?
     @Published private(set) var targetID: String?
     @Published private(set) var transcript = ""
@@ -55,7 +54,13 @@ final class TerminalVoiceController: ObservableObject {
     @Published private(set) var isSubmitting = false
     @Published private(set) var error: String?
 
-    private let defaults: UserDefaults
+    static let sendDelay: TimeInterval = 3
+    @Published private(set) var sendDeadline: Date?
+    @Published private(set) var lastSubmission: TerminalVoiceSubmission?
+    private let waitBeforeSend: () async throws -> Void
+    private var countdownTask: Task<Void, Never>?
+    private var countdownID: UUID?
+    private var heldTargetID: String?
     private let capture: any SpeechCapturing
     private let availability: (String, Mode) -> Bool
     private let deliver: (TerminalVoiceCommand) async throws -> Void
@@ -69,18 +74,18 @@ final class TerminalVoiceController: ObservableObject {
     private var isSuspended = false
     private var finishDraft: ((String) -> Void)?
 
-    init(capture: any SpeechCapturing, defaults: UserDefaults = .standard,
+    init(capture: any SpeechCapturing,
+        waitBeforeSend: @escaping () async throws -> Void = { try await Task.sleep(for: .seconds(sendDelay)) },
         isAvailable: @escaping (String, Mode) -> Bool,
         rename: @escaping (String, String, NameTarget) async throws -> Void,
         hostID: @escaping (String) -> String? = { _ in nil },
         deliver: @escaping (TerminalVoiceCommand) async throws -> Void) {
         self.capture = capture
-        self.defaults = defaults
+        self.waitBeforeSend = waitBeforeSend
         self.availability = isAvailable
         self.deliver = deliver
         self.rename = rename
         self.hostID = hostID
-        conversationEnabled = defaults.bool(forKey: "conversationVoiceEnabled")
         capture.onUpdate = { [weak self] in self?.captureUpdated() }
         capture.onFinished = { [weak self] in self?.captureFinished() }
     }
@@ -91,13 +96,14 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     var hasText: Bool { !transcript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    var canSend: Bool { hasText && !isSubmitting && captureState != .preparing && captureState != .finishing }
-    var canResume: Bool { mode != nil && !isSubmitting && pendingCommand == nil && captureState != .listening
+    var canSend: Bool { hasText && sendDeadline == nil && !isSubmitting && captureState != .preparing && captureState != .finishing }
+    var canResume: Bool { mode != nil && sendDeadline == nil && !isSubmitting && pendingCommand == nil && captureState != .listening
         && captureState != .preparing && captureState != .finishing }
     var needsRetry: Bool { pendingCommand != nil && !isSubmitting }
 
     var statusText: String {
         if isSubmitting { return mode == .rename ? "Saving name…" : "Sending…" }
+        if sendDeadline != nil { return "Sending in 3 seconds" }
         if let error { return error }
         switch captureState {
         case .preparing: return "Preparing microphone…"
@@ -105,18 +111,54 @@ final class TerminalVoiceController: ObservableObject {
         case .listening:
             if mode == .rename { return "Say a \(renameTarget.rawValue) name · Pause to save" }
             if mode == .draft { return "Listening · Tap Review when ready" }
-            return mode == .dictation ? "Pause briefly to send" : "Listening · Tap Send when ready"
+            return "Listening"
         case let .failed(message), let .unavailable(message): return message
         case .idle:
             if !hasText { return "Microphone paused" }
-            return mode == .rename ? "Name kept · Save or discard" : "Draft kept · Send or discard"
+            return mode == .rename ? "Name kept · Save or cancel" : "Draft kept"
         }
     }
 
-    /// Explicit terminal selection works identically in shared and immersive space.
-    func activateTerminal(_ id: String) {
-        if mode == .rename && targetID == id { stop(); return }
-        activate(id, mode: conversationEnabled ? .conversation : .dictation)
+    /// The press owns one terminal until release or cancellation. Repeated gesture
+    /// updates cannot toggle capture or redirect an existing draft.
+    func beginTerminalHold(_ id: String) {
+        guard !isSubmitting, sendDeadline == nil, pendingCommand == nil,
+            captureState != .finishing, availability(id, .terminal) else { return }
+        if mode == .terminal && targetID == id {
+            guard heldTargetID == nil else { return }
+            heldTargetID = id
+            resume()
+        } else {
+            activate(id, mode: .terminal)
+            if mode == .terminal && targetID == id { heldTargetID = id }
+        }
+    }
+
+    func endTerminalHold(_ id: String) {
+        guard heldTargetID == id, targetID == id, mode == .terminal else { return }
+        heldTargetID = nil
+        switch captureState {
+        case .listening:
+            // Finish even if no partial text has arrived yet; the final callback
+            // may contain the first words or correct the last ones.
+            submitWhenFinished = true
+            capture.finishListening()
+        case .finishing:
+            // A recognition-task rotation may already be ending this segment.
+            submitWhenFinished = true
+        case .idle:
+            if hasText { scheduleSend() } else { stop() }
+        case .preparing:
+            // A quick tap or late permission grant must not leave capture armed.
+            if hasText { scheduleSend() } else { stop() }
+        case .failed, .unavailable:
+            pause()
+        }
+    }
+
+    func cancelTerminalHold(_ id: String) {
+        guard heldTargetID == id, targetID == id, mode == .terminal else { return }
+        stop()
     }
 
     func activateRename(_ id: String, target: NameTarget = .window) {
@@ -141,6 +183,8 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     func pause() {
+        heldTargetID = nil
+        cancelCountdown()
         isSuspended = true
         stopCaptureKeepingDraft()
     }
@@ -150,7 +194,7 @@ final class TerminalVoiceController: ObservableObject {
         guard !isSubmitting, availability(id, requestedMode) else { return }
         if mode == requestedMode && targetID == id && renameTarget == nameTarget { stop(); return }
         guard !hasText && pendingCommand == nil else {
-            error = "Send, save, or discard the current draft before switching voice input."
+            error = "Send, save, or cancel the current draft before switching voice input."
             return
         }
         stop()
@@ -174,6 +218,7 @@ final class TerminalVoiceController: ObservableObject {
     func discard() {
         log.info("draft.discarded", ["sessionId": targetID ?? "", "hostId": targetID.flatMap(hostID) ?? ""])
         guard !isSubmitting else { return }
+        if mode == .terminal { stop(); return }
         stopCaptureKeepingDraft()
         resetDraft()
         error = nil
@@ -182,6 +227,7 @@ final class TerminalVoiceController: ObservableObject {
     }
 
     func resume() {
+        guard mode != .terminal || heldTargetID == targetID else { return }
         guard canResume, let id = targetID, isAvailable(id) else { return }
         stopCaptureKeepingDraft()
         isSuspended = false
@@ -192,6 +238,8 @@ final class TerminalVoiceController: ObservableObject {
     /// Permission replies, recognition callbacks, and acknowledgements from an old
     /// interaction must never mutate a newer interaction or change its destination.
     func stop() {
+        heldTargetID = nil
+        cancelCountdown()
         generation = UUID()
         captureTask?.cancel()
         captureTask = nil
@@ -207,9 +255,11 @@ final class TerminalVoiceController: ObservableObject {
 
     func targetUnavailable(_ id: String) {
         guard targetID == id, mode != nil else { return }
+        heldTargetID = nil
+        cancelCountdown()
         isSuspended = true
         stopCaptureKeepingDraft()
-        error = "Terminal unavailable. Reconnect, then resume or retry."
+        error = "Voice input paused. Continue when the destination is available, or cancel."
         // An unacknowledged command stays immutable so Retry uses its original ID.
     }
 
@@ -217,7 +267,7 @@ final class TerminalVoiceController: ObservableObject {
         guard let id = targetID, isAvailable(id), mode != nil, !isSubmitting, !isSuspended else { return }
         captureTask?.cancel()
         let token = generation
-        let finishOnPause = mode == .dictation || mode == .rename
+        let finishOnPause = mode == .rename
         captureTask = Task { [weak self] in
             guard let self, self.generation == token, !Task.isCancelled else { return }
             await self.capture.startListening(finishOnPause: finishOnPause)
@@ -229,6 +279,12 @@ final class TerminalVoiceController: ObservableObject {
         if captureState != capture.state {
             captureState = capture.state
             log.info("capture.changed", ["sessionId": targetID ?? "", "hostId": targetID.flatMap(hostID) ?? "", "state": String(describing: capture.state)])
+            switch capture.state {
+            case .failed, .unavailable:
+                heldTargetID = nil
+                submitWhenFinished = false
+            default: break
+            }
         }
         let text = [committedText, capture.transcript].filter { !$0.isEmpty }.joined(separator: " ")
         if transcript != text { transcript = text }
@@ -239,14 +295,42 @@ final class TerminalVoiceController: ObservableObject {
         guard mode != nil else { return }
         committedText = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
         capture.clearTranscript()
-        if submitWhenFinished || mode == .dictation || mode == .rename {
+        if submitWhenFinished || mode == .rename {
             submitWhenFinished = false
-            if hasText { submit() }
+            if mode == .terminal {
+                if hasText { scheduleSend() } else { stop() }
+            } else if hasText { submit() }
         } else {
             // Recognition may finalize a segment itself. Preserve it and continue
             // recording; finalization is not permission to press Return.
             startCapture()
         }
+    }
+
+    private func scheduleSend() {
+        stopCaptureKeepingDraft()
+        guard hasText, let id = targetID, isAvailable(id), !isSuspended else { return }
+        cancelCountdown()
+        let countdown = UUID()
+        countdownID = countdown
+        sendDeadline = Date().addingTimeInterval(Self.sendDelay)
+        let token = generation
+        countdownTask = Task { [weak self] in
+            guard let self else { return }
+            do { try await self.waitBeforeSend() } catch { return }
+            guard !Task.isCancelled, self.generation == token, self.countdownID == countdown else { return }
+            self.countdownTask = nil
+            self.countdownID = nil
+            self.sendDeadline = nil
+            self.submit()
+        }
+    }
+
+    private func cancelCountdown() {
+        countdownTask?.cancel()
+        countdownTask = nil
+        countdownID = nil
+        sendDeadline = nil
     }
 
     private func stopCaptureKeepingDraft() {
@@ -311,7 +395,8 @@ final class TerminalVoiceController: ObservableObject {
                 try await self.deliver(command)
                 guard self.generation == token else { return }
                 self.isSubmitting = false
-                if self.mode == .dictation { self.stop() }
+                self.lastSubmission = TerminalVoiceSubmission(targetID: id, commandID: command.commandID)
+                if self.mode == .terminal { self.stop() }
                 else {
                     self.resetDraft()
                     self.startCapture()
