@@ -149,3 +149,9 @@ are logged. `NativePreviewModel` owns only its live receiver/decoder and three b
 reconnect attempts. Route retirement cancels its channels. Source/permission failure
 requires the displayed repair action; it does not create another window registry or
 restart policy for the source application.
+
+Native capture provider callbacks run outside request-local log context because
+the provider outlives its first catalog call. Bridge open/close events carry the
+actual accepting route and a connection ID through the same injected logger.
+Provider media summaries remain route-neutral; they must not inherit the route
+of whichever request happened to start the child.

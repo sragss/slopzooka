@@ -8,7 +8,7 @@
     "presentation": "web",
     "available": false,
     "reasonCode": "presentation_unsupported_on_route",
-    "message": "Web previews are not supported on Direct to Mac yet. Choose Local Network in Settings.",
+    "message": "Web previews require Local Network. This restriction does not apply to Mac window streams.",
     "alternatives": []
   }
 }

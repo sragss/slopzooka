@@ -66,7 +66,7 @@ struct FrontendListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("Frontends", systemImage: "globe").font(.headline)
+                Label("Web frontends", systemImage: "globe").font(.headline)
                 Spacer()
                 if workspaceId == nil {
                     Button("Add URL", systemImage: "plus") { showAddURL = true }

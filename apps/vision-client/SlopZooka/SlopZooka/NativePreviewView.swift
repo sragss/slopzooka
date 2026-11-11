@@ -19,6 +19,7 @@ struct NativePreviewView: View {
             }
         }
         .background(.black)
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .background(PreviewGeometry(size: model.contentSize ?? CGSize(width: payload.source.contentWidth, height: payload.source.contentHeight)))
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
             HStack {

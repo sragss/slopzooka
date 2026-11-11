@@ -23,7 +23,7 @@ export function webPresentation(
       available: false,
       reasonCode: "presentation_unsupported_on_route",
       message:
-        "Web previews are not supported on Direct to Mac yet. Choose Local Network in Settings.",
+        "Web previews require Local Network. This restriction does not apply to Mac window streams.",
       alternatives: [],
     };
   return { presentation: "web" as const, available: true, alternatives: [] };

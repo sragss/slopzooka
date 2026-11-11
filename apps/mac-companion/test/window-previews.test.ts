@@ -8,6 +8,7 @@ import test from "node:test";
 import express from "express";
 import { createPeerIngress } from "../src/companion-transport.js";
 import { WindowPreviews, windowPresentation } from "../src/window-previews.js";
+import { logContext } from "../src/logger.js";
 import { eventLogger } from "../src/log-events.js";
 
 for (const direct of [false, true])
@@ -32,9 +33,9 @@ for (const direct of [false, true])
       await chmod(binary, 0o755);
       const events: any[] = [];
       const provider = new WindowPreviews(
-        eventLogger("mac-companion", (event) => events.push(event))(
-          "window-previews",
-        ),
+        eventLogger("mac-companion", (event) => events.push(event), {
+          context: logContext,
+        })("window-previews"),
         binary,
         true,
       );
@@ -55,7 +56,10 @@ for (const direct of [false, true])
       const port = (server.address() as import("node:net").AddressInfo).port;
       let channel: import("node:stream").Duplex | undefined;
       try {
-        const catalog = await provider.catalog();
+        const catalog = await logContext.run(
+          { requestId: "initial-catalog", connectionMethod: "localNetwork" },
+          () => provider.catalog(),
+        );
         assert.equal(catalog.state, "ready");
         assert.equal(catalog.sources.length, 1);
         const source = catalog.sources[0];
@@ -122,6 +126,23 @@ for (const direct of [false, true])
         await writeFile(statePath, JSON.stringify({ malformed: true }));
         assert.equal((await provider.catalog()).state, "failed");
         assert(events.some((event) => event.event === "provider.ready"));
+        for (const event of events.filter((event) =>
+          event.event.startsWith("provider."),
+        )) {
+          assert.equal(event.fields.requestId, undefined);
+          assert.equal(event.fields.connectionMethod, undefined);
+        }
+        const opened = events.find((event) => event.event === "stream.opened");
+        const ended = events.find((event) => event.event === "stream.closed");
+        assert.equal(
+          opened.fields.connectionMethod,
+          direct ? "direct" : "localNetwork",
+        );
+        assert.equal(ended.fields.connectionId, opened.fields.connectionId);
+        assert.equal(
+          ended.fields.connectionMethod,
+          opened.fields.connectionMethod,
+        );
         assert(
           events.every((event) => !JSON.stringify(event).includes("Fixture")),
           "Window titles never enter diagnostic metadata",

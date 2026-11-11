@@ -9,6 +9,7 @@ export type Logger = Pick<EventLogger, "info" | "warn" | "error">;
 const context = new AsyncLocalStorage<LogFields>();
 export const logContext = {
   current: () => context.getStore() ?? {},
+  without: <T>(run: () => T): T => context.exit(run),
   run: <T>(fields: LogFields, run: () => T): T =>
     context.run({ ...context.getStore(), ...fields }, run),
 };

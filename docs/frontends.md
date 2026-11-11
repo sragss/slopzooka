@@ -58,3 +58,7 @@ Gateway bootstrap preserves a saved URL's path, query, and fragment. HTTP bodies
 Gateways preserve normal application Authorization headers and cookie security flags, remove SlopZooka credentials before forwarding, translate same-origin redirects/CORS responses and request origins/referrers, and isolate frontend cookie stores in the native app. They do not rewrite JavaScript, absolute cross-service URLs, or OAuth callback URLs embedded inside third-party redirects. Apps requiring those features should use native LAN routing with appropriate origins and certificate trust. Local gateways are intended for a trusted development network, not internet exposure.
 
 Discovery sources fail independently: invalid Portless state produces a warning and preserves its last valid routes without preventing ordinary local servers or saved URLs from opening. Configuration changes are validated before commit; opens, refreshes, saved-URL mutations, and shutdown share one serialized lifecycle. Disappearing/stopped routes close their listeners and upgraded sockets. Changes to a route's upstream or transport invalidate only that route's gateway; reopen the frontend to obtain its replacement URL. A missing Portless installation is normal and produces no warning.
+
+The launcher separates **Web frontends** from **Mac windows**. The Direct warning
+on web rows applies to embedded URL previews; it does not disable native Mac-window
+streams. Switch to Local Network to open those URLs.

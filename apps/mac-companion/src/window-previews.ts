@@ -5,7 +5,8 @@ import type { Duplex } from "node:stream";
 import { fileURLToPath } from "node:url";
 import type { IncomingMessage } from "node:http";
 import type { PresentationAvailability } from "../../../packages/protocol/src/index.js";
-import type { Logger } from "./logger.js";
+import { logContext, type Logger } from "./logger.js";
+import { connectionMethod } from "./companion-transport.js";
 import { ServiceError } from "./errors.js";
 
 export type WindowSource = {
@@ -64,110 +65,114 @@ export class WindowPreviews {
         new ServiceError("Mac window previews are not enabled.", 503),
       );
     if (this.startTask) return this.startTask;
-    this.startTask = new Promise<void>((resolve, reject) => {
-      const child = spawn(this.binary, [], { stdio: "pipe" });
-      this.child = child;
-      const timer = setTimeout(() => {
-        reject(new Error("Capture provider startup timed out"));
-        child.kill();
-      }, 5000);
-      child.stderr.resume(); // No uncontrolled native stderr in centralized logs.
-      child.stdout.on("data", (chunk: Buffer) => {
-        this.buffer = Buffer.concat([this.buffer, chunk]);
-        if (this.buffer.length > 512 * 1024) {
-          child.kill();
-          return;
-        }
-        for (;;) {
-          const newline = this.buffer.indexOf(10);
-          if (newline < 0) break;
-          const line = this.buffer.subarray(0, newline);
-          this.buffer = this.buffer.subarray(newline + 1);
-          try {
-            const message = JSON.parse(line.toString()) as Reply;
-            if (message.version !== 1)
-              throw new Error("Unknown capture protocol");
-            if (
-              message.type === "ready" &&
-              Number.isInteger(message.port) &&
-              message.port! > 0 &&
-              message.port! <= 65535
-            ) {
-              this.port = message.port;
-              clearTimeout(timer);
-              resolve();
-              this.log.info("provider.ready");
-            } else if (message.type === "observation") {
-              const allowed = new Set([
-                "viewerId",
-                "frames",
-                "bytes",
-                "dropped",
-                "reason",
-                "durationMs",
-                "captured",
-                "coalesced",
-                "stage",
-                "errorDomain",
-                "errorCode",
-              ]);
-              if (
-                message.event !== "stream.summary" ||
-                !message.fields ||
-                Object.entries(message.fields).some(
-                  ([key, value]) =>
-                    !allowed.has(key) ||
-                    typeof value !== "string" ||
-                    value.length > 128,
-                )
-              )
-                throw new Error("Invalid capture observation");
-              this.log.info(
-                message.event,
-                message.fields as Record<string, string>,
-              );
-            } else if (message.type === "reply" && message.id) {
-              const item = this.pending.get(message.id.toLowerCase());
-              if (item) {
-                this.pending.delete(message.id.toLowerCase());
-                clearTimeout(item.timer);
-                if (message.error)
-                  item.reject(new ServiceError(message.error, 409));
-                else item.resolve(message.value);
-              }
-            } else if (message.type === "failed") {
-              child.kill();
-            }
-          } catch {
+    // The provider outlives the catalog request that first starts it.
+    this.startTask = logContext.without(
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const child = spawn(this.binary, [], { stdio: "pipe" });
+          this.child = child;
+          const timer = setTimeout(() => {
+            reject(new Error("Capture provider startup timed out"));
             child.kill();
-          }
-        }
-      });
-      const ended = () => {
-        if (this.child !== child) return;
-        clearTimeout(timer);
-        this.child = undefined;
-        this.port = undefined;
-        this.startTask = undefined;
-        this.buffer = Buffer.alloc(0);
-        const error = new ServiceError(
-          "Mac capture provider is unavailable. Retry to select a window again.",
-          503,
-        );
-        reject(error);
-        for (const item of this.pending.values()) {
-          clearTimeout(item.timer);
-          item.reject(error);
-        }
-        this.pending.clear();
-        for (const channel of this.channels) channel.destroy();
-        this.channels.clear();
-        this.log.info("provider.stopped");
-      };
-      child.once("error", ended);
-      child.once("exit", ended);
-      child.stdin.on("error", () => child.kill());
-    });
+          }, 5000);
+          child.stderr.resume(); // No uncontrolled native stderr in centralized logs.
+          child.stdout.on("data", (chunk: Buffer) => {
+            this.buffer = Buffer.concat([this.buffer, chunk]);
+            if (this.buffer.length > 512 * 1024) {
+              child.kill();
+              return;
+            }
+            for (;;) {
+              const newline = this.buffer.indexOf(10);
+              if (newline < 0) break;
+              const line = this.buffer.subarray(0, newline);
+              this.buffer = this.buffer.subarray(newline + 1);
+              try {
+                const message = JSON.parse(line.toString()) as Reply;
+                if (message.version !== 1)
+                  throw new Error("Unknown capture protocol");
+                if (
+                  message.type === "ready" &&
+                  Number.isInteger(message.port) &&
+                  message.port! > 0 &&
+                  message.port! <= 65535
+                ) {
+                  this.port = message.port;
+                  clearTimeout(timer);
+                  resolve();
+                  this.log.info("provider.ready");
+                } else if (message.type === "observation") {
+                  const allowed = new Set([
+                    "viewerId",
+                    "frames",
+                    "bytes",
+                    "dropped",
+                    "reason",
+                    "durationMs",
+                    "captured",
+                    "coalesced",
+                    "stage",
+                    "errorDomain",
+                    "errorCode",
+                  ]);
+                  if (
+                    message.event !== "stream.summary" ||
+                    !message.fields ||
+                    Object.entries(message.fields).some(
+                      ([key, value]) =>
+                        !allowed.has(key) ||
+                        typeof value !== "string" ||
+                        value.length > 128,
+                    )
+                  )
+                    throw new Error("Invalid capture observation");
+                  this.log.info(
+                    message.event,
+                    message.fields as Record<string, string>,
+                  );
+                } else if (message.type === "reply" && message.id) {
+                  const item = this.pending.get(message.id.toLowerCase());
+                  if (item) {
+                    this.pending.delete(message.id.toLowerCase());
+                    clearTimeout(item.timer);
+                    if (message.error)
+                      item.reject(new ServiceError(message.error, 409));
+                    else item.resolve(message.value);
+                  }
+                } else if (message.type === "failed") {
+                  child.kill();
+                }
+              } catch {
+                child.kill();
+              }
+            }
+          });
+          const ended = () => {
+            if (this.child !== child) return;
+            clearTimeout(timer);
+            this.child = undefined;
+            this.port = undefined;
+            this.startTask = undefined;
+            this.buffer = Buffer.alloc(0);
+            const error = new ServiceError(
+              "Mac capture provider is unavailable. Retry to select a window again.",
+              503,
+            );
+            reject(error);
+            for (const item of this.pending.values()) {
+              clearTimeout(item.timer);
+              item.reject(error);
+            }
+            this.pending.clear();
+            for (const channel of this.channels) channel.destroy();
+            this.channels.clear();
+            this.log.info("provider.stopped");
+          };
+          child.once("error", ended);
+          child.once("exit", ended);
+          child.stdin.on("error", () => child.kill());
+        }),
+    );
     return this.startTask;
   }
   private async command(method: string, sourceID?: string): Promise<unknown> {
@@ -239,10 +244,26 @@ export class WindowPreviews {
     head: Buffer,
   ): Promise<void> {
     let upstream: Socket | undefined;
+    const metadata = {
+      connectionId: randomUUID(),
+      connectionMethod: connectionMethod(request),
+    };
+    let opened = false;
+    let closed = false;
+    const started = performance.now();
     const close = () => {
+      if (closed) return;
+      closed = true;
       socket.destroy();
       upstream?.destroy();
       this.channels.delete(socket);
+      if (opened)
+        logContext.without(() =>
+          this.log.info("stream.closed", {
+            ...metadata,
+            durationMs: Math.round(performance.now() - started),
+          }),
+        );
     };
     socket.once("error", close);
     socket.once("close", close);
@@ -259,9 +280,9 @@ export class WindowPreviews {
         request.url!.slice("/api/window-stream/".length),
       );
       await this.resolve(id);
-      const opened = (await this.command("open", id)) as { ticket: string };
+      const admission = (await this.command("open", id)) as { ticket: string };
       if (
-        !/^[a-f0-9-]{36}$/i.test(opened.ticket) ||
+        !/^[a-f0-9-]{36}$/i.test(admission.ticket) ||
         !this.port ||
         socket.destroyed
       )
@@ -276,7 +297,9 @@ export class WindowPreviews {
           close();
           return;
         }
-        upstream!.write(opened.ticket + "\n");
+        opened = true;
+        logContext.without(() => this.log.info("stream.opened", metadata));
+        upstream!.write(admission.ticket + "\n");
         socket.write(
           "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: slz-window-v1\r\n\r\n",
         );
@@ -287,6 +310,7 @@ export class WindowPreviews {
       upstream.once("close", () => clearTimeout(deadline));
     } catch (error) {
       this.log.warn("stream.rejected", {
+        ...metadata,
         status: error instanceof ServiceError ? error.statusCode : 503,
       });
       if (!socket.destroyed)
