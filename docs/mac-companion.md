@@ -206,3 +206,66 @@ The named dashboard supports Portless HTTPS with Secure cookies and exact-origin
 ## Workspace storage
 
 Workspace mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Legacy indexes with `clusterId` migrate to `workspaceId` on the next mutation. An explicit nonexistent branch fails. Defaults follow the repository's default branch.
+
+## Terminal preview MCP (development)
+
+The optional `slopzooka-previews` MCP lets a terminal agent list, open, name and
+close native Mac-window previews on one explicitly configured headset. It leaves
+app interaction to the agent's existing computer-use tools. Closing a preview
+releases its viewer; it does not quit the source app or end a terminal.
+
+This first version requires an operator-provisioned configuration file. It does
+not automatically register with existing Codex terminals or change global Codex
+settings. Enable native capture on the companion and use an updated headset app
+with remote-layout reconciliation before testing it. Keep development on an
+isolated companion home/port until the device gate is complete.
+
+Create an owner-only JSON file (`chmod 600`) containing:
+
+```json
+{
+  "origin": "http://127.0.0.1:7778",
+  "hostId": "<paired companion UUID>",
+  "clientId": "<intended headset client UUID>",
+  "token": "<credential issued by that companion's pairing flow>"
+}
+```
+
+Use the intended headset's existing client ID, not a new UUID or a value inferred
+from whichever launcher is visible. The client ID partitions layouts; the bearer
+credential authenticates access. Do not paste credentials into agent prompts or
+commit this file. The adapter accepts only explicit loopback HTTP origins, checks
+companion identity before each tool operation, rejects redirects, and keeps
+credentials outside tool responses.
+
+The packaged stdio command is:
+
+```text
+/Applications/SlopZooka.app/Contents/Resources/runtime/node
+```
+
+with arguments:
+
+```text
+/Applications/SlopZooka.app/Contents/Resources/host/src/preview-mcp.mjs
+/absolute/path/to/private-preview-config.json
+```
+
+Use that command/argument pair in the terminal agent's MCP configuration. For a
+checkout, run `pnpm --filter @slz/mac-companion exec tsx src/preview-mcp.ts
+/absolute/path/to/private-preview-config.json` from the repository root. Standard
+output is exclusively MCP protocol traffic.
+
+Call `preview_list` to obtain current opaque source IDs and capture availability.
+Then use `preview_open(source_id, name?)`, `preview_rename(preview_id, name)` and
+`preview_close(preview_id)`. The companion supplies image dimensions/aspect ratio;
+the agent does not choose them. Names are presentation metadata and do not restart
+capture. Locked, permission-required, disabled and stale-source cases are explicit
+errors; resolve them through the normal companion UI or use an alternative surface.
+
+Mutation success means the desired layout was acknowledged, not that the user
+has seen it. An offline headset applies that intent after reconnection. Both
+Local Network and Direct use the same saved layout and native streaming path.
+The headset's active terminal or preview scene can handle these commands with the
+launcher closed. Simultaneous edits re-read the layout and reapply only their own
+intent after a revision conflict.

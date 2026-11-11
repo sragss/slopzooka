@@ -155,3 +155,21 @@ the provider outlives its first catalog call. Bridge open/close events carry the
 actual accepting route and a connection ID through the same injected logger.
 Provider media summaries remain route-neutral; they must not inherit the route
 of whichever request happened to start the child.
+
+### Terminal preview intent adapter
+
+`preview-control.ts` is a stateless adapter over the authenticated frontend catalog
+and client-scoped window-layout API. `preview-mcp.ts` exposes its four operations
+through SDK stdio. Explicit local companion identity, pairing credential and headset
+client binding stay in a private operator configuration; model arguments contain
+only observed source IDs, preview IDs and names. Automatic terminal launch-context
+provisioning remains a later integration step.
+
+Remote close is reconciled only after successful `WindowPersistence` synchronization,
+using the fetched layout plus pending local intent. `WindowGateway` retires payloads,
+cancels resolves and asks `WindowScene` to dismiss; failed reads and disconnects never
+imply close. A close observed while no scene can present is delivered when a presenter
+attaches. Optional window `name` metadata participates in persistence equality, while
+`WindowReference` hashing/equality uses stable host/content identity so archived scenes
+with old labels cannot discard renamed replacements. Names render through gateway
+state without changing the video reload revision.

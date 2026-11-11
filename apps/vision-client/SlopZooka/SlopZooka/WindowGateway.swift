@@ -156,6 +156,7 @@ final class WindowGateway: ObservableObject {
         }
     }
     func previewPayload(for id: String) -> PreviewWindowPayload? { windows[id]?.preview }
+    func previewName(for id: String) -> String? { windows[id]?.reference?.window.name }
     func reference(for id: String) -> WindowReference? { windows[id]?.reference }
     func remember(_ reference: WindowReference) {
         if windows[reference.window.id]?.reference == nil { windows[reference.window.id, default: WindowState()].reference = reference }
@@ -237,13 +238,17 @@ final class WindowGateway: ObservableObject {
         do {
             try persistence.set(reference, isOpen: false)
             remember(reference)
-            let id = reference.window.id
-            windows[id]?.invalidateContent()
-            windows[id]?.openRequested = false
-            if reference.window.kind == .preview { windows[id]?.content = nil }
-            if dismiss { presenters.values.first?(.close(reference.window)) }
+            retire(reference, dismiss: dismiss)
             Task { await synchronize() }
         } catch { persistenceError = "Could not save the window layout: \(error.localizedDescription)" }
+    }
+    // Applies acknowledged remote intent as well as local closes; it never writes a layout.
+    private func retire(_ reference: WindowReference, dismiss: Bool = true) {
+        let id = reference.window.id
+        windows[id]?.invalidateContent()
+        windows[id]?.openRequested = false
+        if reference.window.kind == .preview { windows[id]?.content = nil }
+        if dismiss { presenters.values.first?(.close(reference.window)) }
     }
     // Native discard may arrive on the next launch. A replacement can still be
     // archived, so the adapter supplies all surviving OS sessions, not just views.
@@ -298,6 +303,9 @@ final class WindowGateway: ObservableObject {
     }
     func attachPresenter(_ id: UUID, action: @escaping (WindowCommand) -> Void) {
         presenters[id] = action
+        for window in windows.values where window.openRequested == false {
+            if let reference = window.reference { action(.close(reference.window)) }
+        }
         restoreWindows()
     }
     func detachPresenter(_ id: UUID) { presenters.removeValue(forKey: id) }
@@ -323,6 +331,7 @@ final class WindowGateway: ObservableObject {
         for hostID in client.pairedHostIDs {
             do {
                 try await persistence.synchronize(hostID: hostID, client: client)
+                reconcileRemoteCloses(hostID: hostID)
             } catch {
                 log.error("recovery.failed", error: error, ["hostId": hostID])
                 firstError = firstError ?? "Window recovery needs attention: \(error.localizedDescription)"
@@ -331,6 +340,18 @@ final class WindowGateway: ObservableObject {
             reconcilePreviews(hostID: hostID)
         }
         persistenceError = firstError
+    }
+    private func reconcileRemoteCloses(hostID: String) {
+        // Only a successful sync is authoritative. Pending local intent is already
+        // rebased by persistence; an outage or unknown initial layout is never a close.
+        let desired = Set(persistence.windows(hostID: hostID).map(\.id))
+        for window in windows.values {
+            guard let reference = window.reference, reference.hostID == hostID,
+                !desired.contains(reference.window.id), window.openRequested != false,
+                window.openRequested == true || window.preview != nil || window.previewRequest != nil else { continue }
+            log.info("window.closed.remotely", ["hostId": hostID, "windowId": reference.window.id])
+            retire(reference)
+        }
     }
     private func reconcilePreviews(hostID: String) {
         // An OS-restored scene may precede its layout. Show current capability
@@ -376,7 +397,7 @@ final class WindowGateway: ObservableObject {
             do {
                 let payload = try await resolvePreview(record, hostID: hostID)
                 guard !Task.isCancelled, reloadToken(for: record.id) == revision,
-                    persistence.windows(hostID: hostID).contains(record) else { return }
+                    persistence.windows(hostID: hostID).contains(where: { $0.sameContent(as: record) }) else { return }
                 windows[record.id]?.content = .preview(payload, revision: revision)
                 windows[record.id]?.error = nil
             } catch {

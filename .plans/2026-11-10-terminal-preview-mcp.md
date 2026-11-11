@@ -91,3 +91,58 @@ new MCP device gate unnecessary.
   the SDK server factory/stdio transport, rather than implementing JSON-RPC here.
   Registry inspection on 2026-11-10 reports `@modelcontextprotocol/server` 2.4.0;
   pin and validate the selected SDK during implementation.
+
+## Implementation status (2026-11-10 local / November 11 UTC)
+
+Implemented on `feat/terminal-preview-mcp` from merged main e37ad81:
+
+- Four SDK stdio tools with explicit private companion/headset binding. The adapter
+  uses the existing authenticated catalog and layout API, with four bounded CAS
+  attempts. It creates no capture viewers, source apps, terminal sessions or layout
+  store. Capture availability and stale sources fail explicitly.
+- Optional persisted preview labels; labels render through gateway state and do
+  not alter video revision or stable scene identity.
+- Authoritative remote-close reconciliation in WindowGateway after successful
+  persistence sync. Close retires capture work and rejects late resolve replies;
+  failed reads do not dismiss windows. Existing scene presenters perform dismissal.
+- Packaged MCP entry point and development configuration guide. Codex CLI accepts
+  the command/args through per-invocation config; global user configuration is untouched.
+
+Local checks passed: lint, typecheck, all 66 companion tests, vision state/media
+checks, terminal keyboard/WebKit checks, formatting, generated asset parity and a
+full visionOS simulator build. A signed Mac bundle passed packaged-app checks
+(including PTY preservation and stalled-startup handling). The real SDK stdio test
+also passed against that bundled MCP executable: initialization/tool discovery,
+conflicting adapters, concurrent rename/close, adapter restart, source/permission/
+lock failures, wrong host/target, authentication and credential-file permissions.
+The CLI configuration check does not constitute a live Codex model invocation.
+
+The Swift test fixture now waits for its earlier voice-close write before beginning
+an unrelated naming scenario; remote close correctly exposed that previously
+unobserved cross-scenario operation. No production timeout was changed.
+
+### Remaining narrow device gate
+
+Use isolated companion/headset test identities; leave the real app and PTYs alone.
+Prepare a private config bound explicitly to that test headset client and start the
+packaged MCP via a terminal Codex configuration override. No model API credentials
+are needed for the deterministic stdio control checks; a live agent invocation is
+an additional integration check.
+
+1. Open a disposable simulator source using `preview_list` → `preview_open`, name
+   it “Login verification.” User confirms one phone-shaped, fresh stream.
+2. Close the launcher. Rename through MCP; verify the header changes while motion
+   continues without a new capture or scene. A second adapter opens a separate Mac
+   fixture; confirm two distinct previews. Existing CUA changes the simulator fixture.
+3. Close the simulator preview through MCP; confirm it disappears and the other
+   preview continues. Verify the source app and original terminal sessions survive.
+   Reopen once, then finish by closing both through MCP.
+
+Repeat the command path over Direct using the same tools/config; do not duplicate
+networking or require the agent to select transport. Record commands, layout revisions,
+source IDs and capture connection summaries, with a minimal wearer verdict. Do not
+claim visibility from layout acknowledgement alone.
+
+Automatic credential/client-context provisioning for newly launched terminal agents
+is still deferred; current setup is explicitly operator provisioned. The first-launch
+diagnostic gap is tracked separately in [#57](https://github.com/sragss/slopzooka/issues/57).

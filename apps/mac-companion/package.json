@@ -15,6 +15,7 @@
     "build:windows": "node scripts/build-windows.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/server": "2.4.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/addon-serialize": "0.14.0",
     "@xterm/headless": "6.0.0",
@@ -22,9 +23,11 @@
     "express": "^5.1.0",
     "http-proxy": "^1.18.1",
     "node-pty": "^1.1.0",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "4.3.6"
   },
   "devDependencies": {
+    "@modelcontextprotocol/client": "2.4.0",
     "@types/express": "^5.0.3",
     "@types/http-proxy": "^1.17.17",
     "@types/node": "^24.6.1",
