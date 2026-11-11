@@ -13,8 +13,21 @@ Historical plans in `docs/archive` are context, not current requirements.
   assets with `pnpm build:harness`. Do not hand-edit bundled JavaScript.
 - Keep shared protocol changes compatible with the Swift client and update the
   relevant regression coverage and fixtures.
-- Update the relevant usage guide for user-facing changes. Keep setup in README,
-  development commands in CONTRIBUTING, and ownership rules here.
+- Update the relevant usage guide for user-facing changes.
+- Keep the README concise and user-facing: the product pitch, a short setup path,
+  and links. Use plain, fun language with a touch of sarcasm. Put detailed usage
+  in the relevant guide, development commands in CONTRIBUTING, and ownership rules here.
+
+## Logging
+
+Use the existing scoped logger: Node components receive
+`diagnostics.logger("component")`, browser components use `browserLog("component")`,
+and native components use `AppLog("component")`. Bind stable IDs with `child` and
+record named events with structured metadata. Components do not own log storage;
+keep writer setup at process bootstrap and preserve the bounded diagnostics pipeline.
+Never log raw input, transcripts, credentials, request bodies, or environment dumps.
+Summarize high-volume traffic. See [Logging](CONTRIBUTING.md#logging) for error
+handling, correlation, and incident-capture privacy rules.
 
 ## Window architecture
 
