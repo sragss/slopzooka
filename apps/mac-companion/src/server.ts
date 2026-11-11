@@ -1,4 +1,5 @@
 import { CompanionTransport, connectionMethod } from "./companion-transport.js";
+import { WindowPreviews, windowPresentation } from "./window-previews.js";
 import { webPresentation } from "./presentation.js";
 import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
@@ -80,6 +81,9 @@ const frontendService = new FrontendService(diagnostics.logger("frontends"), {
   dashboardOrigin: () => dashboardAddress.proxyOrigin,
   workspaces: () => workspaceService.frontendWorkspaces(),
 });
+const windowPreviews = new WindowPreviews(
+  diagnostics.logger("window-previews"),
+);
 // Pairing codes are intentionally printed only to the local console, never the log file.
 let displayedPairingCode = pairing.code;
 console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
@@ -500,13 +504,41 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
 
 app.get("/api/frontends", async (req, res) => {
   const catalog = await frontendService.getCatalog();
+  const windows = windowPreviews.enabled
+    ? await windowPreviews.catalog()
+    : undefined;
   res.json({
     ...catalog,
+    ...(windows
+      ? {
+          windows: {
+            ...windows,
+            presentation: windowPresentation(windows),
+          },
+        }
+      : {}),
     frontends: catalog.frontends.map((frontend) => ({
       ...frontend,
       presentation: webPresentation(req, frontend),
     })),
   });
+});
+app.post("/api/window-previews/open", async (req, res) => {
+  try {
+    if (typeof req.body?.id !== "string")
+      throw new ServiceError("Window source required", 400);
+    res.json({ source: await windowPreviews.resolve(req.body.id) });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not open Mac window");
+  }
+});
+app.post("/api/window-previews/permission", async (req, res) => {
+  try {
+    await windowPreviews.permission(req.body?.settings === true);
+    res.json({ ok: true });
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not open Mac permissions");
+  }
 });
 app.post("/api/frontends", async (req, res) => {
   try {
@@ -595,6 +627,16 @@ const upgrade: import("./companion-transport.js").Upgrade = (
   socket,
   head,
 ) => {
+  if (
+    !shuttingDown &&
+    admissionReady &&
+    request.url?.startsWith("/api/window-stream/") &&
+    pairing.sameOrigin(request) &&
+    pairing.authorized(request)
+  ) {
+    void windowPreviews.upgrade(request, socket, head);
+    return;
+  }
   if (
     shuttingDown ||
     request.url !== "/ws" ||
@@ -928,6 +970,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   const httpClosed = new Promise<void>((resolve) =>
     server.close(() => resolve()),
   );
+  windowPreviews.stop();
   await Promise.allSettled([
     transport.stop(),
     frontendService.stop(),

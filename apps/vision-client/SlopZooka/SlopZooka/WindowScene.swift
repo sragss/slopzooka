@@ -158,19 +158,21 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
     }
 
     func application(_ application: UIApplication, didDiscardSceneSessions sessions: Set<UISceneSession>) {
-        // Discard is permanent scene closure. Disconnect/background/onDisappear are not.
-        // UIKit may deliver this on the next launch, so read the identity from the session.
-        for session in sessions {
-            guard let data = session.userInfo?[referenceKey] as? Data,
-                let reference = try? JSONDecoder().decode(WindowReference.self, from: data) else { continue }
-            // An older instance can finish closing after the same content was reopened.
-            let replacementExists = application.connectedScenes.contains { scene in
-                guard scene.session.persistentIdentifier != session.persistentIdentifier,
-                    let replacement = scene.session.userInfo?[referenceKey] as? Data else { return false }
-                return (try? JSONDecoder().decode(WindowReference.self, from: replacement)) == reference
-            }
-            if replacementExists { continue }
-            windows.close(reference, dismiss: false)
+        // Open sessions include archived replacements that have no connected
+        // scene yet. Exclude the entire discard batch: two discarded copies
+        // must not protect each other from a genuine close.
+        let discardedIDs = Set(sessions.map(\.persistentIdentifier))
+        func reference(_ session: UISceneSession) -> WindowReference? {
+            guard let data = session.userInfo?[referenceKey] as? Data else { return nil }
+            return try? JSONDecoder().decode(WindowReference.self, from: data)
+        }
+        let surviving = application.openSessions.filter { !discardedIDs.contains($0.persistentIdentifier) }
+        let remaining = Set(surviving.compactMap(reference))
+        AppLog("window-scene").info("scenes.discarded", ["discarded": String(sessions.count),
+            "surviving": String(surviving.count), "archived": String(surviving.filter { $0.scene == nil }.count),
+            "identified": String(remaining.count)])
+        for window in Set(sessions.compactMap(reference)) {
+            windows.discardScene(window, remainingScenes: remaining)
         }
     }
 }
@@ -188,5 +190,56 @@ struct WindowRecoveryView: View {
             Button("Open Launcher") { windows.openLauncher() }
             if let id, windows.reference(for: id) != nil { Button("Close Window") { windows.close(id: id) } }
         }.frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+/// Source geometry, not encoder pixel size, controls streamed-window aspect.
+/// Later geometry changes preserve the user's current diagonal scale.
+struct PreviewGeometry: UIViewRepresentable {
+    let size: CGSize
+    func makeUIView(context: Context) -> GeometryView { GeometryView() }
+    func updateUIView(_ view: GeometryView, context: Context) { view.sourceSize = size; view.apply() }
+    final class GeometryView: UIView {
+        var sourceSize = CGSize.zero
+        private var lastAspect: CGFloat?
+        private var pendingAspect: CGFloat?
+        private let geometryKey = "SlopZooka.previewAspect.v1"
+        override func layoutSubviews() { super.layoutSubviews(); lockAspectWhenSized() }
+        override func didMoveToWindow() { super.didMoveToWindow(); apply() }
+        func apply() {
+            guard let scene = window?.windowScene, sourceSize.width > 0, sourceSize.height > 0 else { return }
+            let aspect = sourceSize.width / sourceSize.height
+            guard aspect.isFinite, aspect >= 0.1, aspect <= 10, lastAspect != aspect else { return }
+            let prior = lastAspect ?? (scene.session.userInfo?[geometryKey] as? Double).map { CGFloat($0) }
+            lastAspect = aspect
+            let current = scene.effectiveGeometry.coordinateSpace.bounds.size
+            if prior == aspect, current.height > 0, abs(current.width / current.height - aspect) < 0.01 {
+                scene.requestGeometryUpdate(.Vision(resizingRestrictions: .uniform)) { error in
+                    AppLog("window-scene").error("preview.geometry.failed", error: error)
+                }
+                return
+            }
+            let diagonal = prior == nil ? 850 : hypot(current.width, current.height)
+            let height = diagonal / sqrt(aspect * aspect + 1)
+            let target = CGSize(width: height * aspect, height: height)
+            // Establish the new size before uniform resizing freezes its ratio.
+            scene.requestGeometryUpdate(.Vision(size: target, resizingRestrictions: .freeform)) { error in
+                AppLog("window-scene").error("preview.geometry.failed", error: error)
+            }
+            pendingAspect = aspect
+            lockAspectWhenSized()
+        }
+        private func lockAspectWhenSized() {
+            guard let scene = window?.windowScene, let aspect = pendingAspect else { return }
+            let size = scene.effectiveGeometry.coordinateSpace.bounds.size
+            guard size.height > 0, abs(size.width / size.height - aspect) < 0.01 else { return }
+            pendingAspect = nil
+            var info = scene.session.userInfo ?? [:]
+            info[geometryKey] = Double(aspect)
+            scene.session.userInfo = info
+            scene.requestGeometryUpdate(.Vision(resizingRestrictions: .uniform)) { error in
+                AppLog("window-scene").error("preview.geometry.failed", error: error)
+            }
+        }
     }
 }

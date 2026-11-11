@@ -12,7 +12,7 @@ There is one list and one Open action for three sources:
 
 In a headset preview window, use **Back** and **Forward** beside Reload to move through that window's browsing history. Each button is disabled when there is no page in that direction. Reload keeps the current WebView and its history; closing the window or restarting the headset app starts a fresh history.
 
-Web previews currently require **Local Network** in the headset's **Settings → Connected Mac**. With **Direct to Mac (Experimental)** selected, the catalog keeps previews visible but disables Open with an explanation; the Mac API enforces the same limitation before creating a gateway. Switching methods preserves the preview's window record, and returning to Local Network reloads it unless it was closed. Saved URLs can still be removed while unavailable. Streamed native previews are a later feature.
+Web previews currently require **Local Network** in the headset's **Settings → Connected Mac**. With **Direct to Mac (Experimental)** selected, the catalog keeps previews visible but disables Open with an explanation; the Mac API enforces the same limitation before creating a gateway. Switching methods preserves the preview's window record, and returning to Local Network reloads it unless it was closed. Saved URLs can still be removed while unavailable. Experimental native Mac window previews use the shared companion route on both methods; see [Vision Pro usage](vision-pro.md#mac-window-previews-experimental).
 
 ## Workspace configuration
 
@@ -58,3 +58,7 @@ Gateway bootstrap preserves a saved URL's path, query, and fragment. HTTP bodies
 Gateways preserve normal application Authorization headers and cookie security flags, remove SlopZooka credentials before forwarding, translate same-origin redirects/CORS responses and request origins/referrers, and isolate frontend cookie stores in the native app. They do not rewrite JavaScript, absolute cross-service URLs, or OAuth callback URLs embedded inside third-party redirects. Apps requiring those features should use native LAN routing with appropriate origins and certificate trust. Local gateways are intended for a trusted development network, not internet exposure.
 
 Discovery sources fail independently: invalid Portless state produces a warning and preserves its last valid routes without preventing ordinary local servers or saved URLs from opening. Configuration changes are validated before commit; opens, refreshes, saved-URL mutations, and shutdown share one serialized lifecycle. Disappearing/stopped routes close their listeners and upgraded sockets. Changes to a route's upstream or transport invalidate only that route's gateway; reopen the frontend to obtain its replacement URL. A missing Portless installation is normal and produces no warning.
+
+The launcher separates **Web frontends** from **Mac windows**. The Direct warning
+on web rows applies to embedded URL previews; it does not disable native Mac-window
+streams. Switch to Local Network to open those URLs.

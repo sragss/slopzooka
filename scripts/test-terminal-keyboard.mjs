@@ -478,6 +478,7 @@ window.runViewportChecks = async () => {
     ...[
       "CompanionWebView",
       "CompanionModels",
+      "CompanionTransport",
       "TerminalNavigation",
       "TerminalZoom",
     ].map((name) =>
@@ -489,6 +490,7 @@ window.runViewportChecks = async () => {
     ),
     "-o",
     nativeChecks,
+    path.join(root, "packages/transport/NativeStream.swift"),
   ]);
   run(nativeChecks, []);
   const browserChecks = path.join(temporary, "browser-navigation-checks");

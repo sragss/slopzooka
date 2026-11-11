@@ -176,6 +176,18 @@ test(
         socket.destroy();
         return;
       }
+      if (
+        req.url === "/api/window-stream/fixture" &&
+        req.headers.upgrade === "slz-window-v1"
+      ) {
+        assert.equal(head.length, 0);
+        socket.on("error", () => {});
+        socket.write(
+          "HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: slz-window-v1\r\n\r\n",
+        );
+        socket.pipe(socket);
+        return;
+      }
       wss.handleUpgrade(req, socket, head, (ws) => {
         const peer: { socket: Duplex; sessionId?: string } = { socket };
         peers.set(ws, peer);
@@ -343,6 +355,38 @@ test(
           continue;
         }
         assert.equal((await fetch(url + "/api/check")).status, 401);
+        // The same native route carries binary upgrades alongside HTTP and PTYs.
+        // This runs through both the LAN adapter and pinned TLS/Direct adapter.
+        const media = await new Promise<Duplex>((resolve, reject) => {
+          const req = http.request(url + "/api/window-stream/fixture", {
+            headers: {
+              ...headers,
+              Connection: "Upgrade",
+              Upgrade: "slz-window-v1",
+            },
+          });
+          req.once("upgrade", (_response, socket, head) => {
+            if (head.length) socket.unshift(head);
+            resolve(socket);
+          });
+          req.once("response", () =>
+            reject(new Error("Expected native video upgrade")),
+          );
+          req.once("error", reject);
+          req.end();
+        });
+        t.after(() => media.destroy());
+        const mediaBytes: Buffer[] = [];
+        media.on("data", (chunk: Buffer) => mediaBytes.push(chunk));
+        const binaryPayload = Buffer.from(
+          Array.from({ length: 350000 }, (_, index) => index % 256),
+        );
+        media.write(binaryPayload);
+        await until(
+          () => Buffer.concat(mediaBytes).length === binaryPayload.length,
+        );
+        assert.deepEqual(Buffer.concat(mediaBytes), binaryPayload);
+
         assert.equal(
           (await fetch(url + "/api/check", { headers })).status,
           200,
@@ -474,8 +518,9 @@ test(
             .includes("RECEIVED:" + Buffer.from(input).toString("hex")),
         );
         const disconnected = once(first.ws, "close");
+        const mediaClosed = once(media, "close");
         fixture.stdin.write("stop\n");
-        await disconnected;
+        await Promise.all([disconnected, mediaClosed]);
         assert.equal(sessions.summaries().length, 2);
         assert.equal(sessions.summaries()[0].status, "running");
         await assert.rejects(fetch(url + "/api/check", { headers }));

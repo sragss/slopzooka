@@ -1,0 +1,346 @@
+{
+  "version": 1,
+  "date": "2026-11-10 America/New_York",
+  "baseCommit": "212c3e83bfb5456a83a596e3c24c52b592e1e7e6",
+  "scope": "Local Mac capture/receiver and preparation only; no physical headset install or second device verdict.",
+  "before": {
+    "mac-before": [
+      {
+        "bytes": 2013789,
+        "changes": 695,
+        "decoded": 695,
+        "event": "summary",
+        "fps": 27.794241820682345,
+        "gapMaxMs": 81.49950008373708,
+        "gapP50ms": 34.38195842318237,
+        "gapP95ms": 38.767208345234394,
+        "keyframes": 26,
+        "reason": "completed",
+        "received": 695,
+        "seconds": 25.00517929159105,
+        "states": {
+          "waiting": 2
+        }
+      }
+    ],
+    "mac-resize-before": [
+      {
+        "bytes": 3416816,
+        "changes": 1436,
+        "decoded": 1436,
+        "event": "summary",
+        "fps": 28.71220506704985,
+        "gapMaxMs": 108.84166660252959,
+        "gapP50ms": 34.43433332722634,
+        "gapP95ms": 42.44416661094874,
+        "keyframes": 49,
+        "reason": "completed",
+        "received": 1436,
+        "seconds": 50.01357424992602,
+        "states": {
+          "waiting": 2
+        }
+      }
+    ],
+    "mac-delayed-before": [
+      {
+        "bytes": 8815386,
+        "changes": 226,
+        "decoded": 226,
+        "event": "summary",
+        "fps": 11.298156493914377,
+        "gapMaxMs": 170.26208341121674,
+        "gapP50ms": 87.84008328802884,
+        "gapP95ms": 90.16970836091787,
+        "keyframes": 225,
+        "reason": "completed",
+        "received": 226,
+        "seconds": 20.00326337502338,
+        "states": {
+          "waiting": 1
+        }
+      }
+    ],
+    "ios-before": [
+      {
+        "bytes": 1290064,
+        "changes": 716,
+        "decoded": 716,
+        "event": "summary",
+        "fps": 28.626405510837316,
+        "gapMaxMs": 92.06562500912696,
+        "gapP50ms": 34.4955415930599,
+        "gapP95ms": 47.54666658118367,
+        "keyframes": 25,
+        "reason": "completed",
+        "received": 716,
+        "seconds": 25.011872333358042,
+        "states": {
+          "waiting": 1
+        }
+      }
+    ]
+  },
+  "firstRepairedReceiver": [
+    {
+      "name": "mac-delayed-after",
+      "code": 0,
+      "bytes": 474080,
+      "changes": 207,
+      "decoded": 207,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 1544,
+          "width": 780
+        }
+      ],
+      "fps": 10.348262440501665,
+      "gapMaxMs": 248.86429170146585,
+      "gapP50ms": 88.08041666634381,
+      "gapP95ms": 92.6970416912809,
+      "keyframes": 7,
+      "reason": "completed",
+      "received": 207,
+      "seconds": 20.00335816666484,
+      "states": {
+        "waiting": 1
+      }
+    },
+    {
+      "name": "mac-cycle-after",
+      "code": 0,
+      "bytes": 2904233,
+      "changes": 1139,
+      "decoded": 1139,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 884,
+          "width": 1360
+        },
+        {
+          "height": 1544,
+          "width": 780
+        },
+        {
+          "height": 884,
+          "width": 1360
+        }
+      ],
+      "fps": 28.469802659577823,
+      "gapMaxMs": 103.91483327839524,
+      "gapP50ms": 34.47399998549372,
+      "gapP95ms": 49.6155833825469,
+      "keyframes": 40,
+      "reason": "completed",
+      "received": 1139,
+      "seconds": 40.00730225001462,
+      "states": {
+        "waiting": 3
+      }
+    },
+    {
+      "name": "ios-paired-after",
+      "code": 0,
+      "bytes": 2082527,
+      "changes": 1139,
+      "decoded": 1139,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 1900,
+          "width": 904
+        }
+      ],
+      "fps": 28.469737309763,
+      "gapMaxMs": 107.45533334556967,
+      "gapP50ms": 34.42779171746224,
+      "gapP95ms": 46.49537499062717,
+      "keyframes": 38,
+      "reason": "completed",
+      "received": 1139,
+      "seconds": 40.00739408330992,
+      "states": {
+        "waiting": 1
+      }
+    },
+    {
+      "event": "local-checks.passed"
+    }
+  ],
+  "finalFixtureReceiver": [
+    {
+      "name": "mac-delayed-after",
+      "code": 0,
+      "bytes": 520937,
+      "changes": 217,
+      "decoded": 217,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 1544,
+          "width": 780
+        }
+      ],
+      "fps": 10.846028591087636,
+      "gapMaxMs": 173.78095828462392,
+      "gapP50ms": 87.36479165963829,
+      "gapP95ms": 90.47362499404699,
+      "keyframes": 8,
+      "reason": "completed",
+      "received": 217,
+      "seconds": 20.00732324994169,
+      "states": {
+        "waiting": 1
+      }
+    },
+    {
+      "name": "ios-paired-after",
+      "code": 0,
+      "bytes": 2005132,
+      "changes": 1125,
+      "decoded": 1125,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 1900,
+          "width": 904
+        }
+      ],
+      "fps": 28.120533697674826,
+      "gapMaxMs": 158.3350000437349,
+      "gapP50ms": 34.495833329856396,
+      "gapP95ms": 58.3162916591391,
+      "keyframes": 38,
+      "reason": "completed",
+      "received": 1125,
+      "seconds": 40.00635308329947,
+      "states": {
+        "waiting": 1
+      }
+    },
+    {
+      "name": "mac-cycle-after",
+      "code": 0,
+      "bytes": 2737910,
+      "changes": 953,
+      "decoded": 1114,
+      "event": "summary",
+      "formats": [
+        {
+          "height": 884,
+          "width": 1360
+        },
+        {
+          "height": 1544,
+          "width": 780
+        },
+        {
+          "height": 884,
+          "width": 1360
+        }
+      ],
+      "fps": 27.8456728114113,
+      "gapMaxMs": 169.22941675875336,
+      "gapP50ms": 34.53854157123715,
+      "gapP95ms": 53.61712502781302,
+      "keyframes": 38,
+      "reason": "completed",
+      "received": 1114,
+      "seconds": 40.006215958390385,
+      "states": {
+        "waiting": 3
+      }
+    },
+    {
+      "event": "local-checks.passed"
+    }
+  ],
+  "finalSenderSummaries": [
+    {
+      "frames": "218",
+      "bytes": "569333",
+      "dropped": "0",
+      "captured": "542",
+      "coalesced": "323",
+      "stage": "",
+      "errorDomain": "",
+      "errorCode": "",
+      "reason": "disconnected",
+      "durationMs": "19915"
+    },
+    {
+      "frames": "1125",
+      "bytes": "2251920",
+      "dropped": "0",
+      "captured": "1128",
+      "coalesced": "2",
+      "stage": "",
+      "errorDomain": "",
+      "errorCode": "",
+      "reason": "disconnected",
+      "durationMs": "39899"
+    },
+    {
+      "frames": "1114",
+      "bytes": "2982289",
+      "dropped": "0",
+      "captured": "1122",
+      "coalesced": "8",
+      "stage": "",
+      "errorDomain": "",
+      "errorCode": "",
+      "reason": "disconnected",
+      "durationMs": "39905"
+    }
+  ],
+  "artifacts": {
+    "mac": {
+      "path": "/tmp/slz-preview-validation/mac/SlopZooka.app/Contents/MacOS/SlopZooka",
+      "sha256": "fa98e29dc28f6b2e6091e62acf0f9fa5af83e115d7b75ab8eb02297421ee3db7"
+    },
+    "captureHelper": {
+      "path": "/tmp/slz-preview-validation/mac/SlopZooka.app/Contents/Resources/host/native/window-host",
+      "sha256": "f5b6706d9f0b45d97158574ea7c96bc68933e0c2c3de9ce6a55e6bea79226d59"
+    },
+    "headset": {
+      "path": "/tmp/slz-preview-validation/vp/Build/Products/Debug-xros/SlopZooka.app/SlopZooka",
+      "sha256": "422384141f40185d6c1d9b10d127c712646751f0818e513cc497a6abd9f97784"
+    },
+    "macFixture": {
+      "path": "/tmp/slz-preview-validation/fixtures/NativeFixture.app/Contents/MacOS/NativeFixture",
+      "sha256": "6501eab6ac34a6321ca3d36e956272db0c07617122fa8c218b3b8f46d4fc058f"
+    },
+    "iosFixture": {
+      "path": "/tmp/slz-preview-validation/fixtures/IOSFixture.app/IOSFixture",
+      "sha256": "06e3705df13901541f98c4cd7e4604d431c3a06315223c292aedf0089b6fd36b"
+    },
+    "receiver": {
+      "path": "/tmp/slz-preview-hardening/receiver",
+      "sha256": "7fb851cd3acc1bdf7ca29df53321a084bcd21a2eb84f93882e66aa1a09061a3d"
+    }
+  },
+  "checks": {
+    "lint": true,
+    "typecheck": true,
+    "70_companion_tests": true,
+    "vision_state": true,
+    "terminal_keyboard": true,
+    "format": true,
+    "harness_asset_parity": true,
+    "native_hardware_codec_socket_and_real_helper": true,
+    "vision_simulator_build": true,
+    "signed_headset_build": true,
+    "signed_mac_build": true,
+    "packaged_app_lifecycle": true
+  },
+  "limitations": [
+    "Loopback receive/decode timing is not headset presentation or interaction latency.",
+    "Pixel hash changes are not semantic verification of nonce/counter.",
+    "Before/after ACK-delay runs had different concurrent Mac load.",
+    "Device capture failure was not reproduced locally.",
+    "Custom text fixture crashed after first repaired run; replaced with standard labels and final full rehearsal passed.",
+    "Live headset client-ID adoption/restart still requires physical validation."
+  ]
+}

@@ -91,9 +91,14 @@ export function isClientMessage(value: unknown): value is ClientMessage {
 
 /** Per-destination route result; a frontend's URL transport is a separate concept. */
 export type PresentationAvailability = {
-  presentation: "web";
+  presentation: "web" | "window";
   available: boolean;
-  reasonCode?: "source_stopped" | "presentation_unsupported_on_route";
+  reasonCode?:
+    | "source_stopped"
+    | "presentation_unsupported_on_route"
+    | "permission_required"
+    | "desktop_locked"
+    | "provider_unavailable";
   message?: string;
   alternatives: string[];
 };

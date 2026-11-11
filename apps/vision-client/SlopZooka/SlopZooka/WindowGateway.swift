@@ -24,7 +24,8 @@ private struct WindowState {
     var notifications = TerminalNotifications()
     var error: String?
     var reloadRevision = 0
-    var openRequested = false
+    // nil: not yet observed; false: explicitly closed; true: existing/requested scene.
+    var openRequested: Bool?
     var renameRequest: UUID?
     var previewRequest: (revision: Int, task: Task<Void, Never>)?
 
@@ -33,6 +34,7 @@ private struct WindowState {
     var resolvedPreviewRevision: Int? { if case .preview(_, let revision) = content { return revision }; return nil }
 
     mutating func invalidateContent() {
+        if preview?.nativeWindow != nil { content = nil } // Retire capture before a new resolve; preserve the native scene.
         reloadRevision += 1
         previewRequest?.task.cancel()
         previewRequest = nil
@@ -85,6 +87,9 @@ final class WindowGateway: ObservableObject {
                 self.windows[id]?.renameRequest = nil
                 self.windows[id]?.error = "Reconnecting using \(self.client.connectionMethod.title)…"
             }
+        }
+        self.client.onFrontendSnapshot = { [weak self] hostID in
+            self?.reconcilePreviews(hostID: hostID)
         }
         self.client.onSessionSnapshot = { [weak self] snapshot, target in
             guard let self else { return }
@@ -217,6 +222,12 @@ final class WindowGateway: ObservableObject {
         remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: frontend.id)))
         try open(id: id)
     }
+    func openWindowPreview(_ source: NativeWindowSource, hostID: String) throws {
+        if let message = client.frontendOpenError(id: source.id, hostID: hostID) { throw CompanionError(message: message) }
+        let id = "\(hostID):\(source.id)"
+        remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: source.id)))
+        try open(id: id)
+    }
     func close(id: String) {
         guard let reference = windows[id]?.reference else { return }
         close(reference)
@@ -233,6 +244,15 @@ final class WindowGateway: ObservableObject {
             if dismiss { presenters.values.first?(.close(reference.window)) }
             Task { await synchronize() }
         } catch { persistenceError = "Could not save the window layout: \(error.localizedDescription)" }
+    }
+    // Native discard may arrive on the next launch. A replacement can still be
+    // archived, so the adapter supplies all surviving OS sessions, not just views.
+    func discardScene(_ reference: WindowReference, remainingScenes: Set<WindowReference>) {
+        guard !remainingScenes.contains(reference) else {
+            log.info("scene.discard.superseded", ["windowId": reference.window.id, "hostId": reference.hostID])
+            return
+        }
+        close(reference, dismiss: false)
     }
     func openLauncher() { presenters.values.first?(.openLauncher) }
 
@@ -269,7 +289,9 @@ final class WindowGateway: ObservableObject {
         if windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused {
             log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
         }
-        windows[id, default: WindowState()].openRequested = true // A background scene is also already restored.
+        // A background OS-restored scene already exists. Late observations after
+        // an explicit close must not re-arm it and swallow a future reopen.
+        if windows[id]?.openRequested != false { windows[id, default: WindowState()].openRequested = true }
         windows[id]?.isPresented = isPresented
         windows[id]?.isFocused = isFocused
         if isFocused { windows[id]?.lastFocusedAt = Date() }
@@ -298,7 +320,7 @@ final class WindowGateway: ObservableObject {
         isSynchronizing = true
         defer { isSynchronizing = false }
         var firstError: String?
-        for hostID in client.knownHostIDs {
+        for hostID in client.pairedHostIDs {
             do {
                 try await persistence.synchronize(hostID: hostID, client: client)
             } catch {
@@ -306,11 +328,26 @@ final class WindowGateway: ObservableObject {
                 firstError = firstError ?? "Window recovery needs attention: \(error.localizedDescription)"
             }
             restoreWindows(hostID: hostID)
-            for record in persistence.windows(hostID: hostID) where record.kind == .preview {
-                resolve(record, hostID: hostID)
-            }
+            reconcilePreviews(hostID: hostID)
         }
         persistenceError = firstError
+    }
+    private func reconcilePreviews(hostID: String) {
+        // An OS-restored scene may precede its layout. Show current capability
+        // state immediately without creating any durable open intent for it.
+        for window in windows.values where window.reference?.hostID == hostID && window.isPresented {
+            if let record = window.reference?.window, record.kind == .preview,
+               record.targetID.hasPrefix("window:"),
+               let message = client.frontendOpenError(id: record.targetID, hostID: hostID),
+               window.error != message || window.content != nil {
+                windows[record.id]?.invalidateContent()
+                windows[record.id]?.content = nil
+                windows[record.id]?.error = message
+            }
+        }
+        for record in persistence.windows(hostID: hostID) where record.kind == .preview {
+            resolve(record, hostID: hostID)
+        }
     }
     private func resolve(_ record: WindowRecord, hostID: String) {
         let revision = reloadToken(for: record.id)
@@ -320,6 +357,10 @@ final class WindowGateway: ObservableObject {
         // Restoration uses the same server-authored capability as the launcher.
         // Expected unavailability is state, not a failing Open every poll. A new
         // catalog/route can make it available again without another window cache.
+        if record.targetID.hasPrefix("window:"), let message = client.frontendOpenError(id: record.targetID, hostID: hostID) {
+            windows[record.id]?.error = message
+            return
+        }
         if let availability = client.frontends(for: hostID).frontends.first(where: { $0.id == record.targetID })?.presentation,
            !availability.available {
             let message = availability.message ?? "Preview unavailable on this connection."
@@ -363,6 +404,10 @@ final class WindowGateway: ObservableObject {
         action(.open(record))
     }
     private func resolvePreview(_ record: WindowRecord, hostID: String) async throws -> PreviewWindowPayload {
+        if record.targetID.hasPrefix("window:") {
+            let native = try await client.openWindowPreview(hostID: hostID, id: record.targetID)
+            return PreviewWindowPayload(nativeWindow: native, id: record.id, title: native.source.title, urlString: "")
+        }
         let result = try await client.openFrontend(hostID: hostID, id: record.targetID)
         guard var url = URLComponents(string: result.frontend.url) else { throw URLError(.badURL) }
         if let port = result.exposedPort, let token = result.accessToken {

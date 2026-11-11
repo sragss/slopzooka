@@ -66,7 +66,7 @@ struct FrontendListView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label("Frontends", systemImage: "globe").font(.headline)
+                Label("Web frontends", systemImage: "globe").font(.headline)
                 Spacer()
                 if workspaceId == nil {
                     Button("Add URL", systemImage: "plus") { showAddURL = true }
@@ -91,6 +91,30 @@ struct FrontendListView: View {
             }
             ForEach(visibleFrontends.filter { !$0.isService }) { frontend in
                 frontendRow(frontend)
+            }
+            if workspaceId == nil, let native = catalog.windows {
+                Divider()
+                Label("Mac windows", systemImage: "macwindow").font(.headline)
+                if !native.presentation.available {
+                    Text(native.presentation.message ?? "Window sharing unavailable.").font(.caption).foregroundStyle(.orange)
+                    if native.state == "permissionRequired" {
+                        Button("Allow Screen Recording on Mac") { permission(settings: false) }
+                        Button("Open Mac Privacy Settings") { permission(settings: true) }
+                    }
+                }
+                ForEach(native.sources) { source in
+                    Button {
+                        guard let hostID else { return }
+                        do { try windows.openWindowPreview(source, hostID: hostID) }
+                        catch { self.error = error.localizedDescription }
+                    } label: {
+                        VStack(alignment: .leading) {
+                            Text(source.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                            Text("\(source.application) · Full Mac window").font(.caption).foregroundStyle(.secondary)
+                        }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    }.buttonStyle(.plain).modifier(LauncherRowSurface())
+                        .disabled(!native.presentation.available || hostID == nil)
+                }
             }
             let services = visibleFrontends.filter { $0.isService }
             if !services.isEmpty {
@@ -158,6 +182,13 @@ struct FrontendListView: View {
         }
     }
 
+    private func permission(settings: Bool) {
+        guard let hostID else { return }
+        Task {
+            do { try await client.windowPermission(hostID: hostID, settings: settings) }
+            catch { self.error = error.localizedDescription }
+        }
+    }
     private func remove(_ frontend: FrontendSummary) async {
         guard let hostID else { return }
         error = nil

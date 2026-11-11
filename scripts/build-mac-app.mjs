@@ -58,7 +58,7 @@ function requireStopped() {
 }
 requireStopped();
 await fs.mkdir(path.dirname(destination), { recursive: true });
-const build = await fs.mkdtemp(path.join(root, "build/mac-app-staging-"));
+const build = await fs.mkdtemp(path.join(path.dirname(destination), ".slz-mac-app-staging-"));
 const app = path.join(build, "SlopZooka.app");
 const resources = path.join(app, "Contents/Resources");
 const source = path.join(root, "apps/mac-menu");
@@ -67,6 +67,7 @@ try {
   await fs.mkdir(path.join(resources, "runtime"), { recursive: true });
   run("pnpm", ["build:harness"]);
   run("pnpm", ["--filter", "@slz/mac-companion", "build:transport"]);
+  run("pnpm", ["--filter", "@slz/mac-companion", "build:windows"]);
   run("pnpm", [
     "--filter",
     "@slz/mac-companion",
@@ -79,6 +80,9 @@ try {
   await fs.copyFile(path.join(root, "apps/mac-companion/native/transport-host"), path.join(resources, "host/native/transport-host"));
   await fs.chmod(path.join(resources, "host/native/transport-host"), 0o755);
   run("codesign", ["--force", "--sign", signingIdentity, path.join(resources, "host/native/transport-host")]);
+  await fs.copyFile(path.join(root, "apps/mac-companion/native/window-host"), path.join(resources, "host/native/window-host"));
+  await fs.chmod(path.join(resources, "host/native/window-host"), 0o755);
+  run("codesign", ["--force", "--sign", signingIdentity, "--identifier", "com.slopzooka.window-host", path.join(resources, "host/native/window-host")]);
   // Legacy deploy leaves a workspace self-link pointing back to the checkout.
   await fs.rm(
     path.join(
