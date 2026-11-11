@@ -1,0 +1,458 @@
+{
+  "recordedAt": "2026-11-11T03:12:58.599697+00:00",
+  "candidateCommit": "7cd683e",
+  "result": "PASS: two native streams over Direct, original PTY input, no-override restart, delayed-discard preservation, LAN return",
+  "runDirectory": "/tmp/slz-preview-validation/run-jf6Kzy",
+  "clientID": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+  "companionInstanceId": "17666956-3b20-4de1-ba8f-5f5554b1c510",
+  "serviceInstanceId": "3a857d3b-cea9-4696-b8df-01d1132cca71",
+  "wearerVerdicts": [
+    "Both fresh; Mac preview and launcher closed",
+    "Closed that Mac preview through its menu",
+    "Both streaming on Direct; command sent",
+    "Both worked! Very cool."
+  ],
+  "layoutSequence": [
+    {
+      "phase": "initial-lan",
+      "revision": 2,
+      "count": 4
+    },
+    {
+      "phase": "mac-closed",
+      "revision": 2,
+      "count": 4
+    },
+    {
+      "phase": "after-reopen-request",
+      "revision": 2,
+      "count": 4
+    },
+    {
+      "phase": "close-observe",
+      "revision": 2,
+      "count": 4
+    },
+    {
+      "phase": "explicit-mac-close",
+      "revision": 3,
+      "count": 3
+    },
+    {
+      "phase": "reopened-before-direct",
+      "revision": 4,
+      "count": 4
+    },
+    {
+      "phase": "direct-streaming",
+      "revision": 4,
+      "count": 4
+    },
+    {
+      "phase": "after-direct-restart",
+      "revision": 4,
+      "count": 4
+    },
+    {
+      "phase": "final-lan",
+      "revision": 4,
+      "count": 4
+    }
+  ],
+  "manualInputReceipts": [
+    {
+      "at": 1794366574.175626,
+      "pid": 37607,
+      "text": "direct-check"
+    },
+    {
+      "at": 1794366578.2625558,
+      "pid": 37605,
+      "text": "direct-check"
+    }
+  ],
+  "selectedEvents": [
+    {
+      "ts": "2026-11-11T03:04:45.453Z",
+      "source": "vision-client",
+      "component": "window-scene",
+      "event": "scenes.discarded",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "archived": "3",
+        "discarded": "1",
+        "identified": "3",
+        "surviving": "4"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:04:45.547Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "30155941-E17E-4550-9446-89F62E21792F",
+        "connectionMethod": "localNetwork",
+        "routeRevision": "2EB54951-F66B-4E99-B8F9-8FC6DEE505C0"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:04:45.788Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.ready",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "30155941-E17E-4550-9446-89F62E21792F",
+        "connectionMethod": "localNetwork",
+        "durationMs": "240",
+        "routeRevision": "2EB54951-F66B-4E99-B8F9-8FC6DEE505C0"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:06:08.463Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "B20C93A0-E612-4CA4-94B4-9A04741D98DE",
+        "connectionMethod": "localNetwork",
+        "routeRevision": "5C828A0F-D162-4FD4-A386-1AD5617D8D50"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:06:08.961Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.ready",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "B20C93A0-E612-4CA4-94B4-9A04741D98DE",
+        "connectionMethod": "localNetwork",
+        "durationMs": "497",
+        "routeRevision": "5C828A0F-D162-4FD4-A386-1AD5617D8D50"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:07:02.886Z",
+      "source": "vision-client",
+      "component": "window-scene",
+      "event": "scenes.discarded",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "archived": "0",
+        "discarded": "1",
+        "identified": "5",
+        "surviving": "6"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:08:28.482Z",
+      "source": "vision-client",
+      "component": "window-scene",
+      "event": "scenes.discarded",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "archived": "0",
+        "discarded": "1",
+        "identified": "4",
+        "surviving": "5"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:22.415Z",
+      "source": "mac-companion",
+      "component": "transport",
+      "event": "peer.admitted",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "helperId": "6c49f8a8-cd40-45d5-b300-962233df7651",
+        "pid": 37616,
+        "interfaceName": "awdl0",
+        "interfaceIndex": "16"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:20.645Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "7A68F619-4B49-40A8-9A87-B97F87D77FC9",
+        "connectionMethod": "direct",
+        "routeRevision": "4AB7B0E0-2B74-4048-8D74-9C051236B74B"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:22.417Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "3F0D5E8B-15AE-4619-A480-7E34DE5F3478",
+        "connectionMethod": "direct",
+        "routeRevision": "E0ECC6FB-C178-4CCF-9BA1-39F5AD8D540F"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:22.989Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.ready",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "3F0D5E8B-15AE-4619-A480-7E34DE5F3478",
+        "connectionMethod": "direct",
+        "durationMs": "571",
+        "routeRevision": "E0ECC6FB-C178-4CCF-9BA1-39F5AD8D540F"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:56.512Z",
+      "source": "vision-client",
+      "component": "window-scene",
+      "event": "scenes.discarded",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "archived": "5",
+        "discarded": "2",
+        "identified": "5",
+        "surviving": "6"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:56.515Z",
+      "source": "vision-client",
+      "component": "windows",
+      "event": "scene.discard.superseded",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "windowId": "ba222aa0-84ee-477e-9594-13a9b30404d6:window:a82d65cb-9b6c-4c62-bb26-3f1fab0b4c91:38145:149193"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:56.594Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "725FBA90-E96B-4098-A06F-C3ECA6A7A4A1",
+        "connectionMethod": "direct",
+        "routeRevision": "1021C281-279D-4B0C-B28E-0B9AFCF9F734"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:09:59.068Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.ready",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "725FBA90-E96B-4098-A06F-C3ECA6A7A4A1",
+        "connectionMethod": "direct",
+        "durationMs": "2473",
+        "routeRevision": "1021C281-279D-4B0C-B28E-0B9AFCF9F734"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:10:52.208Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "E981C648-99EA-429A-8F77-F6B2E232CAF5",
+        "connectionMethod": "localNetwork",
+        "routeRevision": "51A2FE03-86B0-4226-89F9-19471D75B7DD"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:10:52.426Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.started",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "C36A2F8F-F655-435F-9215-141A82D893FE",
+        "connectionMethod": "localNetwork",
+        "routeRevision": "0534D23E-890D-4F67-B4E4-B74A7FC56EB4"
+      }
+    },
+    {
+      "ts": "2026-11-11T03:10:52.824Z",
+      "source": "vision-client",
+      "component": "transport",
+      "event": "connection.ready",
+      "fields": {
+        "hostId": "ba222aa0-84ee-477e-9594-13a9b30404d6",
+        "clientId": "9C8A4225-A3E0-49DF-859D-861BB2711465",
+        "actionId": "C36A2F8F-F655-435F-9215-141A82D893FE",
+        "connectionMethod": "localNetwork",
+        "durationMs": "398",
+        "routeRevision": "0534D23E-890D-4F67-B4E4-B74A7FC56EB4"
+      }
+    }
+  ],
+  "nonemptySenderSummaries": [
+    {
+      "viewerId": "8C15DAC2-BA9C-4793-B5A8-7D3AC7A71F0D",
+      "frames": "2909",
+      "bytes": "8497957",
+      "durationMs": "128075",
+      "captured": "3627",
+      "coalesced": "717",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:08:28.568Z",
+      "offeredFPS": 22.71
+    },
+    {
+      "viewerId": "25B9F4D0-C90A-4844-A1A0-C872BFCCAA8C",
+      "frames": "767",
+      "bytes": "2256610",
+      "durationMs": "35901",
+      "captured": "1036",
+      "coalesced": "268",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:09:20.751Z",
+      "offeredFPS": 21.36
+    },
+    {
+      "viewerId": "77EEB771-B34F-4DBF-9D8C-0BA837C9B648",
+      "frames": "4211",
+      "bytes": "8414724",
+      "durationMs": "180263",
+      "captured": "5101",
+      "coalesced": "889",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:09:20.756Z",
+      "offeredFPS": 23.36
+    },
+    {
+      "viewerId": "E301FC60-271A-417D-8D3D-950D86411B80",
+      "frames": "942",
+      "bytes": "1895611",
+      "durationMs": "33060",
+      "captured": "958",
+      "coalesced": "15",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:09:56.486Z",
+      "offeredFPS": 28.49
+    },
+    {
+      "viewerId": "81A6D65B-F92C-4852-826F-FEE06ED3CE54",
+      "frames": "900",
+      "bytes": "2614798",
+      "durationMs": "33065",
+      "captured": "959",
+      "coalesced": "58",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:09:56.491Z",
+      "offeredFPS": 27.22
+    },
+    {
+      "viewerId": "4D14CE71-8523-4B21-88CD-EE95AC3A023F",
+      "frames": "1392",
+      "bytes": "4075426",
+      "durationMs": "52703",
+      "captured": "1484",
+      "coalesced": "92",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:10:52.178Z",
+      "offeredFPS": 26.41
+    },
+    {
+      "viewerId": "89B8673A-6C88-40B9-A7F5-94CDBBA72AF5",
+      "frames": "1428",
+      "bytes": "2851311",
+      "durationMs": "52708",
+      "captured": "1486",
+      "coalesced": "58",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:10:52.183Z",
+      "offeredFPS": 27.09
+    },
+    {
+      "viewerId": "9822AE7D-8733-40A5-9327-C6E5B4B58F52",
+      "frames": "1535",
+      "bytes": "4502579",
+      "durationMs": "63932",
+      "captured": "1872",
+      "coalesced": "336",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:11:57.335Z",
+      "offeredFPS": 24.01
+    },
+    {
+      "viewerId": "C7B6D68D-7D0E-47A3-BB3F-E03A2E94D3F3",
+      "frames": "1517",
+      "bytes": "3028217",
+      "durationMs": "64055",
+      "captured": "1875",
+      "coalesced": "358",
+      "dropped": "0",
+      "reason": "disconnected",
+      "stage": "",
+      "endUTC": "2026-11-11T03:11:57.340Z",
+      "offeredFPS": 23.68
+    }
+  ],
+  "mediaAttributionCaveat": "Provider child callback retains initial request logging context: its connectionMethod says localNetwork even during Direct. Do not use that field for route attribution. Use selected route events, peer awdl0 admission and phase timings. Sender offered FPS is not measured display FPS.",
+  "observations": [
+    "Initial reported close had not removed the current Mac desired record; repeating Close Preview through its top actions menu persisted revision3. No close was manufactured through an API.",
+    "A premature operator open request before explicit close was a no-op: layout remained revision2; the verified close/reopen sequence is revision3 then revision4.",
+    "At restart the OS reported archived surviving scenes and the gateway logged scene.discard.superseded for the same Mac source; revision4 remained intact.",
+    "Front-ends warnings reported by wearer. Source inspection finds the Direct restriction only on web rows, separate from Mac windows. Native warning was not independently visually reproduced.",
+    "Travel/no-access-point, sleep/wake, capacity, thermals, measured interaction latency, rounded corners and rhythmic stutter remain outside this slot."
+  ],
+  "cleanup": {
+    "testHeadsetPID": 627,
+    "testHeadsetTerminated": true,
+    "originalHeadsetPID": 473,
+    "originalHeadsetStillRunning": true,
+    "originalMacPIDsPreserved": [
+      13544,
+      13547,
+      32460
+    ],
+    "ownedRigStopped": true,
+    "dedicatedSimulatorShutdown": true
+  },
+  "rawLogSHA256": "51a8a63f622b27cfe857a266b6230e3292ac096141c0449c6c66dcc9f8b815a2"
+}

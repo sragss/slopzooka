@@ -1,5 +1,9 @@
 # Native video on the shared Direct route
 
+**Follow-up:** the [combined physical retest](2026-11-10-direct-native-video-results.md)
+passed Direct native video, delayed-discard preservation, restart and LAN return.
+The preparation/failure record below describes the earlier state.
+
 Follow-up to [the second headset slot](2026-11-10-native-preview-retest.md).
 The native-video Direct restriction was a rollout gate, not a missing transport.
 This change removes it. The feature remains opt-in and actual peer-link video

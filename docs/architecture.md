@@ -139,7 +139,9 @@ instead of replaying a backlog. Native flow control stays separate from terminal
 flow control. Native video uses this same route on Local Network and Direct: the catalog and
 Open depend on capture state, not connection method. The peer ingress forwards
 the same authenticated binary upgrade; no separate media transport or endpoint
-is introduced. Direct media throughput/recovery still needs device qualification.
+is introduced. A [physical check](../.plans/2026-11-10-direct-native-video-results.md) passed two
+Direct streams, real terminal input, app restart and LAN return. Capacity, travel,
+sleep/wake and measured display latency remain unqualified.
 
 The provider emits bounded lifecycle summaries into the companion's existing
 `window-previews` logger. No image data, window titles, user input, or media tickets

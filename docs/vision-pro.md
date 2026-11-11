@@ -153,7 +153,9 @@ closing a preview does not quit the source app or end any terminal.
 
 Native previews use the selected Local Network or Direct to Mac route. Local
 Network capture requires macOS 14+; Direct requires macOS 15+ and prior LAN pairing.
-Direct video remains experimental pending device throughput/recovery qualification. It reports Screen
+Two simultaneous native streams, app restart and return to LAN have passed a
+physical-device check. Direct remains experimental; travel, sleep/wake and capacity
+are not yet qualified. Native capture reports Screen
 Recording permission and offers **Allow Screen Recording on Mac** and **Open Mac
 Privacy Settings**. Complete the system prompt on your Mac. The signed provider's
 permission identity still needs final device qualification; development or ad-hoc
@@ -167,4 +169,4 @@ three bounded reconnect attempts; Reload remains available. After the capture
 provider restarts, select the current window again: SlopZooka will not silently
 substitute another window with a similar title. Locked-desktop
 fallbacks, attention-based quality changes, and automatic app launching are later
-steps. The feature stays off by default until the integrated headset test passes.
+steps. The feature stays off by default during this experimental rollout.

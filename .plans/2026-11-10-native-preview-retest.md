@@ -1,5 +1,9 @@
 # Native previews: second physical slot and delayed-discard follow-up
 
+**Follow-up:** the [combined physical retest](2026-11-10-direct-native-video-results.md)
+passed Direct native video, delayed-discard preservation, restart and LAN return.
+The preparation/failure record below describes the earlier state.
+
 Local date 2026-11-10; physical interaction approximately **00:24–00:33 UTC on
 2026-11-11**. Source candidate `989369774e58475e2e876cf659745de7f0f30204`, isolated
 **Slz Preview Test**, draft [#56](https://github.com/sragss/slopzooka/pull/56).
