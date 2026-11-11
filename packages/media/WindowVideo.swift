@@ -64,6 +64,7 @@ nonisolated final class WindowVideoEncoder: @unchecked Sendable {
     private var encodeStarted: TimeInterval = 0
     private var forceKeyframe = true
     private var header: VideoHeader?
+    var isEncoding: Bool { inFlight }
     var onPacket: (@Sendable (VideoPacket) -> Void)?
     var onFailure: (@Sendable (OSStatus) -> Void)?
     init(queue: DispatchQueue) { self.queue = queue }

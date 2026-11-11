@@ -632,6 +632,45 @@ struct WindowGatewayChecks {
         precondition(!Fixture.requests.contains(where: { $0.contains("window-previews/end") }), "Viewer closure never quits a source app")
         print("PASS: native preview shares the gateway, persists only source identity, respects capture availability, and separates disconnect from close")
 
+        // A late disappearance after explicit close is not a new scene. Remote
+        // desired-open must still be deliverable through a remaining presenter.
+        Fixture.nativeWindows!["presentation"] = ["presentation": "window", "available": true, "alternatives": []]
+        await nativeClient.refreshFrontends(hostID: hostID)
+        nativeGateway.observe(id: nativeID, isPresented: false, isFocused: false)
+        var remoteOpens = 0
+        nativeGateway.attachPresenter(UUID()) { command in
+            if case .open(let record) = command, record.id == nativeID { remoteOpens += 1 }
+        }
+        Fixture.layouts[base.host!]!.windows.append(nativeRecord.window)
+        Fixture.layouts[base.host!]!.revision += 1
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        await until { nativeGateway.previewPayload(for: nativeID) != nil }
+        precondition(remoteOpens == 1, "Late hidden observations cannot swallow a later remote reopen")
+
+        let unpairedBase = URL(string: "http://unpaired.invalid:7777")!
+        try nativeClient.accept(fixtureHealth("unpaired-host", endpoint: unpairedBase), endpoint: unpairedBase, authenticated: false)
+        try nativeClient.accept(fixtureHealth(hostID, endpoint: base), endpoint: base, authenticated: true, transport: transport)
+        await nativeClient.refreshFrontends(hostID: hostID)
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(nativeGateway.persistenceError == nil, "An unrelated discovered unpaired Mac must not poison paired-Mac window recovery")
+
+        // Native scene restoration can precede layout arrival. Its existing
+        // reference must still render the current route's availability reason.
+        let emptySuite = "RestoredPreviewAvailability.\(UUID().uuidString)"
+        let emptyDefaults = UserDefaults(suiteName: emptySuite)!
+        defer { emptyDefaults.removePersistentDomain(forName: emptySuite) }
+        Fixture.layouts[base.host!] = WindowLayout()
+        Fixture.nativeWindows!["presentation"] = ["presentation": "window", "available": false,
+            "reasonCode": "presentation_unsupported_on_route", "message": "Native preview unavailable on Direct", "alternatives": []]
+        let restoredNative = WindowGateway(persistence: WindowPersistence(defaults: emptyDefaults), client: nativeClient)
+        restoredNative.remember(nativeRecord)
+        restoredNative.observe(id: nativeID, isPresented: true, isFocused: false)
+        await nativeClient.refreshFrontends(hostID: hostID)
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(restoredNative.message(for: nativeID) == "Native preview unavailable on Direct",
+            "A restored scene must not claim to reconnect to an unsupported preview route")
+        precondition(Fixture.layouts[base.host!]!.windows.isEmpty, "Availability repair must not create desired-open intent")
+        print("PASS: remote reopen survives late observations, unpaired Macs cannot poison recovery, and restored previews show route availability")
 
     }
 

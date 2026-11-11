@@ -147,8 +147,16 @@ try {
     const health = await response.json();
     return health.ok === true ? health : undefined;
   });
+  // The first private frame can precede service admission. Inspect a fresh
+  // ready frame, rather than asserting logger metadata from that early snapshot.
+  const readyStatus = await until(() => {
+    const line = output.split("\n").findLast((item) => item.startsWith("SLZ_DESKTOP "));
+    if (!line) return undefined;
+    const value = JSON.parse(line.slice("SLZ_DESKTOP ".length));
+    return value.sessionServiceAvailable ? value : undefined;
+  });
   assert.equal(
-    status.sessionLogPath,
+    readyStatus.sessionLogPath,
     path.join(
       path.dirname(path.dirname(health.logFilePath)),
       "session-service",

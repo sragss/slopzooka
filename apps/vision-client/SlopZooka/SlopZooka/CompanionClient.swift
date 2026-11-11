@@ -64,6 +64,7 @@ final class CompanionClient: NSObject, ObservableObject {
     @Published private var frontendCatalogs: [String: FrontendCatalog] = [:]
     var onRouteRetiring: ((String) -> Void)?
     var onConnected: ((ConnectedHost) -> Void)?
+    var onFrontendSnapshot: ((String) -> Void)?
     var onSessionSnapshot: ((HostSessionsResponse, ConnectedHost) async -> Void)?
     private let browser = NetServiceBrowser()
     private var services: [String: NetService] = [:]
@@ -83,6 +84,7 @@ final class CompanionClient: NSObject, ObservableObject {
     var normalizedHost: String { host.trimmingCharacters(in: .whitespacesAndNewlines) }
     var health: CompanionHealthResponse? { currentRoute?.health }
     var knownHostIDs: Set<String> { Set(routes.keys) }
+    var pairedHostIDs: Set<String> { Set(routes.filter { $0.value.paired }.keys) }
     // URL access is limited to content adapters; control callers address the host.
     func endpoint(for hostID: String) throws -> URL { try route(for: hostID).endpoint }
     func previewHostname(for hostID: String) throws -> String {
@@ -452,6 +454,7 @@ final class CompanionClient: NSObject, ObservableObject {
             let catalog: FrontendCatalog = try await request(hostID: hostID, path: "/api/frontends")
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
             frontendCatalogs[hostID] = catalog
+            onFrontendSnapshot?(hostID)
         } catch {
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
             frontendCatalogs[hostID] = FrontendCatalog(frontends: frontends(for: hostID).frontends, warning: error.localizedDescription)

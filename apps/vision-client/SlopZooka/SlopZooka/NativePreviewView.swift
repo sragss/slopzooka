@@ -20,11 +20,13 @@ struct NativePreviewView: View {
         }
         .background(.black)
         .background(PreviewGeometry(size: model.contentSize ?? CGSize(width: payload.source.contentWidth, height: payload.source.contentHeight)))
-        .ornament(attachmentAnchor: .scene(.bottom)) {
+        .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
             HStack {
                 Text("\(payload.source.application) · \(payload.source.title)").lineLimit(1).frame(maxWidth: 350)
                 Button("Reload", systemImage: "arrow.clockwise") { windows.reload(id: id) }.labelStyle(.iconOnly)
-                Button("Close", systemImage: "xmark") { windows.close(id: id) }.labelStyle(.iconOnly)
+                Menu("Preview actions", systemImage: "ellipsis") {
+                    Button("Close Preview", systemImage: "xmark") { windows.close(id: id) }
+                }.labelStyle(.iconOnly)
             }.padding(12).glassBackgroundEffect()
         }
         .task(id: revision) { if phase != .background { model.start(payload) } }

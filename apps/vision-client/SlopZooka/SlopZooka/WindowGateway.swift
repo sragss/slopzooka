@@ -24,7 +24,8 @@ private struct WindowState {
     var notifications = TerminalNotifications()
     var error: String?
     var reloadRevision = 0
-    var openRequested = false
+    // nil: not yet observed; false: explicitly closed; true: existing/requested scene.
+    var openRequested: Bool?
     var renameRequest: UUID?
     var previewRequest: (revision: Int, task: Task<Void, Never>)?
 
@@ -86,6 +87,9 @@ final class WindowGateway: ObservableObject {
                 self.windows[id]?.renameRequest = nil
                 self.windows[id]?.error = "Reconnecting using \(self.client.connectionMethod.title)…"
             }
+        }
+        self.client.onFrontendSnapshot = { [weak self] hostID in
+            self?.reconcilePreviews(hostID: hostID)
         }
         self.client.onSessionSnapshot = { [weak self] snapshot, target in
             guard let self else { return }
@@ -276,7 +280,9 @@ final class WindowGateway: ObservableObject {
         if windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused {
             log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
         }
-        windows[id, default: WindowState()].openRequested = true // A background scene is also already restored.
+        // A background OS-restored scene already exists. Late observations after
+        // an explicit close must not re-arm it and swallow a future reopen.
+        if windows[id]?.openRequested != false { windows[id, default: WindowState()].openRequested = true }
         windows[id]?.isPresented = isPresented
         windows[id]?.isFocused = isFocused
         if isFocused { windows[id]?.lastFocusedAt = Date() }
@@ -305,7 +311,7 @@ final class WindowGateway: ObservableObject {
         isSynchronizing = true
         defer { isSynchronizing = false }
         var firstError: String?
-        for hostID in client.knownHostIDs {
+        for hostID in client.pairedHostIDs {
             do {
                 try await persistence.synchronize(hostID: hostID, client: client)
             } catch {
@@ -313,11 +319,26 @@ final class WindowGateway: ObservableObject {
                 firstError = firstError ?? "Window recovery needs attention: \(error.localizedDescription)"
             }
             restoreWindows(hostID: hostID)
-            for record in persistence.windows(hostID: hostID) where record.kind == .preview {
-                resolve(record, hostID: hostID)
-            }
+            reconcilePreviews(hostID: hostID)
         }
         persistenceError = firstError
+    }
+    private func reconcilePreviews(hostID: String) {
+        // An OS-restored scene may precede its layout. Show current capability
+        // state immediately without creating any durable open intent for it.
+        for window in windows.values where window.reference?.hostID == hostID && window.isPresented {
+            if let record = window.reference?.window, record.kind == .preview,
+               record.targetID.hasPrefix("window:"),
+               let message = client.frontendOpenError(id: record.targetID, hostID: hostID),
+               window.error != message || window.content != nil {
+                windows[record.id]?.invalidateContent()
+                windows[record.id]?.content = nil
+                windows[record.id]?.error = message
+            }
+        }
+        for record in persistence.windows(hostID: hostID) where record.kind == .preview {
+            resolve(record, hostID: hostID)
+        }
     }
     private func resolve(_ record: WindowRecord, hostID: String) {
         let revision = reloadToken(for: record.id)

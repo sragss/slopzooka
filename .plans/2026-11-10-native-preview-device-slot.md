@@ -1,4 +1,6 @@
-# Native preview: short headset acceptance slot
+# Native preview: first headset acceptance slot (historical)
+
+Superseded for the next slot by [hardening and retest](2026-11-10-native-preview-hardening.md).
 
 Executed with mixed results; see the [physical report](2026-11-10-native-preview-device-results.md).
 The script below preserves the pre-test plan. Before reuse, fix its ephemeral

@@ -106,6 +106,11 @@ export class WindowPreviews {
                 "dropped",
                 "reason",
                 "durationMs",
+                "captured",
+                "coalesced",
+                "stage",
+                "errorDomain",
+                "errorCode",
               ]);
               if (
                 message.event !== "stream.summary" ||

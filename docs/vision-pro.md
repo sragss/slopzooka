@@ -147,7 +147,8 @@ local snapshot access, and retention.
 A companion launched with `SLOPZOOKA_WINDOW_PREVIEWS=1` adds **Mac windows** to
 its launcher frontend list. Select a window to share its full content, including
 any Simulator toolbar. The Mac supplies the aspect ratio, so an iPhone Simulator
-can open as a tall preview. Reload and Close use the existing Preview window;
+can open as a tall preview. Reload and the actions menu sit above the content,
+leaving the bottom resize handles clear. **Close Preview** is in that menu;
 closing a preview does not quit the source app or end any terminal.
 
 This first version requires Local Network and macOS 14+. It reports Screen

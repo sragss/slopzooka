@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawn, execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
+import { connect } from "node:net";
 import { once } from "node:events";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
@@ -16,9 +17,10 @@ const exited = once(child, "exit");
 const lines = createInterface({ input: child.stdout });
 const received = [];
 const pending = [];
+let summaries = 0;
 lines.on("line", (line) => {
   const message = JSON.parse(line);
-  if (message.type === "observation") return; // Unrelated localhost probes may reach the media listener.
+  if (message.type === "observation") { summaries += 1; return; }
   const waiter = pending.shift();
   if (waiter) waiter(message);
   else received.push(message);
@@ -35,7 +37,22 @@ async function next() {
 }
 const command = (id) => JSON.stringify({ id, method: "regression-unknown-operation" }) + "\n";
 try {
-  assert.equal((await next()).type, "ready");
+  const ready = await next();
+  assert.equal(ready.type, "ready");
+  // Invalid clients must release viewer slots too. More than the admission
+  // limit catches leaked entries without enumerating windows or asking for TCC.
+  for (let index = 0; index < 12; index += 1) {
+    const before = summaries;
+    const socket = connect({ host: "127.0.0.1", port: ready.port });
+    socket.on("error", () => {});
+    const closed = once(socket, "close");
+    socket.setTimeout(1000, () => socket.destroy());
+    socket.end(randomUUID() + "\n");
+    await closed;
+    const deadline = Date.now() + 1500;
+    while (summaries === before && Date.now() < deadline) await new Promise(resolve => setTimeout(resolve, 10));
+    assert(summaries > before, "Rejected clients must release media admission slots");
+  }
   // Unknown operations test dispatch without enumeration, capture, or a TCC prompt.
   const ids = Array.from({ length: 3 }, () => randomUUID());
   const first = command(ids[0]);
@@ -60,7 +77,7 @@ try {
     ]);
     assert.equal(code, 0);
   } finally { clearTimeout(timer); }
-  console.log("Native control pipe: fragmented/coalesced short commands and parent EOF passed");
+  console.log("Native control pipe: fragmented/coalesced short commands, rejected-client cleanup and parent EOF passed");
 } finally {
   lines.close();
   if (child.exitCode === null && child.signalCode === null) { child.kill("SIGKILL"); await exited; }
