@@ -1,0 +1,397 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+        D0726085E1A94F02090CD105 /* TerminalVoiceController.swift */ = {isa = PBXBuildFile; fileRef = C069B6A93924856AC0DDF3F6 /* TerminalVoiceController.swift */; };
+        0B8121DCF5A76F2388923872 /* TerminalVoiceControls.swift */ = {isa = PBXBuildFile; fileRef = 1EDFA29524ED7ADDFB6F839A /* TerminalVoiceControls.swift */; };
+        0AED52F2777B98C3BC4B2FEF /* TerminalVoiceSubmitSound.swift */ = {isa = PBXBuildFile; fileRef = 5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */; };
+        E47F474A1827A55AED2252D3 /* terminal-voice-submit.wav */ = {isa = PBXBuildFile; fileRef = 10DB205EDB4201E594E57A15 /* terminal-voice-submit.wav */; };
+        F5E37633A327815C8BE2ACBC /* SpeechCaptureController.swift */ = {isa = PBXBuildFile; fileRef = EC9D84174ACF0CE2517AA408 /* SpeechCaptureController.swift */; };
+        81C53F8682A0CD0639E98DD3 /* SpeechEndpoint.swift */ = {isa = PBXBuildFile; fileRef = C7520E9F2AAB5942DFD79348 /* SpeechEndpoint.swift */; };
+        FF8A08F159AC78134C93BDBE /* SpeechRecognitionSegment.swift */ = {isa = PBXBuildFile; fileRef = E377525612AC566C8E7400F9 /* SpeechRecognitionSegment.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+        C069B6A93924856AC0DDF3F6 /* TerminalVoiceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceController.swift; sourceTree = "<group>"; };
+        1EDFA29524ED7ADDFB6F839A /* TerminalVoiceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceControls.swift; sourceTree = "<group>"; };
+        5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceSubmitSound.swift; sourceTree = "<group>"; };
+        10DB205EDB4201E594E57A15 /* terminal-voice-submit.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = terminal-voice-submit.wav; sourceTree = "<group>"; };
+        EC9D84174ACF0CE2517AA408 /* SpeechCaptureController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechCaptureController.swift; sourceTree = "<group>"; };
+        C7520E9F2AAB5942DFD79348 /* SpeechEndpoint.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechEndpoint.swift; sourceTree = "<group>"; };
+        E377525612AC566C8E7400F9 /* SpeechRecognitionSegment.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechRecognitionSegment.swift; sourceTree = "<group>"; };
+		4B6BDCDE2F70AB1400516A78 /* VoicePlayground.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = VoicePlayground.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		4B6BDCEC2F70AB1400516A78 /* Exceptions for "VoicePlayground" folder in "VoicePlayground" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 4B6BDCDD2F70AB1400516A78 /* VoicePlayground */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		4B6BDCE02F70AB1400516A78 /* VoicePlayground */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				4B6BDCEC2F70AB1400516A78 /* Exceptions for "VoicePlayground" folder in "VoicePlayground" target */,
+			);
+			path = VoicePlayground;
+			sourceTree = "<group>";
+		};
+		4D4941474E4F53544943530001 /* Shared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "../shared";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		4B6BDCDB2F70AB1400516A78 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+        AFCCE956CD50B7929FE1C182 /* Voice Input */ = {
+            isa = PBXGroup;
+            children = (
+                C069B6A93924856AC0DDF3F6 /* TerminalVoiceController.swift */,
+                1EDFA29524ED7ADDFB6F839A /* TerminalVoiceControls.swift */,
+                5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */,
+                10DB205EDB4201E594E57A15 /* terminal-voice-submit.wav */,
+                EC9D84174ACF0CE2517AA408 /* SpeechCaptureController.swift */,
+                C7520E9F2AAB5942DFD79348 /* SpeechEndpoint.swift */,
+                E377525612AC566C8E7400F9 /* SpeechRecognitionSegment.swift */,
+            );
+            path = "../vision-client/SlopZooka/SlopZooka";
+            sourceTree = "<group>";
+        };
+
+		4B6BDCD52F70AB1400516A78 = {
+			isa = PBXGroup;
+			children = (
+				4B6BDCE02F70AB1400516A78 /* VoicePlayground */,
+                AFCCE956CD50B7929FE1C182 /* Voice Input */,
+
+
+				4D4941474E4F53544943530001 /* Shared */,
+				4B6BDCDF2F70AB1400516A78 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		4B6BDCDF2F70AB1400516A78 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				4B6BDCDE2F70AB1400516A78 /* VoicePlayground.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		4B6BDCDD2F70AB1400516A78 /* VoicePlayground */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4B6BDCED2F70AB1400516A78 /* Build configuration list for PBXNativeTarget "VoicePlayground" */;
+			buildPhases = (
+				4B6BDCDA2F70AB1400516A78 /* Sources */,
+				4B6BDCDB2F70AB1400516A78 /* Frameworks */,
+				4B6BDCDC2F70AB1400516A78 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				4B6BDCE02F70AB1400516A78 /* VoicePlayground */,
+
+
+				4D4941474E4F53544943530001 /* Shared */,
+			);
+			name = VoicePlayground;
+			packageProductDependencies = (
+			);
+			productName = VoicePlayground;
+			productReference = 4B6BDCDE2F70AB1400516A78 /* VoicePlayground.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4B6BDCD62F70AB1400516A78 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2630;
+				LastUpgradeCheck = 2630;
+				TargetAttributes = {
+					4B6BDCDD2F70AB1400516A78 = {
+						CreatedOnToolsVersion = 26.3;
+					};
+				};
+			};
+			buildConfigurationList = 4B6BDCD92F70AB1400516A78 /* Build configuration list for PBXProject "VoicePlayground" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 4B6BDCD52F70AB1400516A78;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 4B6BDCDF2F70AB1400516A78 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				4B6BDCDD2F70AB1400516A78 /* VoicePlayground */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		4B6BDCDC2F70AB1400516A78 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+                E47F474A1827A55AED2252D3 /* terminal-voice-submit.wav */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		4B6BDCDA2F70AB1400516A78 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+                D0726085E1A94F02090CD105 /* TerminalVoiceController.swift */,
+                0B8121DCF5A76F2388923872 /* TerminalVoiceControls.swift */,
+                0AED52F2777B98C3BC4B2FEF /* TerminalVoiceSubmitSound.swift */,
+                F5E37633A327815C8BE2ACBC /* SpeechCaptureController.swift */,
+                81C53F8682A0CD0639E98DD3 /* SpeechEndpoint.swift */,
+                FF8A08F159AC78134C93BDBE /* SpeechRecognitionSegment.swift */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4B6BDCEE2F70AB1400516A78 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+                INFOPLIST_KEY_CFBundleDisplayName = "Voice Playground";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZookaVoicePlayground;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+		4B6BDCEF2F70AB1400516A78 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+                INFOPLIST_KEY_CFBundleDisplayName = "Voice Playground";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "$(TARGET_NAME)/Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZookaVoicePlayground;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
+		4B6BDCF02F70AB1400516A78 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = xros;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		4B6BDCF12F70AB1400516A78 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = xros;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4B6BDCD92F70AB1400516A78 /* Build configuration list for PBXProject "VoicePlayground" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B6BDCF02F70AB1400516A78 /* Debug */,
+				4B6BDCF12F70AB1400516A78 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4B6BDCED2F70AB1400516A78 /* Build configuration list for PBXNativeTarget "VoicePlayground" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4B6BDCEE2F70AB1400516A78 /* Debug */,
+				4B6BDCEF2F70AB1400516A78 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4B6BDCD62F70AB1400516A78 /* Project object */;
+}

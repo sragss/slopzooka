@@ -165,11 +165,34 @@ Simulator compilation and macOS state tests do not establish device behavior. Be
 - Type through Mac Virtual Display immediately after opening, switching, and recovering terminals. Check capitals/Caps Lock, shifted punctuation, Control-C, Shift-Tab, modified arrows, and delivered function/navigation keys. Request and dismiss the floating keyboard, then repeat.
 - With both a directly connected keyboard and Mac Virtual Display keyboard sharing, use Option+Up (Alt+Up) in Codex; check modified arrows and key repeat with the floating keyboard requested and dismissed.
 - Rebuild over the existing installation; recover without the launcher; check system close, room lock, and placement. visionOS owns placement, so reopening content does not guarantee its previous position.
-- Dictate across pauses, repeated sends, and the 50-second recognition handoff (including any clipped words); switch terminals; deny permission; interrupt the connection during send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
+- Hold the terminal microphone across pauses and the 50-second recognition handoff (including any clipped words); release and check the three-second border fill, × cancellation, and delivery click/pulse. Try a quick tap and release during a permission prompt. Switch terminals; deny permission; interrupt the connection during countdown/send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
 - Open Next.js/Vite apps with HMR, authentication, and cross-service requests. Validate LAN certificate trust and framework origin policies.
 - Put two terminals on opposite sides of the room; emit `printf '\a'` in each. Check that each chime comes from its own window, its orange border clears when selected, and reconnect/reload does not repeat the sound. Repeat while dictating.
 - In the terminal’s **…** popover, gaze at each row and zoom button, then pinch near its center and edges. Check that highlights stay on one rounded target and neighboring actions do not fire. Open **Report a Bug**, verify voice starts after the popover closes, and cancel without publishing. Repeat in immersive mode and with a disconnected terminal; a terminal on another accepted Mac must capture from its own Mac.
 - Check physical wrist tracking and comfort in immersive mode.
+
+### Voice Playground
+
+The standalone [Voice Playground](docs/voice-playground.md) exercises hold-to-talk,
+the three-second cancel countdown, and delivery feedback without pairing. Its
+Xcode target references the production voice sources directly and routes delivery
+to a local message list, so UI refinements stay identical in both apps.
+
+```sh
+pnpm test:voice-demo
+xcodebuild -project apps/voice-ux-demo/VoicePlayground.xcodeproj \
+  -scheme VoicePlayground -sdk xrsimulator -configuration Debug \
+  -destination 'generic/platform=visionOS Simulator' \
+  -derivedDataPath /tmp/slz-voice-playground CODE_SIGNING_ALLOWED=NO build
+```
+
+To install on a development headset, open the demo project in Xcode, select your
+signing team and headset, and run the VoicePlayground scheme. Its bundle ID is
+separate from SlopZooka. Grant the demo microphone and speech permissions before
+trying the first hold. `pnpm lint` includes the demo's Swift sources; the state
+checks cover final transcript corrections, empty holds, countdown cancellation,
+stale callbacks, and the full three-second delay. Sound, gesture feel, and comfort
+still need the headset pass.
 
 ### Native window preview development
 
