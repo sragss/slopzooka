@@ -57,3 +57,52 @@ The next headset slot follows the [combined Direct-video and scene-restoration
 script](../../2026-11-10-direct-native-video.md#combined-headset-slot-approximately-35-minutes-after-pairing).
 It exercises both native streams alongside terminal input, then app restart and
 LAN return; do not use the historical Direct-unavailable expectation.
+
+## MCP device gate (#58)
+
+Use the same staged binaries and isolated identity; no new test app family:
+
+```sh
+node .plans/probes/native-preview/prepare.mjs
+node .plans/probes/native-preview/operate.mjs --smoke --mcp
+node .plans/probes/native-preview/operate.mjs --live --mcp
+```
+
+The last command waits for the headset slot because it opens disposable fixtures.
+`launch`, fresh `code`, and `adopt` pair the test app as before. In MCP mode `adopt`
+adds only the two terminal fixtures, and `open` is disabled. All preview mutations
+must go through the real packaged MCP, for example:
+
+```text
+mcp preview_list
+mcp preview_open {"source_id":"<observed simulator source>","name":"Login verification"}
+mcp preview_rename {"preview_id":"<returned preview ID>","name":"Login verified"}
+mcp preview_close {"preview_id":"<returned preview ID>"}
+```
+
+Use `sources` to disambiguate the owned Mac fixture and dedicated Simulator, then
+match those IDs in `preview_list`. The SDK client keeps one child stdio session;
+`stop` closes it before stopping only the owned fixture processes. `mcp.private.json`
+is created mode 0600 inside the private run directory. The isolated rig's `adopt`
+is an operator-only test convenience, not product client selection: it requires
+exactly one observed headset client on this fresh test companion. Production MCP
+configuration remains explicit. Never reuse this observation scheme on a live home.
+
+Before the wearer slot, the smoke mode checks packaged MCP tool discovery, the
+real authenticated catalog, disabled-capture rejection, two real disposable PTYs,
+ACK/replay, and owned cleanup. It does not prove physical capture/presentation.
+
+Wearer script (target 5–7 minutes after permission/pairing):
+
+1. Confirm the named simulator stream is fresh and phone-shaped; close only the
+   test launcher. Operator renames it and opens the Mac fixture via MCP. Confirm
+   the new name and both fresh streams.
+2. Operator closes the simulator via MCP, checks the other stream and source/PTY
+   survival, and reopens it once. Confirm disappearance and return.
+3. Switch the test app to Direct and close its launcher. Repeat rename/close/open
+   through the same MCP; confirm the same behavior. Operator closes both previews,
+   stops the owned rig, and removes only this reinstalled test headset app.
+
+If a gate fails, retain evidence and let the wearer take the headset off instead
+of debugging at length in-headset. A model-driven Codex/CUA run is a separate
+integration observation; deterministic MCP calls do not establish model behavior.

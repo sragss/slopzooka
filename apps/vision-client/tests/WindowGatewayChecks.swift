@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 enum Fixture {
     static var layouts: [String: WindowLayout] = [:]
+    static var beforeLayout: (() async throws -> Void)?
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
     static var frontends: [[String: Any]] = []
@@ -76,6 +77,7 @@ enum Fixture {
             return try json(["ok": true], for: request)
         }
         if path == "/api/window-layout" {
+            if method == "GET", let callback = beforeLayout { beforeLayout = nil; try await callback() }
             let key = base.host!
             if method == "PUT" {
                 var next = try JSONDecoder().decode(WindowLayout.self, from: body!)
@@ -423,6 +425,7 @@ struct WindowGatewayChecks {
         precondition(Fixture.inputBodies.count == 2)
         voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: true)
         voiceGateway.close(reference, dismiss: false)
+        await until { !Fixture.layouts[base.host!]!.windows.contains(where: { $0.id == terminal.id }) }
         precondition(!voiceGateway.canReceiveVoice(terminal.id), "Close intent takes effect before native disappearance")
         print("PASS: voice input resolves through the gateway, retries identical commands, and respects scene availability and close intent")
 
@@ -657,14 +660,62 @@ struct WindowGatewayChecks {
         await nativeClient.refreshFrontends(hostID: hostID)
         nativeGateway.observe(id: nativeID, isPresented: false, isFocused: false)
         var remoteOpens = 0
+        var remoteCloses = 0
         nativeGateway.attachPresenter(UUID()) { command in
             if case .open(let record) = command, record.id == nativeID { remoteOpens += 1 }
+            if case .close(let record) = command, record.id == nativeID { remoteCloses += 1 }
         }
         Fixture.layouts[base.host!]!.windows.append(nativeRecord.window)
         Fixture.layouts[base.host!]!.revision += 1
         await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
         await until { nativeGateway.previewPayload(for: nativeID) != nil }
         precondition(remoteOpens == 1, "Late hidden observations cannot swallow a later remote reopen")
+
+        let closeBaseline = remoteCloses
+        let captureBaseline = Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count
+        let reloadBaseline = nativeGateway.reloadToken(for: nativeID)
+        var namedNative = nativeRecord.window
+        namedNative.name = "Login verification"
+        Fixture.layouts[base.host!]!.windows = [namedNative]
+        Fixture.layouts[base.host!]!.revision += 1
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(nativeGateway.previewName(for: nativeID) == "Login verification")
+        precondition(nativeGateway.reloadToken(for: nativeID) == reloadBaseline)
+        precondition(Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count == captureBaseline)
+        let renamedReference = WindowReference(hostID: hostID, window: namedNative)
+        nativeGateway.discardScene(nativeRecord, remainingScenes: [renamedReference])
+        precondition(remoteCloses == closeBaseline, "Old archived names do not change scene identity")
+        precondition(nativeRecord == renamedReference && nativeRecord.window != namedNative,
+            "Scene identity ignores labels; pending-write comparison must retain them")
+
+        Fixture.layouts[base.host!]!.windows = []
+        Fixture.layouts[base.host!]!.revision += 1
+        Fixture.beforeLayout = { throw URLError(.networkConnectionLost) }
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(remoteCloses == closeBaseline && nativeGateway.previewPayload(for: nativeID) != nil,
+            "Failed layout reads never dismiss a stream")
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(remoteCloses == closeBaseline + 1 && nativeGateway.previewPayload(for: nativeID) == nil,
+            "Acknowledged remote close dismisses and releases capture without a launcher")
+        let closedRevision = Fixture.layouts[base.host!]!.revision
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        precondition(remoteCloses == closeBaseline + 1 && Fixture.layouts[base.host!]!.revision == closedRevision,
+            "Remote close is not another layout write or repeated dismissal")
+
+        Fixture.layouts[base.host!]!.windows = [namedNative]
+        Fixture.layouts[base.host!]!.revision += 1
+        var remoteResolve: CheckedContinuation<Void, Never>?
+        Fixture.beforePreview = { await withCheckedContinuation { remoteResolve = $0 } }
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        await until { remoteResolve != nil }
+        Fixture.layouts[base.host!]!.windows = []
+        Fixture.layouts[base.host!]!.revision += 1
+        await nativeClient.onSessionSnapshot?(sameInstance, nativeClient.current!)
+        remoteResolve?.resume()
+        for _ in 0..<20 { await Task.yield() }
+        precondition(nativeGateway.previewPayload(for: nativeID) == nil, "Late capture resolve cannot undo a remote close")
+        precondition(!Fixture.requests.contains("POST /api/sessions"), "Remote preview intent never creates a PTY")
+        print("PASS: remote rename preserves capture and archived scene identity; remote close cancels late work without a launcher")
 
         let unpairedBase = URL(string: "http://unpaired.invalid:7777")!
         try nativeClient.accept(fixtureHealth("unpaired-host", endpoint: unpairedBase), endpoint: unpairedBase, authenticated: false)

@@ -52,6 +52,9 @@ test("layouts survive restart, isolate clients, serialize conflicting edits, and
       [terminal, terminal],
       [{ ...terminal, kind: "unknown" }],
       [{ ...terminal, targetID: "" }],
+      [{ ...preview, name: " " }],
+      [{ ...preview, name: "x".repeat(121) }],
+      [{ ...preview, name: "bad\nname" }],
       Array(129).fill(terminal),
     ]) {
       await assert.rejects(store.put(client, 2, invalid));

@@ -10,6 +10,7 @@ export type WindowRecord = {
   id: string;
   kind: "terminal" | "preview";
   targetID: string;
+  name?: string;
 };
 export type WindowLayout = {
   version: 1;
@@ -40,11 +41,20 @@ function windows(value: unknown): WindowRecord[] {
       !text(record.id) ||
       !text(record.targetID) ||
       !["terminal", "preview"].includes(record.kind) ||
-      ids.has(record.id)
+      ids.has(record.id) ||
+      (record.name !== undefined &&
+        (!text(record.name) ||
+          record.name.length > 120 ||
+          record.name.trim() !== record.name))
     )
       throw new ServiceError("Invalid or duplicate window record", 400);
     ids.add(record.id);
-    return { id: record.id, kind: record.kind, targetID: record.targetID };
+    return {
+      id: record.id,
+      kind: record.kind,
+      targetID: record.targetID,
+      ...(record.name === undefined ? {} : { name: record.name }),
+    };
   });
 }
 

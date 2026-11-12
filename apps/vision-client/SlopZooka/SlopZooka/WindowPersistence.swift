@@ -6,11 +6,27 @@ struct WindowRecord: Codable, Hashable, Identifiable {
     let id: String
     let kind: Kind
     let targetID: String
+    var name: String? = nil
+
+    func sameContent(as other: Self) -> Bool {
+        id == other.id && kind == other.kind && targetID == other.targetID
+    }
 }
 
 struct WindowReference: Codable, Hashable {
     let hostID: String
     let window: WindowRecord
+
+    // Scene identity survives presentation-only renames, including archived scenes.
+    static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.hostID == rhs.hostID && lhs.window.sameContent(as: rhs.window)
+    }
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(hostID)
+        hasher.combine(window.id)
+        hasher.combine(window.kind)
+        hasher.combine(window.targetID)
+    }
 }
 
 struct WindowLayout: Codable {
