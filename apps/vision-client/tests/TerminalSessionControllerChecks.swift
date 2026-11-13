@@ -28,7 +28,9 @@ private final class FixtureWebView: WKWebView {
             <script>
             window.fixtureGeneration = \(generation);
             window.focusRequests = [];
+            window.blurRequests = 0;
             window.slzFocusTerminal = showKeyboard => focusRequests.push(showKeyboard);
+            window.slzBlurTerminal = () => { window.blurRequests += 1; };
             window.ready = () => webkit.messageHandlers.terminalState.postMessage({state: 'running'});
             </script>
             """, baseURL: request.url)
@@ -85,6 +87,8 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
                 controller.updateActivity(false, in: webView)
                 controller.requestFocus(in: webView, showKeyboard: true)
                 try await ready(webView, expecting: [false, true])
+                let blurred = try await webView.evaluateJavaScript("window.blurRequests") as? Int
+                precondition(blurred == 1, "native deactivation must blur the terminal for focus-aware agents")
                 controller.updateActivity(true, in: webView)
                 try await expect(webView, [false, true, false])
 
@@ -93,7 +97,10 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
                 controller.requestFocus(in: webView, showKeyboard: true)
                 controller.updateActivity(false, in: webView)
                 try await documentReady(webView)
+                controller.webView(webView, didFinish: nil)
                 try await ready(webView, expecting: [])
+                let reloadedBlur = try await webView.evaluateJavaScript("window.blurRequests") as? Int
+                precondition(reloadedBlur == 1, "loading in an inactive scene must clear the page's automatic focus")
                 controller.updateActivity(true, in: webView)
                 try await expect(webView, [false])
 

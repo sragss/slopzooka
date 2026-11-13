@@ -58,6 +58,8 @@ Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give t
 
 New alerts play a short chime anchored to the terminal window's position in the room. Bursts are limited to one chime per second per window. Reconnecting recovers missed notifications silently; replaying output or reloading content does not repeat a chime. Unread state stays with the window during the headset app's lifetime, including content reloads and reconnects.
 
+SlopZooka reports native scene deactivation to terminal programs as focus-out. Codex normally emits notifications only while its terminal is unfocused. Looking or walking away does not necessarily deactivate a visionOS window; if you also want alerts while it retains focus, optionally start Codex with `codex -c 'tui.notification_condition="always"'`. SlopZooka launches Codex normally and does not override its notification settings. See the [Codex TUI settings](https://learn.chatgpt.com/docs/config-file/config-advanced#tui-options).
+
 This handles alerts emitted by the terminal program; it does not infer completion from output text or a process exit. Enable terminal notifications in your coding agent if they are disabled. Update both apps and restart an older Mac session service after ending its sessions to enable alert detection. Test the path from a shell with `printf '\a'`.
 
 ## Dictation

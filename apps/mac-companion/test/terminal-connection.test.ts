@@ -102,13 +102,22 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       data: "D",
       notificationSequence: 5,
     });
+    assert.deepEqual(
+      notifications,
+      [
+        [3, "first", false],
+        [4, "first", true],
+        [5, "first", true],
+      ],
+      "native alerts cannot wait for queued terminal writes in an unattended WebView",
+    );
+    assert.equal(
+      rendered,
+      "",
+      "notification delivery does not acknowledge unrendered output",
+    );
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(rendered, "CD");
-    assert.deepEqual(notifications, [
-      [3, "first", false],
-      [4, "first", true],
-      [5, "first", true],
-    ]);
     assert.deepEqual(operations, [
       "reset",
       "resize",
@@ -160,7 +169,19 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     );
     assert.equal(
       notifications.length,
-      3,
+      4,
+      "the current socket delivers its silent checkpoint before rendering",
+    );
+    reconnected.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 5,
+      data: "late",
+      notificationSequence: 7,
+    });
+    assert.equal(
+      notifications.length,
+      4,
       "retired sockets cannot notify their replacement",
     );
     replacement.receive({
@@ -374,7 +395,7 @@ test("stalled transports recover without close events, ignore retired attempts, 
   }
 });
 
-test("sampled input receipts bypass blocked output parsing and never log input", async () => {
+test("sampled input receipts and alerts bypass coalesced output parsing without logging input", async () => {
   const { eventLogger } = await import("../src/log-events.js");
   const originalSocket = globalThis.WebSocket;
   const originalLocation = Object.getOwnPropertyDescriptor(
@@ -407,6 +428,7 @@ test("sampled input receipts bypass blocked output parsing and never log input",
     value: { href: "http://host/terminal", protocol: "http:" },
   });
   const events: any[] = [];
+  const notifications: unknown[] = [];
   let input: (data: string) => void = () => {};
   let finishWrite: (() => void) | undefined;
   const terminal = {
@@ -430,7 +452,7 @@ test("sampled input receipts bypass blocked output parsing and never log input",
     "s1",
     () => {},
     () => {},
-    undefined,
+    (...notification) => notifications.push(notification),
     eventLogger("browser", (event) => events.push(event))("terminal"),
   );
   const flush = async () => {
@@ -445,6 +467,7 @@ test("sampled input receipts bypass blocked output parsing and never log input",
       session: { id: "s1", status: "running" },
       cursor: 0,
       writable: true,
+      notificationSequence: 0,
     });
     await flush();
     ws.receive({
@@ -452,7 +475,32 @@ test("sampled input receipts bypass blocked output parsing and never log input",
       sessionId: "s1",
       cursor: 1,
       data: "private-output",
+      notificationSequence: 1,
     });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 2,
+      data: "private-output-two",
+      notificationSequence: 2,
+    });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 3,
+      data: "private-output-three",
+      notificationSequence: 3,
+    });
+    assert.deepEqual(
+      notifications,
+      [
+        [0, "legacy", false],
+        [1, "legacy", true],
+        [2, "legacy", true],
+        [3, "legacy", true],
+      ],
+      "each alert arrives before coalescing and rendering, even when frames share one write",
+    );
     await flush();
     assert.ok(finishWrite, "output parsing remains blocked until its callback");
     input("private-input");
@@ -480,9 +528,15 @@ test("sampled input receipts bypass blocked output parsing and never log input",
       "receipt is processed exactly once while output remains blocked",
     );
     assert.equal(summary.inputs, 2);
+    assert.equal(summary.outputFrames, 3);
+    assert.equal(
+      summary.outputBatches,
+      1,
+      "consecutive output still shares one parser write",
+    );
     assert.equal(summary.inputProbesInterrupted, undefined);
     assert.equal(
-      ws.sent.some((m) => m.type === "ack" && m.cursor === 1),
+      ws.sent.some((m) => m.type === "ack" && m.cursor >= 1),
       false,
       "output is not acknowledged before parsing",
     );
