@@ -57,6 +57,19 @@ Portless is optional. The registry adapter is tested against the Portless 0.14 s
 
 Agent commands use their normal permission behavior.
 
+## Codex threads
+
+The headset's **Projects → Codex threads** reads the latest 25 saved threads
+through the installed Codex CLI's app-server interface, using the same login-shell
+command as terminal launches (`SLOPZOOKA_CODEX_COMMAND`, or `codex`). Codex owns its
+history under `CODEX_HOME` (normally `~/.codex`); SlopZooka does not parse its
+database or transcripts. Update Codex if the catalog reports it is unavailable.
+
+Resume requires an updated session service. If prompted, use **Restart Session
+Service** when ready to end its existing terminals; updating the HTTP companion
+alone preserves the older service. Thread titles and conversation contents are
+not written to SlopZooka diagnostics.
+
 ## Diagnostics
 
 **Settings → View Logs** opens `SLOPZOOKA_HOME/logs` (default

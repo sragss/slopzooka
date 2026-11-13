@@ -4,7 +4,7 @@ import { webPresentation } from "./presentation.js";
 import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
+import { mkdir, stat } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import http from "node:http";
 import os from "node:os";
@@ -36,6 +36,8 @@ import type { ServiceInfo } from "./session-service-protocol.js";
 import { Pairing } from "./auth.js";
 import { loadDesktopPath } from "./desktop.js";
 import { DashboardAddress } from "./dashboard-address.js";
+import { CodexThreads } from "./codex-threads.js";
+import { installCodexThreadRoutes } from "./codex-http.js";
 import {
   installWindowLayoutRoutes,
   WindowLayoutStore,
@@ -85,6 +87,7 @@ const frontendService = new FrontendService(diagnostics.logger("frontends"), {
 const windowPreviews = new WindowPreviews(
   diagnostics.logger("window-previews"),
 );
+const codexThreads = new CodexThreads(diagnostics.logger("codex-threads"));
 // Pairing codes are intentionally printed only to the local console, never the log file.
 let displayedPairingCode = pairing.code;
 console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
@@ -149,6 +152,7 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installCodexThreadRoutes(app, codexThreads, sessionService, workspaceService);
 installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
   sessionService.flushLogs(),
@@ -222,9 +226,31 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
         "Valid workspaceId, sessionId and profile required",
         400,
       );
-    const workspace = await workspaceService.getWorkspace(
-      req.params.workspaceId,
-    );
+    const workspace = await workspaceService
+      .getWorkspace(req.params.workspaceId)
+      .catch(async (error: unknown) => {
+        // A resumed thread can live in a local folder outside the workspace index.
+        // Only an existing service-owned terminal can authorize a shell there.
+        if (
+          !(error instanceof ServiceError) ||
+          error.statusCode !== 404 ||
+          req.body.profile != null ||
+          !req.params.workspaceId!.startsWith("codex-")
+        )
+          throw error;
+        const source = (await sessionService.info()).sessions.find(
+          (session) => session.workspaceId === req.params.workspaceId,
+        );
+        if (!source) throw error;
+        return {
+          workspaceId: source.workspaceId,
+          worktreePath: source.cwd,
+          existsOnDisk: await stat(source.cwd).then(
+            (info) => info.isDirectory(),
+            () => false,
+          ),
+        };
+      });
     if (!workspace.existsOnDisk)
       throw new ServiceError("Workspace directory is missing", 409);
     const session = await sessionService.create({
@@ -610,12 +636,12 @@ app.post("/api/sessions/:sessionId/input", async (req, res) => {
 
 app.use(
   (
-    error: Error & { status?: number },
+    error: Error & { status?: number; statusCode?: number },
     _req: express.Request,
     res: express.Response,
     _next: express.NextFunction,
   ) => {
-    res.status(error.status ?? 500).json({
+    res.status(error.statusCode ?? error.status ?? 500).json({
       error: error.status === 400 ? "Invalid JSON request" : error.message,
     });
   },
@@ -981,6 +1007,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
     server.close(() => resolve()),
   );
   windowPreviews.stop();
+  codexThreads.stop();
   await Promise.allSettled([
     transport.stop(),
     frontendService.stop(),

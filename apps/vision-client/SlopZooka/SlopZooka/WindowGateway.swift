@@ -70,6 +70,8 @@ final class WindowGateway: ObservableObject {
     private var companionInstances: [String: (route: UUID, process: String?)] = [:]
     private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var isSynchronizing = false
+    // Retain uncertain launch intent so a retry uses the same server operation.
+    private var codexResumeIDs: [String: String] = [:]
 
     init(persistence: WindowPersistence? = nil, client: CompanionClient? = nil) {
         self.client = client ?? CompanionClient()
@@ -77,6 +79,9 @@ final class WindowGateway: ObservableObject {
         self.persistence = persistence ?? WindowPersistence()
         launcher.launchTerminal = { [weak self] workspaceID, hostID, profile in
             try await self?.launchTerminal(workspaceID: workspaceID, hostID: hostID, profile: profile)
+        }
+        launcher.resumeThread = { [weak self] threadID, hostID in
+            try await self?.resumeCodexThread(threadID: threadID, hostID: hostID)
         }
         self.client.onRouteRetiring = { [weak self] hostID in
             guard let self else { return }
@@ -266,6 +271,24 @@ final class WindowGateway: ObservableObject {
             try Task.checkCancellation()
             registerTerminal(result.session, hostID: hostID)
             try open(id: result.session.id)
+        }
+    }
+    private func resumeCodexThread(threadID: String, hostID: String) async throws {
+        let key = "\(hostID)/\(threadID)"
+        let requestID = codexResumeIDs[key] ?? UUID().uuidString
+        codexResumeIDs[key] = requestID
+        do {
+            let result = try await client.resumeCodexThread(hostID: hostID, threadID: threadID, sessionID: requestID)
+            try Task.checkCancellation()
+            guard client.current?.id == hostID else { throw CancellationError() }
+            registerTerminal(result.session, hostID: hostID)
+            try open(id: result.session.id)
+            codexResumeIDs[key] = nil
+        } catch {
+            if let response = error as? CompanionError, let status = response.statusCode, (400..<500).contains(status) {
+                codexResumeIDs[key] = nil
+            }
+            throw error
         }
     }
     func endSession(id: String) async throws {

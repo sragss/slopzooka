@@ -183,6 +183,68 @@ struct ContentView: View {
                 sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
                 quickWorkspaceContent
             }
+            Divider()
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    sectionHeading("Codex threads", count: state.filteredCodexThreads.count)
+                    Button {
+                        if let hostID = client.current?.id { Task { await state.loadCodexThreads(hostID: hostID) } }
+                    } label: {
+                        Image(systemName: "arrow.clockwise").frame(width: 44, height: 44)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Refresh Codex threads")
+                }
+                codexThreadsContent
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var codexThreadsContent: some View {
+        switch state.codexState {
+        case .idle, .loading:
+            compactLoadingView(title: "Loading Codex threads...")
+        case .failure(let message):
+            compactFailureView(message: message)
+        case .loaded:
+            if state.filteredCodexThreads.isEmpty {
+                compactEmptyView(state.searchText.isEmpty ? "No saved Codex threads." : "No matching Codex threads.")
+            } else {
+                LazyVStack(spacing: 10) {
+                    ForEach(state.filteredCodexThreads) { thread in
+                        Button {
+                            projectSearchFocused = false
+                            Task { await state.resume(thread) }
+                        } label: {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 5) {
+                                    Text(thread.title).font(.subheadline.weight(.semibold)).lineLimit(1)
+                                    HStack {
+                                        Text(thread.cwd).lineLimit(1).truncationMode(.middle)
+                                        if !thread.available { Text("Missing on Mac").foregroundStyle(.orange) }
+                                    }.font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 0)
+                                if state.busyThreadID == thread.id {
+                                    ProgressView().scaleEffect(0.8)
+                                } else {
+                                    Image(systemName: "arrow.up.forward").font(.caption).foregroundStyle(.secondary)
+                                        .accessibilityHidden(true)
+                                }
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .hoverEffectDisabled()
+                        .disabled(state.isMutatingWorkspace || !thread.available)
+                        .accessibilityLabel("Resume Codex thread, \(thread.title), \(thread.cwd)")
+                        .modifier(LauncherRowSurface())
+                    }
+                }
+            }
         }
     }
 

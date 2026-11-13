@@ -467,6 +467,13 @@ final class CompanionClient: NSObject, ObservableObject {
     func repositories(hostID: String) async throws -> RecentReposResponse {
         try await request(hostID: hostID, path: "/api/repos/recent?limit=30")
     }
+    func codexThreads(hostID: String) async throws -> CodexThreadsResponse {
+        try await request(hostID: hostID, path: "/api/codex/threads", timeout: 25)
+    }
+    func resumeCodexThread(hostID: String, threadID: String, sessionID: String) async throws -> CreatedSessionResponse {
+        try await request(hostID: hostID, path: "/api/codex/threads/\(threadID)/resume", method: "POST",
+            body: Self.json(["sessionId": sessionID]), timeout: 30)
+    }
     func workspaces(hostID: String) async throws -> RecentWorkspacesResponse {
         try await request(hostID: hostID, path: "/api/workspaces?limit=100")
     }
