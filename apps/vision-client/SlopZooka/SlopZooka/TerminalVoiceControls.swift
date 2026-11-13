@@ -12,15 +12,7 @@ struct TerminalVoiceButton: View {
             if pressing { voice.beginTerminalHold(id) }
             else { voice.endTerminalHold(id) }
         }) {}
-        .overlay(alignment: .bottom) {
-            if voice.targetID != id {
-                Text("Hold to talk")
-                    .font(.caption2)
-                    .offset(y: 14)
-                    .allowsHitTesting(false)
-            }
-        }
-        .accessibilityHint("Hold while speaking, then release. Tap the close button within three seconds to cancel before sending.")
+        .accessibilityHint("Hold while speaking, then release. Tap the close button within two seconds to cancel before sending.")
         .accessibilityAction {
             if voice.targetID == id && voice.mode == .terminal { voice.endTerminalHold(id) }
             else { voice.beginTerminalHold(id) }
@@ -43,7 +35,7 @@ struct VoiceInputButton: View {
             VoiceOrb(isSelected: voice.targetID == id,
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
-                audioLevels: voice.audioLevels)
+                meter: voice.audioMeter)
                 .frame(width: 88, height: 88)
                 .glassBackgroundEffect(in: Circle())
                 .frame(width: 120, height: 120)
@@ -75,7 +67,7 @@ private struct VoiceOrb: View {
     let isSelected: Bool
     let isListening: Bool
     let isBusy: Bool
-    let audioLevels: [Double]
+    let meter: VoiceAudioMeter
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -90,14 +82,7 @@ private struct VoiceOrb: View {
                         .rotationEffect(.degrees(angle))
                 }
             } else if isListening {
-                HStack(spacing: 4) {
-                    ForEach(audioLevels.indices, id: \.self) { index in
-                        Capsule().fill(voiceAccent)
-                            .frame(width: 4, height: 6 + 28 * audioLevels[index])
-                    }
-                }
-                .frame(width: 40, height: 40)
-                .animation(reduceMotion ? nil : .linear(duration: 0.05), value: audioLevels)
+                VoiceWaveform(meter: meter)
             } else {
                 Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
                     .font(.system(size: 30, weight: .medium))
@@ -105,6 +90,24 @@ private struct VoiceOrb: View {
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+private struct VoiceWaveform: View {
+    @ObservedObject var meter: VoiceAudioMeter
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { _ in
+            let levels = reduceMotion ? meter.levels : meter.displayLevels(at: ProcessInfo.processInfo.systemUptime)
+            HStack(spacing: 4) {
+                ForEach(levels.indices, id: \.self) { index in
+                    Capsule().fill(voiceAccent)
+                        .frame(width: 4, height: 6 + 28 * levels[index])
+                }
+            }
+            .frame(width: 40, height: 40)
+        }
     }
 }
 
@@ -158,8 +161,8 @@ struct TerminalVoiceOverlay: ViewModifier {
                     .accessibilityHidden(true)
             }
             .onChange(of: voice.lastSubmission) { _, command in
-                guard command?.targetID == id else { return }
-                submitSound.play()
+                guard let command, command.targetID == id else { return }
+                submitSound.play(commandID: command.commandID)
                 submitPulse = true
             }
             .task(id: submitPulse) {
@@ -178,40 +181,47 @@ struct TerminalVoiceOverlay: ViewModifier {
 private struct TerminalVoiceDraft: View {
     let id: String
     @EnvironmentObject private var voice: TerminalVoiceController
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var retainedTranscript = ""
 
     var body: some View {
+        let status = visibleStatusText
         VStack(alignment: .leading, spacing: 10) {
             if voice.mode == .rename {
                 Text("Name this \(voice.renameTarget.rawValue)").font(.title2.weight(.semibold))
             }
             HStack {
-                Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")
-                    .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
-                    .accessibilityHidden(true)
-                if voice.targetID == id, let deadline = voice.sendDeadline {
-                    TimelineView(.periodic(from: .now, by: 0.1)) { context in
-                        Text("Sending in \(max(1, Int(ceil(deadline.timeIntervalSince(context.date)))))s")
-                            .font(.caption)
+                ZStack(alignment: .leading) {
+                    if !status.isEmpty {
+                        HStack(spacing: 6) {
+                            Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")
+                                .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
+                                .accessibilityHidden(true)
+                            if let deadline = voice.sendDeadline {
+                                TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                                    Text("Sending in \(max(1, Int(ceil(deadline.timeIntervalSince(context.date)))))s")
+                                        .font(.caption)
+                                }
+                            } else {
+                                Text(status).font(.caption)
+                            }
+                        }
+                        .id(status)
+                        .transition(.opacity)
                     }
-                } else {
-                    Text(voice.statusText).font(.caption)
                 }
-                Spacer(minLength: 0)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: status)
                 Button("Cancel", systemImage: "xmark") { voice.stop() }
                     .labelStyle(.iconOnly)
                     .disabled(voice.isSubmitting)
                     .accessibilityLabel("Cancel voice input and discard draft")
             }
-            ScrollView {
-                Text(hasVisibleText ? visibleTranscript : placeholder)
-                    .foregroundStyle(hasVisibleText ? .primary : .secondary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .textSelection(.enabled)
-            }
+            VoiceTranscript(text: hasVisibleText ? visibleTranscript : placeholder, isPlaceholder: !hasVisibleText)
             .frame(height: voice.mode == .rename || voice.mode == .draft ? 148 : 80)
-            if voice.mode != nil && (voice.mode != .terminal || (voice.hasText && voice.sendDeadline == nil
-                && voice.captureState != .listening && voice.captureState != .finishing && !voice.isSubmitting)) {
+            // Recognition handoffs briefly pass through idle/preparing. They are
+            // still part of the hold, and never expose a separate Send action.
+            if voice.mode != nil && (voice.mode != .terminal || voice.needsRetry) {
                 HStack {
                     Spacer()
                     if voice.canResume && voice.mode != .terminal {
@@ -254,6 +264,17 @@ private struct TerminalVoiceDraft: View {
     private var visibleTranscript: String { voice.targetID == id ? draft : retainedTranscript }
     private var hasVisibleText: Bool { !visibleTranscript.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
+    private var visibleStatusText: String {
+        guard voice.targetID == id else { return "" }
+        if !voice.isSubmitting && voice.sendDeadline == nil && voice.error == nil {
+            switch voice.captureState {
+            case .idle, .finishing: return ""
+            default: break
+            }
+        }
+        return voice.statusText
+    }
+
     private var placeholder: String {
         if voice.mode == .rename { return "Say a name. A short pause saves it with dashes between words." }
         return "Speak naturally."
@@ -261,5 +282,40 @@ private struct TerminalVoiceDraft: View {
 
     private var draft: String {
         voice.mode == .rename ? WindowName.normalized(voice.transcript) : voice.transcript
+    }
+}
+
+/// Content growth follows the last line without animating behind live speech.
+/// Short drafts stay top aligned; only text clipped above the viewport fades.
+private struct VoiceTranscript: View {
+    let text: String
+    let isPlaceholder: Bool
+    @State private var fadesTop = false
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(text)
+                        .foregroundStyle(isPlaceholder ? .secondary : .primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .textSelection(.enabled)
+                    Color.clear.frame(height: 1).id("latest-words")
+                }
+            }
+            .defaultScrollAnchor(.bottom)
+            .defaultScrollAnchor(.top, for: .alignment)
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.contentInsets.top > 1
+            } action: { _, clipped in fadesTop = clipped }
+            .onChange(of: text) { _, _ in proxy.scrollTo("latest-words", anchor: .bottom) }
+            .mask {
+                LinearGradient(stops: [
+                    .init(color: fadesTop ? .clear : .black, location: 0),
+                    .init(color: .black, location: 0.18),
+                    .init(color: .black, location: 1),
+                ], startPoint: .top, endPoint: .bottom)
+            }
+        }
     }
 }
