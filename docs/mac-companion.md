@@ -81,6 +81,53 @@ heavy activity can shorten it. Queues and individual events are also bounded.
 `SLOPZOOKA_LOG_LEVEL=debug` enables successful HTTP-read diagnostics in the
 companion. These logs are local; there is no automatic external upload.
 
+### Investigating terminal lag
+
+Terminal browsers emit `latency.summary` about every ten seconds during activity,
+and once when detached. Measurements contain counts and durations, never keys or
+terminal text. Match `sessionId`, `connectionId`, and `serviceInstanceId` with the
+session service's `traffic.summary` and transport events around the incident time.
+
+| Measurement | What a high value points toward |
+| --- | --- |
+| `eventDispatchMaxMs`, `eventToSendMaxMs` | WebKit event delivery or local input handling |
+| `inputAckMaxMs`, `inputAckTimeouts` | The round trip from browser input submission through the native route and companion relay to the session service's PTY write submission |
+| `queueWaitMaxMs`, `queuedFramesMax`, `queuedCharactersMax` | Output waiting in the browser before xterm parsing |
+| `parseMaxMs`, `parseToRenderMaxMs` | Browser parser work or the wait from parsed output to xterm's render event |
+| `eventLoopDelayMaxMs` | Browser timer delay while the document is visible |
+| Service `parserMaxMs`, `parserPendingMs`, `pauseMaxMs` | Headless parser backlog and PTY output backpressure on the Mac |
+| Service `checkpointMaxMs`, `checkpoints`, `cols`, `rows` | Expensive screen serialization or repeated resizing/checkpoint recovery |
+| Service `event-loop.summary` | Scheduling stalls in the Node session-service process |
+| Companion `event-loop.summary` | Scheduling stalls in the HTTP/WebSocket relay process |
+
+Input receipts sample at most once per second, with one outstanding probe and a
+ten-second timeout. They bypass the browser's output queue and require a service
+advertising `supportsInputAck`; retained older services still work but provide no
+receipts. A receipt confirms submission to node-pty, not that the foreground app
+read or echoed the input. All durations use local monotonic clocks, so no clock
+synchronization is needed. Maxima describe the summary interval, not percentiles.
+The Node event-loop monitor samples at 20 ms; its normal floor is about 20 ms.
+
+For a useful device reproduction, note the time, connection method, whether you
+are using Mac Virtual Display keyboard sharing or a directly connected keyboard,
+and whether the terminal is idle or producing output. Repeat in a fresh shell
+and a busy agent terminal, then capture the incident from the affected Mac.
+Keyboard-sharing delay before WebKit creates/delivers the event, foreground app
+processing, and physical display/compositor latency still require device checks;
+these timings do not claim to measure key-to-photon latency. Network disconnects
+appear separately as route failures and terminal retries.
+
+Output has both byte and frame limits. The browser combines consecutive queued
+output into bounded parser batches; checkpoint and control messages preserve their
+ordering. Each viewer has at most 256 unacknowledged frames and replay retains at
+most 4,096 frames or 512 KiB. A lagging viewer whose replay expires gets the current
+screen checkpoint while other viewers and the existing process continue.
+
+Browser changes require rebuilt assets and **Reload Content**. New service-side
+timings and frame limits require an updated session service. The service survives
+companion restarts: an explicit session-service restart ends its sessions, so save
+work first. See [development reload behavior](../CONTRIBUTING.md#run-the-companion).
+
 Paired clients can use these endpoints for debugging and future report tooling:
 
 | Endpoint | Purpose |

@@ -297,10 +297,13 @@ let viewportSocket;
 class ViewportSocket {
   static OPEN = 1; static CLOSING = 2;
   readyState = 1;
-  constructor() { viewportSocket = this; queueMicrotask(() => this.receive({type: 'hello', version: 1, supportsTakeControl: true})); }
+  constructor() { viewportSocket = this; queueMicrotask(() => this.receive({type: 'hello', version: 1, supportsTakeControl: true, supportsInputAck: true})); }
   receive(message) { this.onmessage?.({data: JSON.stringify(message)}); }
   send(raw) {
     const message = JSON.parse(raw); sent.push(message);
+    if (message.type === 'input' && message.probeId !== undefined) queueMicrotask(() => this.receive({
+      type: 'input-ack', sessionId: message.sessionId, probeId: message.probeId
+    }));
     if (message.type === 'attach') queueMicrotask(() => this.receive({
       type: 'attached', session: {id: message.sessionId, cols: 80, rows: 24, status: 'running'},
       cursor: 0, snapshot: '', writable: true
@@ -313,8 +316,8 @@ ${renderer}
 if (new URLSearchParams(location.search).has('legacy')) delete window.slzSetTerminalZoom;
 window.runViewportChecks = async () => {
   const check = (ok, label) => { if (!ok) throw Error(label); };
-  const until = async (condition) => {
-    for (let i = 0; i < 120; i++) {
+  const until = async (condition, attempts = 120) => {
+    for (let i = 0; i < attempts; i++) {
       if (condition()) return;
       await new Promise(resolve => setTimeout(resolve, 16));
     }
@@ -342,6 +345,7 @@ window.runViewportChecks = async () => {
   hardwareKey('Enter', 'Enter', 13);
   hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03'], 'Hardware text, arrows, Return, and Ctrl+C must reach the PTY without requesting software UI');
+  await Promise.resolve(); // Let the sampled receipt return before retiring this socket.
   window.slzFocusTerminal(true);
   check(isFocused() && terminal.textarea.inputMode === 'text', 'The Keyboard button must request software UI while keeping input focused');
   window.slzInterruptTerminal();
@@ -412,6 +416,25 @@ window.runViewportChecks = async () => {
     check(isFocused() && terminal.textarea.inputMode === (showKeyboard ? 'text' : 'none'), 'Text and function shortcuts must preserve focus and keyboard mode');
   }
   check(JSON.stringify(inputs().slice(beforeText)) === JSON.stringify(['A', '!', '\\x1b[15;2~', 'A', '!', '\\x1b[15;2~']), 'Committed capitals, punctuation, and Shift-F5 must reach transport exactly once');
+
+  // A burst of tiny PTY frames must not pay one WebKit timer per frame.
+  let burstWrites = 0;
+  const originalWrite = terminal.write.bind(terminal);
+  terminal.write = (...args) => { burstWrites++; return originalWrite(...args); };
+  const burstStart = performance.now();
+  for (let cursor = 1; cursor <= 1000; cursor++) {
+    viewportSocket.receive({type: 'output', sessionId, cursor, data: 'x'});
+  }
+  const beforeBurstInput = inputs().length;
+  hardwareKey('e', 'KeyE', 69);
+  check(inputs().length === beforeBurstInput + 1, 'Input must send while output is pending');
+  await until(() => sent.some(message => message.type === 'ack' && message.cursor === 1000), 600);
+  const burstMs = Math.round(performance.now() - burstStart);
+  terminal.write = originalWrite;
+  window.fixtureBurst = {burstMs, burstWrites};
+  const screenText = Array.from({length: terminal.buffer.active.length}, (_, i) => terminal.buffer.active.getLine(i).translateToString(true)).join('');
+  check(screenText.includes('x'.repeat(1000)), 'Batched output must reach the real terminal buffer without loss');
+  check(burstWrites < 20, 'Tiny output frames must share parser batches: writes=' + burstWrites + ' elapsedMs=' + burstMs);
 
   viewportSocket.receive({type: 'ownership', sessionId, writable: false});
   await until(() => !button.hidden);

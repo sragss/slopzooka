@@ -9,6 +9,7 @@ import { execFileSync } from "node:child_process";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 
 import express from "express";
 import { WebSocketServer, type WebSocket } from "ws";
@@ -660,7 +661,15 @@ const transport = new CompanionTransport(
   diagnostics.logger("transport", { hostId: pairing.hostId }),
 );
 const alive = new Set<WebSocket>();
+const eventLoop = monitorEventLoopDelay({ resolution: 20 });
+eventLoop.enable();
 const heartbeat = setInterval(() => {
+  if (wss.clients.size)
+    logger.info("event-loop.summary", {
+      delayMaxMs: Math.round(eventLoop.max / 1e6),
+      delayMeanMs: Math.round(eventLoop.mean / 1e6),
+    });
+  eventLoop.reset();
   for (const ws of wss.clients) {
     if (!alive.delete(ws)) {
       ws.terminate();
@@ -964,6 +973,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   const deadline = setTimeout(() => process.exit(exitCode || 1), 3000);
   deadline.unref();
   clearInterval(heartbeat);
+  eventLoop.disable();
   clearInterval(catalogTimer);
   for (const ws of wss.clients) ws.terminate();
   // Stop admission immediately, then wait for owned processes and upgraded sockets.

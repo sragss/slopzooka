@@ -21,10 +21,12 @@ export type ClientMessage =
   | { type: "attach"; sessionId: string; cursor?: number }
   | { type: "detach"; sessionId: string }
   | { type: "take-control"; sessionId: string }
-  | { type: "input"; sessionId: string; data: string }
+  | { type: "input"; sessionId: string; data: string; probeId?: number }
   | { type: "resize"; sessionId: string; cols: number; rows: number }
   | { type: "ack"; sessionId: string; cursor: number };
 export type ServerMessage =
+  // Sampled acknowledgement of PTY write submission, not application echo/display.
+  | { type: "input-ack"; sessionId: string; probeId: number }
   | { type: "ownership"; sessionId: string; writable: boolean }
   | {
       type: "hello";
@@ -34,6 +36,7 @@ export type ServerMessage =
       connectionId?: string;
       serviceInstanceId?: string;
       supportsTakeControl?: boolean;
+      supportsInputAck?: boolean;
       sessions: SessionSummary[];
     }
   | {
@@ -81,7 +84,11 @@ export function isClientMessage(value: unknown): value is ClientMessage {
     case "ack":
       return cursor(m.cursor);
     case "input":
-      return typeof m.data === "string" && m.data.length <= 64 * 1024;
+      return (
+        typeof m.data === "string" &&
+        m.data.length <= 64 * 1024 &&
+        (m.probeId === undefined || cursor(m.probeId))
+      );
     case "resize":
       return validDimension(m.cols) && validDimension(m.rows);
     default:

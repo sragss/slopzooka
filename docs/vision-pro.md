@@ -123,6 +123,14 @@ failure, reconnect before capturing the report so the Mac can collect that
 headset's buffered evidence. Repeated byte-channel failures are sampled, so a
 quiet log is not evidence that the connection recovered.
 
+For typing lag, note the time, connection method, and whether you are using Mac
+Virtual Display keyboard sharing or a keyboard connected directly to Vision Pro.
+Terminal diagnostics summarize input delivery, the trip to the Mac's PTY service,
+and browser output queues and parsing without recording typed text. Reproduce in
+both a quiet shell and a busy terminal, then capture from that terminal's Mac.
+See [investigating terminal lag](mac-companion.md#investigating-terminal-lag) for
+the measurements and their limits.
+
 In a terminal’s **… → Report a Bug**, a native sheet starts listening with the same
 microphone orb used by terminal dictation and title renaming. Pauses keep your
 draft. Tap the orb to pause and edit, or **Review Public Report** to finish
