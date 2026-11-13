@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+        5A584F4F4B41535045454348 /* SpeechCaptureWorker.swift */ = {isa = PBXBuildFile; fileRef = 5A584F4F4B41535045454349 /* SpeechCaptureWorker.swift */; };
         D0726085E1A94F02090CD105 /* TerminalVoiceController.swift */ = {isa = PBXBuildFile; fileRef = C069B6A93924856AC0DDF3F6 /* TerminalVoiceController.swift */; };
         0B8121DCF5A76F2388923872 /* TerminalVoiceControls.swift */ = {isa = PBXBuildFile; fileRef = 1EDFA29524ED7ADDFB6F839A /* TerminalVoiceControls.swift */; };
         0AED52F2777B98C3BC4B2FEF /* TerminalVoiceSubmitSound.swift */ = {isa = PBXBuildFile; fileRef = 5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */; };
@@ -17,6 +18,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+        5A584F4F4B41535045454349 /* SpeechCaptureWorker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeechCaptureWorker.swift; sourceTree = "<group>"; };
         C069B6A93924856AC0DDF3F6 /* TerminalVoiceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceController.swift; sourceTree = "<group>"; };
         1EDFA29524ED7ADDFB6F839A /* TerminalVoiceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceControls.swift; sourceTree = "<group>"; };
         5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceSubmitSound.swift; sourceTree = "<group>"; };
@@ -72,6 +74,7 @@
                 5ED25E28FB12E039A667F3E7 /* TerminalVoiceSubmitSound.swift */,
                 10DB205EDB4201E594E57A15 /* terminal-voice-submit.wav */,
                 EC9D84174ACF0CE2517AA408 /* SpeechCaptureController.swift */,
+                5A584F4F4B41535045454349 /* SpeechCaptureWorker.swift */,
                 C7520E9F2AAB5942DFD79348 /* SpeechEndpoint.swift */,
                 E377525612AC566C8E7400F9 /* SpeechRecognitionSegment.swift */,
             );
@@ -181,6 +184,7 @@
                 0B8121DCF5A76F2388923872 /* TerminalVoiceControls.swift */,
                 0AED52F2777B98C3BC4B2FEF /* TerminalVoiceSubmitSound.swift */,
                 F5E37633A327815C8BE2ACBC /* SpeechCaptureController.swift */,
+                5A584F4F4B41535045454348 /* SpeechCaptureWorker.swift */,
                 81C53F8682A0CD0639E98DD3 /* SpeechEndpoint.swift */,
                 FF8A08F159AC78134C93BDBE /* SpeechRecognitionSegment.swift */,
 			);

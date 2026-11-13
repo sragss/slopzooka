@@ -1,10 +1,12 @@
+import Combine
 import Foundation
 
 @MainActor
 private final class FakeSpeechCapture: SpeechCapturing {
     var state: SpeechCaptureState = .idle { didSet { onUpdate?() } }
     var transcript = "" { didSet { onUpdate?() } }
-    var audioLevels = Array(repeating: 0.0, count: 5) { didSet { onUpdate?() } }
+    var audioLevels = Array(repeating: 0.0, count: 5) { didSet { onAudioLevels?() } }
+    var onAudioLevels: (() -> Void)?
     var onUpdate: (() -> Void)?
     var onFinished: (() -> Void)?
     var starts = 0
@@ -51,6 +53,26 @@ private final class FakeSpeechCapture: SpeechCapturing {
 struct TerminalVoiceChecks {
     @MainActor
     static func main() async {
+        var meterTime: TimeInterval = 10
+        let meter = VoiceAudioMeter(now: { meterTime })
+        meter.update(Array(repeating: 1, count: 5))
+        let frame1 = meter.displayLevels(at: 10 + 1 / 90).last!
+        let frame2 = meter.displayLevels(at: 10 + 2 / 90).last!
+        let frame3 = meter.displayLevels(at: 10 + 3 / 90).last!
+        precondition(frame1 > 0 && frame1 < frame2 && frame2 < frame3 && frame3 < 1,
+            "Display frames must keep moving smoothly between audio samples without overshoot")
+        precondition(frame3 > 0.9, "The display must reach 90% of a new level within three 90 Hz frames")
+        meterTime += 0.1
+        let beforeRetarget = meter.displayLevels(at: meterTime)
+        meter.update(Array(repeating: 0, count: 5))
+        precondition(meter.displayLevels(at: meterTime) == beforeRetarget,
+            "A new audio sample must retarget from the presented height without a jump")
+        let released = meter.displayLevels(at: meterTime + 0.05).last!
+        precondition(released > 0 && released < beforeRetarget.last!)
+        precondition(meter.displayLevels(at: meterTime + 2).allSatisfy { abs($0) < 0.000001 },
+            "Silence must settle rather than keep a decorative waveform moving")
+        print("PASS: waveform motion follows display frames between sparse audio samples, retargets continuously, and settles in silence")
+
         let capture = FakeSpeechCapture()
         var available = Set(["a", "b"])
         var commands: [TerminalVoiceCommand] = []
@@ -97,6 +119,13 @@ struct TerminalVoiceChecks {
         precondition(!capture.finishOnPause)
         capture.audioLevels = [0, 0.2, 0.7, 0.5, 0.1]
         precondition(voice.audioLevels == capture.audioLevels, "The selected terminal renders actual capture levels")
+        var voiceRefreshes = 0
+        let voiceObservation = voice.objectWillChange.sink { voiceRefreshes += 1 }
+        for index in 0..<60 { capture.audioLevels = Array(repeating: Double(index) / 60, count: 5) }
+        precondition(voiceRefreshes == 0, "Waveform frames must not invalidate transcript cards or terminal windows")
+        precondition(voice.audioMeter.levels == capture.audioLevels)
+        voiceObservation.cancel()
+        print("PASS: microphone energy updates only the waveform without publishing shared voice state")
         capture.transcript = "first segment"
         let count = commands.count
         let starts = capture.starts
@@ -394,7 +423,7 @@ struct TerminalVoiceChecks {
         capture.finish("Cancel this corrected draft.")
         await until { waits.count == 1 }
         precondition(voice.transcript == "Cancel this corrected draft." && commands.isEmpty)
-        precondition(voice.sendDeadline!.timeIntervalSinceNow > 2.5 && !voice.canSend && !voice.canResume)
+        precondition(voice.sendDeadline!.timeIntervalSinceNow > 1.5 && !voice.canSend && !voice.canResume)
         voice.endTerminalHold("a")
         voice.send()
         precondition(waits.count == 1 && commands.isEmpty, "Repeated release or Send cannot skip the grace period")
@@ -402,7 +431,7 @@ struct TerminalVoiceChecks {
         waits[0].resume()
         await until { completedWaits == 1 }
         precondition(voice.mode == nil && voice.sendDeadline == nil && commands.isEmpty && voice.lastSubmission == nil)
-        print("PASS: release finalizes corrected text, then gives three seconds to cancel with ×; cancelled timers cannot send")
+        print("PASS: release finalizes corrected text, then gives two seconds to cancel with ×; cancelled timers cannot send")
 
         voice.beginTerminalHold("a")
         await until { capture.state == .listening }
@@ -473,17 +502,18 @@ struct TerminalVoiceChecks {
         var sentAt: ContinuousClock.Instant?
         let timed = TerminalVoiceController(capture: timedCapture, isAvailable: { _, _ in true },
             rename: { _, _, _ in }, deliver: { _ in sentAt = .now })
+        precondition(TerminalVoiceController.sendDelay == 2)
         timed.beginTerminalHold("a")
         await until { timedCapture.state == .listening }
         timedCapture.receive("real countdown")
         timed.endTerminalHold("a")
         let releasedAt = ContinuousClock.now
         timedCapture.finish("real countdown")
-        try? await Task.sleep(for: .seconds(2.8))
+        try? await Task.sleep(for: .seconds(1.8))
         precondition(sentAt == nil && timed.sendDeadline != nil)
         await until { sentAt != nil }
-        precondition(releasedAt.duration(to: sentAt!) >= .seconds(3))
-        print("PASS: the default countdown waits three full seconds before delivery")
+        precondition(releasedAt.duration(to: sentAt!) >= .seconds(2))
+        print("PASS: the default countdown waits two full seconds before delivery")
     }
 
     @MainActor

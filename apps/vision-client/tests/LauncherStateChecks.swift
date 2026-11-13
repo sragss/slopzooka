@@ -55,15 +55,22 @@ struct LauncherStateChecks {
         speech = SpeechEndpoint()
         precondition(!speech.shouldFinish(at: 200), "A new recording must not inherit old words")
         print("PASS: dictation waits for words and a pause, extends for speech, and resets between recordings")
-        var quietMeter = SpeechLevelMeter(), loudMeter = SpeechLevelMeter()
-        precondition(quietMeter.receive(rms: 0).allSatisfy { $0 == 0 })
-        let quiet = quietMeter.receive(rms: 0.005).last!
-        let loud = loudMeter.receive(rms: 0.1).last!
-        precondition(loud > quiet && quiet > 0, "Waveform amplitude must follow microphone energy")
-        for _ in 0..<30 { _ = loudMeter.receive(rms: 0) }
-        precondition(loudMeter.levels.allSatisfy { $0 == 0 }, "Silence must settle, without a decorative animation")
-        precondition(loudMeter.receive(rms: 10).allSatisfy { $0 >= 0 && $0 <= 1 })
-        print("PASS: microphone metering responds to volume, stays bounded, and settles during silence")
+        var meter = SpeechLevelMeter()
+        func measure(_ samples: [Float]) -> [Double] {
+            samples.withUnsafeBufferPointer { meter.receive(samples: $0, sampleRate: 48_000) }
+        }
+        precondition(measure(Array(repeating: 0, count: 960)).allSatisfy { $0 == 0 })
+        let quiet = measure(Array(repeating: 0.005, count: 960))
+        let loud = measure(Array(repeating: 0.1, count: 960))
+        precondition(zip(loud, quiet).allSatisfy { $0 > $1 && $1 > 0 },
+            "Every bar must react to current microphone energy in the first callback")
+        let onset = Array(repeating: Float(0), count: 3840) + Array(repeating: Float(0.1), count: 960)
+        precondition(measure(onset) == loud, "Older silence in a large input buffer must not dilute a new onset")
+        let ended = Array(repeating: Float(0.1), count: 3840) + Array(repeating: Float(0), count: 960)
+        precondition(measure(ended).allSatisfy { $0 == 0 }, "Old speech must not linger across four later callbacks")
+        precondition(measure(Array(repeating: 10, count: 960)).allSatisfy { $0 >= 0 && $0 <= 1 })
+        precondition(measure([]).allSatisfy { $0 == 0 })
+        print("PASS: all five waveform bars use the newest 20 ms, react to onset immediately, stay bounded, and drop old speech")
         let terminal = URL(string: "http://Mac:7777/terminal?sessionId=fixture")!
         precondition(TerminalNavigation.allows(URL(string: "http://mac:7777/terminal?sessionId=fixture")!, document: terminal))
         precondition(TerminalNavigation.allows(URL(string: "http://mac/terminal")!, document: URL(string: "http://Mac:80/terminal")!))

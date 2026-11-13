@@ -31,7 +31,7 @@ struct LauncherSettingsView: View {
                 } header: {
                     Text("Voice")
                 } footer: {
-                    Text("Pinch and hold the terminal microphone while speaking, then release. A three-second countdown gives you time to cancel with × before sending. Works in either workspace mode.")
+                    Text("Pinch and hold the terminal microphone while speaking, then release. A two-second countdown gives you time to cancel with × before sending. Works in either workspace mode.")
                 }
                 Section {
                     ImmersiveWorkspaceControl()

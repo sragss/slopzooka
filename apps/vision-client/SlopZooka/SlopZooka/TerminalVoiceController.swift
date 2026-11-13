@@ -13,6 +13,7 @@ protocol SpeechCapturing: AnyObject {
     var transcript: String { get }
     var audioLevels: [Double] { get }
     var onUpdate: (() -> Void)? { get set }
+    var onAudioLevels: (() -> Void)? { get set }
     var onFinished: (() -> Void)? { get set }
     func startListening(finishOnPause: Bool) async
     func finishListening()
@@ -29,6 +30,38 @@ struct TerminalVoiceCommand: Equatable {
 struct TerminalVoiceSubmission: Equatable {
     let targetID: String
     let commandID: String
+}
+
+/// Only the listening orb observes microphone energy, not every terminal scene.
+@MainActor
+final class VoiceAudioMeter: ObservableObject {
+    @Published private(set) var levels = Array(repeating: 0.0, count: 5)
+    private var previousLevels = Array(repeating: 0.0, count: 5)
+    private var updatedAt: TimeInterval = 0
+    private let now: () -> TimeInterval
+
+    init(now: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime }) {
+        self.now = now
+    }
+
+    func update(_ levels: [Double]) {
+        guard self.levels != levels else { return }
+        let time = now()
+        previousLevels = displayLevels(at: time)
+        updatedAt = time
+        self.levels = levels
+    }
+
+    /// Interpolate at display cadence, independent of audio buffer arrival.
+    /// Retarget from the current presentation so new samples never jump; a fast
+    /// attack and softer release remain bounded by real microphone measurements.
+    func displayLevels(at time: TimeInterval) -> [Double] {
+        let elapsed = max(0, time - updatedAt)
+        return zip(previousLevels, levels).map { previous, target in
+            let response = target > previous ? 0.012 : 0.04
+            return target + (previous - target) * exp(-elapsed / response)
+        }
+    }
 }
 
 enum WindowName {
@@ -49,12 +82,13 @@ final class TerminalVoiceController: ObservableObject {
     @Published private(set) var mode: Mode?
     @Published private(set) var targetID: String?
     @Published private(set) var transcript = ""
-    @Published private(set) var audioLevels = Array(repeating: 0.0, count: 5)
+    let audioMeter = VoiceAudioMeter()
+    var audioLevels: [Double] { audioMeter.levels }
     @Published private(set) var captureState: SpeechCaptureState = .idle
     @Published private(set) var isSubmitting = false
     @Published private(set) var error: String?
 
-    static let sendDelay: TimeInterval = 3
+    static let sendDelay: TimeInterval = 2
     @Published private(set) var sendDeadline: Date?
     @Published private(set) var lastSubmission: TerminalVoiceSubmission?
     private let waitBeforeSend: () async throws -> Void
@@ -87,6 +121,10 @@ final class TerminalVoiceController: ObservableObject {
         self.rename = rename
         self.hostID = hostID
         capture.onUpdate = { [weak self] in self?.captureUpdated() }
+        capture.onAudioLevels = { [weak self] in
+            guard let self else { return }
+            self.audioMeter.update(self.capture.audioLevels)
+        }
         capture.onFinished = { [weak self] in self?.captureFinished() }
     }
 
@@ -103,7 +141,7 @@ final class TerminalVoiceController: ObservableObject {
 
     var statusText: String {
         if isSubmitting { return mode == .rename ? "Saving name…" : "Sending…" }
-        if sendDeadline != nil { return "Sending in 3 seconds" }
+        if sendDeadline != nil { return "Sending in 2 seconds" }
         if let error { return error }
         switch captureState {
         case .preparing: return "Preparing microphone…"
@@ -288,7 +326,6 @@ final class TerminalVoiceController: ObservableObject {
         }
         let text = [committedText, capture.transcript].filter { !$0.isEmpty }.joined(separator: " ")
         if transcript != text { transcript = text }
-        if audioLevels != capture.audioLevels { audioLevels = capture.audioLevels }
     }
 
     private func captureFinished() {
@@ -392,7 +429,10 @@ final class TerminalVoiceController: ObservableObject {
         Task { [weak self] in
             guard let self, self.generation == token else { return }
             do {
-                try await self.deliver(command)
+                try await self.log.operation("delivery", ["sessionId": id, "commandId": command.commandID,
+                    "hostId": self.hostID(id) ?? ""]) {
+                    try await self.deliver(command)
+                }
                 guard self.generation == token else { return }
                 self.isSubmitting = false
                 self.lastSubmission = TerminalVoiceSubmission(targetID: id, commandID: command.commandID)
