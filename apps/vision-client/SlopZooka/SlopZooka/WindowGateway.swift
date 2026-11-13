@@ -26,6 +26,7 @@ private struct WindowState {
     var reloadRevision = 0
     // nil: not yet observed; false: explicitly closed; true: existing/requested scene.
     var openRequested: Bool?
+    var lastCloseRevision = 0
     var renameRequest: UUID?
     var previewRequest: (revision: Int, task: Task<Void, Never>)?
 
@@ -70,6 +71,7 @@ final class WindowGateway: ObservableObject {
     private var companionInstances: [String: (route: UUID, process: String?)] = [:]
     private var presenters: [UUID: (WindowCommand) -> Void] = [:]
     private var isSynchronizing = false
+    private var closeRevision = 0
     // Retain uncertain launch intent so a retry uses the same server operation.
     private var codexResumeIDs: [String: String] = [:]
 
@@ -245,6 +247,8 @@ final class WindowGateway: ObservableObject {
             let id = reference.window.id
             windows[id]?.invalidateContent()
             windows[id]?.openRequested = false
+            closeRevision += 1
+            windows[id]?.lastCloseRevision = closeRevision
             if reference.window.kind == .preview { windows[id]?.content = nil }
             if dismiss { presenters.values.first?(.close(reference.window)) }
             Task { await synchronize() }
@@ -274,6 +278,7 @@ final class WindowGateway: ObservableObject {
         }
     }
     private func resumeCodexThread(threadID: String, hostID: String) async throws {
+        let startedAtCloseRevision = closeRevision
         let key = "\(hostID)/\(threadID)"
         let requestID = codexResumeIDs[key] ?? UUID().uuidString
         codexResumeIDs[key] = requestID
@@ -282,7 +287,9 @@ final class WindowGateway: ObservableObject {
             try Task.checkCancellation()
             guard client.current?.id == hostID else { throw CancellationError() }
             registerTerminal(result.session, hostID: hostID)
-            try open(id: result.session.id)
+            if (windows[result.session.id]?.lastCloseRevision ?? 0) <= startedAtCloseRevision {
+                try open(id: result.session.id)
+            }
             codexResumeIDs[key] = nil
         } catch {
             if let response = error as? CompanionError, let status = response.statusCode, (400..<500).contains(status) {

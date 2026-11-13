@@ -744,6 +744,16 @@ struct WindowGatewayChecks {
             "Thread terminals must recover from session snapshots without a launcher action")
         precondition(Fixture.resumeIDs.count == 3, "Restoration must not launch another Codex process")
 
+        var closeRelease: CheckedContinuation<Void, Never>?
+        Fixture.beforeResumeReply = { await withCheckedContinuation { closeRelease = $0 } }
+        let closing = Task { await gateway.launcher.resume(thread) }
+        await until { closeRelease != nil }
+        gateway.close(id: id)
+        closeRelease!.resume()
+        await closing.value
+        precondition(opened == [id, id] && WindowPersistence(defaults: defaults).windows(hostID: "codex-host").isEmpty,
+            "An explicit close must win over an older resume reply")
+
         let other = CodexThreadSummary(id: "00000000-0000-4000-8000-000000000002", title: "Other",
             cwd: "/original/folder", updatedAt: 2000, available: true)
         var release: CheckedContinuation<Void, Never>?
