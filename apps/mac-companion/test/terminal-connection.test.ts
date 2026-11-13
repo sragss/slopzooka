@@ -394,3 +394,160 @@ test("stalled transports recover without close events, ignore retired attempts, 
     else delete (globalThis as any).location;
   }
 });
+
+test("sampled input receipts and alerts bypass coalesced output parsing without logging input", async () => {
+  const { eventLogger } = await import("../src/log-events.js");
+  const originalSocket = globalThis.WebSocket;
+  const originalLocation = Object.getOwnPropertyDescriptor(
+    globalThis,
+    "location",
+  );
+  const sockets: FakeSocket[] = [];
+  class FakeSocket {
+    static OPEN = 1;
+    static CLOSING = 2;
+    readyState = 1;
+    sent: any[] = [];
+    onmessage?: (event: { data: string }) => void;
+    constructor() {
+      sockets.push(this);
+    }
+    send(raw: string) {
+      this.sent.push(JSON.parse(raw));
+    }
+    close() {
+      this.readyState = 3;
+    }
+    receive(message: unknown) {
+      this.onmessage?.({ data: JSON.stringify(message) });
+    }
+  }
+  globalThis.WebSocket = FakeSocket as any;
+  Object.defineProperty(globalThis, "location", {
+    configurable: true,
+    value: { href: "http://host/terminal", protocol: "http:" },
+  });
+  const events: any[] = [];
+  const notifications: unknown[] = [];
+  let input: (data: string) => void = () => {};
+  let finishWrite: (() => void) | undefined;
+  const terminal = {
+    cols: 80,
+    rows: 24,
+    onData(listener: (data: string) => void) {
+      input = listener;
+      return { dispose() {} };
+    },
+    onRender() {
+      return { dispose() {} };
+    },
+    reset() {},
+    resize() {},
+    write(_text: string, done: () => void) {
+      finishWrite = done;
+    },
+  };
+  const connection = new TerminalConnection(
+    terminal as any,
+    "s1",
+    () => {},
+    () => {},
+    (...notification) => notifications.push(notification),
+    eventLogger("browser", (event) => events.push(event))("terminal"),
+  );
+  const flush = async () => {
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+  };
+  try {
+    connection.connect();
+    const ws = sockets[0]!;
+    ws.receive({ type: "hello", version: 1, supportsInputAck: true });
+    ws.receive({
+      type: "attached",
+      session: { id: "s1", status: "running" },
+      cursor: 0,
+      writable: true,
+      notificationSequence: 0,
+    });
+    await flush();
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 1,
+      data: "private-output",
+      notificationSequence: 1,
+    });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 2,
+      data: "private-output-two",
+      notificationSequence: 2,
+    });
+    ws.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 3,
+      data: "private-output-three",
+      notificationSequence: 3,
+    });
+    assert.deepEqual(
+      notifications,
+      [
+        [0, "legacy", false],
+        [1, "legacy", true],
+        [2, "legacy", true],
+        [3, "legacy", true],
+      ],
+      "each alert arrives before coalescing and rendering, even when frames share one write",
+    );
+    await flush();
+    assert.ok(finishWrite, "output parsing remains blocked until its callback");
+    input("private-input");
+    const probe = ws.sent.find((m) => m.type === "input").probeId;
+    assert.ok(Number.isSafeInteger(probe));
+    input("second-private-input");
+    assert.equal(
+      ws.sent.filter((m) => m.probeId !== undefined).length,
+      1,
+      "only one probe may be outstanding",
+    );
+    ws.receive({ type: "input-ack", sessionId: "s1", probeId: probe + 1 });
+    ws.receive({
+      type: "input-ack",
+      sessionId: "wrong-session",
+      probeId: probe,
+    });
+    ws.receive({ type: "input-ack", sessionId: "s1", probeId: probe });
+    ws.receive({ type: "input-ack", sessionId: "s1", probeId: probe });
+    connection.detach();
+    const summary = events.find((e) => e.event === "latency.summary").fields;
+    assert.equal(
+      summary.inputAcks,
+      1,
+      "receipt is processed exactly once while output remains blocked",
+    );
+    assert.equal(summary.inputs, 2);
+    assert.equal(summary.outputFrames, 3);
+    assert.equal(
+      summary.outputBatches,
+      1,
+      "consecutive output still shares one parser write",
+    );
+    assert.equal(summary.inputProbesInterrupted, undefined);
+    assert.equal(
+      ws.sent.some((m) => m.type === "ack" && m.cursor >= 1),
+      false,
+      "output is not acknowledged before parsing",
+    );
+    assert.ok(!JSON.stringify(events).includes("private-"));
+    finishWrite!();
+    await flush();
+  } finally {
+    connection.detach();
+    globalThis.WebSocket = originalSocket;
+    if (originalLocation)
+      Object.defineProperty(globalThis, "location", originalLocation);
+    else delete (globalThis as any).location;
+  }
+});

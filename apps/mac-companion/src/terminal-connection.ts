@@ -1,6 +1,7 @@
 import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import type { Terminal } from "@xterm/xterm";
 import type { EventLogger } from "./log-events.js";
+import { TerminalPerformance } from "./terminal-performance.js";
 import {
   MAX_TERMINAL_DIMENSION,
   PROTOCOL_VERSION,
@@ -8,9 +9,18 @@ import {
   type ServerMessage,
 } from "../../../packages/protocol/src/index.js";
 
+type QueuedOutput = {
+  message: Extract<ServerMessage, { type: "output" }>;
+  socket: WebSocket;
+  frames: number;
+  receivedAt: number;
+};
+
 export class TerminalConnection {
   private socket?: WebSocket;
   private renderTail: Promise<void> = Promise.resolve();
+  private pendingOutput?: QueuedOutput;
+  private readonly performance?: TerminalPerformance;
   private cursor?: number;
   private serviceInstanceId?: string;
   private lastNotification?: { sequence: number; instance: string };
@@ -24,6 +34,7 @@ export class TerminalConnection {
   private attached = false;
   private lostConnection = false;
   private supportsTakeControl = false;
+  private supportsInputAck = false;
   constructor(
     private readonly terminal: Terminal,
     private readonly sessionId: string,
@@ -41,9 +52,16 @@ export class TerminalConnection {
     ) => void = () => {},
     private log?: EventLogger,
   ) {
+    if (log)
+      this.performance = new TerminalPerformance(terminal, () => this.log);
     this.inputSubscription = terminal.onData((data) => {
       if (this.attached && this.writable && this.running)
-        this.send({ type: "input", sessionId, data });
+        this.send({
+          type: "input",
+          sessionId,
+          data,
+          probeId: this.performance?.submitted(this.supportsInputAck),
+        });
     });
   }
   connect(): void {
@@ -101,8 +119,49 @@ export class TerminalConnection {
               );
           }
         }
+        // A sampled PTY-submission receipt must not wait behind output parsing.
+        if (message.type === "input-ack") {
+          if (message.sessionId === this.sessionId)
+            this.performance?.acknowledged(message.probeId);
+          return;
+        }
+        let output: QueuedOutput | undefined;
+        if (message.type === "output" && message.sessionId === this.sessionId) {
+          this.performance?.queued(message.data.length);
+          const pending = this.pendingOutput;
+          if (
+            pending?.socket === ws &&
+            pending.message.data.length + message.data.length <= 64 * 1024
+          ) {
+            pending.message.data += message.data;
+            pending.message.cursor = message.cursor;
+            pending.message.notificationSequence =
+              message.notificationSequence ??
+              pending.message.notificationSequence;
+            pending.frames++;
+            return;
+          }
+          output = {
+            message,
+            socket: ws,
+            frames: 1,
+            receivedAt: performance.now(),
+          };
+        }
+        // Control/checkpoint messages are ordering barriers. Only consecutive
+        // output queued for the same socket can share one xterm parser write.
+        this.pendingOutput = output;
         this.renderTail = this.renderTail
-          .then(() => this.receive(message, ws))
+          .then(() => {
+            if (this.pendingOutput === output) this.pendingOutput = undefined;
+            if (output)
+              this.performance?.started(
+                output.frames,
+                output.message.data.length,
+                output.receivedAt,
+              );
+            return this.receive(message, ws);
+          })
           .catch((error) => {
             this.log?.error("render.failed", { error: logError(error) });
             // A retired connection cannot change the status of its replacement.
@@ -132,6 +191,7 @@ export class TerminalConnection {
     this.socket = undefined;
     this.attached = false;
     this.writable = false;
+    this.performance?.disconnected();
     this.lostConnection = true;
     this.log?.warn("connection.retrying", {
       attempt: this.attempts,
@@ -178,6 +238,7 @@ export class TerminalConnection {
   }
   reconnect(): void {
     if (this.stopped) return;
+    this.performance?.disconnected();
     this.socket?.close();
     // Retire the old socket immediately; a delayed close cannot schedule a second retry.
     this.socket = undefined;
@@ -197,6 +258,7 @@ export class TerminalConnection {
     this.writable = false;
     this.clearTimers();
     this.inputSubscription.dispose();
+    this.performance?.dispose();
     this.send({ type: "detach", sessionId: this.sessionId });
     this.socket?.close();
   }
@@ -221,7 +283,9 @@ export class TerminalConnection {
           connectionId: m.connectionId,
           serviceInstanceId: m.serviceInstanceId,
         });
-        this.log?.info("connection.accepted");
+        this.log?.info("connection.accepted", {
+          supportsInputAck: m.supportsInputAck === true,
+        });
         if (
           m.serviceInstanceId &&
           this.serviceInstanceId &&
@@ -230,6 +294,7 @@ export class TerminalConnection {
           this.cursor = undefined;
         this.serviceInstanceId = m.serviceInstanceId;
         this.supportsTakeControl = m.supportsTakeControl === true;
+        this.supportsInputAck = m.supportsInputAck === true;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -303,6 +368,8 @@ export class TerminalConnection {
         );
         if (m.code === "404") this.detach();
         break;
+      case "input-ack":
+        break; // Handled on receipt, independently of the render queue.
     }
   }
   private publishOwnership(): void {
@@ -334,7 +401,13 @@ export class TerminalConnection {
   }
 
   private write(data: string): Promise<void> {
-    return new Promise((resolve) => this.terminal.write(data, resolve));
+    const started = performance.now();
+    return new Promise((resolve) =>
+      this.terminal.write(data, () => {
+        this.performance?.parsed(started);
+        resolve();
+      }),
+    );
   }
   private ack(ws: WebSocket, cursor: number): void {
     // The cursor describes bytes rendered in this emulator, even if the connection just closed.

@@ -13,13 +13,15 @@ struct TerminalKeyboardChecks {
 }
 
 @MainActor
-private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigationDelegate {
+private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigationDelegate, WKScriptMessageHandler {
     private var webView: WKWebView!
     private var window: NSWindow!
+    private var latencySummaries: [[String: Any]] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
+        configuration.userContentController.add(self, name: "diagnostics")
         configuration.userContentController.addUserScript(WKUserScript(
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         webView = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 400), configuration: configuration)
@@ -57,6 +59,21 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                     return await \(function)();
                     """, arguments: ["zoomScripts": scripts], in: nil, contentWorld: .page)
                 guard result as? String == "PASS" else { throw NSError(domain: "TerminalChecks", code: 1) }
+                if viewport {
+                    // Script messages arrive asynchronously across the real bridge.
+                    for _ in 0..<20 where (latencySummaries.last?["pendingFrames"] as? Int) != 0 {
+                        try await Task.sleep(for: .milliseconds(10))
+                    }
+                    guard latencySummaries.reduce(0, { $0 + ($1["outputFrames"] as? Int ?? 0) }) >= 1000,
+                          latencySummaries.reduce(0, { $0 + ($1["inputAcks"] as? Int ?? 0) }) > 0,
+                          latencySummaries.last?["pendingFrames"] as? Int == 0 else {
+                        throw NSError(domain: "TerminalLatencySummary", code: 1,
+                                      userInfo: [NSLocalizedDescriptionKey: "Missing complete latency summary: \(latencySummaries)"])
+                    }
+                }
+                if viewport, let burst = try await webView.evaluateJavaScript("JSON.stringify(window.fixtureBurst)") as? String {
+                    print("PASS: real WebKit tiny-frame burst \(burst)")
+                }
                 print(viewport ? "PASS: automatic hardware input, explicit software keyboard mode, focus-preserving reconnect/interrupt/zoom, viewport fit, PTY resizes, and grid bounds"
                     : "PASS: committed capitals/Unicode without keypress, modifier matrix, F1–F12/navigation, Control shortcuts, composition, and non-terminal fields in both keyboard modes")
                 exit(0)
@@ -65,5 +82,11 @@ private final class KeyboardProbe: NSObject, NSApplicationDelegate, WKNavigation
                 exit(1)
             }
         }
+    }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let event = message.body as? [String: Any], event["event"] as? String == "latency.summary",
+              let fields = event["fields"] as? [String: Any] else { return }
+        latencySummaries.append(fields)
     }
 }

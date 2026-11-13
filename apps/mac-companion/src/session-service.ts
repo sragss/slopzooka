@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import http from "node:http";
 import net from "node:net";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { WebSocketServer } from "ws";
@@ -67,10 +68,17 @@ async function main() {
     }
   }
   const manager = new SessionManager(diagnostics.logger("sessions"));
-  const diagnosticsTimer = setInterval(
-    () => manager.recordDiagnostics(),
-    10_000,
-  );
+  const eventLoop = monitorEventLoopDelay({ resolution: 20 });
+  eventLoop.enable();
+  const diagnosticsTimer = setInterval(() => {
+    manager.recordDiagnostics();
+    if (manager.summaries().some((session) => session.status === "running"))
+      logger.info("event-loop.summary", {
+        delayMaxMs: Math.round(eventLoop.max / 1e6),
+        delayMeanMs: Math.round(eventLoop.mean / 1e6),
+      });
+    eventLoop.reset();
+  }, 10_000);
   diagnosticsTimer.unref();
   let stopping = false;
   const app = express();
@@ -180,6 +188,7 @@ async function main() {
         version: SESSION_SERVICE_VERSION,
         instanceId,
         supportsTakeControl: true,
+        supportsInputAck: true,
         sessions: manager.summaries(),
       }),
     );
@@ -204,6 +213,12 @@ async function main() {
               break;
             case "input":
               manager.input(ws, message.sessionId, message.data);
+              if (message.probeId !== undefined)
+                send(ws, {
+                  type: "input-ack",
+                  sessionId: message.sessionId,
+                  probeId: message.probeId,
+                });
               break;
             case "resize":
               manager.resize(ws, message.sessionId, message.cols, message.rows);
@@ -232,6 +247,7 @@ async function main() {
     if (stopping) return;
     stopping = true;
     clearInterval(diagnosticsTimer);
+    eventLoop.disable();
     manager.recordDiagnostics();
     logger.info("service.stopping");
     const deadline = setTimeout(() => process.exit(1), 3000);

@@ -9246,6 +9246,133 @@ function boundedLogEvent(event) {
   return result;
 }
 
+// src/terminal-performance.ts
+var TerminalPerformance = class {
+  constructor(terminal2, log3) {
+    this.log = log3;
+    this.input = terminal2.textarea;
+    this.eventRoot = this.input?.ownerDocument.defaultView;
+    for (const type of ["keydown", "beforeinput", "input"])
+      this.eventRoot?.addEventListener(type, this.observeInput, true);
+    for (const type of ["keyup", "blur"])
+      this.eventRoot?.addEventListener(type, this.clearInput, true);
+    this.renderSubscription = terminal2.onRender(() => {
+      if (this.parsedAt !== void 0) {
+        this.max("parseToRenderMaxMs", performance.now() - this.parsedAt);
+        this.parsedAt = void 0;
+      }
+    });
+    this.timer = setInterval(() => {
+      const now = performance.now();
+      if (!document.hidden)
+        this.max("eventLoopDelayMaxMs", now - this.lastTick - 1e3);
+      this.lastTick = now;
+      this.expireProbe(now);
+      if (now - this.lastReport >= 1e4) this.flush();
+    }, 1e3);
+  }
+  fields = {};
+  pendingFrames = 0;
+  pendingCharacters = 0;
+  eventAt;
+  parsedAt;
+  probe;
+  sequence = 0;
+  lastProbe = -Infinity;
+  lastTick = performance.now();
+  timer;
+  renderSubscription;
+  input;
+  eventRoot;
+  lastReport = performance.now();
+  observeInput = (event) => {
+    if (event.target !== this.input) return;
+    const now = performance.now();
+    this.eventAt = now;
+    const delay = now - event.timeStamp;
+    if (delay >= 0 && delay < 6e4) this.max("eventDispatchMaxMs", delay);
+  };
+  clearInput = (event) => {
+    if (event.target === this.input) this.eventAt = void 0;
+  };
+  submitted(supportsInputAck) {
+    const now = performance.now();
+    this.count("inputs");
+    if (this.eventAt !== void 0) {
+      this.max("eventToSendMaxMs", now - this.eventAt);
+      this.eventAt = void 0;
+    }
+    this.expireProbe(now);
+    if (!supportsInputAck || this.probe || now - this.lastProbe < 1e3) return;
+    const id = ++this.sequence;
+    this.lastProbe = now;
+    this.probe = { id, started: now };
+    this.count("inputProbes");
+    return id;
+  }
+  acknowledged(id) {
+    if (this.probe?.id !== id) return;
+    this.max("inputAckMaxMs", performance.now() - this.probe.started);
+    this.count("inputAcks");
+    this.probe = void 0;
+  }
+  disconnected() {
+    if (this.probe) this.count("inputProbesInterrupted");
+    this.probe = void 0;
+    this.eventAt = void 0;
+  }
+  queued(characters) {
+    this.pendingFrames++;
+    this.pendingCharacters += characters;
+    this.count("outputFrames");
+    this.max("queuedFramesMax", this.pendingFrames);
+    this.max("queuedCharactersMax", this.pendingCharacters);
+  }
+  started(frames, characters, receivedAt) {
+    this.pendingFrames -= frames;
+    this.pendingCharacters -= characters;
+    this.max("queueWaitMaxMs", performance.now() - receivedAt);
+    this.count("outputBatches");
+  }
+  parsed(started) {
+    this.max("parseMaxMs", performance.now() - started);
+    this.parsedAt ??= performance.now();
+  }
+  expireProbe(now) {
+    if (this.probe && now - this.probe.started >= 1e4) {
+      this.count("inputAckTimeouts");
+      this.probe = void 0;
+    }
+  }
+  count(field) {
+    this.fields[field] = (this.fields[field] ?? 0) + 1;
+  }
+  max(field, value) {
+    this.fields[field] = Math.max(this.fields[field] ?? 0, Math.round(value));
+  }
+  flush() {
+    if (Object.keys(this.fields).some((key) => key !== "eventLoopDelayMaxMs"))
+      this.log()?.info("latency.summary", {
+        ...this.fields,
+        intervalMs: Math.round(performance.now() - this.lastReport),
+        pendingFrames: this.pendingFrames,
+        pendingCharacters: this.pendingCharacters
+      });
+    this.fields = {};
+    this.lastReport = performance.now();
+  }
+  dispose() {
+    clearInterval(this.timer);
+    this.disconnected();
+    this.flush();
+    this.renderSubscription.dispose();
+    for (const type of ["keydown", "beforeinput", "input"])
+      this.eventRoot?.removeEventListener(type, this.observeInput, true);
+    for (const type of ["keyup", "blur"])
+      this.eventRoot?.removeEventListener(type, this.clearInput, true);
+  }
+};
+
 // ../../packages/protocol/src/index.ts
 var PROTOCOL_VERSION = 1;
 var MAX_TERMINAL_DIMENSION = 500;
@@ -9260,13 +9387,22 @@ var TerminalConnection = class {
     this.fit = fit2;
     this.notification = notification;
     this.log = log3;
+    if (log3)
+      this.performance = new TerminalPerformance(terminal2, () => this.log);
     this.inputSubscription = terminal2.onData((data) => {
       if (this.attached && this.writable && this.running)
-        this.send({ type: "input", sessionId: sessionId2, data });
+        this.send({
+          type: "input",
+          sessionId: sessionId2,
+          data,
+          probeId: this.performance?.submitted(this.supportsInputAck)
+        });
     });
   }
   socket;
   renderTail = Promise.resolve();
+  pendingOutput;
+  performance;
   cursor;
   serviceInstanceId;
   lastNotification;
@@ -9280,6 +9416,7 @@ var TerminalConnection = class {
   attached = false;
   lostConnection = false;
   supportsTakeControl = false;
+  supportsInputAck = false;
   connect() {
     if (this.stopped || this.socket && this.socket.readyState < WebSocket.CLOSING)
       return;
@@ -9321,7 +9458,40 @@ var TerminalConnection = class {
               );
           }
         }
-        this.renderTail = this.renderTail.then(() => this.receive(message, ws2)).catch((error) => {
+        if (message.type === "input-ack") {
+          if (message.sessionId === this.sessionId)
+            this.performance?.acknowledged(message.probeId);
+          return;
+        }
+        let output;
+        if (message.type === "output" && message.sessionId === this.sessionId) {
+          this.performance?.queued(message.data.length);
+          const pending = this.pendingOutput;
+          if (pending?.socket === ws2 && pending.message.data.length + message.data.length <= 64 * 1024) {
+            pending.message.data += message.data;
+            pending.message.cursor = message.cursor;
+            pending.message.notificationSequence = message.notificationSequence ?? pending.message.notificationSequence;
+            pending.frames++;
+            return;
+          }
+          output = {
+            message,
+            socket: ws2,
+            frames: 1,
+            receivedAt: performance.now()
+          };
+        }
+        this.pendingOutput = output;
+        this.renderTail = this.renderTail.then(() => {
+          if (this.pendingOutput === output) this.pendingOutput = void 0;
+          if (output)
+            this.performance?.started(
+              output.frames,
+              output.message.data.length,
+              output.receivedAt
+            );
+          return this.receive(message, ws2);
+        }).catch((error) => {
           this.log?.error("render.failed", { error: logError(error) });
           if (this.isCurrent(ws2))
             this.status("Could not restore terminal", "failed");
@@ -9347,6 +9517,7 @@ var TerminalConnection = class {
     this.socket = void 0;
     this.attached = false;
     this.writable = false;
+    this.performance?.disconnected();
     this.lostConnection = true;
     this.log?.warn("connection.retrying", {
       attempt: this.attempts,
@@ -9386,6 +9557,7 @@ var TerminalConnection = class {
   }
   reconnect() {
     if (this.stopped) return;
+    this.performance?.disconnected();
     this.socket?.close();
     this.socket = void 0;
     this.connect();
@@ -9404,6 +9576,7 @@ var TerminalConnection = class {
     this.writable = false;
     this.clearTimers();
     this.inputSubscription.dispose();
+    this.performance?.dispose();
     this.send({ type: "detach", sessionId: this.sessionId });
     this.socket?.close();
   }
@@ -9426,11 +9599,14 @@ var TerminalConnection = class {
           connectionId: m.connectionId,
           serviceInstanceId: m.serviceInstanceId
         });
-        this.log?.info("connection.accepted");
+        this.log?.info("connection.accepted", {
+          supportsInputAck: m.supportsInputAck === true
+        });
         if (m.serviceInstanceId && this.serviceInstanceId && m.serviceInstanceId !== this.serviceInstanceId)
           this.cursor = void 0;
         this.serviceInstanceId = m.serviceInstanceId;
         this.supportsTakeControl = m.supportsTakeControl === true;
+        this.supportsInputAck = m.supportsInputAck === true;
         if (m.version !== PROTOCOL_VERSION) {
           this.status(
             `Update SlopZooka on both devices, then reopen this terminal. Protocol mismatch: expected ${PROTOCOL_VERSION}, received ${m.version}.`,
@@ -9496,6 +9672,8 @@ var TerminalConnection = class {
         );
         if (m.code === "404") this.detach();
         break;
+      case "input-ack":
+        break;
     }
   }
   publishOwnership() {
@@ -9515,7 +9693,13 @@ var TerminalConnection = class {
     this.notification(sequence, instance, audible);
   }
   write(data) {
-    return new Promise((resolve) => this.terminal.write(data, resolve));
+    const started = performance.now();
+    return new Promise(
+      (resolve) => this.terminal.write(data, () => {
+        this.performance?.parsed(started);
+        resolve();
+      })
+    );
   }
   ack(ws2, cursor) {
     this.cursor = cursor;
@@ -9649,7 +9833,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "82a601207b82198c7c06dbb9a0856e9fd5085aeb2c514c24cfa5e8d58116884a" : "unknown"
+    buildId: true ? "b3c56e96ea02bcd5462bea0c86fbdc57b2e061245d48e7abb16aa7a8f06b0d33" : "unknown"
   }
 );
 var log = browserLog("diagnostics");

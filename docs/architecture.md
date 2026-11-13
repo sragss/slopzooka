@@ -40,6 +40,7 @@ Paths below are relative to `apps/mac-companion/src`.
 | `project-frontends.ts`                   | Workspace frontend configuration and ownership matching                                                                           |
 | `harness.ts`                             | Browser dashboard                                                                                                                 |
 | `terminal.ts` / `terminal-connection.ts` | Browser terminal renderer, reconnect, and ordered rendering                                                                       |
+| `terminal-performance.ts` | Payload-free input receipts and browser queue/parser/render timing summaries through the existing scoped logger |
 
 [`scripts/build-mac-app.mjs`](../scripts/build-mac-app.mjs) packages the signed Mac app. [`build-session-runtime.mjs`](../apps/mac-companion/scripts/build-session-runtime.mjs) builds the retained terminal runtime using existing dependencies.
 
@@ -50,6 +51,16 @@ Workspace display names and stable default window labels live in the Mac workspa
 ## Terminal transport
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
+
+Replay and outstanding output are bounded by both bytes and frame count. Pumping
+starts at the next unsent cursor, independently of retained history length. The
+browser combines consecutive queued output into bounded parser batches while
+preserving checkpoint/control barriers and acknowledging only parsed cursors.
+Optional `supportsInputAck` negotiation enables sampled `probeId` input receipts
+after node-pty write submission. Receipts bypass the browser output queue; they
+measure neither foreground-app consumption nor physical display. Browser timing
+summaries and both Node processes' event-loop summaries use the existing bounded
+diagnostics pipeline. See [terminal lag diagnostics](mac-companion.md#investigating-terminal-lag).
 
 The session service detects BEL, OSC 9, and OSC 777 notifications through the same headless parser. Optional `notificationSequence` counters accompany output frames and attachment checkpoints so alert state survives replay eviction. `TerminalConnection` forwards advancing counters through the WebView bridge in wire order, independently of the terminal render queue; only rendered output advances output acknowledgements. `WindowGateway` owns per-window unread acknowledgements. Native selection clears the indicator, and each terminal controller anchors its chime to its native scene using the player’s [scene-anchored spatial experience](https://developer.apple.com/documentation/audiotoolbox/spatializing-sound-from-a-uiscene). Reattachment restores unread state silently. Inactive scenes blur xterm so focus-aware programs receive DEC focus-out; attachment and write-ownership recovery resend the current focus report when the program enables DEC focus reporting.
 
