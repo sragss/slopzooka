@@ -193,8 +193,8 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         documentReady = true
         applyZoom(in: webView)
-        // The page initially focuses its textarea for physical keyboards. A
-        // document loaded/reloaded in an inactive scene must relinquish it.
+        // Older companion pages focus their textarea on load. Keep inactive
+        // scenes unfocused when recovering those document revisions too.
         if !isActive { webView.evaluateJavaScript("window.slzBlurTerminal?.()") }
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {

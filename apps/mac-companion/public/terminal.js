@@ -9649,7 +9649,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "a4366e2076c8a3129047419a22633aafdf2c9697fbd6b86c884660e16e7379cb" : "unknown"
+    buildId: true ? "82a601207b82198c7c06dbb9a0856e9fd5085aeb2c514c24cfa5e8d58116884a" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -9722,7 +9722,7 @@ terminal.loadAddon(fit);
 terminal.open(mount);
 var detachTextInput = bindTerminalTextInput(terminal);
 fit.fit();
-focusTerminal();
+if (!window.webkit?.messageHandlers?.terminalState) focusTerminal();
 function focusTerminal(showKeyboard = false) {
   const input = terminal.textarea;
   if (input) {

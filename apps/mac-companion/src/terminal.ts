@@ -25,8 +25,10 @@ terminal.loadAddon(fit);
 terminal.open(mount);
 const detachTextInput = bindTerminalTextInput(terminal);
 fit.fit();
-// Keep hardware typing ready; the floating keyboard requires an explicit request.
-focusTerminal();
+// Native scenes queue focus through TerminalSessionController when active and
+// attached. Autofocusing here would briefly focus an inactive scene on reload.
+// Standalone browser terminals still start ready for physical keyboard input.
+if (!window.webkit?.messageHandlers?.terminalState) focusTerminal();
 
 function focusTerminal(showKeyboard = false) {
   const input = terminal.textarea;
