@@ -196,8 +196,10 @@ struct LauncherStateChecks {
         try credentials.pair(second, hostID: secondID, token: "secret")
         var releaseSessions: CheckedContinuation<Void, Never>?
         var releaseWorkspaces: CheckedContinuation<Void, Never>?
+        var releaseCodex: CheckedContinuation<Void, Never>?
         var pruned = false
         var finishedOldLoad = false
+        var finishedOldCodexLoad = false
         let client = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: credentials) { request in
             let id = request.url!.host! == "first.invalid" ? "first" : "second"
             let path = request.url!.path
@@ -209,6 +211,15 @@ struct LauncherStateChecks {
                 if id == "second" { await withCheckedContinuation { releaseSessions = $0 } }
                 return try json(["sessions": []], for: request)
             case "/api/frontends": return try json(["frontends": []], for: request)
+            case "/api/codex/threads":
+                if id == "second" {
+                    await withCheckedContinuation { releaseCodex = $0 }
+                    finishedOldCodexLoad = true
+                }
+                let threads = (0..<30).map { index in
+                    ["id": "\(id)-\(index)", "title": "\(id) thread \(index)", "cwd": "/\(id)/project", "updatedAt": 2000 - index, "available": true] as [String: Any]
+                }
+                return try json(["threads": threads], for: request)
             case "/api/workspaces":
                 let workspaces: [[String: Any]] = pruned ? [] : [["workspaceId": id, "repo": repo, "localCheckoutPath": "/",
                     "worktreePath": "/", "branchName": "main", "baseRef": "main", "createdAt": "2026-01-01T00:00:00Z",
@@ -231,21 +242,29 @@ struct LauncherStateChecks {
         while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
         precondition(state.recentRepos.first?.id == "test/first" && state.recentWorkspaces.first?.id == "first")
         precondition(state.availableOwners.first?.login == "first")
+        while state.filteredCodexThreads.isEmpty { await Task.yield() }
+        precondition(state.filteredCodexThreads.count == 25 && state.filteredCodexThreads.first?.id == "first-0")
+        state.searchText = "FIRST THREAD 2"
+        precondition(state.filteredCodexThreads.map(\.id) == ["first-2", "first-20", "first-21", "first-22", "first-23", "first-24"],
+            "Thread search must filter only the first 25, preserving catalog order")
+        state.searchText = ""
         let switching = Task { await client.select(second.absoluteString) }
         while releaseSessions == nil { await Task.yield() }
         precondition(client.current?.id == secondID && client.isReady)
         precondition(state.recentRepos.allSatisfy { $0.id == "test/second" }
             && state.recentWorkspaces.allSatisfy { $0.id == "second" }
+            && state.filteredCodexThreads.allSatisfy { $0.id.hasPrefix("second-") }
             && state.availableOwners.allSatisfy { $0.login == "second" },
             "Accepting another Mac must immediately clear the previous Mac's launch choices, even while refresh is stalled")
         releaseSessions!.resume()
-        while releaseWorkspaces == nil || state.availableOwners.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
+        while releaseWorkspaces == nil || releaseCodex == nil || state.availableOwners.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
         precondition(state.recentWorkspaces.isEmpty && state.availableOwners.first?.login == "second" && state.recentRepos.first?.id == "test/second",
             "A stalled workspace request must not block repositories or repository owners")
         if mutateDuringLoad {
             await state.pruneMissingWorkspaces()
             precondition(state.recentWorkspaces.isEmpty)
             releaseWorkspaces!.resume()
+            releaseCodex!.resume()
             while !finishedOldLoad { await Task.yield() }
             precondition(state.recentWorkspaces.isEmpty,
                 "An old initial catalog cannot resurrect workspaces hidden by a later mutation")
@@ -254,10 +273,13 @@ struct LauncherStateChecks {
             return
         }
         await client.select(first.absoluteString)
-        while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
+        while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty || state.filteredCodexThreads.isEmpty { await Task.yield() }
         releaseWorkspaces!.resume()
+        releaseCodex!.resume()
         await switching.value
+        while !finishedOldCodexLoad { await Task.yield() }
         precondition(state.recentWorkspaces.first?.id == "first" && state.availableOwners.first?.login == "first")
+        precondition(state.filteredCodexThreads.first?.id == "first-0", "A late Codex catalog cannot replace the selected Mac's threads")
         guard case .loaded = state.workspaceState else { preconditionFailure("A superseded route cannot replace the loaded workspace state with an error") }
         print("PASS: connection changes clear launch choices, catalogs load independently, and superseded results cannot replace the new state")
     }

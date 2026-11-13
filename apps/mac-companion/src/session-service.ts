@@ -18,6 +18,8 @@ import {
 } from "../../../packages/protocol/src/index.js";
 import {
   SESSION_SERVICE_VERSION,
+  CODEX_RESUME_CAPABILITY,
+  validCodexThreadId,
   type ServiceInfo,
 } from "./session-service-protocol.js";
 
@@ -101,7 +103,11 @@ async function main() {
       runtimeId,
       pid: process.pid,
       sessions: manager.summaries(),
-      capabilities: ["rename-session", "diagnostics-v1"],
+      capabilities: [
+        "rename-session",
+        "diagnostics-v1",
+        CODEX_RESUME_CAPABILITY,
+      ],
       logFilePath: diagnostics.store.file,
     } satisfies ServiceInfo),
   );
@@ -109,7 +115,8 @@ async function main() {
     res.json({ ok: await diagnostics.store.flush() }),
   );
   app.post("/sessions", (req, res) => {
-    const { workspaceId, cwd, profile, id, environment } = req.body ?? {};
+    const { workspaceId, cwd, profile, id, environment, codexResume } =
+      req.body ?? {};
     if (
       !validId(workspaceId) ||
       !validId(id) ||
@@ -119,10 +126,19 @@ async function main() {
       !environment ||
       typeof environment !== "object" ||
       Array.isArray(environment) ||
-      Object.values(environment).some((value) => typeof value !== "string")
+      Object.values(environment).some((value) => typeof value !== "string") ||
+      (codexResume !== undefined &&
+        (profile !== "codex" ||
+          !validCodexThreadId(codexResume?.threadId) ||
+          typeof codexResume?.title !== "string" ||
+          !codexResume.title.length ||
+          codexResume.title.length > 160 ||
+          /\p{Cc}/u.test(codexResume.title)))
     )
       throw new ServiceError("Invalid session launch", 400);
-    res.json(manager.create(workspaceId, cwd, profile, id, environment));
+    res.json(
+      manager.create(workspaceId, cwd, profile, id, environment, codexResume),
+    );
   });
   app.delete("/sessions/:id", (req, res) => {
     // Repeating an end after a lost reply must not end a different session.

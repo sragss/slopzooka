@@ -113,6 +113,21 @@ Manual method changes retire documents and old requests before connecting again.
 
 Direct's CA is learned only over an already authenticated Local Network route and stored against host identity. A matching discovery ID never grants credentials to an unverified peer. No silent cross-method fallback, generic arbitrary-port proxy, second terminal protocol, new window persistence owner, or media multiplexing through JSON is introduced. The [physical acceptance results](../.plans/2026-11-10-transport-device-results.md) establish AWDL admission and headset terminal use after a listener fix, and record a historical recovery-log discrepancy. The [local recovery follow-up](../.plans/2026-11-10-transport-recovery-followup.md) reproduces and fixes an EOF stall with two real WKWebViews. A [later headset rerun](../.plans/2026-11-10-native-preview-device-results.md#direct-recovery-functional-pass-bounded-idle-recovery-not-established) confirmed fresh input in both terminals after a helper restart without a method toggle; focus-related reconnect flashes leave unattended recovery timing unqualified. Travel, sleep/wake, media throughput, and bounded recovery for every window remain separate qualification.
 
+## Codex threads
+
+`codex-threads.ts` reads only metadata through a bounded local Codex app-server
+reader; Codex owns its history/index formats. The Projects catalog requests one
+page of 25 non-archived threads sorted by update time. Resume revalidates the
+thread and folder on the Mac, then asks the session service to execute
+`codex resume <thread-id>`. The service owns request deduplication and reuses a
+running terminal for that thread and Codex home/command. Resumed terminals exit
+with Codex so an idle fallback shell cannot masquerade as a running resume.
+External folders use a stable directory-derived workspace ID without creating a
+Git workspace record. Their shell requests resolve only through an existing
+service-owned session. Window registration and restoration still use
+`WindowGateway` and the existing terminal layout records. Codex activity in other
+applications is not inferred from the reader's process-local runtime status.
+
 ## Native diagnostics
 
 `apps/shared/Diagnostics.swift` owns the scoped `AppLog` facade, recent-entry ring, and bounded native outbox. `apps/shared/NativeLogFile.swift` is the serial Mac file writer; fresh segments avoid tail repair, with pruning only when opening a segment. Only the debug panel observes its published recent-entry ring; routing and delivery state do not publish changes. `CompanionClient` uploads host-scoped batches through existing pairing credentials; first-party terminal WebViews forward events through a validated main-frame bridge. Both native targets compile the shared runtime directly, without depending on another application’s source folder. Diagnostics use an additive versioned envelope and a shared fixture in `packages/protocol`, independently of the terminal protocol version.

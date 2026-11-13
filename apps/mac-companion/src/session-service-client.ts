@@ -12,6 +12,7 @@ import { resolveLogDir } from "./log-store.js";
 import type { ServerMessage } from "../../../packages/protocol/src/index.js";
 import {
   SESSION_SERVICE_VERSION,
+  CODEX_RESUME_CAPABILITY,
   type ServiceInfo,
   type SessionLaunch,
 } from "./session-service-protocol.js";
@@ -154,7 +155,15 @@ export class SessionServiceClient {
       503,
     );
   }
-  create(launch: SessionLaunch) {
+  async create(launch: SessionLaunch) {
+    if (
+      launch.codexResume &&
+      !(await this.info()).capabilities?.includes(CODEX_RESUME_CAPABILITY)
+    )
+      throw new ServiceError(
+        "Resume needs an updated session service. Use the Mac menu to restart the session service when you are ready to end its existing terminals.",
+        503,
+      );
     return this.request<
       import("../../../packages/protocol/src/index.js").SessionSummary
     >("/sessions", "POST", launch);

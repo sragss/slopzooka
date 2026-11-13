@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import os from "node:os";
+import path from "node:path";
 import { stopProcessTree } from "./process-tree.js";
 import pty, { type IPty } from "node-pty";
 import headless from "@xterm/headless";
@@ -13,6 +15,11 @@ import { ServiceError } from "./errors.js";
 import { normalizedName } from "./names.js";
 import type { Logger } from "./logger.js";
 import { observeTerminalNotifications } from "./terminal-notifications.js";
+import { CODEX_EXEC } from "./codex-threads.js";
+import {
+  validCodexThreadId,
+  type SessionLaunch,
+} from "./session-service-protocol.js";
 
 const REPLAY_LIMIT = 512 * 1024;
 const WINDOW = 128 * 1024;
@@ -34,6 +41,8 @@ type Attachment = {
 };
 type Session = {
   summary: SessionSummary;
+  launchIds: Set<string>;
+  codexScope?: string;
   pty: IPty;
   screen: InstanceType<typeof headless.Terminal>;
   serialize: InstanceType<typeof serialize.SerializeAddon>;
@@ -95,15 +104,34 @@ export class SessionManager {
     profile: TuiProfile | null,
     id: string = crypto.randomUUID(),
     environment: NodeJS.ProcessEnv = process.env,
+    codexResume?: SessionLaunch["codexResume"],
   ): SessionSummary {
     if (this.stopping)
       throw new ServiceError("Companion is shutting down", 503);
-    const existing = this.sessions.get(id);
+    if (
+      codexResume &&
+      (profile !== "codex" || !validCodexThreadId(codexResume.threadId))
+    )
+      throw new ServiceError("Invalid Codex resume launch", 400);
+    const codexScope = codexResume
+      ? JSON.stringify([
+          path.resolve(
+            environment.CODEX_HOME ??
+              path.join(environment.HOME ?? os.homedir(), ".codex"),
+          ),
+          environment.SLOPZOOKA_CODEX_COMMAND ?? "codex",
+        ])
+      : undefined;
+    const existing = [...this.sessions.values()].find((session) =>
+      session.launchIds.has(id),
+    );
     if (existing) {
       if (
         existing.summary.workspaceId !== workspaceId ||
         existing.summary.profile !== profile ||
-        existing.summary.cwd !== cwd
+        existing.summary.cwd !== cwd ||
+        existing.summary.codexThreadId !== codexResume?.threadId ||
+        existing.codexScope !== codexScope
       )
         throw new ServiceError(
           "Session ID already used for a different launch",
@@ -115,6 +143,28 @@ export class SessionManager {
       });
       return existing.summary;
     }
+    const resumed =
+      codexResume &&
+      [...this.sessions.values()].find(
+        (session) =>
+          session.summary.codexThreadId === codexResume.threadId &&
+          session.codexScope === codexScope &&
+          session.summary.status === "running" &&
+          !session.ending,
+      );
+    if (resumed) {
+      if (resumed.launchIds.size >= 1000)
+        throw new ServiceError(
+          "Too many resume requests for this terminal",
+          409,
+        );
+      resumed.launchIds.add(id);
+      this.logger?.info("session.resume.reused", {
+        sessionId: resumed.summary.id,
+        threadId: codexResume!.threadId,
+      });
+      return { ...resumed.summary };
+    }
     if (this.sessions.size >= 100)
       throw new ServiceError(
         "Session limit reached; remove ended sessions",
@@ -124,7 +174,13 @@ export class SessionManager {
       id,
       workspaceId,
       profile,
-      title: profile ?? "Terminal",
+      title: codexResume?.title ?? profile ?? "Terminal",
+      ...(codexResume
+        ? {
+            codexThreadId: codexResume.threadId,
+            projectName: path.basename(cwd),
+          }
+        : {}),
       cwd,
       cols: 120,
       rows: 36,
@@ -151,9 +207,18 @@ export class SessionManager {
     // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
     const term = pty.spawn(
       shell,
-      profile
-        ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]
-        : ["-l"],
+      codexResume
+        ? [
+            "-lic",
+            CODEX_EXEC,
+            shell,
+            commands.codex,
+            "resume",
+            codexResume.threadId,
+          ]
+        : profile
+          ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]
+          : ["-l"],
       {
         cwd,
         cols: summary.cols,
@@ -172,6 +237,8 @@ export class SessionManager {
     screen.loadAddon(serializer);
     const s: Session = {
       summary,
+      launchIds: new Set([id]),
+      codexScope,
       pty: term,
       screen,
       serialize: serializer,
@@ -233,6 +300,8 @@ export class SessionManager {
       });
     });
     term.onExit(({ exitCode }) => {
+      // Retire resume ownership immediately, before the final screen flush.
+      s.ending = true;
       this.logger?.info("session.exited", { sessionId: id, exitCode });
       // Flush the emulator before announcing exit so the final output is not lost.
       screen.write("", () => {

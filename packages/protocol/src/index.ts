@@ -10,6 +10,8 @@ export type SessionSummary = {
   /** Mac-owned display context; absent on older companions and raw PTY messages. */
   projectName?: string;
   workspaceName?: string;
+  /** Saved Codex conversation resumed by this terminal. */
+  codexThreadId?: string;
   cwd: string;
   cols: number;
   rows: number;

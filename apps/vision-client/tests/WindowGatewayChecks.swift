@@ -22,6 +22,8 @@ enum Fixture {
     static var loseInputReply = false
     static var beforeEndSessionReply: (() async throws -> Void)?
     static var beforeRenameReply: (() async throws -> Void)?
+    static var beforeResumeReply: (() async throws -> Void)?
+    static var resumeIDs: [String] = []
     static var api: CompanionClient {
         let client = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: testCredentials(), exchange: exchange)
         let base = URL(string: "http://fixture.invalid:7777")!
@@ -38,6 +40,18 @@ enum Fixture {
         let base = origin(request.url!)
         let path = request.url!.path, method = request.httpMethod ?? "GET", body = request.httpBody
         requests.append("\(method) \(path)")
+        if method == "POST", path.hasPrefix("/api/codex/threads/"), path.hasSuffix("/resume") {
+            let input = try JSONSerialization.jsonObject(with: body!) as! [String: String]
+            let id = input["sessionId"]!
+            resumeIDs.append(id)
+            let key = base.host!
+            if sessions[key, default: []].isEmpty {
+                sessions[key] = [HostSession(id: id, workspaceId: "codex-directory", title: "Saved thread", cwd: "/original/folder")]
+            }
+            if let callback = beforeResumeReply { beforeResumeReply = nil; try await callback() }
+            return try json(["session": sessionJSON(sessions[key]![0])], for: request)
+        }
+        if path == "/api/codex/threads" { return try json(["threads": []], for: request) }
         if method == "DELETE", path.hasPrefix("/api/sessions/") {
             if let callback = beforeEndSessionReply { beforeEndSessionReply = nil; try await callback() }
             let key = base.host!, id = String(path.dropFirst("/api/sessions/".count))
@@ -690,7 +704,68 @@ struct WindowGatewayChecks {
             "A restored scene must not claim to reconnect to an unsupported preview route")
         precondition(Fixture.layouts[base.host!]!.windows.isEmpty, "Availability repair must not create desired-open intent")
         print("PASS: remote reopen survives late observations, unpaired Macs cannot poison recovery, and restored previews show route availability")
+        try await checkCodexResume()
+    }
 
+    @MainActor
+    static func checkCodexResume() async throws {
+        let suite = "CodexResumeChecks.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let base = URL(string: "http://codex.invalid:7777")!
+        let client = Fixture.api
+        try client.accept(fixtureHealth("codex-host", endpoint: base), endpoint: base, authenticated: true)
+        let gateway = WindowGateway(persistence: WindowPersistence(defaults: defaults), client: client)
+        var opened: [String] = []
+        gateway.attachPresenter(UUID()) { if case .open(let window) = $0 { opened.append(window.id) } }
+        let thread = CodexThreadSummary(id: "00000000-0000-4000-8000-000000000001", title: "Saved thread",
+            cwd: "/original/folder", updatedAt: 2000, available: true)
+        Fixture.beforeResumeReply = { throw URLError(.networkConnectionLost) }
+        await gateway.launcher.resume(thread)
+        precondition(opened.isEmpty && gateway.launcher.feedback?.style == .error)
+        await gateway.launcher.resume(thread)
+        precondition(Fixture.resumeIDs.count == 2 && Fixture.resumeIDs[0] == Fixture.resumeIDs[1],
+            "A lost resume reply must retain the operation ID")
+        let id = Fixture.resumeIDs[0]
+        precondition(opened == [id] && gateway.terminalPayload(for: id)?.workspaceId == "codex-directory")
+        gateway.observe(id: id, isPresented: true, isFocused: true)
+        gateway.close(id: id)
+        await gateway.launcher.resume(thread)
+        precondition(opened == [id, id] && Fixture.sessions[base.host!]?.count == 1,
+            "Resuming after an explicit close must reopen the existing terminal")
+        gateway.observe(id: id, isPresented: true, isFocused: true)
+        gateway.observe(id: id, isPresented: false, isFocused: false)
+        precondition(WindowPersistence(defaults: defaults).windows(hostID: "codex-host").count == 1,
+            "A disconnect must not remove resume window intent")
+        let recovered = WindowGateway(persistence: WindowPersistence(defaults: defaults), client: client)
+        recovered.attachPresenter(UUID()) { _ in }
+        await client.refreshSessions(hostID: "codex-host", force: true)
+        precondition(recovered.terminalPayload(for: id) != nil,
+            "Thread terminals must recover from session snapshots without a launcher action")
+        precondition(Fixture.resumeIDs.count == 3, "Restoration must not launch another Codex process")
+
+        var closeRelease: CheckedContinuation<Void, Never>?
+        Fixture.beforeResumeReply = { await withCheckedContinuation { closeRelease = $0 } }
+        let closing = Task { await gateway.launcher.resume(thread) }
+        await until { closeRelease != nil }
+        gateway.close(id: id)
+        closeRelease!.resume()
+        await closing.value
+        precondition(opened == [id, id] && WindowPersistence(defaults: defaults).windows(hostID: "codex-host").isEmpty,
+            "An explicit close must win over an older resume reply")
+
+        let other = CodexThreadSummary(id: "00000000-0000-4000-8000-000000000002", title: "Other",
+            cwd: "/original/folder", updatedAt: 2000, available: true)
+        var release: CheckedContinuation<Void, Never>?
+        Fixture.beforeResumeReply = { await withCheckedContinuation { release = $0 } }
+        let late = Task { await gateway.launcher.resume(other) }
+        await until { release != nil }
+        let elsewhere = URL(string: "http://elsewhere.invalid:7777")!
+        try client.accept(fixtureHealth("other-host", endpoint: elsewhere), endpoint: elsewhere, authenticated: true)
+        release!.resume()
+        await late.value
+        precondition(opened == [id, id], "A late resume cannot open a window after switching Macs")
+        print("PASS: Codex resumes preserve retry identity, reopen through the gateway, recover without launching, and reject late host replies")
     }
 
     @MainActor
