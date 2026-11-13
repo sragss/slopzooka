@@ -49,6 +49,15 @@ test("protocol rejects malformed dimensions, identifiers, payloads and versions"
     {},
     { type: "hello", version: 2 },
     { type: "input", sessionId: "x", data: 1 },
+    { type: "input", sessionId: "x", data: "x", probeId: -1 },
+    { type: "input", sessionId: "x", data: "x", probeId: "1" },
+    { type: "input", sessionId: "x", data: "x", probeId: 0.5 },
+    {
+      type: "input",
+      sessionId: "x",
+      data: "x",
+      probeId: Number.MAX_SAFE_INTEGER + 1,
+    },
     { type: "take-control", sessionId: "../x" },
     { type: "resize", sessionId: "x", cols: Infinity, rows: 40 },
     { type: "resize", sessionId: "x", cols: 999999, rows: 40 },
@@ -56,6 +65,15 @@ test("protocol rejects malformed dimensions, identifiers, payloads and versions"
     { type: "input", sessionId: "x", data: "x".repeat(65537) },
   ])
     assert.equal(isClientMessage(value), false);
+  assert.equal(
+    isClientMessage({
+      type: "input",
+      sessionId: "session-1",
+      data: "x",
+      probeId: 0,
+    }),
+    true,
+  );
   assert.equal(
     isClientMessage({
       type: "resize",

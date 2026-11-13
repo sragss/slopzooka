@@ -160,7 +160,10 @@ test(
       res.end();
     });
     app.get("/terminal", (_req, res) =>
-      res.sendFile(path.join(root, "apps/mac-companion/public/terminal.html")),
+      // The checkout may itself live under a hidden worktree directory.
+      res.sendFile(path.join(root, "apps/mac-companion/public/terminal.html"), {
+        dotfiles: "allow",
+      }),
     );
     app.use(express.static(path.join(root, "apps/mac-companion/public")));
     const wss = new WebSocketServer({ noServer: true });
