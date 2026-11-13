@@ -102,13 +102,22 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
       data: "D",
       notificationSequence: 5,
     });
+    assert.deepEqual(
+      notifications,
+      [
+        [3, "first", false],
+        [4, "first", true],
+        [5, "first", true],
+      ],
+      "native alerts cannot wait for queued terminal writes in an unattended WebView",
+    );
+    assert.equal(
+      rendered,
+      "",
+      "notification delivery does not acknowledge unrendered output",
+    );
     await new Promise((r) => setTimeout(r, 150));
     assert.equal(rendered, "CD");
-    assert.deepEqual(notifications, [
-      [3, "first", false],
-      [4, "first", true],
-      [5, "first", true],
-    ]);
     assert.deepEqual(operations, [
       "reset",
       "resize",
@@ -160,7 +169,19 @@ test("terminal rendering serializes checkpoints with output and resumes from ren
     );
     assert.equal(
       notifications.length,
-      3,
+      4,
+      "the current socket delivers its silent checkpoint before rendering",
+    );
+    reconnected.receive({
+      type: "output",
+      sessionId: "s1",
+      cursor: 5,
+      data: "late",
+      notificationSequence: 7,
+    });
+    assert.equal(
+      notifications.length,
+      4,
       "retired sockets cannot notify their replacement",
     );
     replacement.receive({

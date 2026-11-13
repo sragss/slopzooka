@@ -6,6 +6,7 @@ import Foundation
 /// change the shared audio session's anchor: dictation and other windows share it.
 @MainActor
 final class TerminalNotificationSound {
+    private let log = AppLog("terminal-notification-sound")
     private var player: AVAudioPlayer?
     private var lastPlayed = Date.distantPast
 
@@ -15,7 +16,7 @@ final class TerminalNotificationSound {
         do {
             if player == nil {
                 guard let url = Bundle.main.url(forResource: "terminal-notification", withExtension: "wav") else {
-                    slzLog("notification sound resource missing")
+                    log.error("resource.missing")
                     return
                 }
                 player = try AVAudioPlayer(contentsOf: url)
@@ -24,8 +25,9 @@ final class TerminalNotificationSound {
             player?.intendedSpatialExperience = .headTracked(.scene(identifier: sceneID))
             player?.currentTime = 0
             if player?.play() == true { lastPlayed = Date() }
+            else { log.warn("playback.rejected", ["sceneId": sceneID]) }
         } catch {
-            slzLog("notification sound failed: \(error.localizedDescription)")
+            log.error("playback.failed", error: error, ["sceneId": sceneID])
         }
     }
 }

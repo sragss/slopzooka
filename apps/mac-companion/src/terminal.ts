@@ -47,6 +47,15 @@ const connection = sessionId
       terminal,
       sessionId,
       (message, state, readOnly = false, canTakeControl = false) => {
+        // Snapshot parsing can emit DEC focus reports before attachment accepts
+        // input. Reestablish focus after attaching or regaining write ownership.
+        if (state === "running" && !readOnly && terminal.modes.sendFocusMode)
+          terminal.input(
+            document.hasFocus() && document.activeElement === terminal.textarea
+              ? "\x1b[I"
+              : "\x1b[O",
+            false,
+          );
         overlay.hidden = state === "running";
         messageLabel.textContent = message;
         guidance.hidden = state !== "disconnected";
@@ -110,6 +119,9 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = focusTerminal;
+// Native scene activity is independent of WebKit's retained DOM focus. Let
+// xterm send DEC focus-out so agents can emit their background notifications.
+window.slzBlurTerminal = () => terminal.blur();
 // Synthetic keydowns make xterm focus its textarea, reopening the keyboard.
 // Direct input uses the same onData/ownership path without changing focus.
 window.slzInterruptTerminal = () => {
@@ -129,6 +141,7 @@ mount.addEventListener("beforeinput", selectTerminal, true);
 declare global {
   interface Window {
     slzFocusTerminal?: (showKeyboard?: boolean) => void;
+    slzBlurTerminal?: () => void;
     slzInterruptTerminal?: () => void;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;

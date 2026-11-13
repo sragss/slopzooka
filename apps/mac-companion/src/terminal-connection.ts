@@ -65,6 +65,7 @@ export class TerminalConnection {
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws = new WebSocket(url);
+    let notificationInstance: string | undefined;
     this.socket = ws;
     this.handshake = setTimeout(() => {
       if (this.socket === ws && !this.attached) this.retryConnection(ws);
@@ -73,6 +74,33 @@ export class TerminalConnection {
       if (this.socket !== ws) return;
       try {
         const message = JSON.parse(String(event.data)) as ServerMessage;
+        // Alert counters describe Mac state, not rendered bytes. An unattended
+        // WebView can stall xterm writes; notify native UI before that queue.
+        // Wire order still establishes the silent attach baseline before replay.
+        if (this.isCurrent(ws)) {
+          if (message.type === "hello" && message.version === PROTOCOL_VERSION)
+            notificationInstance = message.serviceInstanceId ?? "legacy";
+          if (notificationInstance !== undefined) {
+            if (
+              message.type === "attached" &&
+              message.session.id === this.sessionId
+            )
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                false,
+              );
+            if (
+              message.type === "output" &&
+              message.sessionId === this.sessionId
+            )
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                true,
+              );
+          }
+        }
         this.renderTail = this.renderTail
           .then(() => this.receive(message, ws))
           .catch((error) => {
@@ -240,14 +268,11 @@ export class TerminalConnection {
         this.lostConnection = false;
         this.publishOwnership();
         this.resize();
-        this.reportNotification(m.notificationSequence, false);
         break;
       case "output":
         if (m.sessionId !== this.sessionId) return;
         await this.write(m.data);
         this.ack(ws, m.cursor);
-        if (this.isCurrent(ws))
-          this.reportNotification(m.notificationSequence, true);
         break;
       case "exited":
         if (!this.isCurrent(ws) || m.sessionId !== this.sessionId) return;
@@ -295,10 +320,10 @@ export class TerminalConnection {
   }
   private reportNotification(
     sequence: number | undefined,
+    instance: string,
     audible: boolean,
   ): void {
     if (!Number.isSafeInteger(sequence) || sequence! < 0) return;
-    const instance = this.serviceInstanceId ?? "legacy";
     if (
       this.lastNotification?.instance === instance &&
       sequence! <= this.lastNotification.sequence

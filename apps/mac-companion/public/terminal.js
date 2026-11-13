@@ -9294,6 +9294,7 @@ var TerminalConnection = class {
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws2 = new WebSocket(url);
+    let notificationInstance;
     this.socket = ws2;
     this.handshake = setTimeout(() => {
       if (this.socket === ws2 && !this.attached) this.retryConnection(ws2);
@@ -9302,6 +9303,24 @@ var TerminalConnection = class {
       if (this.socket !== ws2) return;
       try {
         const message = JSON.parse(String(event.data));
+        if (this.isCurrent(ws2)) {
+          if (message.type === "hello" && message.version === PROTOCOL_VERSION)
+            notificationInstance = message.serviceInstanceId ?? "legacy";
+          if (notificationInstance !== void 0) {
+            if (message.type === "attached" && message.session.id === this.sessionId)
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                false
+              );
+            if (message.type === "output" && message.sessionId === this.sessionId)
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                true
+              );
+          }
+        }
         this.renderTail = this.renderTail.then(() => this.receive(message, ws2)).catch((error) => {
           this.log?.error("render.failed", { error: logError(error) });
           if (this.isCurrent(ws2))
@@ -9450,14 +9469,11 @@ var TerminalConnection = class {
         this.lostConnection = false;
         this.publishOwnership();
         this.resize();
-        this.reportNotification(m.notificationSequence, false);
         break;
       case "output":
         if (m.sessionId !== this.sessionId) return;
         await this.write(m.data);
         this.ack(ws2, m.cursor);
-        if (this.isCurrent(ws2))
-          this.reportNotification(m.notificationSequence, true);
         break;
       case "exited":
         if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
@@ -9491,9 +9507,8 @@ var TerminalConnection = class {
       readOnly && this.supportsTakeControl
     );
   }
-  reportNotification(sequence, audible) {
+  reportNotification(sequence, instance, audible) {
     if (!Number.isSafeInteger(sequence) || sequence < 0) return;
-    const instance = this.serviceInstanceId ?? "legacy";
     if (this.lastNotification?.instance === instance && sequence <= this.lastNotification.sequence)
       return;
     this.lastNotification = { sequence, instance };
@@ -9634,7 +9649,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "bcbe05ad9ac5053c4608eef8c5ab6b3cd2a6f8ab0d21d68ad136c05b38b98c1c" : "unknown"
+    buildId: true ? "a4366e2076c8a3129047419a22633aafdf2c9697fbd6b86c884660e16e7379cb" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -9725,6 +9740,11 @@ var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
   (message, state, readOnly = false, canTakeControl = false) => {
+    if (state === "running" && !readOnly && terminal.modes.sendFocusMode)
+      terminal.input(
+        document.hasFocus() && document.activeElement === terminal.textarea ? "\x1B[I" : "\x1B[O",
+        false
+      );
     overlay.hidden = state === "running";
     messageLabel.textContent = message;
     guidance.hidden = state !== "disconnected";
@@ -9783,6 +9803,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = focusTerminal;
+window.slzBlurTerminal = () => terminal.blur();
 window.slzInterruptTerminal = () => {
   log2.info("interrupt.requested");
   terminal.input("\x1B", true);

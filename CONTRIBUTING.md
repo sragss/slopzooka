@@ -159,6 +159,18 @@ CI opts into ad-hoc signing with `SLOPZOOKA_SIGN_IDENTITY=-`. Local builds norma
 
 ### Physical Vision Pro checks
 
+For an isolated Mac notification check, run `pnpm test:terminal-notifications`.
+This builds a small native app around the production terminal renderer, WebView
+bridge, notification state, and a real PTY. A synthetic focus-aware program emits
+BEL, OSC 9, and OSC 777; checks cover native unread state, accepted chime playback,
+selection, inactive reload, silent reconnect recovery, and retaining one process.
+It uses a temporary home and loopback server, with no agent API calls or live sessions.
+Use `pnpm test:terminal-notifications --interactive` to keep its window open and
+try **Background**, **Focus**, **Bell**, and **Reload**. Closing the window cleans
+up its companion and PTY. `--baseline <git-ref>` loads that revision's controller
+and renderer for a before/after comparison; revision `e37ad81` reproduces the missing focus-out.
+The Mac probe cannot establish visionOS audio direction or physical room behavior.
+
 Simulator compilation and macOS state tests do not establish device behavior. Before relying on a headset release, verify:
 
 - Pair; open an agent and a shell in one workspace; close/reopen windows; sleep/wake during output.
