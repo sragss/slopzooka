@@ -19,6 +19,7 @@
     "test:vision-state": "node scripts/test-vision-state.mjs",
     "test:voice-demo": "node scripts/test-voice-demo.mjs",
     "test:terminal-keyboard": "node scripts/test-terminal-keyboard.mjs",
+    "test:terminal-notifications": "pnpm --filter @slz/mac-companion exec tsx test/terminal-notification-app.ts",
     "test:native-video": "node scripts/test-native-video.mjs --hardware"
   },
   "devDependencies": {

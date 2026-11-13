@@ -9431,6 +9431,7 @@ var TerminalConnection = class {
     const url = new URL("/ws", location.href);
     url.protocol = location.protocol === "https:" ? "wss:" : "ws:";
     const ws2 = new WebSocket(url);
+    let notificationInstance;
     this.socket = ws2;
     this.handshake = setTimeout(() => {
       if (this.socket === ws2 && !this.attached) this.retryConnection(ws2);
@@ -9439,6 +9440,24 @@ var TerminalConnection = class {
       if (this.socket !== ws2) return;
       try {
         const message = JSON.parse(String(event.data));
+        if (this.isCurrent(ws2)) {
+          if (message.type === "hello" && message.version === PROTOCOL_VERSION)
+            notificationInstance = message.serviceInstanceId ?? "legacy";
+          if (notificationInstance !== void 0) {
+            if (message.type === "attached" && message.session.id === this.sessionId)
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                false
+              );
+            if (message.type === "output" && message.sessionId === this.sessionId)
+              this.reportNotification(
+                message.notificationSequence,
+                notificationInstance,
+                true
+              );
+          }
+        }
         if (message.type === "input-ack") {
           if (message.sessionId === this.sessionId)
             this.performance?.acknowledged(message.probeId);
@@ -9626,14 +9645,11 @@ var TerminalConnection = class {
         this.lostConnection = false;
         this.publishOwnership();
         this.resize();
-        this.reportNotification(m.notificationSequence, false);
         break;
       case "output":
         if (m.sessionId !== this.sessionId) return;
         await this.write(m.data);
         this.ack(ws2, m.cursor);
-        if (this.isCurrent(ws2))
-          this.reportNotification(m.notificationSequence, true);
         break;
       case "exited":
         if (!this.isCurrent(ws2) || m.sessionId !== this.sessionId) return;
@@ -9669,9 +9685,8 @@ var TerminalConnection = class {
       readOnly && this.supportsTakeControl
     );
   }
-  reportNotification(sequence, audible) {
+  reportNotification(sequence, instance, audible) {
     if (!Number.isSafeInteger(sequence) || sequence < 0) return;
-    const instance = this.serviceInstanceId ?? "legacy";
     if (this.lastNotification?.instance === instance && sequence <= this.lastNotification.sequence)
       return;
     this.lastNotification = { sequence, instance };
@@ -9818,7 +9833,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "dedf3b1c0b437e88bc7d1a31fa9f666da758f865bfe09660a395570b6218e591" : "unknown"
+    buildId: true ? "b3c56e96ea02bcd5462bea0c86fbdc57b2e061245d48e7abb16aa7a8f06b0d33" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -9891,7 +9906,7 @@ terminal.loadAddon(fit);
 terminal.open(mount);
 var detachTextInput = bindTerminalTextInput(terminal);
 fit.fit();
-focusTerminal();
+if (!window.webkit?.messageHandlers?.terminalState) focusTerminal();
 function focusTerminal(showKeyboard = false) {
   const input = terminal.textarea;
   if (input) {
@@ -9909,6 +9924,11 @@ var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
   (message, state, readOnly = false, canTakeControl = false) => {
+    if (state === "running" && !readOnly && terminal.modes.sendFocusMode)
+      terminal.input(
+        document.hasFocus() && document.activeElement === terminal.textarea ? "\x1B[I" : "\x1B[O",
+        false
+      );
     overlay.hidden = state === "running";
     messageLabel.textContent = message;
     guidance.hidden = state !== "disconnected";
@@ -9967,6 +9987,7 @@ window.addEventListener("pageshow", (event) => {
   if (event.persisted) location.reload();
 });
 window.slzFocusTerminal = focusTerminal;
+window.slzBlurTerminal = () => terminal.blur();
 window.slzInterruptTerminal = () => {
   log2.info("interrupt.requested");
   terminal.input("\x1B", true);
