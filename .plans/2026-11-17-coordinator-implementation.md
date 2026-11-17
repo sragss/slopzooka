@@ -1,6 +1,6 @@
 # Ephemeral coordinator: first implementation and device gate
 
-Status: implementation and isolated Mac qualification; headset UX gate pending.
+Status: core headset gate passed on 2026-11-17; UX follow-ups remain. See [device results](2026-11-17-coordinator-headset-results.md).
 Branch: `feat/ephemeral-coordinator`, based on main `71e7c5f` (#58).
 
 ## Narrow contract
@@ -107,10 +107,7 @@ Development qualification on 2026-11-17:
   focused coordinator suite passed after that fix. Normal live-flow behavior is
   unchanged.
 
-The initial worker-only native observation is not yet proof of the full headset
-interaction. Real-device acknowledgement, visible Codex terminal, prompt entry,
-preview placement/readability, and follow-up feedback remain the device gate.
-Streaming/transport discovery already completed earlier is not repeated here.
+The initial worker-only observation was followed by the [physical device gate](2026-11-17-coordinator-headset-results.md): terminal and preview were visible, the same worker executed the follow-up, and Stop interrupted its active turn while keeping resources. The natural-language presentation-intent and stale-feedback gaps are recorded there. Streaming/transport discovery already completed earlier was not repeated.
 
 ## Reproducible preparation
 
