@@ -144,8 +144,8 @@ production sessions untouched. Expected user time: roughly 3–5 minutes.
 
 The [reliability review](2026-11-17-coordinator-review.md) records fixes for
 accepted-request retry, worker recovery/status, and redundant UI publications,
-plus the newly reported launcher pointer lag. Its latest signed **Slz Ask Check** rig
-(port 55435, revision `9984b26`) is prepared without launching or replacing the
+plus the newly reported launcher pointer lag. Its latest signed **Slz Ask Final** rig
+(port 55436, Mac revision `b4b6e71`) is prepared without launching or replacing the
 existing rig above. Use that document's pre-slot steps for the latest build.
 Pointer latency remains an unverified physical symptom; retain the previous rig
 for comparison if profiling is needed.

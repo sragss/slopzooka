@@ -1,7 +1,7 @@
 # Coordinator reliability review and launcher lag investigation
 
-Latest signed staging: **Slz Ask Check**, revision `9984b26`, port **55435**;
-see the second-pass artifact note at the end. Earlier rig entries are retained
+Latest signed staging: **Slz Ask Final**, Mac revision `b4b6e71`, port **55436**;
+see the third-pass artifact note at the end. Earlier rig entries are retained
 as evidence, not the current slot target.
 
 Follow-up to the voice headset slot and the user's request for a maintainability
@@ -186,3 +186,18 @@ This pass changes no Swift, browser, shared wire schema or UI behavior. The seco
 pass's native state, keyboard/WebKit, simulator and signed visionOS checks remain
 applicable to those unchanged sources. The third pass reruns companion tests,
 lint, typecheck and formatting; packaging validation uses its new Mac binary.
+
+Third-pass verification: **87/87** companion tests, lint, typecheck, formatting,
+signed Mac build and packaged Mac regressions pass. Logs use
+`/tmp/slz-coordinator-review3-*.log`. Native state/keyboard, harness parity and
+visionOS simulator/device builds passed in the immediately preceding pass and
+their sources have not changed since.
+
+Third-pass artifact note: **Slz Ask Final**, port **55436**, lives at
+`~/.slopzooka/test-rigs/coordinator-review3-2026-11-17-ready`. Its Mac binary is
+revision **b4b6e71**; its signed headset binary is the unchanged **9984b26** build
+with request-scoped Stop. Signature verification passed for both. Fixture:
+**Slz Ask Final Fixture**. Nothing was installed or launched from this rig, and
+no earlier rig or production session was modified. Follow the same pre-slot
+preparation in this latest directory. The physical gate remains conversation,
+count/naming, foreground unread acknowledgement and the short pointer-lag check.
