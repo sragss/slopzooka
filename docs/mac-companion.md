@@ -269,3 +269,12 @@ Local Network and Direct use the same saved layout and native streaming path.
 The headset's active terminal or preview scene can handle these commands with the
 launcher closed. Simultaneous edits re-read the layout and reapply only their own
 intent after a revision conflict.
+
+The current MCP does not report whether the headset is online. `preview_list.state`
+is **Mac capture readiness**, and its `previews` list describes desired layout.
+With the Mac reachable and capture available, an offline headset does not make
+`preview_open` fail: the request is saved for reconciliation when it reconnects,
+provided that source is still available. Agents should say “Preview requested;
+visibility not confirmed,” rather than claiming it is on screen. An unreachable
+Mac produces a tool error. Automatic terminal provisioning and explicit headset
+connection feedback are not part of this development version.

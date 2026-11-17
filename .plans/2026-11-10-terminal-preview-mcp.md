@@ -163,3 +163,11 @@ Staged artifacts: `/tmp/slz-preview-validation/mac/SlopZooka.app` and
 The headset is paired/available, but the test app has not been reinstalled or launched.
 No live SlopZooka application, terminal service or simulator was restarted for prep.
 Pairing, Mac capture availability and wearer-visible results remain live gates.
+
+### Physical gate completed, November 16
+
+The [device results](2026-11-16-preview-mcp-device-results.md) pass the named preview
+open/rename/close/reopen gate on Local Network and Direct with the launcher shut.
+The test app was removed afterward. This establishes the SDK-driven tool/window
+path; automatic live-agent provisioning and explicit headset connection feedback
+remain separate rollout work. Current offline behavior is documented in that report.
