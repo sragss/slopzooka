@@ -1,6 +1,6 @@
 # Next coordinator UX: compact independent voice window
 
-Status: implemented in this branch after the [headset gate](2026-11-17-coordinator-headset-results.md); local verification is recorded below; an isolated signed rig is being staged for the physical voice gate. The installed headset test app still has the earlier typed surface until the next authorized device slot.
+Status: implemented in this branch after the [headset gate](2026-11-17-coordinator-headset-results.md); local verification is recorded below; an isolated signed rig is staged for the physical voice gate. The installed headset test app still has the earlier typed surface until the next authorized device slot.
 
 ## Confirmed product requirements
 
@@ -172,7 +172,7 @@ is already implemented.
 
 Passed: TypeScript typecheck, both linters, formatting, native state checks,
 terminal keyboard/WebKit regression checks, regenerated harness asset parity,
-and visionOS simulator and signed device builds. The full companion suite includes
+and visionOS simulator and signed device builds. All 83 companion tests pass, including
 regressions for uncertain Stop and preventing a new request from replacing ownership
 while cancellation is awaiting confirmation. Native checks exercise final speech,
 countdown cancellation, fixed context, same-ID retry after a lost reply, current
@@ -187,3 +187,11 @@ production install. The next rig uses port 55432 and a uniquely identified
 The four-step physical script above remains the acceptance gate. Microphone
 permissions, real recognition timing, native singleton reveal, compact readability
 and placement have not been claimed from compilation or substituted speech tests.
+
+Signed-bundle regressions also pass: PTY survival across app replacement and
+UI/HTTP restarts, private IPC sign-in, HTTPS preview and stalled-startup escalation.
+The staged rig is `~/.slopzooka/test-rigs/coordinator-voice-2026-11-17-ready`,
+code revision `2b7e74e`, with signed companion, headset and fixture bundles. It has
+not been launched or installed. The earlier rig and production sessions remain
+untouched. Start this rig only in the next device slot; read its current pairing
+code at that time. Build/test logs remain local and contain no committed secrets.
