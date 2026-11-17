@@ -7,6 +7,7 @@ included:
   - apps/shared
   - apps/mac-menu/Sources
   - apps/vision-client/SlopZooka/SlopZooka
+  - apps/voice-ux-demo/VoicePlayground
 
 # Correctness checks only; formatting and size limits are intentionally omitted.
 only_rules:

@@ -251,6 +251,14 @@ struct HostSessionsResponse: Decodable {
     var companionInstanceId: String? = nil
 }
 struct CreatedSessionResponse: Decodable { let session: HostSession }
+struct CodexThreadsResponse: Decodable { let threads: [CodexThreadSummary] }
+struct CodexThreadSummary: Decodable, Identifiable {
+    let id: String
+    let title: String
+    let cwd: String
+    let updatedAt: Double
+    let available: Bool
+}
 struct APIAcknowledgement: Decodable { let ok: Bool }
 
 /// Public issue projection only; diagnostic events never enter this model.

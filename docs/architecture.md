@@ -40,6 +40,7 @@ Paths below are relative to `apps/mac-companion/src`.
 | `project-frontends.ts`                   | Workspace frontend configuration and ownership matching                                                                           |
 | `harness.ts`                             | Browser dashboard                                                                                                                 |
 | `terminal.ts` / `terminal-connection.ts` | Browser terminal renderer, reconnect, and ordered rendering                                                                       |
+| `terminal-performance.ts` | Payload-free input receipts and browser queue/parser/render timing summaries through the existing scoped logger |
 
 [`scripts/build-mac-app.mjs`](../scripts/build-mac-app.mjs) packages the signed Mac app. [`build-session-runtime.mjs`](../apps/mac-companion/scripts/build-session-runtime.mjs) builds the retained terminal runtime using existing dependencies.
 
@@ -51,7 +52,21 @@ Workspace display names and stable default window labels live in the Mac workspa
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
 
-The session service detects BEL, OSC 9, and OSC 777 notifications through the same headless parser. Optional `notificationSequence` counters accompany output frames and attachment checkpoints so alert state survives replay eviction. `TerminalConnection` forwards advancing counters through the WebView bridge; `WindowGateway` owns per-window unread acknowledgements. Native selection clears the indicator, and each terminal controller anchors its chime to its native scene using the player’s [scene-anchored spatial experience](https://developer.apple.com/documentation/audiotoolbox/spatializing-sound-from-a-uiscene). Reattachment restores unread state silently.
+Replay and outstanding output are bounded by both bytes and frame count. Pumping
+starts at the next unsent cursor, independently of retained history length. The
+browser combines consecutive queued output into bounded parser batches while
+preserving checkpoint/control barriers and acknowledging only parsed cursors.
+Optional `supportsInputAck` negotiation enables sampled `probeId` input receipts
+after node-pty write submission. Receipts bypass the browser output queue; they
+measure neither foreground-app consumption nor physical display. Browser timing
+summaries and both Node processes' event-loop summaries use the existing bounded
+diagnostics pipeline. See [terminal lag diagnostics](mac-companion.md#investigating-terminal-lag).
+
+The session service detects BEL, OSC 9, and OSC 777 notifications through the same headless parser. Optional `notificationSequence` counters accompany output frames and attachment checkpoints so alert state survives replay eviction. `TerminalConnection` forwards advancing counters through the WebView bridge in wire order, independently of the terminal render queue; only rendered output advances output acknowledgements. `WindowGateway` owns per-window unread acknowledgements. Native selection clears the indicator, and each terminal controller anchors its chime to its native scene using the player’s [scene-anchored spatial experience](https://developer.apple.com/documentation/audiotoolbox/spatializing-sound-from-a-uiscene). Reattachment restores unread state silently. Inactive scenes blur xterm so focus-aware programs receive DEC focus-out; attachment and write-ownership recovery resend the current focus report when the program enables DEC focus reporting.
+
+Terminal dictation uses hold-to-talk with a controller-owned two-second cancellation window after final transcription. The centered draft fades in place, × cancels, and acknowledged delivery emits a click and border pulse. Recognition pauses and task rotation preserve the draft until release; disconnect/background cancels the countdown and preserves unsent text. The standalone Voice Playground target references the same native voice sources and substitutes local delivery.
+
+`SpeechCaptureWorker` serializes audio and speech-framework startup/teardown off the main actor. Cancellation invalidates a capture attempt immediately, including while hardware startup is blocked; late stop/finalize requests cannot affect a replacement attempt. Only value snapshots cross back to `SpeechCaptureController`. Audio levels are throttled before scheduling UI work and publish through a separate meter observed only by the listening waveform, keeping terminal scenes and transcript layout out of the frame-update path. All five bars measure adjacent slices of the newest 20 ms of audio rather than retaining older callbacks; capture adds no smoothing envelope. While listening, a display-paced timeline interpolates between measurements with a 12 ms attack and 40 ms release; new samples retarget from the current height without jumps. Reduce Motion uses the measurements directly without the animation timeline. Bounded timing summaries report actual audio I/O/tap buffering and UI handoff without recording audio or energy levels. The delivery click is prepared and played on its own serial queue, keeping audio setup off the main actor; delivery and feedback timings share the command ID.
 
 Dictation carries a command ID. A retried request is deduplicated within the most recent 1,000 input commands for that session. IDs cannot be reused with different text.
 
@@ -99,6 +114,21 @@ Native byte streams expose one metadata callback, not a logging subsystem. Heads
 Manual method changes retire documents and old requests before connecting again. `WindowGateway` clears live payloads while preserving scene and desired-layout identities. `presentation.ts` supplies a per-request availability result to frontend catalogs and enforces the same result on Open. It uses the accepting ingress, not caller-supplied route claims. An old frontend's `transport: direct` means a direct URL and does not mean a peer connection. The initial peer route disables arbitrary web previews. The gateway also consults this catalog capability during restoration: known unavailable content keeps its window intent and reason without repeatedly calling Open; later availability allows resolution. Optional missing availability fields retain known legacy Local Network behavior.
 
 Direct's CA is learned only over an already authenticated Local Network route and stored against host identity. A matching discovery ID never grants credentials to an unverified peer. No silent cross-method fallback, generic arbitrary-port proxy, second terminal protocol, new window persistence owner, or media multiplexing through JSON is introduced. The [physical acceptance results](../.plans/2026-11-10-transport-device-results.md) establish AWDL admission and headset terminal use after a listener fix, and record a historical recovery-log discrepancy. The [local recovery follow-up](../.plans/2026-11-10-transport-recovery-followup.md) reproduces and fixes an EOF stall with two real WKWebViews. A [later headset rerun](../.plans/2026-11-10-native-preview-device-results.md#direct-recovery-functional-pass-bounded-idle-recovery-not-established) confirmed fresh input in both terminals after a helper restart without a method toggle; focus-related reconnect flashes leave unattended recovery timing unqualified. Travel, sleep/wake, media throughput, and bounded recovery for every window remain separate qualification.
+
+## Codex threads
+
+`codex-threads.ts` reads only metadata through a bounded local Codex app-server
+reader; Codex owns its history/index formats. The Projects catalog requests one
+page of 25 non-archived threads sorted by update time. Resume revalidates the
+thread and folder on the Mac, then asks the session service to execute
+`codex resume <thread-id>`. The service owns request deduplication and reuses a
+running terminal for that thread and Codex home/command. Resumed terminals exit
+with Codex so an idle fallback shell cannot masquerade as a running resume.
+External folders use a stable directory-derived workspace ID without creating a
+Git workspace record. Their shell requests resolve only through an existing
+service-owned session. Window registration and restoration still use
+`WindowGateway` and the existing terminal layout records. Codex activity in other
+applications is not inferred from the reader's process-local runtime status.
 
 ## Native diagnostics
 

@@ -3,6 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import http from "node:http";
 import net from "node:net";
+import { monitorEventLoopDelay } from "node:perf_hooks";
 import { randomUUID } from "node:crypto";
 import express from "express";
 import { WebSocketServer } from "ws";
@@ -17,6 +18,8 @@ import {
 } from "../../../packages/protocol/src/index.js";
 import {
   SESSION_SERVICE_VERSION,
+  CODEX_RESUME_CAPABILITY,
+  validCodexThreadId,
   type ServiceInfo,
 } from "./session-service-protocol.js";
 
@@ -67,10 +70,17 @@ async function main() {
     }
   }
   const manager = new SessionManager(diagnostics.logger("sessions"));
-  const diagnosticsTimer = setInterval(
-    () => manager.recordDiagnostics(),
-    10_000,
-  );
+  const eventLoop = monitorEventLoopDelay({ resolution: 20 });
+  eventLoop.enable();
+  const diagnosticsTimer = setInterval(() => {
+    manager.recordDiagnostics();
+    if (manager.summaries().some((session) => session.status === "running"))
+      logger.info("event-loop.summary", {
+        delayMaxMs: Math.round(eventLoop.max / 1e6),
+        delayMeanMs: Math.round(eventLoop.mean / 1e6),
+      });
+    eventLoop.reset();
+  }, 10_000);
   diagnosticsTimer.unref();
   let stopping = false;
   const app = express();
@@ -93,7 +103,11 @@ async function main() {
       runtimeId,
       pid: process.pid,
       sessions: manager.summaries(),
-      capabilities: ["rename-session", "diagnostics-v1"],
+      capabilities: [
+        "rename-session",
+        "diagnostics-v1",
+        CODEX_RESUME_CAPABILITY,
+      ],
       logFilePath: diagnostics.store.file,
     } satisfies ServiceInfo),
   );
@@ -101,7 +115,8 @@ async function main() {
     res.json({ ok: await diagnostics.store.flush() }),
   );
   app.post("/sessions", (req, res) => {
-    const { workspaceId, cwd, profile, id, environment } = req.body ?? {};
+    const { workspaceId, cwd, profile, id, environment, codexResume } =
+      req.body ?? {};
     if (
       !validId(workspaceId) ||
       !validId(id) ||
@@ -111,10 +126,19 @@ async function main() {
       !environment ||
       typeof environment !== "object" ||
       Array.isArray(environment) ||
-      Object.values(environment).some((value) => typeof value !== "string")
+      Object.values(environment).some((value) => typeof value !== "string") ||
+      (codexResume !== undefined &&
+        (profile !== "codex" ||
+          !validCodexThreadId(codexResume?.threadId) ||
+          typeof codexResume?.title !== "string" ||
+          !codexResume.title.length ||
+          codexResume.title.length > 160 ||
+          /\p{Cc}/u.test(codexResume.title)))
     )
       throw new ServiceError("Invalid session launch", 400);
-    res.json(manager.create(workspaceId, cwd, profile, id, environment));
+    res.json(
+      manager.create(workspaceId, cwd, profile, id, environment, codexResume),
+    );
   });
   app.delete("/sessions/:id", (req, res) => {
     // Repeating an end after a lost reply must not end a different session.
@@ -180,6 +204,7 @@ async function main() {
         version: SESSION_SERVICE_VERSION,
         instanceId,
         supportsTakeControl: true,
+        supportsInputAck: true,
         sessions: manager.summaries(),
       }),
     );
@@ -204,6 +229,12 @@ async function main() {
               break;
             case "input":
               manager.input(ws, message.sessionId, message.data);
+              if (message.probeId !== undefined)
+                send(ws, {
+                  type: "input-ack",
+                  sessionId: message.sessionId,
+                  probeId: message.probeId,
+                });
               break;
             case "resize":
               manager.resize(ws, message.sessionId, message.cols, message.rows);
@@ -232,6 +263,7 @@ async function main() {
     if (stopping) return;
     stopping = true;
     clearInterval(diagnosticsTimer);
+    eventLoop.disable();
     manager.recordDiagnostics();
     logger.info("service.stopping");
     const deadline = setTimeout(() => process.exit(1), 3000);

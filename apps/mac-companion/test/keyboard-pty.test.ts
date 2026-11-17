@@ -122,3 +122,92 @@ function attach(sessions: SessionManager, id: string) {
     },
   };
 }
+
+test(
+  "tiny PTY frames stay bounded per viewer while a healthy writer advances beyond replay eviction",
+  { timeout: 20000 },
+  async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-tiny-frames-"));
+    const summaries: Record<string, any>[] = [];
+    const sessions = new SessionManager({
+      info(event: string, fields: Record<string, any>) {
+        if (event === "traffic.summary") summaries.push(fields);
+      },
+    } as any);
+    await fs.writeFile(
+      path.join(home, "probe.py"),
+      `import os, tty
+tty.setraw(0)
+for i in range(5000):
+    os.write(1, b'.')
+    os.read(0, 1)
+os.write(1, b'TINY_DONE')
+`,
+    );
+    const messages: any[] = [];
+    let received = "";
+    let healthy: import("ws").WebSocket;
+    const viewer = (consume: (message: any) => void) =>
+      ({
+        OPEN: 1,
+        readyState: 1,
+        bufferedAmount: 0,
+        send(raw: string) {
+          queueMicrotask(() => consume(JSON.parse(raw)));
+        },
+      }) as unknown as import("ws").WebSocket;
+    try {
+      const session = sessions.create("tiny-frames", home, "codex", undefined, {
+        ...process.env,
+        SHELL: "/bin/sh",
+        SLOPZOOKA_CODEX_COMMAND: "/usr/bin/python3 -u ./probe.py",
+      });
+      healthy = viewer((message) => {
+        if (message.type !== "output" && message.type !== "attached") return;
+        sessions.acknowledge(healthy, session.id, message.cursor);
+        received += message.data ?? message.snapshot ?? "";
+        if (message.type === "output" && message.data.endsWith("."))
+          sessions.input(healthy, session.id, "x");
+      });
+      const slow = viewer((message) => messages.push(message));
+      sessions.attach(healthy, session.id);
+      sessions.attach(slow, session.id);
+      const deadline = Date.now() + 15000;
+      while (!received.includes("TINY_DONE")) {
+        assert.ok(
+          Date.now() < deadline,
+          "Healthy viewer must not be blocked by the slow viewer",
+        );
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      const frames = messages.filter((m) => m.type === "output");
+      assert.equal(
+        frames.length,
+        255,
+        "checkpoint plus output must stop at 256 unacknowledged frames",
+      );
+      sessions.recordDiagnostics();
+      const summary = summaries.at(-1)!;
+      assert.ok(summary.replayFrames <= 4096);
+      assert.ok(
+        summary.outputFrames >= 5000,
+        "handshake produces distinct real PTY frames",
+      );
+      sessions.acknowledge(slow, session.id, frames.at(-1).cursor);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const checkpoint = messages.filter((m) => m.type === "attached").at(-1);
+      assert.ok(
+        checkpoint.snapshot.includes("TINY_DONE"),
+        "expired tiny-frame history recovers from the current screen",
+      );
+      assert.equal(
+        sessions.summaries().length,
+        1,
+        "recovery must reuse the existing process",
+      );
+    } finally {
+      await sessions.stop();
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  },
+);

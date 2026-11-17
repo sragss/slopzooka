@@ -74,6 +74,19 @@ function mutate<T>(operation: () => Promise<T>): Promise<T> {
 export class WorkspaceService {
   constructor(private readonly logger: Logger) {}
 
+  async workspaceForDirectory(
+    cwd: string,
+  ): Promise<WorkspaceRecord | undefined> {
+    const records = await readWorkspaceIndex();
+    for (const record of records) {
+      const directory = await fs
+        .realpath(record.worktreePath)
+        .catch(() => undefined);
+      if (directory === cwd) return record;
+    }
+    return undefined;
+  }
+
   renameWorkspace(
     workspaceId: string,
     name: unknown,
@@ -97,6 +110,12 @@ export class WorkspaceService {
           (record) => record.workspaceId === session.workspaceId,
         );
         if (!record) return session;
+        if (session.codexThreadId)
+          return {
+            ...session,
+            projectName: record.repo.name,
+            workspaceName: workspaceName(record),
+          };
         const names: Record<string, string> = (record.windowNames =
           Object.assign(Object.create(null), record.windowNames));
         if (!names[session.id]) {

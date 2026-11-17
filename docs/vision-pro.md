@@ -26,6 +26,8 @@ The app uses a graphite and silver palette. Listening indicators and app icons u
 
 The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. **Start from a repository** appears first to create a new workspace; **Continue a workspace** appears below it to reopen an existing one. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and **Close Window** live under the actions menu.
 
+**Codex threads** appears last under Projects: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka workspaces. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
+
 The toolbar uses native glass controls. The larger **globe button** at the left opens workspace frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the workspace’s apps or discovery notices.
 
 Terminal rows match project rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
@@ -56,6 +58,8 @@ Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give t
 
 New alerts play a short chime anchored to the terminal window's position in the room. Bursts are limited to one chime per second per window. Reconnecting recovers missed notifications silently; replaying output or reloading content does not repeat a chime. Unread state stays with the window during the headset app's lifetime, including content reloads and reconnects.
 
+SlopZooka reports native scene deactivation to terminal programs as focus-out. Codex normally emits notifications only while its terminal is unfocused. Looking or walking away does not necessarily deactivate a visionOS window; if you also want alerts while it retains focus, optionally start Codex with `codex -c 'tui.notification_condition="always"'`. SlopZooka launches Codex normally and does not override its notification settings. See the [Codex TUI settings](https://learn.chatgpt.com/docs/config-file/config-advanced#tui-options).
+
 This handles alerts emitted by the terminal program; it does not infer completion from output text or a process exit. Enable terminal notifications in your coding agent if they are disabled. Update both apps and restart an older Mac session service after ending its sessions to enable alert detection. Test the path from a shell with `printf '\a'`.
 
 ## Dictation
@@ -66,13 +70,13 @@ The diagonal dividers also bound the full-height hover regions: workspace fills 
 
 Look at the workspace or window segment and pinch to use the existing centered voice rename overlay. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes. A workspace rename updates its sibling windows and project listings; a window rename changes only that session. The launcher, companion dashboard, and wrist menu show the same naming context. These are display labels: renaming never changes the Git branch, worktree path, window identity, or running process.
 
-Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. The rename overlay’s **×** cancels naming; failed saves keep the draft for retry. Send, save, or discard an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
+Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. The rename overlay’s **×** cancels naming; failed saves keep the draft for retry. Send, save, or cancel an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
 
-**Settings → Persistent voice input** is off by default. Turn it on, then look at the larger glass microphone button at the terminal’s bottom right and pinch to start. A glass transcript overlay centered in the terminal and a listening border mark the destination. The microphone stays at the bottom right while the overlay remains centered in dictation, conversation, and rename modes. The listening waveform follows microphone energy and settles during silence; no audio is retained for this visual feedback. Pauses and long recordings keep appending to the same draft; **Send** submits it with Return and starts listening for the next message. Select another terminal’s microphone to switch when the draft is empty, or send/discard the draft first. The transcript overlay’s **×** releases the microphone and discards the draft.
+Look at the large glass microphone at the terminal’s bottom right, then **pinch and hold** while speaking. Release to finish transcription. A silver bar fills around the centered transcript box for **two seconds**, then the message sends with Return. Tap **×** during the countdown to cancel. A short mechanical click and a soft border pulse confirm delivery; the transcript fades out in place. The status title fades gently between messages and stays quiet while transcription finishes or the microphone is paused. The microphone stays off until your next hold.
 
-The same explicit selection works in normal and immersive workspaces; there is no automatic head or eye targeting. Turning the setting off restores one-shot dictation, which sends after a short pause.
+Pauses and long recordings keep appending to the same draft while you hold. Long drafts scroll to the newest words at the bottom; older text fades at the top, and you can scroll back to review it. Recording and recognition handoffs keep the same card without a separate Send button. The waveform follows microphone energy with smooth motion between measurements; no audio is retained for this visual feedback. Reduce Motion disables that interpolation. A listening border marks the destination. The same control works in normal and immersive workspaces, with no automatic head or eye targeting. Renaming and bug reports keep their own save/review controls.
 
-Listening never restores on launch. Losing the connection or scene activity pauses capture and keeps the draft; reconnecting requires **Resume** or **Retry**. Retry preserves the command ID to avoid duplicate input after an uncertain acknowledgement.
+Listening never restores on launch. Losing the connection or scene activity cancels a pending countdown and keeps the draft. Reconnect, then hold and release the same microphone to continue and send, or use **×** to discard. **Retry** appears after a failed delivery and preserves the command ID and destination to avoid duplicate input after an uncertain acknowledgement. Reconnecting never starts the microphone or sends on its own.
 
 ## Immersive workspace
 
@@ -122,6 +126,14 @@ never switch connection methods on their own. After reproducing a disconnected
 failure, reconnect before capturing the report so the Mac can collect that
 headset's buffered evidence. Repeated byte-channel failures are sampled, so a
 quiet log is not evidence that the connection recovered.
+
+For typing lag, note the time, connection method, and whether you are using Mac
+Virtual Display keyboard sharing or a keyboard connected directly to Vision Pro.
+Terminal diagnostics summarize input delivery, the trip to the Mac's PTY service,
+and browser output queues and parsing without recording typed text. Reproduce in
+both a quiet shell and a busy terminal, then capture from that terminal's Mac.
+See [investigating terminal lag](mac-companion.md#investigating-terminal-lag) for
+the measurements and their limits.
 
 In a terminal’s **… → Report a Bug**, a native sheet starts listening with the same
 microphone orb used by terminal dictation and title renaming. Pauses keep your

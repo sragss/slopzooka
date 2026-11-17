@@ -55,15 +55,22 @@ struct LauncherStateChecks {
         speech = SpeechEndpoint()
         precondition(!speech.shouldFinish(at: 200), "A new recording must not inherit old words")
         print("PASS: dictation waits for words and a pause, extends for speech, and resets between recordings")
-        var quietMeter = SpeechLevelMeter(), loudMeter = SpeechLevelMeter()
-        precondition(quietMeter.receive(rms: 0).allSatisfy { $0 == 0 })
-        let quiet = quietMeter.receive(rms: 0.005).last!
-        let loud = loudMeter.receive(rms: 0.1).last!
-        precondition(loud > quiet && quiet > 0, "Waveform amplitude must follow microphone energy")
-        for _ in 0..<30 { _ = loudMeter.receive(rms: 0) }
-        precondition(loudMeter.levels.allSatisfy { $0 == 0 }, "Silence must settle, without a decorative animation")
-        precondition(loudMeter.receive(rms: 10).allSatisfy { $0 >= 0 && $0 <= 1 })
-        print("PASS: microphone metering responds to volume, stays bounded, and settles during silence")
+        var meter = SpeechLevelMeter()
+        func measure(_ samples: [Float]) -> [Double] {
+            samples.withUnsafeBufferPointer { meter.receive(samples: $0, sampleRate: 48_000) }
+        }
+        precondition(measure(Array(repeating: 0, count: 960)).allSatisfy { $0 == 0 })
+        let quiet = measure(Array(repeating: 0.005, count: 960))
+        let loud = measure(Array(repeating: 0.1, count: 960))
+        precondition(zip(loud, quiet).allSatisfy { $0 > $1 && $1 > 0 },
+            "Every bar must react to current microphone energy in the first callback")
+        let onset = Array(repeating: Float(0), count: 3840) + Array(repeating: Float(0.1), count: 960)
+        precondition(measure(onset) == loud, "Older silence in a large input buffer must not dilute a new onset")
+        let ended = Array(repeating: Float(0.1), count: 3840) + Array(repeating: Float(0), count: 960)
+        precondition(measure(ended).allSatisfy { $0 == 0 }, "Old speech must not linger across four later callbacks")
+        precondition(measure(Array(repeating: 10, count: 960)).allSatisfy { $0 >= 0 && $0 <= 1 })
+        precondition(measure([]).allSatisfy { $0 == 0 })
+        print("PASS: all five waveform bars use the newest 20 ms, react to onset immediately, stay bounded, and drop old speech")
         let terminal = URL(string: "http://Mac:7777/terminal?sessionId=fixture")!
         precondition(TerminalNavigation.allows(URL(string: "http://mac:7777/terminal?sessionId=fixture")!, document: terminal))
         precondition(TerminalNavigation.allows(URL(string: "http://mac/terminal")!, document: URL(string: "http://Mac:80/terminal")!))
@@ -196,8 +203,10 @@ struct LauncherStateChecks {
         try credentials.pair(second, hostID: secondID, token: "secret")
         var releaseSessions: CheckedContinuation<Void, Never>?
         var releaseWorkspaces: CheckedContinuation<Void, Never>?
+        var releaseCodex: CheckedContinuation<Void, Never>?
         var pruned = false
         var finishedOldLoad = false
+        var finishedOldCodexLoad = false
         let client = CompanionClient(defaults: CompanionTestPreferences.defaults, credentials: credentials) { request in
             let id = request.url!.host! == "first.invalid" ? "first" : "second"
             let path = request.url!.path
@@ -209,6 +218,15 @@ struct LauncherStateChecks {
                 if id == "second" { await withCheckedContinuation { releaseSessions = $0 } }
                 return try json(["sessions": []], for: request)
             case "/api/frontends": return try json(["frontends": []], for: request)
+            case "/api/codex/threads":
+                if id == "second" {
+                    await withCheckedContinuation { releaseCodex = $0 }
+                    finishedOldCodexLoad = true
+                }
+                let threads = (0..<30).map { index in
+                    ["id": "\(id)-\(index)", "title": "\(id) thread \(index)", "cwd": "/\(id)/project", "updatedAt": 2000 - index, "available": true] as [String: Any]
+                }
+                return try json(["threads": threads], for: request)
             case "/api/workspaces":
                 let workspaces: [[String: Any]] = pruned ? [] : [["workspaceId": id, "repo": repo, "localCheckoutPath": "/",
                     "worktreePath": "/", "branchName": "main", "baseRef": "main", "createdAt": "2026-01-01T00:00:00Z",
@@ -231,21 +249,29 @@ struct LauncherStateChecks {
         while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
         precondition(state.recentRepos.first?.id == "test/first" && state.recentWorkspaces.first?.id == "first")
         precondition(state.availableOwners.first?.login == "first")
+        while state.filteredCodexThreads.isEmpty { await Task.yield() }
+        precondition(state.filteredCodexThreads.count == 25 && state.filteredCodexThreads.first?.id == "first-0")
+        state.searchText = "FIRST THREAD 2"
+        precondition(state.filteredCodexThreads.map(\.id) == ["first-2", "first-20", "first-21", "first-22", "first-23", "first-24"],
+            "Thread search must filter only the first 25, preserving catalog order")
+        state.searchText = ""
         let switching = Task { await client.select(second.absoluteString) }
         while releaseSessions == nil { await Task.yield() }
         precondition(client.current?.id == secondID && client.isReady)
         precondition(state.recentRepos.allSatisfy { $0.id == "test/second" }
             && state.recentWorkspaces.allSatisfy { $0.id == "second" }
+            && state.filteredCodexThreads.allSatisfy { $0.id.hasPrefix("second-") }
             && state.availableOwners.allSatisfy { $0.login == "second" },
             "Accepting another Mac must immediately clear the previous Mac's launch choices, even while refresh is stalled")
         releaseSessions!.resume()
-        while releaseWorkspaces == nil || state.availableOwners.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
+        while releaseWorkspaces == nil || releaseCodex == nil || state.availableOwners.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
         precondition(state.recentWorkspaces.isEmpty && state.availableOwners.first?.login == "second" && state.recentRepos.first?.id == "test/second",
             "A stalled workspace request must not block repositories or repository owners")
         if mutateDuringLoad {
             await state.pruneMissingWorkspaces()
             precondition(state.recentWorkspaces.isEmpty)
             releaseWorkspaces!.resume()
+            releaseCodex!.resume()
             while !finishedOldLoad { await Task.yield() }
             precondition(state.recentWorkspaces.isEmpty,
                 "An old initial catalog cannot resurrect workspaces hidden by a later mutation")
@@ -254,10 +280,13 @@ struct LauncherStateChecks {
             return
         }
         await client.select(first.absoluteString)
-        while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
+        while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty || state.filteredCodexThreads.isEmpty { await Task.yield() }
         releaseWorkspaces!.resume()
+        releaseCodex!.resume()
         await switching.value
+        while !finishedOldCodexLoad { await Task.yield() }
         precondition(state.recentWorkspaces.first?.id == "first" && state.availableOwners.first?.login == "first")
+        precondition(state.filteredCodexThreads.first?.id == "first-0", "A late Codex catalog cannot replace the selected Mac's threads")
         guard case .loaded = state.workspaceState else { preconditionFailure("A superseded route cannot replace the loaded workspace state with an error") }
         print("PASS: connection changes clear launch choices, catalogs load independently, and superseded results cannot replace the new state")
     }

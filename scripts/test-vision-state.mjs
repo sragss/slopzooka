@@ -34,6 +34,7 @@ const suites = {
   ],
   ImmersiveWorkspaceChecks: ["ImmersiveWorkspaceState"],
   TerminalVoiceChecks: ["TerminalVoiceController", "SpeechRecognitionSegment"],
+  SpeechCaptureWorkerChecks: ["SpeechCaptureWorker"],
   TerminalZoomChecks: ["TerminalZoom"],
   TerminalNotificationChecks: ["TerminalNotifications"],
 };

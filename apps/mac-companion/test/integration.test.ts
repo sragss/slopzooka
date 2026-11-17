@@ -49,6 +49,15 @@ test("protocol rejects malformed dimensions, identifiers, payloads and versions"
     {},
     { type: "hello", version: 2 },
     { type: "input", sessionId: "x", data: 1 },
+    { type: "input", sessionId: "x", data: "x", probeId: -1 },
+    { type: "input", sessionId: "x", data: "x", probeId: "1" },
+    { type: "input", sessionId: "x", data: "x", probeId: 0.5 },
+    {
+      type: "input",
+      sessionId: "x",
+      data: "x",
+      probeId: Number.MAX_SAFE_INTEGER + 1,
+    },
     { type: "take-control", sessionId: "../x" },
     { type: "resize", sessionId: "x", cols: Infinity, rows: 40 },
     { type: "resize", sessionId: "x", cols: 999999, rows: 40 },
@@ -56,6 +65,15 @@ test("protocol rejects malformed dimensions, identifiers, payloads and versions"
     { type: "input", sessionId: "x", data: "x".repeat(65537) },
   ])
     assert.equal(isClientMessage(value), false);
+  assert.equal(
+    isClientMessage({
+      type: "input",
+      sessionId: "session-1",
+      data: "x",
+      probeId: 0,
+    }),
+    true,
+  );
   assert.equal(
     isClientMessage({
       type: "resize",
@@ -77,6 +95,8 @@ test(
     await new Promise<void>((r) => placeholder.close(() => r()));
     const worktree = path.join(home, "project");
     await fs.mkdir(worktree);
+    const codexHome = path.join(home, "codex");
+    await fs.mkdir(path.join(codexHome, "project"), { recursive: true });
     await fs.mkdir(path.join(home, "workspaces"));
     const record = {
       clusterId: "workspace-1",
@@ -109,6 +129,8 @@ test(
           SLOPZOOKA_PORT: String(port),
           PORTLESS_STATE_DIR: path.join(home, "portless"),
           SHELL: "/bin/sh",
+          CODEX_HOME: codexHome,
+          SLOPZOOKA_CODEX_COMMAND: `"${process.execPath}" "${path.resolve(import.meta.dirname, "fixtures/codex.mjs")}"`,
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
@@ -162,6 +184,7 @@ test(
         }
       });
       assert.equal((await api("/api/sessions")).status, 401);
+      assert.equal((await api("/api/codex/threads")).status, 401);
       assert.equal(
         (
           await api(
@@ -207,6 +230,48 @@ test(
       assert.equal(badOrigin.status, 403);
       token = (await api("/api/pair", { code })).body.token;
       assert.ok(token);
+      const codexCatalog = await api("/api/codex/threads");
+      assert.equal(codexCatalog.status, 200);
+      assert.equal(codexCatalog.body.threads.length, 25);
+      const codexThread = codexCatalog.body.threads[1];
+      const resumedThread = await api(
+        `/api/codex/threads/${codexThread.id}/resume`,
+        {
+          sessionId: "resumed-thread",
+        },
+      );
+      assert.equal(resumedThread.status, 201);
+      const externalWorkspace = resumedThread.body.session.workspaceId;
+      assert.match(externalWorkspace, /^codex-/);
+      const shell = await api(`/api/workspaces/${externalWorkspace}/sessions`, {
+        sessionId: "thread-shell",
+        profile: null,
+      });
+      assert.equal(shell.status, 201);
+      assert.equal(
+        shell.body.session.cwd,
+        await fs.realpath(path.join(codexHome, "project")),
+      );
+      assert.equal(
+        (
+          await api("/api/workspaces/codex-unowned/sessions", {
+            sessionId: "unowned",
+            profile: null,
+          })
+        ).status,
+        404,
+        "An arbitrary folder identifier cannot authorize a shell",
+      );
+      for (const id of ["resumed-thread", "thread-shell"]) {
+        await api(`/api/sessions/${id}`, undefined, "DELETE");
+        await until(
+          async () =>
+            (await api("/api/sessions")).body.sessions.find(
+              (session: any) => session.id === id,
+            )?.status === "exited",
+        );
+        await api(`/api/sessions/${id}`, undefined, "DELETE");
+      }
       assert.equal(
         (await api("/api/frontends", { url: "file:///etc/passwd" })).status,
         400,

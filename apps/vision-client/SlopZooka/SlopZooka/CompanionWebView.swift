@@ -111,7 +111,10 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         isActive = active
         focusGeneration += 1
         if active { requestFocus(in: webView) }
-        else { pendingFocus = nil }
+        else {
+            pendingFocus = nil
+            webView.evaluateJavaScript("window.slzBlurTerminal?.()")
+        }
     }
     func requestFocus(in webView: WKWebView, showKeyboard: Bool = false) {
         guard isActive else { return }
@@ -190,6 +193,9 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         documentReady = true
         applyZoom(in: webView)
+        // Older companion pages focus their textarea on load. Keep inactive
+        // scenes unfocused when recovering those document revisions too.
+        if !isActive { webView.evaluateJavaScript("window.slzBlurTerminal?.()") }
     }
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         log.error("navigation.failed", error: error)

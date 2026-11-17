@@ -14,6 +14,7 @@ final class LauncherState: ObservableObject {
             self.availableOwners = []
             self.repoState = .idle
             self.workspaceState = .idle
+            self.codexState = .idle
             self.feedback = nil
             guard !self.client.needsPairing else { return }
             self.catalogTask = Task { [weak self] in
@@ -21,7 +22,8 @@ final class LauncherState: ObservableObject {
                 async let workspaces: Void = self.loadWorkspaces(hostID: target.id)
                 async let repositories: Void = self.loadRepositories(hostID: target.id)
                 async let owners: Void = self.loadOwners(hostID: target.id)
-                _ = await (workspaces, repositories, owners)
+                async let codex: Void = self.loadCodexThreads(hostID: target.id)
+                _ = await (workspaces, repositories, owners, codex)
             }
         }
     }
@@ -32,12 +34,14 @@ final class LauncherState: ObservableObject {
     @Published private(set) var availableOwners: [RepoOwnerSummary] = []
     @Published private(set) var repoState: CatalogState<RecentReposResponse> = .idle
     @Published private(set) var workspaceState: CatalogState<RecentWorkspacesResponse> = .idle
+    @Published private(set) var codexState: CatalogState<CodexThreadsResponse> = .idle
     @Published var selectedTool: LaunchTarget = .codex
     @Published var searchText = ""
     @Published var repoCreationError: String?
     private enum Operation: Equatable {
         case launchRepo(String)
         case reopenWorkspace(String)
+        case resumeThread(String)
         case createRepo(UUID)
         case archiveWorkspace
         case pruneWorkspaces
@@ -45,15 +49,41 @@ final class LauncherState: ObservableObject {
     @Published private var operation: Operation?
     var busyRepoID: String? { if case .launchRepo(let id) = operation { return id }; return nil }
     var busyWorkspaceID: String? { if case .reopenWorkspace(let id) = operation { return id }; return nil }
+    var busyThreadID: String? { if case .resumeThread(let id) = operation { return id }; return nil }
     var isCreatingRepo: Bool { if case .createRepo = operation { return true }; return false }
     var isPruningMissingWorkspaces: Bool { operation == .pruneWorkspaces }
     @Published var feedback: LaunchFeedback?
     var launchTerminal: ((String, String, String?) async throws -> Void)?
+    var resumeThread: ((String, String) async throws -> Void)?
     var isMutatingWorkspace: Bool { operation != nil }
     var filteredRepos: [RecentRepoSummary] {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return query.isEmpty
             ? recentRepos : recentRepos.filter { $0.nameWithOwner.localizedCaseInsensitiveContains(query) }
+    }
+    var filteredCodexThreads: [CodexThreadSummary] {
+        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        return Array((codexState.value?.threads ?? []).prefix(25)).filter {
+            query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.cwd.localizedCaseInsensitiveContains(query)
+        }
+    }
+
+    func loadCodexThreads(hostID: String) async {
+        await load(\.codexState, hostID: hostID, fetch: client.codexThreads)
+    }
+
+    func resume(_ thread: CodexThreadSummary) async {
+        guard operation == nil, thread.available, let target = client.current else { return }
+        let nextOperation = Operation.resumeThread(thread.id)
+        operation = nextOperation
+        defer { if operation == nextOperation { operation = nil } }
+        do {
+            guard let resumeThread else { throw CompanionError(message: "Window gateway is unavailable") }
+            try await resumeThread(thread.id, target.id)
+        } catch {
+            guard !Task.isCancelled, client.current == target else { return }
+            feedback = LaunchFeedback(message: error.localizedDescription, style: .error)
+        }
     }
 
     func persistSelectedTool() { UserDefaults.standard.set(selectedTool.rawValue, forKey: "selectedTool") }

@@ -177,6 +177,21 @@ test(
       b.messages.find((message) => message.type === "attached").writable,
       false,
     );
+    assert.equal(
+      a.messages.find((m) => m.type === "hello").supportsInputAck,
+      true,
+    );
+    a.ws.send(
+      JSON.stringify({
+        type: "input",
+        sessionId: "same-session",
+        data: "",
+        probeId: 17,
+      }),
+    );
+    await until(() =>
+      a.messages.some((m) => m.type === "input-ack" && m.probeId === 17),
+    );
     const owner = (page: typeof a) =>
       page.messages.filter((m) => m.type === "ownership").at(-1)?.writable;
     b.ws.send(
@@ -188,6 +203,7 @@ test(
         type: "input",
         sessionId: "same-session",
         data: "touch rejected-input\r",
+        probeId: 18,
       }),
     );
     a.ws.send(
@@ -206,6 +222,11 @@ test(
     await assert.rejects(
       fs.access(path.join(home, "rejected-input")),
       /ENOENT/,
+    );
+    assert.equal(
+      a.messages.some((m) => m.type === "input-ack" && m.probeId === 18),
+      false,
+      "rejected input must never receive a PTY submission receipt",
     );
     b.ws.send(
       JSON.stringify({
@@ -469,6 +490,11 @@ test("the bounded relay accepts a large screen checkpoint without introducing an
     page.messages.some((message) => message.type === "attached"),
   );
   assert.equal(page.output(), snapshot);
+  assert.equal(
+    page.messages.find((m) => m.type === "hello").supportsInputAck,
+    false,
+    "retained older services must not advertise sampled PTY receipts",
+  );
   assert.equal(
     page.messages.find((m) => m.type === "hello").supportsTakeControl,
     false,

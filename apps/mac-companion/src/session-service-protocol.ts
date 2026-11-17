@@ -21,4 +21,10 @@ export type SessionLaunch = {
   profile: TuiProfile | null;
   id: string;
   environment: Record<string, string>;
+  codexResume?: { threadId: string; title: string };
 };
+
+export const CODEX_RESUME_CAPABILITY = "codex-resume-v1";
+export const validCodexThreadId = (value: unknown): value is string =>
+  typeof value === "string" &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);

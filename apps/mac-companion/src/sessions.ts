@@ -1,4 +1,6 @@
 import crypto from "node:crypto";
+import os from "node:os";
+import path from "node:path";
 import { stopProcessTree } from "./process-tree.js";
 import pty, { type IPty } from "node-pty";
 import headless from "@xterm/headless";
@@ -13,9 +15,18 @@ import { ServiceError } from "./errors.js";
 import { normalizedName } from "./names.js";
 import type { Logger } from "./logger.js";
 import { observeTerminalNotifications } from "./terminal-notifications.js";
+import { CODEX_EXEC } from "./codex-threads.js";
+import {
+  validCodexThreadId,
+  type SessionLaunch,
+} from "./session-service-protocol.js";
 
 const REPLAY_LIMIT = 512 * 1024;
 const WINDOW = 128 * 1024;
+// Byte limits alone allow hundreds of thousands of one-byte frames. Bound
+// metadata and per-ACK work too, independently of PTY lifetime and other viewers.
+const REPLAY_FRAMES = 4096;
+const WINDOW_FRAMES = 256;
 type Frame = {
   cursor: number;
   data: string;
@@ -30,6 +41,8 @@ type Attachment = {
 };
 type Session = {
   summary: SessionSummary;
+  launchIds: Set<string>;
+  codexScope?: string;
   pty: IPty;
   screen: InstanceType<typeof headless.Terminal>;
   serialize: InstanceType<typeof serialize.SerializeAddon>;
@@ -45,6 +58,13 @@ type Session = {
   inputBytes: number;
   outputBytes: number;
   pauses: number;
+  parserMaxMs: number;
+  pendingSince?: number;
+  pauseStarted?: number;
+  pauseMaxMs: number;
+  outputFrames: number;
+  checkpointMaxMs: number;
+  checkpoints: number;
   ending: boolean;
 };
 export function send(ws: WebSocket, message: ServerMessage): void {
@@ -84,15 +104,34 @@ export class SessionManager {
     profile: TuiProfile | null,
     id: string = crypto.randomUUID(),
     environment: NodeJS.ProcessEnv = process.env,
+    codexResume?: SessionLaunch["codexResume"],
   ): SessionSummary {
     if (this.stopping)
       throw new ServiceError("Companion is shutting down", 503);
-    const existing = this.sessions.get(id);
+    if (
+      codexResume &&
+      (profile !== "codex" || !validCodexThreadId(codexResume.threadId))
+    )
+      throw new ServiceError("Invalid Codex resume launch", 400);
+    const codexScope = codexResume
+      ? JSON.stringify([
+          path.resolve(
+            environment.CODEX_HOME ??
+              path.join(environment.HOME ?? os.homedir(), ".codex"),
+          ),
+          environment.SLOPZOOKA_CODEX_COMMAND ?? "codex",
+        ])
+      : undefined;
+    const existing = [...this.sessions.values()].find((session) =>
+      session.launchIds.has(id),
+    );
     if (existing) {
       if (
         existing.summary.workspaceId !== workspaceId ||
         existing.summary.profile !== profile ||
-        existing.summary.cwd !== cwd
+        existing.summary.cwd !== cwd ||
+        existing.summary.codexThreadId !== codexResume?.threadId ||
+        existing.codexScope !== codexScope
       )
         throw new ServiceError(
           "Session ID already used for a different launch",
@@ -104,6 +143,28 @@ export class SessionManager {
       });
       return existing.summary;
     }
+    const resumed =
+      codexResume &&
+      [...this.sessions.values()].find(
+        (session) =>
+          session.summary.codexThreadId === codexResume.threadId &&
+          session.codexScope === codexScope &&
+          session.summary.status === "running" &&
+          !session.ending,
+      );
+    if (resumed) {
+      if (resumed.launchIds.size >= 1000)
+        throw new ServiceError(
+          "Too many resume requests for this terminal",
+          409,
+        );
+      resumed.launchIds.add(id);
+      this.logger?.info("session.resume.reused", {
+        sessionId: resumed.summary.id,
+        threadId: codexResume!.threadId,
+      });
+      return { ...resumed.summary };
+    }
     if (this.sessions.size >= 100)
       throw new ServiceError(
         "Session limit reached; remove ended sessions",
@@ -113,7 +174,13 @@ export class SessionManager {
       id,
       workspaceId,
       profile,
-      title: profile ?? "Terminal",
+      title: codexResume?.title ?? profile ?? "Terminal",
+      ...(codexResume
+        ? {
+            codexThreadId: codexResume.threadId,
+            projectName: path.basename(cwd),
+          }
+        : {}),
       cwd,
       cols: 120,
       rows: 36,
@@ -140,9 +207,18 @@ export class SessionManager {
     // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
     const term = pty.spawn(
       shell,
-      profile
-        ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]
-        : ["-l"],
+      codexResume
+        ? [
+            "-lic",
+            CODEX_EXEC,
+            shell,
+            commands.codex,
+            "resume",
+            codexResume.threadId,
+          ]
+        : profile
+          ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]
+          : ["-l"],
       {
         cwd,
         cols: summary.cols,
@@ -161,6 +237,8 @@ export class SessionManager {
     screen.loadAddon(serializer);
     const s: Session = {
       summary,
+      launchIds: new Set([id]),
+      codexScope,
       pty: term,
       screen,
       serialize: serializer,
@@ -175,6 +253,11 @@ export class SessionManager {
       inputBytes: 0,
       outputBytes: 0,
       pauses: 0,
+      parserMaxMs: 0,
+      pauseMaxMs: 0,
+      outputFrames: 0,
+      checkpointMaxMs: 0,
+      checkpoints: 0,
       ending: false,
     };
     observeTerminalNotifications(screen, () => {
@@ -189,11 +272,16 @@ export class SessionManager {
     });
     term.onData((data) => {
       const bytes = Buffer.byteLength(data);
+      const started = performance.now();
+      s.pendingSince ??= started;
       s.outputBytes += bytes;
+      s.outputFrames++;
       s.pendingBytes += bytes;
       this.flow(s);
       screen.write(data, () => {
         s.pendingBytes -= bytes;
+        s.parserMaxMs = Math.max(s.parserMaxMs, performance.now() - started);
+        if (!s.pendingBytes) s.pendingSince = undefined;
         const frame = {
           cursor: ++s.cursor,
           data,
@@ -202,13 +290,18 @@ export class SessionManager {
         };
         s.replay.push(frame);
         s.replayBytes += bytes;
-        while (s.replayBytes > REPLAY_LIMIT && s.replay.length > 1)
+        while (
+          (s.replayBytes > REPLAY_LIMIT || s.replay.length > REPLAY_FRAMES) &&
+          s.replay.length > 1
+        )
           s.replayBytes -= s.replay.shift()!.bytes;
         for (const ws of s.clients.keys()) this.pump(s, ws);
         this.flow(s);
       });
     });
     term.onExit(({ exitCode }) => {
+      // Retire resume ownership immediately, before the final screen flush.
+      s.ending = true;
       this.logger?.info("session.exited", { sessionId: id, exitCode });
       // Flush the emulator before announcing exit so the final output is not lost.
       screen.write("", () => {
@@ -226,7 +319,15 @@ export class SessionManager {
       cursor !== undefined && cursor >= first - 1 && cursor <= s.cursor;
     const start = resume ? cursor! : s.cursor;
     if (!s.writer || s.writer.readyState !== s.writer.OPEN) s.writer = ws;
+    const started = performance.now();
     const snapshot = resume ? undefined : s.serialize.serialize();
+    if (!resume) {
+      s.checkpoints++;
+      s.checkpointMaxMs = Math.max(
+        s.checkpointMaxMs,
+        performance.now() - started,
+      );
+    }
     this.logger?.info("session.attached", {
       sessionId: id,
       requestedCursor: cursor,
@@ -385,25 +486,59 @@ export class SessionManager {
   }
   recordDiagnostics(): void {
     for (const s of this.sessions.values()) {
-      if (!s.inputBytes && !s.outputBytes && !s.pendingBytes && !s.pauses)
+      if (
+        !s.inputBytes &&
+        !s.outputBytes &&
+        !s.pendingBytes &&
+        !s.pauses &&
+        !s.checkpoints
+      )
         continue;
       this.logger?.info("traffic.summary", {
         sessionId: s.summary.id,
         inputBytes: s.inputBytes,
         outputBytes: s.outputBytes,
         pendingBytes: s.pendingBytes,
+        outputFrames: s.outputFrames,
+        checkpoints: s.checkpoints,
+        checkpointMaxMs: Math.round(s.checkpointMaxMs),
+        cols: s.summary.cols,
+        rows: s.summary.rows,
+        parserMaxMs: Math.round(s.parserMaxMs),
+        parserPendingMs:
+          s.pendingSince === undefined
+            ? 0
+            : Math.round(performance.now() - s.pendingSince),
+        pauseMaxMs: Math.round(
+          Math.max(
+            s.pauseMaxMs,
+            s.pauseStarted === undefined
+              ? 0
+              : performance.now() - s.pauseStarted,
+          ),
+        ),
         viewers: s.clients.size,
         cursor: s.cursor,
         outstandingBytes: [...s.clients.values()].reduce(
           (sum, client) => sum + client.bytes,
           0,
         ),
+        outstandingFrames: [...s.clients.values()].reduce(
+          (sum, client) => sum + client.frames.length,
+          0,
+        ),
+        replayFrames: s.replay.length,
         pauses: s.pauses,
         paused: s.paused,
       });
       s.inputBytes = 0;
       s.outputBytes = 0;
       s.pauses = 0;
+      s.outputFrames = 0;
+      s.checkpoints = 0;
+      s.checkpointMaxMs = 0;
+      s.parserMaxMs = 0;
+      s.pauseMaxMs = 0;
     }
   }
   private require(id: string): Session {
@@ -425,25 +560,33 @@ export class SessionManager {
     if (!s.paused && s.pendingBytes > WINDOW) {
       s.pauses++;
       s.paused = true;
+      s.pauseStarted = performance.now();
       s.pty.pause();
     }
     if (s.paused && s.pendingBytes < WINDOW / 2) {
       s.paused = false;
+      s.pauseMaxMs = Math.max(
+        s.pauseMaxMs,
+        performance.now() - (s.pauseStarted ?? performance.now()),
+      );
+      s.pauseStarted = undefined;
       s.pty.resume();
     }
   }
   private pump(s: Session, ws: WebSocket): void {
     const a = s.clients.get(ws);
     if (!a || ws.readyState !== ws.OPEN) return;
-    if (a.bytes >= WINDOW) return;
+    if (a.bytes >= WINDOW || a.frames.length >= WINDOW_FRAMES) return;
     const first = s.replay[0]?.cursor ?? s.cursor + 1;
     if (a.sent < first - 1) {
       this.attach(ws, s.summary.id);
       return;
     }
-    for (const f of s.replay) {
-      if (f.cursor <= a.sent) continue;
-      if (a.bytes >= WINDOW) break;
+    // Replay cursors are contiguous; resize invalidates the whole replay. Start
+    // at the next unsent cursor rather than scanning history on every key echo/ACK.
+    for (let index = a.sent - first + 1; index < s.replay.length; index++) {
+      if (a.bytes >= WINDOW || a.frames.length >= WINDOW_FRAMES) break;
+      const f = s.replay[index]!;
       send(ws, {
         type: "output",
         sessionId: s.summary.id,

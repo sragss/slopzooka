@@ -159,17 +159,52 @@ CI opts into ad-hoc signing with `SLOPZOOKA_SIGN_IDENTITY=-`. Local builds norma
 
 ### Physical Vision Pro checks
 
+For an isolated Mac notification check, run `pnpm test:terminal-notifications`.
+This builds a small native app around the production terminal renderer, WebView
+bridge, notification state, and a real PTY. A synthetic focus-aware program emits
+BEL, OSC 9, and OSC 777; checks cover native unread state, accepted chime playback,
+selection, inactive reload, silent reconnect recovery, and retaining one process.
+It uses a temporary home and loopback server, with no agent API calls or live sessions.
+Use `pnpm test:terminal-notifications --interactive` to keep its window open and
+try **Background**, **Focus**, **Bell**, and **Reload**. Closing the window cleans
+up its companion and PTY. `--baseline <git-ref>` loads that revision's controller
+and renderer for a before/after comparison; revision `e37ad81` reproduces the missing focus-out.
+The Mac probe cannot establish visionOS audio direction or physical room behavior.
+
 Simulator compilation and macOS state tests do not establish device behavior. Before relying on a headset release, verify:
 
 - Pair; open an agent and a shell in one workspace; close/reopen windows; sleep/wake during output.
 - Type through Mac Virtual Display immediately after opening, switching, and recovering terminals. Check capitals/Caps Lock, shifted punctuation, Control-C, Shift-Tab, modified arrows, and delivered function/navigation keys. Request and dismiss the floating keyboard, then repeat.
 - With both a directly connected keyboard and Mac Virtual Display keyboard sharing, use Option+Up (Alt+Up) in Codex; check modified arrows and key repeat with the floating keyboard requested and dismissed.
 - Rebuild over the existing installation; recover without the launcher; check system close, room lock, and placement. visionOS owns placement, so reopening content does not guarantee its previous position.
-- Dictate across pauses, repeated sends, and the 50-second recognition handoff (including any clipped words); switch terminals; deny permission; interrupt the connection during send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
+- After a cold launch, hold the terminal microphone and check that the window stays responsive during startup and that the waveform follows speech smoothly. Continue across pauses and the 50-second recognition handoff (including any clipped words); no Send button should appear during recording. Dictate beyond the card's height and check that new words remain at the bottom, earlier lines fade at the top, and scrolling back still works. Release and check the two-second border fill, × cancellation, and delivery click/pulse. Try a quick tap and release during preparation or a permission prompt. Switch terminals; deny permission; interrupt the connection during countdown/send; background/sleep and resume; stop capture from Settings in normal and immersive modes.
 - Open Next.js/Vite apps with HMR, authentication, and cross-service requests. Validate LAN certificate trust and framework origin policies.
 - Put two terminals on opposite sides of the room; emit `printf '\a'` in each. Check that each chime comes from its own window, its orange border clears when selected, and reconnect/reload does not repeat the sound. Repeat while dictating.
 - In the terminal’s **…** popover, gaze at each row and zoom button, then pinch near its center and edges. Check that highlights stay on one rounded target and neighboring actions do not fire. Open **Report a Bug**, verify voice starts after the popover closes, and cancel without publishing. Repeat in immersive mode and with a disconnected terminal; a terminal on another accepted Mac must capture from its own Mac.
 - Check physical wrist tracking and comfort in immersive mode.
+
+### Voice Playground
+
+The standalone [Voice Playground](docs/voice-playground.md) exercises hold-to-talk,
+the two-second cancel countdown, and delivery feedback without pairing. Its
+Xcode target references the production voice sources directly and routes delivery
+to a local message list, so UI refinements stay identical in both apps.
+
+```sh
+pnpm test:voice-demo
+xcodebuild -project apps/voice-ux-demo/VoicePlayground.xcodeproj \
+  -scheme VoicePlayground -sdk xrsimulator -configuration Debug \
+  -destination 'generic/platform=visionOS Simulator' \
+  -derivedDataPath /tmp/slz-voice-playground CODE_SIGNING_ALLOWED=NO build
+```
+
+To install on a development headset, open the demo project in Xcode, select your
+signing team and headset, and run the VoicePlayground scheme. Its bundle ID is
+separate from SlopZooka. Grant the demo microphone and speech permissions before
+trying the first hold. `pnpm lint` includes the demo's Swift sources; the state
+checks cover final transcript corrections, empty holds, countdown cancellation,
+stale callbacks, and the full two-second delay. Sound, gesture feel, and comfort
+still need the headset pass.
 
 ### Native window preview development
 
