@@ -396,6 +396,9 @@ export class CodexWorkers {
               await w.rpc.call("thread/resume", { threadId: w.state.threadId });
               await this.reconcile(w);
             } catch {
+              // A live socket is not a usable worker until resume/reconcile
+              // succeeds. Retire it so the next status read can reconnect.
+              w.rpc?.close();
               w.state.status = "unavailable";
             }
           }

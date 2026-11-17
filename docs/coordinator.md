@@ -69,7 +69,9 @@ uncertain submission retains its ID for Retry. Already accepted work keeps runni
 Reopening refreshes its state without resubmitting. If the reply was lost after
 acceptance, **Retry** can confirm that same request while the coordinator is busy;
 it does not submit a new task. New voice requests wait for its reply. Worker
-reconnection restores turn progress/results, and a cancelled queued task is shown
+reconnection restores turn progress/results. If resuming the connection fails,
+Ask keeps it unavailable and retries on a later status refresh without resubmitting
+the task. A cancelled queued task is shown
 as interrupted instead of remaining queued. Ending the terminal explicitly
 ends its owned backend; merely closing that terminal window does not.
 

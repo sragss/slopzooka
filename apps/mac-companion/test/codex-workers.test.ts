@@ -108,10 +108,23 @@ test(
       await assert.rejects(
         workers.submit(sessionId, {
           requestId: "lost",
-          text: "lose-reply",
+          text: "lose-reply reject-next-resume",
           mode: "queue",
         }),
         /uncertain|disconnected/,
+      );
+      const failedResume = (await workers.list(client))[0]!;
+      assert.equal(
+        failedResume.status,
+        "unavailable",
+        "A rejected resume is not a usable connection",
+      );
+      assert.equal(
+        (await rows()).filter((x) => x.event === "resume-rejected").length,
+        1,
+      );
+      await until(
+        async () => (await workers.list(client))[0]?.status === "running",
       );
       const recovered = (await workers.list(client))[0]!; // reconnect, never resubmit
       assert.equal(
@@ -121,7 +134,7 @@ test(
       );
       await workers.submit(sessionId, {
         requestId: "lost",
-        text: "lose-reply",
+        text: "lose-reply reject-next-resume",
         mode: "queue",
       });
       assert.equal(

@@ -166,3 +166,23 @@ It is staged and signature-verified, not launched or installed. Apply the existi
 pre-slot start/pair/operator-config/notification preparation to this directory.
 All older rigs and running applications remain unchanged; the user checklist is
 unchanged. Build/package logs use `/tmp/slz-coordinator-review2-*.log`.
+
+## Third cleanup pass
+
+A failed reconnect handshake could permanently strand an otherwise live worker.
+`list()` retried only disconnected sockets; after `thread/resume` or reconciliation
+failed, its newly open socket stayed connected, so later polls never retried.
+The existing recovery owner now retires that failed socket. The next status read
+can reconnect to the same backend and thread. It never replays task submission.
+No new timer, reconnect loop or process owner is added.
+
+The disposable native protocol peer now rejects one resume while leaving the
+socket open. The regression timed out before the fix and passes afterward: first
+status unavailable, later status running, one queue effect for the uncertain
+submission, same terminal/backend. This extends the existing process integration
+check rather than introducing a mock of the worker state machine.
+
+This pass changes no Swift, browser, shared wire schema or UI behavior. The second
+pass's native state, keyboard/WebKit, simulator and signed visionOS checks remain
+applicable to those unchanged sources. The third pass reruns companion tests,
+lint, typecheck and formatting; packaging validation uses its new Mac binary.
