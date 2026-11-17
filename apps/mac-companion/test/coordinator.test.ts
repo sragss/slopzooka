@@ -11,6 +11,7 @@ import {
   fauxToolCall,
 } from "@earendil-works/pi-ai/providers/faux";
 import { Coordinator } from "../src/coordinator.js";
+import { normalizedName } from "../src/names.js";
 const clientId = randomUUID();
 const log = { info() {}, warn() {}, error() {} };
 const turn = (name: string, args: unknown, id = "call-1") =>
@@ -539,7 +540,7 @@ test("SlopZooka context and rename use headset identities, not Mac capture windo
       );
       app.patch("/api/sessions/session-one", (req, res) => {
         renamed.push(req.body);
-        currentName = req.body.name;
+        currentName = normalizedName(req.body.name);
         res.json({
           session: { id: "session-one", title: "Shell", name: currentName },
         });
@@ -592,7 +593,7 @@ test("SlopZooka context and rename use headset identities, not Mac capture windo
     );
     assert.equal(
       context.headsetWindows.windows[0].session.name,
-      "The nice window",
+      "The-nice-window",
     );
     assert.equal(context.headsetWindows.windows[1].name, "Login preview");
     assert.match(

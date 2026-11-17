@@ -11,6 +11,7 @@ const express = createRequire(
   new URL("../../apps/mac-companion/package.json", import.meta.url),
 )("express");
 import { Coordinator } from "../../apps/mac-companion/src/coordinator.js";
+import { normalizedName } from "../../apps/mac-companion/src/names.js";
 import {
   WindowLayoutStore,
   installWindowLayoutRoutes,
@@ -57,8 +58,8 @@ app.get("/api/sessions", (_req, res) =>
 );
 app.patch("/api/sessions/:id", (req, res) => {
   assert.equal(req.params.id, sessionId);
-  title = req.body.name;
-  res.json({ session: { id: sessionId, title } });
+  title = normalizedName(req.body.name);
+  res.json({ session: { id: sessionId, name: title } });
 });
 app.get("/api/frontends", (_req, res) =>
   res.json({
@@ -128,7 +129,7 @@ try {
     "PASS: live model counts the two SlopZooka content windows, not 59 Mac capture sources",
   );
   await ask("Name this terminal the nice window.");
-  assert.equal(title, "the nice window");
+  assert.equal(title, "the-nice-window");
   console.log(
     "PASS: captured terminal renamed through its SlopZooka session endpoint without worker dispatch",
   );
@@ -140,7 +141,7 @@ try {
     "PASS: preview renamed through the existing layout owner; all three exchanges retained",
   );
   const remembered = await ask("What did you name the terminal?");
-  assert.match(remembered.reply ?? "", /the nice window/i);
+  assert.match(remembered.reply ?? "", /the[- ]nice[- ]window/i);
   console.log(
     "PASS: follow-up retains conversation and current SlopZooka naming context",
   );

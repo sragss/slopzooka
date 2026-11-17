@@ -66,6 +66,7 @@ if (action === "prepare") {
     await request(`/api/sessions/${saved.sessionId}/input`, "POST", {
       commandId: randomUUID(),
       text: "printf '\\a'",
+      sendReturn: true,
     });
     console.log("Sent one bell to the isolated test terminal");
   }

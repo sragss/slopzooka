@@ -501,13 +501,19 @@ export class Coordinator {
               404,
             );
           if (window.kind === "terminal") {
-            const result = await this.api(
+            const result = await this.api<{
+              session: { id: string; name: string };
+            }>(
               c,
               `/api/sessions/${encodeURIComponent(window.targetID)}`,
               "PATCH",
               { name },
             );
-            return { windowId, name, result };
+            return {
+              windowId,
+              sessionId: result.session.id,
+              name: result.session.name,
+            };
           }
           return new PreviewControl(c.config).rename(window.id, name);
         },
