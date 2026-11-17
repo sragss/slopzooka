@@ -151,7 +151,36 @@ export class WindowLayoutStore {
 export function installWindowLayoutRoutes(
   app: Express,
   store: WindowLayoutStore,
+  presentationTimeoutMs = 5000,
 ): void {
+  // Ephemeral request/reply probes, not a presence cache or durable window owner.
+  // Only a fresh response from the target's window gateway establishes readiness.
+  const probes = new Map<
+    string,
+    {
+      id: string;
+      reply: (available: boolean) => void;
+      result: Promise<boolean>;
+    }
+  >();
+  function checkPresentation(id: string): Promise<boolean> {
+    const existing = probes.get(id);
+    if (existing) return existing.result;
+    if (probes.size >= 64) return Promise.resolve(false);
+    let finish!: (available: boolean) => void;
+    const result = new Promise<boolean>((resolve) => {
+      finish = resolve;
+    });
+    const timer = setTimeout(() => reply(false), presentationTimeoutMs);
+    timer.unref();
+    const reply = (available: boolean) => {
+      clearTimeout(timer);
+      probes.delete(id);
+      finish(available);
+    };
+    probes.set(id, { id: crypto.randomUUID(), reply, result });
+    return result;
+  }
   function client(req: Request): string {
     const id = req.header("X-SlopZooka-Client-ID");
     if (!validClient(id))
@@ -161,9 +190,42 @@ export function installWindowLayoutRoutes(
       );
     return id.toLowerCase();
   }
+  app.get("/api/window-layout/availability", async (req, res) => {
+    try {
+      const available = await checkPresentation(client(req));
+      res.json({ available });
+    } catch (error) {
+      res
+        .status(error instanceof ServiceError ? error.statusCode : 500)
+        .json({ error: (error as Error).message });
+    }
+  });
+  app.post("/api/window-layout/availability", (req, res) => {
+    try {
+      const probe = probes.get(client(req));
+      if (
+        typeof req.body?.available !== "boolean" ||
+        typeof req.body?.probe !== "string"
+      )
+        throw new ServiceError("Presentation probe response required", 400);
+      // Timed-out, wrong-client and superseded responses cannot satisfy a new check.
+      if (probe && probe.id === req.body.probe) probe.reply(req.body.available);
+      res.json({ ok: true });
+    } catch (error) {
+      res
+        .status(error instanceof ServiceError ? error.statusCode : 500)
+        .json({ error: (error as Error).message });
+    }
+  });
   app.get("/api/window-layout", async (req, res) => {
     try {
-      res.json(await store.get(client(req)));
+      const id = client(req);
+      const layout = await store.get(id);
+      const presentationProbe = probes.get(id)?.id;
+      res.json({
+        ...layout,
+        ...(presentationProbe ? { presentationProbe } : {}),
+      });
     } catch (error) {
       res
         .status(error instanceof ServiceError ? error.statusCode : 500)

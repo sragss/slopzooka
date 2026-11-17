@@ -46,7 +46,7 @@ Codex terminal. The MCP executable was bundled in the test Mac app and driven by
 real SDK clients. No global Codex configuration was changed; this slot did not run
 a live Codex model or CUA task. The installed real companion was not replaced.
 
-The current MCP has **no explicit headset-online signal**. Its catalog `state`
+At the time of this physical run, the MCP had **no explicit headset-online signal**. Its catalog `state`
 reports Mac capture readiness. A reachable Mac accepts desired-layout changes even
 when the headset is disconnected. Mutation results say `desired_state_acknowledged`
 and `visibility: not_observed`; the agent should report the request was saved and
@@ -60,3 +60,12 @@ SlopZooka launches a Codex terminal, and define honest target connection/present
 feedback using the existing lifecycle/transport owners. Do not infer online/offline
 from Mac capture readiness or introduce a parallel window registry. Keep broad rollout
 separate from merging this opt-in, operator-configured implementation.
+
+### Subsequent user-directed policy change
+
+After this physical pass, the user requested opt-in tool use with “not available
+right now” rather than offline queuing. The follow-up implementation adds fresh
+headset presentation probes and rejects offline writes, including conflict retries.
+Server instructions prohibit automatic invocation/retry during normal laptop coding.
+Those additions are covered by local HTTP/stdio and Swift tests; this earlier device
+pass does not claim to exercise the subsequently added availability handshake.

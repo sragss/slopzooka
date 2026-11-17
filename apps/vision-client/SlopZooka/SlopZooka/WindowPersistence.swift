@@ -33,6 +33,8 @@ struct WindowLayout: Codable {
     var version = 1
     var revision = 0
     var windows: [WindowRecord] = []
+    // Transient companion challenge; never part of a window record or local outbox.
+    var presentationProbe: String? = nil
 
     func validated() throws -> Self {
         guard version == 1, revision >= 0, Set(windows.map(\.id)).count == windows.count else {
@@ -81,9 +83,13 @@ final class WindowPersistence {
     }
 
     // Caller serializes synchronization; changes arriving during a request stay in the outbox.
-    func synchronize(hostID: String, client: CompanionClient) async throws {
+    func synchronize(hostID: String, client: CompanionClient, canPresent: () -> Bool = { false }) async throws {
         if let loadError { throw loadError }
         let snapshot = try await client.windowLayout(hostID: hostID).validated()
+        if let probe = snapshot.presentationProbe {
+            // Evaluate scene readiness after the network reply, not when the request began.
+            try? await client.answerPresentationProbe(hostID: hostID, probe: probe, available: canPresent())
+        }
         snapshots[hostID] = snapshot
         let changes = pending[hostID] ?? [:]
         guard !changes.isEmpty else { return }

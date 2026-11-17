@@ -134,8 +134,24 @@ export class PreviewControl {
   private async layout(): Promise<WindowLayout> {
     return layoutSchema.parse(await this.request("/api/window-layout"));
   }
+  private async headsetAvailable(): Promise<boolean> {
+    return z
+      .object({ available: z.boolean() })
+      .parse(await this.request("/api/window-layout/availability")).available;
+  }
   async list() {
     await this.verifyHost();
+    if (!(await this.headsetAvailable()))
+      return {
+        host_id: this.config.hostId,
+        client_id: this.config.clientId,
+        headset_available: false,
+        state: "not_available",
+        message:
+          "Headset preview is not available right now. Open SlopZooka on your headset and try again when connected.",
+        sources: [],
+        previews: [],
+      };
     const [catalog, layout] = await Promise.all([
       this.catalog(),
       this.layout(),
@@ -143,6 +159,7 @@ export class PreviewControl {
     return {
       host_id: this.config.hostId,
       client_id: this.config.clientId,
+      headset_available: true,
       state: catalog?.state ?? "disabled",
       message: catalog?.message,
       sources: catalog?.sources ?? [],
@@ -219,6 +236,13 @@ export class PreviewControl {
     for (let attempt = 0; attempt < 4; attempt++) {
       const layout = await this.layout();
       const id = apply(layout);
+      // A fresh headset reply is required immediately before each write, including
+      // conflict retries. No offline intent is queued by agent tools.
+      if (!(await this.headsetAvailable()))
+        throw new ServiceError(
+          "Headset preview is not available right now. No preview change was saved. Open SlopZooka on your headset and try again when connected.",
+          503,
+        );
       try {
         const saved = layoutSchema.parse(
           await this.request("/api/window-layout", "PUT", layout),

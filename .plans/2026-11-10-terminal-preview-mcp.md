@@ -171,3 +171,33 @@ open/rename/close/reopen gate on Local Network and Direct with the launcher shut
 The test app was removed afterward. This establishes the SDK-driven tool/window
 path; automatic live-agent provisioning and explicit headset connection feedback
 remain separate rollout work. Current offline behavior is documented in that report.
+
+### Explicit-request availability gate (post-device-test policy)
+
+The user requested that the MCP remain usable during ordinary laptop coding but
+act only after an explicit request for a headset preview. Implemented server
+instructions and tool descriptions prohibit automatic preview setup/polling/retry.
+A configured MCP does not contact the Mac/headset just by initializing.
+
+A fresh per-client presentation challenge rides the existing layout synchronization
+path. WindowGateway answers using its current active presenters (a terminal or
+preview suffices without the launcher). Missing replies expire after five seconds;
+negative, stale and wrong-client replies never authorize an operation. Challenges
+are ephemeral, coalesced per client, and bounded to 64 clients. There is no durable
+presence store or historical online cache.
+
+`preview_list` returns `headset_available: false` and “not available right now”
+without enumerating Mac windows when the headset cannot present. Each mutation
+requires a fresh reply immediately before its CAS write, including conflict retries.
+Unavailable operations save no new intent; reconnecting does not replay them.
+A disconnect immediately after readiness remains possible, so accepted operations
+still do not claim physical visibility. Previously user-requested saved windows
+continue normal restoration.
+
+Merged current main cefe556 before verification. Preserved its close-generation
+protection in the shared retire path so a remote close also supersedes a delayed
+Codex resume. Local lint/types, all 76 companion tests, and Swift state/media checks
+passed. Added real HTTP/stdio cases for no-startup side effects, offline open/rename/
+close without writes, fresh checks after conflicts, stale/wrong-client replies,
+background readiness and reconnecting the same installed MCP session. The physical
+preview pass above predates this additional readiness guard.

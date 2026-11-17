@@ -520,6 +520,10 @@ final class CompanionClient: NSObject, ObservableObject {
     func windowLayout(hostID: String) async throws -> WindowLayout {
         try await request(hostID: hostID, path: "/api/window-layout")
     }
+    func answerPresentationProbe(hostID: String, probe: String, available: Bool) async throws {
+        let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/window-layout/availability", method: "POST",
+            body: Self.json(["probe": probe, "available": available]), timeout: 4)
+    }
     func saveWindowLayout(hostID: String, layout: WindowLayout) async throws -> WindowLayout {
         try await request(hostID: hostID, path: "/api/window-layout", method: "PUT", body: JSONEncoder().encode(layout))
     }

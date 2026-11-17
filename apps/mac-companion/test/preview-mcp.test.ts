@@ -36,6 +36,9 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     contentHeight: 844,
   });
   let state = "ready";
+  let headset: "active" | "background" | "offline" = "active";
+  let polling = false;
+  let poll: NodeJS.Timeout | undefined;
   let beforePut: (() => Promise<void>) | undefined;
   const requests: string[] = [];
   app.use(express.json());
@@ -56,7 +59,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     if (hook) await hook();
     next();
   });
-  installWindowLayoutRoutes(app, store);
+  installWindowLayoutRoutes(app, store, 300);
   const server = app.listen(0, "127.0.0.1");
   await once(server, "listening");
   const origin = `http://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}`;
@@ -68,6 +71,35 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       body: JSON.stringify({ code: pairing.code }),
     }).then((r) => r.json())) as { token: string };
     const config = { origin, hostId: pairing.hostId, clientId, token };
+    // Emulate only the headset's existing layout polling and readiness reply;
+    // all companion auth, probe matching and persistence are real.
+    poll = setInterval(() => {
+      if (polling || headset === "offline") return;
+      polling = true;
+      const headers = {
+        Authorization: `Bearer ${token}`,
+        "X-SlopZooka-Client-ID": clientId,
+        "Content-Type": "application/json",
+      };
+      void (async () => {
+        const layout = (await fetch(origin + "/api/window-layout", {
+          headers,
+        }).then((r) => r.json())) as { presentationProbe?: string };
+        if (layout.presentationProbe && headset !== "offline")
+          await fetch(origin + "/api/window-layout/availability", {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              probe: layout.presentationProbe,
+              available: headset === "active",
+            }),
+          });
+      })()
+        .catch(() => {})
+        .finally(() => {
+          polling = false;
+        });
+    }, 15);
     const file = path.join(home, "config.json");
     await fs.writeFile(file, JSON.stringify(config), { mode: 0o600 });
     const start = async () => {
@@ -105,6 +137,19 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     };
     const first = await start();
     const second = await start();
+    assert.match(
+      first.getInstructions() ?? "",
+      /unless the user explicitly requests/,
+    );
+    assert.match(
+      first.getInstructions() ?? "",
+      /do not automatically poll, retry, or queue/,
+    );
+    assert.ok(
+      !requests.includes("GET /health") &&
+        !requests.includes("GET /api/frontends"),
+      "Installing/initializing MCP must not check the headset or enumerate windows automatically",
+    );
     assert.deepEqual(
       (await first.listTools()).tools.map((t) => t.name).sort(),
       ["preview_close", "preview_list", "preview_open", "preview_rename"],
@@ -122,6 +167,25 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     };
     await store.put(clientId, 0, [terminal]);
     await store.put(otherClient, 0, [terminal]);
+    // Installed MCP remains usable while the headset comes and goes; no restart.
+    headset = "offline";
+    const beforeOffline = await store.get(clientId);
+    const offline = await call(first, "preview_list");
+    assert.equal(offline.headset_available, false);
+    assert.match(offline.message, /not available right now/);
+    const unavailableOpen = await first.callTool({
+      name: "preview_open",
+      arguments: { source_id: "window:a" },
+    });
+    assert.equal(unavailableOpen.isError, true);
+    assert.match(
+      JSON.stringify(unavailableOpen),
+      /No preview change was saved/,
+    );
+    assert.deepEqual(await store.get(clientId), beforeOffline);
+    headset = "background";
+    assert.equal((await call(first, "preview_list")).headset_available, false);
+    headset = "active";
     const catalog = await call(first, "preview_list");
     assert.equal(catalog.sources.length, 2);
     // An intervening user close and another agent open must survive the retry.
@@ -170,6 +234,25 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       /not open/,
     );
     assert.equal((await store.get(clientId)).windows[0].name, "Admin login");
+    headset = "offline";
+    const connectedLayout = await store.get(clientId);
+    for (const [name, args] of [
+      [
+        "preview_rename",
+        { preview_id: opened.preview_id, name: "Do not queue" },
+      ],
+      ["preview_close", { preview_id: opened.preview_id }],
+    ] as const)
+      assert.equal(
+        (await first.callTool({ name, arguments: args })).isError,
+        true,
+      );
+    assert.deepEqual(
+      await store.get(clientId),
+      connectedLayout,
+      "Offline operations cannot queue mutations",
+    );
+    headset = "active";
     const restarted = await start();
     assert.equal(
       (await call(restarted, "preview_list")).previews[0].name,
@@ -224,6 +307,36 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       ),
       /only closes native/,
     );
+    const retryPreview = await call(first, "preview_open", {
+      source_id: "window:a",
+      name: "Keep original",
+    });
+    beforePut = async () => {
+      const current = await store.get(clientId);
+      await store.put(clientId, current.revision, [
+        ...current.windows,
+        terminal,
+      ]);
+      headset = "offline";
+    };
+    const lostReadiness = await first.callTool({
+      name: "preview_rename",
+      arguments: {
+        preview_id: retryPreview.preview_id,
+        name: "Do not save on retry",
+      },
+    });
+    assert.equal(lostReadiness.isError, true);
+    const afterConflict = await store.get(clientId);
+    assert.equal(
+      afterConflict.windows.find((w) => w.id === retryPreview.preview_id)?.name,
+      "Keep original",
+    );
+    assert.ok(
+      afterConflict.windows.some((w) => w.id === terminal.id),
+      "Offline conflict retry preserves intervening user intent",
+    );
+    headset = "active";
     await fs.chmod(file, 0o644);
     await assert.rejects(readPreviewConfig(file), /owner-only/);
     assert.ok(
@@ -236,6 +349,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       "MCP never launches processes or creates its own capture viewer",
     );
   } finally {
+    clearInterval(poll);
     await Promise.all(clients.map((client) => client.close()));
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

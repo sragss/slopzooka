@@ -5,6 +5,8 @@ import Foundation
 @MainActor
 enum Fixture {
     static var layouts: [String: WindowLayout] = [:]
+    static var presentationProbe: String?
+    static var presentationReplies: [Bool] = []
     static var beforeLayout: (() async throws -> Void)?
     static var beforePut: (() async -> Void)?
     static var beforePreview: (() async -> Void)?
@@ -90,6 +92,12 @@ enum Fixture {
             if loseInputReply { loseInputReply = false; throw URLError(.networkConnectionLost) }
             return try json(["ok": true], for: request)
         }
+        if path == "/api/window-layout/availability", method == "POST" {
+            let answer = try JSONSerialization.jsonObject(with: body!) as! [String: Any]
+            precondition(answer["probe"] as? String == presentationProbe)
+            presentationReplies.append(answer["available"] as! Bool)
+            return try json(["ok": true], for: request)
+        }
         if path == "/api/window-layout" {
             if method == "GET", let callback = beforeLayout { beforeLayout = nil; try await callback() }
             let key = base.host!
@@ -105,6 +113,7 @@ enum Fixture {
             }
             var reply = layouts[key, default: WindowLayout()]
             reply.version = method == "PUT" ? putReplyVersion : replyVersion
+            if method == "GET" { reply.presentationProbe = presentationProbe }
             return response(try JSONEncoder().encode(reply), for: request)
         }
         if path == "/api/sessions" {
@@ -755,6 +764,8 @@ struct WindowGatewayChecks {
             "A restored scene must not claim to reconnect to an unsupported preview route")
         precondition(Fixture.layouts[base.host!]!.windows.isEmpty, "Availability repair must not create desired-open intent")
         print("PASS: remote reopen survives late observations, unpaired Macs cannot poison recovery, and restored previews show route availability")
+        try await checkPresentationReadiness()
+
         try await checkCodexResume()
     }
 
@@ -817,6 +828,33 @@ struct WindowGatewayChecks {
         await late.value
         precondition(opened == [id, id], "A late resume cannot open a window after switching Macs")
         print("PASS: Codex resumes preserve retry identity, reopen through the gateway, recover without launching, and reject late host replies")
+    }
+
+    @MainActor
+    static func checkPresentationReadiness() async throws {
+        let suite = "PresentationReadiness.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite); Fixture.presentationProbe = nil }
+        let client = Fixture.api
+        let gateway = WindowGateway(persistence: WindowPersistence(defaults: defaults), client: client)
+        Fixture.layouts["fixture.invalid"] = WindowLayout()
+        Fixture.presentationProbe = UUID().uuidString
+        Fixture.presentationReplies = []
+        let snapshot = HostSessionsResponse(sessions: [])
+        await client.onSessionSnapshot?(snapshot, client.current!)
+        precondition(Fixture.presentationReplies.last == false, "Background or absent scenes cannot claim availability")
+        let launcher = UUID(), terminal = UUID()
+        gateway.attachPresenter(launcher) { _ in }
+        gateway.attachPresenter(terminal) { _ in }
+        gateway.detachPresenter(launcher)
+        await client.onSessionSnapshot?(snapshot, client.current!)
+        precondition(Fixture.presentationReplies.last == true, "A terminal presenter can respond with the launcher closed")
+        Fixture.beforeLayout = { gateway.detachPresenter(terminal) }
+        await client.onSessionSnapshot?(snapshot, client.current!)
+        precondition(Fixture.presentationReplies.last == false, "Evaluate readiness after the reply; a delayed read cannot reuse foreground state")
+        precondition(Fixture.layouts["fixture.invalid"]!.windows.isEmpty && Fixture.layouts["fixture.invalid"]!.presentationProbe == nil,
+            "Availability creates no desired windows or persisted challenges")
+        print("PASS: fresh presentation probes follow active scene adapters, survive launcher closure, and reject background/late readiness")
     }
 
     @MainActor

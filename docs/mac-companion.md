@@ -323,18 +323,33 @@ the agent does not choose them. Names are presentation metadata and do not resta
 capture. Locked, permission-required, disabled and stale-source cases are explicit
 errors; resolve them through the normal companion UI or use an alternative surface.
 
-Mutation success means the desired layout was acknowledged, not that the user
-has seen it. An offline headset applies that intent after reconnection. Both
+Mutation success means the desired layout was acknowledged after a fresh headset
+readiness check, not that the user has seen it. Both
 Local Network and Direct use the same saved layout and native streaming path.
 The headset's active terminal or preview scene can handle these commands with the
 launcher closed. Simultaneous edits re-read the layout and reapply only their own
 intent after a revision conflict.
 
-The current MCP does not report whether the headset is online. `preview_list.state`
-is **Mac capture readiness**, and its `previews` list describes desired layout.
-With the Mac reachable and capture available, an offline headset does not make
-`preview_open` fail: the request is saved for reconciliation when it reconnects,
-provided that source is still available. Agents should say “Preview requested;
-visibility not confirmed,” rather than claiming it is on screen. An unreachable
-Mac produces a tool error. Automatic terminal provisioning and explicit headset
-connection feedback are not part of this development version.
+The MCP may remain configured during ordinary laptop coding. Its server instructions
+and tool descriptions tell agents to use it only when the user explicitly requests
+a Vision Pro/headset preview or a follow-up change to that preview. Initialization
+does not enumerate windows, check the headset, or open anything.
+
+On a request, `preview_list` checks the target headset before enumerating sources.
+`headset_available: false` means **“Headset preview is not available right now.”**
+The agent should report that once and continue ordinary work, without polling or
+queuing a retry. When true, `state` describes Mac capture readiness separately.
+Every open, rename and close requires a new readiness reply immediately before its
+layout write, including conflict retries. If the headset does not respond within
+five seconds, or has no active window presenter, the tool saves no change. Reconnect
+and explicitly ask again; keeping the MCP installed does not create deferred work.
+
+The readiness challenge travels through the existing authenticated window-layout
+sync and is answered by WindowGateway's active scene presenters. It works with the
+launcher closed when a terminal or preview can present windows. It uses no historical
+online flag and creates no durable presence state. Both companion and headset must
+be updated; older headsets that do not answer are unavailable to these tools.
+A device can disconnect just after answering, so even an accepted change remains
+“visibility not observed,” not proof that the wearer saw it. Existing user-requested
+saved windows still restore normally; a failed offline MCP call adds no new intent.
+Automatic terminal provisioning is not part of this development version.

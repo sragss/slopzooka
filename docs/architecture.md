@@ -203,3 +203,12 @@ attaches. Optional window `name` metadata participates in persistence equality, 
 `WindowReference` hashing/equality uses stable host/content identity so archived scenes
 with old labels cannot discard renamed replacements. Names render through gateway
 state without changing the video reload revision.
+
+Preview MCP is user-requested, not an automatic preview policy. Availability uses
+short-lived per-client challenges inside the existing window-layout route owner.
+The next normal layout response carries the challenge; WindowPersistence asks the
+gateway's current presenter state and replies through CompanionClient. A matching
+response completes the pending check; timeout, stale IDs, and other clients do not.
+Checks are coalesced per client and bounded to 64 outstanding clients; readiness is
+never cached or persisted. The adapter checks again immediately before each CAS
+write and does not enqueue offline intent. Readiness is not a visibility receipt.

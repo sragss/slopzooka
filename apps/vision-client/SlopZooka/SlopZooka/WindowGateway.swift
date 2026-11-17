@@ -360,7 +360,7 @@ final class WindowGateway: ObservableObject {
         var firstError: String?
         for hostID in client.pairedHostIDs {
             do {
-                try await persistence.synchronize(hostID: hostID, client: client)
+                try await persistence.synchronize(hostID: hostID, client: client, canPresent: { !self.presenters.isEmpty })
                 reconcileRemoteCloses(hostID: hostID)
             } catch {
                 log.error("recovery.failed", error: error, ["hostId": hostID])
