@@ -43,9 +43,20 @@ Existing ordinary terminals provide useful context but are not automatically
 adopted as controlled workers. A multi-workspace command still has to respect
 the native-input and worker limits below.
 
-The main panel shows a short response and current activity. **Details** shows
-full replies, worker results and required approvals. A historical acknowledgement
-is labeled as such; it is not proof of completion or physical preview visibility.
+Ask shows one scrolling conversation across voice requests and workspace changes on
+that Mac. Your complete utterances and concise coordinator replies remain visible.
+Markdown headings, lists, emphasis, code and links render natively. Completed worker
+results contribute a short excerpt; **Details** and the terminal retain fuller output.
+Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
+earlier result. Reading older messages does not force the scroll back to the bottom.
+
+“Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's
+saved terminal/preview layout, current session names, workspace associations and
+matching preview sources. This is desired layout, not proof of physical visibility
+or gaze; Ask and launcher utility panels are excluded from that content-window count.
+Unshared Mac capture sources are a separate catalog. “Name this terminal Login” uses
+the session rename API; native preview naming uses the existing layout owner. These
+actions do not require a coding worker or Mac terminal title manipulation.
 
 **Stop** stops further coordinator actions and cancels only the submissions owned
 by its latest request. It preserves workspaces, terminals, apps and unrelated
@@ -92,8 +103,9 @@ coordinate unmanaged desktop agents or human input; those remain a test constrai
 
 - Speech uses the existing terminal capture and hold-to-talk UX. GPT Realtime,
   gaze inference and a wrist entry point are not implemented. The new voice
-  window still needs its own physical-device UX pass; the earlier device gate
-  established the backend/control path through the typed test surface.
+  window passed its initial physical voice/reopen/follow-up/Stop gate. The updated
+  scrolling conversation, naming/context behavior and foreground notification
+  clearing still need their next physical-device pass.
 - Newly created coordinated workers only; existing arbitrary Codex terminals
   cannot be adopted. No Pi-owned direct computer-use loop or browser authority.
 - Native command/file approvals and empty MCP confirmation forms have explicit
@@ -101,7 +113,10 @@ coordinate unmanaged desktop agents or human input; those remain a test constrai
   large approval requests are not truncated and silently approved.
 - Pi conversation and request deduplication live only in the HTTP process.
   Worker bindings live in the retained session service. An HTTP restart loses
-  conversation history, while the worker and its terminal survive. Inspect state
+  conversation history, while the worker and its terminal survive. Within that
+  lifetime, the conversation keeps all accepted exchanges up to the existing
+  64-request limit; long model tool transcripts are compacted into earlier exchange
+  excerpts and target IDs rather than silently starting an unrelated conversation. Inspect state
   before resending an unconfirmed creation across a restart; there is no durable
   exactly-once promise.
 - Limits: eight workers, eight client conversations, 64 coordinator requests per
@@ -112,3 +127,13 @@ coordinate unmanaged desktop agents or human input; those remain a test constrai
 
 See [the voice-window plan and device gate](../.plans/2026-11-17-coordinator-voice-window.md)
 for qualification and the isolated headset test.
+
+
+## Local context probe
+
+Run `pnpm --filter @slz/mac-companion exec tsx ../../scripts/coordinator/context-smoke.mts`
+to exercise the configured live model against disposable HTTP fixtures. It checks
+SlopZooka window counts, terminal/preview naming and follow-up memory without
+controlling any actual app. It uses the development coordinator configuration (or
+`SLOPZOOKA_COORDINATOR_CONFIG`); headset availability is substituted in this probe.
+It does not establish physical presentation or native focus behavior.

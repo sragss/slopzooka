@@ -36,7 +36,7 @@ if (action === "start") {
         SLOPZOOKA_PORTLESS: "0",
         SLOPZOOKA_DIRECT: "1",
         SLOPZOOKA_WINDOW_PREVIEWS: "1",
-        SLOPZOOKA_BONJOUR_NAME: "Slz Coordinator Test",
+        SLOPZOOKA_BONJOUR_NAME: rig.name ?? "Slz Coordinator Test",
         SLOPZOOKA_COORDINATOR_CONFIG: rig.config,
       },
     },
@@ -93,7 +93,7 @@ if (action === "start") {
       hostId: health.hostId,
       port: rig.port,
       code: [...code].at(-1)?.[1],
-      companion: "Slz Coordinator Test",
+      companion: rig.name ?? "Slz Coordinator Test",
     }),
   );
 }

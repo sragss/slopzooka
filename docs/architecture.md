@@ -234,3 +234,16 @@ HTTP restarts discard Pi history but keep these workers and PTYs. Explicit
 session end closes the owned backend. The optional `installed-cua.ts` adapter
 uses the installed native runtime and its live guidance; it provides no delegated
 browser authority. See [usage and experimental limits](coordinator.md).
+
+
+Coordinator conversation history is ephemeral Mac-owned presentation data, bounded
+by the existing request limit. Each exchange retains its captured target and owned
+delivery correlations; the headset renders that history and holds only an uncertain
+pending submission locally. Model tool-history compaction carries earlier exchange
+excerpts forward. This is not a durable job scheduler or another window registry.
+Coordinator window context reads the existing client-partitioned layout and joins
+session/source metadata; it must distinguish desired content windows from Mac
+capture sources and physical scene visibility. Terminal naming uses the session
+service; native preview naming uses the existing revision-checked layout adapter.
+Foreground terminal notification acknowledgement uses the existing scene observation
+at `WindowGateway.observe`; it never writes layout or terminal process intent.

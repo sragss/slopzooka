@@ -13,6 +13,7 @@ if (!process.argv.includes('app-server')) {
   const thread={id:'11111111-1111-4111-8111-111111111111',status:{type:'idle'},turns:[]};
   let serial=0, active, pending=[], question;
   const log=x=>fs.appendFileSync('effects.jsonl',JSON.stringify(x)+'\n');
+  log({event:'environment', terminalProgram:process.env.TERM_PROGRAM, inheritedTerminalIdentity:Boolean(process.env.ITERM_SESSION_ID || process.env.TERM_SESSION_ID)});
   const broadcast=(method,params)=>{for(const ws of peers)ws.send(JSON.stringify({method,params:{threadId:thread.id,...params}}));};
   function start(text,clientId){
     const turn={id:'turn-'+(++serial),status:'inProgress',items:[{type:'userMessage',clientId}]};

@@ -170,6 +170,12 @@ export class CodexWorkers {
       `unix://${w.socket}`,
     ];
     const env = { ...launch.session.environment };
+    // The companion may have been started from iTerm. Its identity must not
+    // misdirect a worker into controlling that unrelated native terminal.
+    env.TERM_PROGRAM = "SlopZooka";
+    delete env.TERM_PROGRAM_VERSION;
+    delete env.TERM_SESSION_ID;
+    delete env.ITERM_SESSION_ID;
     // Pi's model credentials never belong in a coding worker or its children.
     delete env.SLOPZOOKA_COORDINATOR_CONFIG;
     for (const key of Object.keys(env))
@@ -214,7 +220,8 @@ export class CodexWorkers {
       cwd: launch.session.cwd,
       ...(launch.model ? { model: launch.model } : {}),
       developerInstructions:
-        "This is a SlopZooka coordinated workspace. The user's request may include preparing apps and showing previews on their headset. Use the configured slopzooka-previews MCP only for explicitly requested headset previews. Use your existing tools for setup and app interaction. Do not claim a layout acknowledgement proves the user sees the content. Report missing tools, permissions, or offline headset honestly. Do not spawn other coding agents for these coordination tasks." +
+        `SlopZooka workspace ID: ${JSON.stringify(launch.session.workspaceId)}. Terminal/session ID: ${JSON.stringify(launch.session.id)}. ` +
+        "This is a SlopZooka coordinated workspace. Your terminal is rendered inside SlopZooka on Apple Vision Pro, not iTerm or Terminal.app. SlopZooka window/workspace display names are owned by the coordinator's explicit tools. Do not try shell OSC title escapes or native Mac terminal control to rename them; report that the coordinator must perform that action. The user's request may include preparing apps and showing previews on their headset. Use the configured slopzooka-previews MCP only for explicitly requested headset previews. Use your existing tools for setup and app interaction. Do not claim a layout acknowledgement proves the user sees the content. Report missing tools, permissions, or offline headset honestly. Begin the final reply with a concise outcome paragraph including essential limitations; put supporting details after it. Do not spawn other coding agents for these coordination tasks." +
         (launch.nativeControl
           ? " Native computer control is provided by the slopzooka-native MCP. Follow its live guidance. Use native app control with an exact app path or bundle ID, not browser/tab APIs; this worker has no delegated browser-extension authority."
           : ""),
@@ -319,6 +326,7 @@ export class CodexWorkers {
       const turn = p.turn as NativeTurn;
       w.state.turnId = turn.id;
       w.state.status = "running";
+      w.state.result = undefined;
     }
     if (message.method === "item/completed") {
       const item = p.item as NativeTurn["items"][number];
@@ -498,7 +506,7 @@ export class CodexWorkers {
       .filter((item) => item.type === "agentMessage")
       .map((item) => item.text ?? "")
       .join("\n");
-    if (text) w.state.result = text.slice(-6000);
+    w.state.result = text ? text.slice(-6000) : undefined;
     for (const [id, { delivery }] of w.submissions) {
       const queued = queue.data.find((q) => q.clientUserMessageId === id);
       if (queued) {

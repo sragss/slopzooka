@@ -54,7 +54,7 @@ Zoom changes the terminal font size and explicitly refits the emulator and PTY w
 
 ## Terminal notifications
 
-Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Tap or pinch inside the window, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Automatic keyboard focus and content reloads do not mark notifications read.
+Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Bring that terminal into the foreground, tap or pinch inside it, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Repeated focus observations, automatic keyboard focus inside an already-active scene, and content reloads do not mark new notifications read. The native transition into the foreground is sufficient; no extra click inside the terminal is required.
 
 New alerts play a short chime anchored to the terminal window's position in the room. Bursts are limited to one chime per second per window. Reconnecting recovers missed notifications silently; replaying output or reloading content does not repeat a chime. Unread state stays with the window during the headset app's lifetime, including content reloads and reconnects.
 

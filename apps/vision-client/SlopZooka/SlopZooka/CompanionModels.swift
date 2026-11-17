@@ -298,6 +298,32 @@ struct CoordinatorQuestion: Decodable {
     var details: String
     var choices: [String]
 }
+struct CoordinatorTurn: Decodable, Identifiable, Equatable {
+    var requestId: String
+    var text: String
+    var workspaceId: String?
+    var sessionId: String?
+    var status: String
+    var reply: String?
+    var workStatus: String?
+    var resultExcerpt: String?
+    var id: String { requestId }
+
+    var progress: String {
+        if status == "sending" { return "Sending…" }
+        if status == "unconfirmed" { return "Delivery not confirmed — retry keeps this request" }
+        if status == "failed" { return "Needs attention" }
+        if status == "stopped" { return workStatus == "running" || workStatus == "queued" ? "Stopping…" : "Stopped" }
+        if status == "running" { return "Working…" }
+        switch workStatus {
+        case "running", "queued": return "Agent working…"
+        case "failed", "uncertain", "unavailable": return "Needs attention"
+        case "interrupted": return "Interrupted"
+        case "completed": return "Completed"
+        default: return ""
+        }
+    }
+}
 struct CoordinatorSnapshot: Decodable {
     var available: Bool
     var message: String?
@@ -307,4 +333,5 @@ struct CoordinatorSnapshot: Decodable {
     var reply: String?
     var workers: [CoordinatorWorker]
     var workerSessionIds: [String]?
+    var turns: [CoordinatorTurn]?
 }

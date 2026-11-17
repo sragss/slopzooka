@@ -342,12 +342,14 @@ final class WindowGateway: ObservableObject {
         if windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused {
             log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
         }
+        let becameFocused = isPresented && isFocused && windows[id]?.isFocused != true
         // A background OS-restored scene already exists. Late observations after
         // an explicit close must not re-arm it and swallow a future reopen.
         if windows[id]?.openRequested != false { windows[id, default: WindowState()].openRequested = true }
         windows[id]?.isPresented = isPresented
         windows[id]?.isFocused = isFocused
         if isFocused { windows[id]?.lastFocusedAt = Date() }
+        if becameFocused { readTerminalNotifications(id: id) }
     }
     func attachPresenter(_ id: UUID, action: @escaping (WindowCommand) -> Void) {
         presenters[id] = action

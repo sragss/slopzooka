@@ -103,6 +103,8 @@ struct CoordinatorChecks {
         precondition(UUID(uuidString: firstBody["requestId"] as! String) != nil)
         precondition(first.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-token")
         precondition(first.value(forHTTPHeaderField: "X-SlopZooka-Client-ID") != nil)
+        precondition(state.conversation.count == 1 && state.conversation[0].requestId == firstBody["requestId"] as? String)
+        precondition(state.conversation[0].status == "unconfirmed", "An uncertain utterance stays visible with the same identity")
         voice.closeInput(CoordinatorState.sceneID)
         precondition(voice.needsRetry && !state.select(CoordinatorContext(hostID: "replacement")), "An uncertain delivery retains its context across closing")
         try client.accept(fixtureHealth("fixture", endpoint: base), endpoint: base, authenticated: true)
@@ -142,6 +144,18 @@ struct CoordinatorChecks {
         await state.refresh(client: client, hostID: "fixture")
         precondition(state.statusText == "Needs attention" && state.responseText.contains("could not be confirmed") && state.canStop,
             "Uncertain cancellation must remain visible and retryable while the agent is active")
+        responseOverride?["turns"] = [
+            ["requestId": "earlier", "text": "Name the window", "status": "completed", "reply": "Named **Login**.", "workStatus": "completed"],
+            ["requestId": "current", "text": "Run its test", "status": "failed", "reply": "Cannot confirm Stop", "workStatus": "running"]
+        ]
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.conversation.count == 2 && state.conversation[0].reply == "Named **Login**.")
+        precondition(state.conversation[0].progress == "Completed" && state.conversation[1].progress == "Needs attention")
+        state.observeScene(presenter, active: true)
+        precondition(state.select(CoordinatorContext(hostID: "fixture")))
+        precondition(state.conversation.count == 2, "Changing workspace context keeps the same conversation")
+        precondition(state.select(CoordinatorContext(hostID: "another-host")))
+        precondition(state.conversation.isEmpty, "A different host must not inherit another Mac's conversation")
         print("PASS: shared coordinator voice keeps final words, destination and retry ID; closing cancels only unsent speech; one microphone and late-response guards preserve task ownership")
     }
 

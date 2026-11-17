@@ -16,6 +16,7 @@ final class CoordinatorState: ObservableObject {
     @Published private(set) var context: CoordinatorContext?
     @Published private(set) var snapshot: CoordinatorSnapshot?
     @Published private(set) var error: String?
+    @Published private(set) var pendingTurn: CoordinatorTurn?
     @Published private(set) var submitting = false
     @Published private(set) var sceneActive = false
     var canChangeContext: () -> Bool = { true }
@@ -30,6 +31,7 @@ final class CoordinatorState: ObservableObject {
         if self.context?.hostID != context?.hostID {
             generation = UUID()
             snapshot = nil
+            pendingTurn = nil
             error = nil
         }
         self.context = context
@@ -52,8 +54,7 @@ final class CoordinatorState: ObservableObject {
         do {
             let value = try await client.coordinatorStatus(hostID: hostID)
             guard current == generation, context?.hostID == hostID, observedRevision == revision else { return }
-            snapshot = value
-            error = nil
+            apply(value)
         } catch {
             guard current == generation, observedRevision == revision else { return }
             self.error = error.localizedDescription
@@ -68,15 +69,17 @@ final class CoordinatorState: ObservableObject {
         let current = generation
         let submittedRevision = revision
         submitting = true
+        pendingTurn = CoordinatorTurn(requestId: command.commandID, text: command.text, workspaceId: captured.workspaceID, sessionId: captured.sessionID, status: "sending")
         defer { if current == generation { submitting = false } }
         do {
             let value = try await client.coordinatorSubmit(hostID: captured.hostID, requestID: command.commandID, text: command.text,
                 workspaceID: captured.workspaceID, sessionID: captured.sessionID)
             guard current == generation, submittedRevision == revision else { return }
-            snapshot = value
-            error = nil
+            pendingTurn = nil
+            apply(value)
         } catch {
             if current == generation, submittedRevision == revision {
+                pendingTurn?.status = "unconfirmed"
                 self.error = "Could not confirm submission. Retry keeps the same request."
             }
             throw error
@@ -90,8 +93,7 @@ final class CoordinatorState: ObservableObject {
             let value = try await client.coordinatorStop(hostID: hostID)
             guard current == generation, mutation == revision else { return }
             revision += 1
-            snapshot = value
-            error = nil
+            apply(value)
         } catch { if current == generation, mutation == revision { self.error = error.localizedDescription } }
     }
     func answer(client: CompanionClient, hostID: String, worker: CoordinatorWorker, accept: Bool) async {
@@ -103,9 +105,20 @@ final class CoordinatorState: ObservableObject {
             let value = try await client.coordinatorAnswer(hostID: hostID, sessionID: worker.sessionId, questionID: question.id, accept: accept)
             guard current == generation, mutation == revision else { return }
             revision += 1
-            snapshot = value
-            error = nil
+            apply(value)
         } catch { if current == generation, mutation == revision { self.error = error.localizedDescription } }
+    }
+
+    private func apply(_ value: CoordinatorSnapshot) {
+        snapshot = value
+        if value.turns?.contains(where: { $0.id == pendingTurn?.id }) == true { pendingTurn = nil }
+        error = nil
+    }
+
+    var conversation: [CoordinatorTurn] {
+        let turns = snapshot?.turns ?? []
+        guard let pendingTurn, !turns.contains(where: { $0.id == pendingTurn.id }) else { return turns }
+        return turns + [pendingTurn]
     }
 
     var requestWorkers: [CoordinatorWorker] {

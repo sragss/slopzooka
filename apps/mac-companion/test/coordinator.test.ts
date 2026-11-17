@@ -49,6 +49,7 @@ async function fixture(
     models = createModels();
   models.setProvider(faux.provider);
   faux.setResponses(responses);
+  const modelContexts: any[] = [];
   const coordinator = new Coordinator({
     home,
     configFile,
@@ -61,7 +62,10 @@ async function fixture(
     previewArgs: [],
     inference: {
       model: faux.getModel(),
-      streamFn: models.streamSimple.bind(models),
+      streamFn: (model, context, options) => {
+        modelContexts.push(structuredClone(context));
+        return models.streamSimple(model, context, options);
+      },
     },
   });
   const config = {
@@ -72,6 +76,7 @@ async function fixture(
   };
   return {
     coordinator,
+    modelContexts,
     config,
     home,
     close: async () => {
@@ -446,6 +451,306 @@ test("new requests cannot replace ownership while Stop is awaiting confirmation"
     assert.equal((await stop).status, "stopped");
   } finally {
     release();
+    await f.close();
+  }
+});
+
+test("SlopZooka context and rename use headset identities, not Mac capture windows or worker delegation", async () => {
+  const { WindowLayoutStore, installWindowLayoutRoutes } = await import(
+    "../src/window-layout.js"
+  );
+  const home = await fs.mkdtemp("/tmp/slz-coordinator-layout-");
+  const store = new WindowLayoutStore(home);
+  const original = {
+    version: 1 as const,
+    revision: 0,
+    windows: [
+      {
+        id: "terminal-one",
+        kind: "terminal" as const,
+        targetID: "session-one",
+      },
+      {
+        id: "preview-one",
+        kind: "preview" as const,
+        targetID: "window:fixture",
+        name: "Fixture",
+      },
+    ],
+  };
+  await store.put(clientId, original.revision, original.windows);
+  const renamed: any[] = [];
+  const serviceWrites: string[] = [];
+  let currentName = "Shell";
+  const fixtureHost = randomUUID();
+  let observedClient: string | undefined;
+  const f = await fixture(
+    [
+      turn("context_get", {}),
+      turn(
+        "window_rename",
+        { windowId: "terminal-one", name: "The nice window" },
+        "rename",
+      ),
+      turn(
+        "window_rename",
+        { windowId: "preview-one", name: "Login preview" },
+        "preview",
+      ),
+      turn("context_get", {}, "verify"),
+      fauxAssistantMessage("Named **The nice window** and **Login preview**."),
+      turn(
+        "window_rename",
+        { windowId: "not-on-this-headset", name: "Wrong" },
+        "wrong",
+      ),
+    ],
+    async (route, method) => {
+      if (method) serviceWrites.push(route);
+      return { workers: [] };
+    },
+    (app) => {
+      app.get("/health", (_req, res) => res.json({ hostId: fixtureHost }));
+      app.get("/api/frontends", (_req, res) =>
+        res.json({
+          windows: {
+            sources: [
+              { id: "window:fixture", application: "Fixture", title: "Login" },
+              { id: "window:unrelated", application: "iTerm", title: "Other" },
+            ],
+          },
+        }),
+      );
+      app.get("/api/repos/recent", (_req, res) => res.json({ repos: [] }));
+      app.get("/api/workspaces", (_req, res) =>
+        res.json({ workspaces: [{ workspaceId: "one", name: "Login" }] }),
+      );
+      app.get("/api/sessions", (_req, res) =>
+        res.json({
+          sessions: [
+            {
+              id: "session-one",
+              workspaceId: "one",
+              title: "Shell",
+              name: currentName,
+            },
+          ],
+        }),
+      );
+      app.patch("/api/sessions/session-one", (req, res) => {
+        renamed.push(req.body);
+        currentName = req.body.name;
+        res.json({
+          session: { id: "session-one", title: "Shell", name: currentName },
+        });
+      });
+      app.get("/api/window-layout", (req, _res, next) => {
+        observedClient = req.header("X-SlopZooka-Client-ID");
+        next();
+      });
+      // Substitute headset presence only; the real revision-checked layout owner handles all writes.
+      app.get("/api/window-layout/availability", (_req, res) =>
+        res.json({ available: true }),
+      );
+      installWindowLayoutRoutes(app, store);
+    },
+  );
+  f.config.hostId = fixtureHost;
+  try {
+    const requestId = randomUUID();
+    await f.coordinator.submit(f.config, {
+      requestId,
+      text: "Name my windows",
+      sessionId: "session-one",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    const status = await f.coordinator.status(clientId);
+    assert.equal(status.status, "completed", JSON.stringify(status));
+    assert.equal(observedClient, clientId);
+    assert.deepEqual(renamed, [{ name: "The nice window" }]);
+    assert.equal(
+      serviceWrites.length,
+      0,
+      "No task is delegated for SlopZooka window naming",
+    );
+    assert.equal((await store.get(clientId)).windows[1].name, "Login preview");
+    const results = f.modelContexts
+      .flatMap((c) => c.messages)
+      .filter((m) => m.role === "toolResult" && m.toolName === "context_get");
+    const context = JSON.parse(results.at(-1).content[0].text);
+    assert.equal(context.surface, "SlopZooka Ask on Apple Vision Pro");
+    assert.equal(context.headsetWindows.windows.length, 2);
+    assert.equal(
+      context.headsetWindows.windows[1].source.application,
+      "Fixture",
+    );
+    assert.ok(
+      !JSON.stringify(context).includes("window:unrelated"),
+      "Unshared Mac sources are not headset window context",
+    );
+    assert.equal(
+      context.headsetWindows.windows[0].session.name,
+      "The nice window",
+    );
+    assert.equal(context.headsetWindows.windows[1].name, "Login preview");
+    assert.match(
+      context.headsetWindows.semantics,
+      /not observed physical visibility/,
+    );
+    assert.deepEqual(context.selected, { sessionId: "session-one" });
+    assert.equal(status.turns?.[0].text, "Name my windows");
+    await f.coordinator.submit(f.config, {
+      requestId,
+      text: "Name my windows",
+      sessionId: "session-one",
+    });
+    assert.equal(
+      (await f.coordinator.status(clientId)).turns?.length,
+      1,
+      "Retry does not duplicate conversation entries",
+    );
+    assert.equal(
+      (await f.coordinator.status(randomUUID())).turns?.length,
+      0,
+      "Conversation remains headset-client scoped",
+    );
+    await f.coordinator.submit(f.config, {
+      requestId: randomUUID(),
+      text: "Rename an absent window",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    const history = (await f.coordinator.status(clientId)).turns!;
+    assert.equal(history.length, 2);
+    assert.equal(history[0].status, "completed");
+    assert.match(history[0].reply!, /nice window/);
+    assert.equal(history[1].status, "failed");
+    assert.equal(
+      renamed.length,
+      1,
+      "An absent/other-client window cannot rename a session",
+    );
+  } finally {
+    await f.close();
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});
+
+test("conversation progress stays attached to each delivery when a worker is reused", async () => {
+  const deliveries: any[] = [];
+  const worker = {
+    sessionId: "ours",
+    workspaceId: "one",
+    status: "running",
+    result: undefined as string | undefined,
+    deliveries,
+  };
+  const f = await fixture(
+    [
+      turn("worker_submit", {
+        sessionId: "ours",
+        text: "first",
+        mode: "queue",
+      }),
+      fauxAssistantMessage("Started the first task."),
+      turn(
+        "worker_submit",
+        { sessionId: "ours", text: "second", mode: "queue" },
+        "second",
+      ),
+      fauxAssistantMessage("Started the second task."),
+    ],
+    async (route, _method, body) => {
+      if (route.startsWith("/workers?")) return { workers: [worker] };
+      if (route.endsWith("/submit")) {
+        worker.status = "running";
+        worker.result = undefined;
+        deliveries.push({ requestId: body.requestId, status: "running" });
+      }
+      if (route.endsWith("/stop"))
+        for (const d of deliveries)
+          if (body.requestIds.includes(d.requestId)) d.status = "interrupted";
+      return { status: "running" };
+    },
+  );
+  try {
+    await f.coordinator.submit(f.config, {
+      requestId: randomUUID(),
+      text: "First",
+      sessionId: "ours",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    deliveries[0].status = "completed";
+    worker.status = "completed";
+    worker.result =
+      "First **passed**.\n\nLong supporting details stay in the terminal.";
+    await f.coordinator.submit(f.config, {
+      requestId: randomUUID(),
+      text: "Second",
+      sessionId: "ours",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    assert.deepEqual(
+      (await f.coordinator.status(clientId)).turns?.map((t) => t.workStatus),
+      ["completed", "running"],
+    );
+    await f.coordinator.stop(clientId);
+    const turns = (await f.coordinator.status(clientId)).turns!;
+    assert.deepEqual(
+      turns.map((t) => t.workStatus),
+      ["completed", "interrupted"],
+    );
+    assert.equal(turns[0].reply, "Started the first task.");
+    assert.equal(turns[1].status, "stopped");
+    assert.equal(turns[0].resultExcerpt, "First **passed**.");
+    assert.equal(
+      turns[1].resultExcerpt,
+      undefined,
+      "An interrupted turn cannot inherit the prior task's result",
+    );
+    deliveries.shift();
+    const retained = (await f.coordinator.status(clientId)).turns![0];
+    assert.equal(
+      retained.workStatus,
+      "completed",
+      "Worker snapshot eviction cannot rewrite conversation history",
+    );
+    assert.equal(retained.resultExcerpt, "First **passed**.");
+  } finally {
+    await f.close();
+  }
+});
+
+test("bounded model tool history preserves the visible conversation and target context", async () => {
+  const f = await fixture(
+    Array.from({ length: 43 }, () => fauxAssistantMessage("Noted.")),
+    async () => ({ workers: [] }),
+  );
+  try {
+    for (let index = 0; index < 43; index++) {
+      await f.coordinator.submit(f.config, {
+        requestId: randomUUID(),
+        text: index === 0 ? "Remember the name Iris" : `Follow-up ${index}`,
+        workspaceId: "iris-workspace",
+      });
+      await until(
+        async () => (await f.coordinator.status(clientId)).status !== "running",
+      );
+    }
+    const status = await f.coordinator.status(clientId);
+    assert.equal(status.turns?.length, 43);
+    const context = JSON.stringify(f.modelContexts.at(-1).messages);
+    assert.match(context, /Earlier conversation excerpts/);
+    assert.match(context, /Remember the name Iris/);
+    assert.match(context, /iris-workspace/);
+  } finally {
     await f.close();
   }
 });

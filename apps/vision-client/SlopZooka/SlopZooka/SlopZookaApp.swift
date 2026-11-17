@@ -27,7 +27,7 @@ struct SlopZookaApp: App {
             }
             .environmentObject(appDelegate.voice)
         }
-        .defaultSize(width: 480, height: 460)
+        .defaultSize(width: 520, height: 560)
         .windowStyle(.plain)
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.suppressed)

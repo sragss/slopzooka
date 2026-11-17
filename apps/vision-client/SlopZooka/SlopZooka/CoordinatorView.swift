@@ -3,14 +3,20 @@ import SwiftUI
 struct CoordinatorView: View {
     @ObservedObject var state: CoordinatorState
     @EnvironmentObject private var client: CompanionClient
+    @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var launcher: LauncherState
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.scenePhase) private var phase
     @State private var showingDetails = false
+    @State private var followingLatest = true
     @State private var microphoneReady = SpeechCaptureController.hasPermissions
     @State private var preparingMicrophone = false
     @State private var permissionError: String?
 
+    private var contextLabel: String {
+        if let id = state.context?.sessionID, let terminal = windows.terminalPayload(for: id) { return terminal.displayTitle }
+        return state.context?.label ?? "Global"
+    }
     private var anotherDraft: Bool { voice.targetID != nil && voice.targetID != CoordinatorState.sceneID && voice.hasText }
     private var canSpeak: Bool { microphoneReady && !anotherDraft && state.canReceiveVoice(client: client) }
 
@@ -23,7 +29,7 @@ struct CoordinatorView: View {
                     .labelStyle(.iconOnly).buttonStyle(.bordered)
             }
             HStack {
-                Text(state.context?.label ?? "Global").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                Text(contextLabel).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                 if state.context?.workspaceID != nil {
                     Button("Global") {
                         if let hostID = state.context?.hostID { state.select(CoordinatorContext(hostID: hostID)) }
@@ -36,12 +42,12 @@ struct CoordinatorView: View {
                 if state.isWorking { ProgressView().controlSize(.small) }
                 Text(state.statusText).font(.subheadline.weight(.medium)).lineLimit(1)
             }
-            Text(anotherDraft ? "Finish or cancel the voice draft in your other window." : state.responseText)
-                .font(.body).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+            conversation
+            if anotherDraft { Text("Finish or cancel the voice draft in your other window.").font(.footnote).foregroundStyle(.secondary) }
+            if let error = state.error { Text(error).font(.footnote).foregroundStyle(.orange) }
             if state.needsApproval {
                 Button("Review requested action") { showingDetails = true }.buttonStyle(.borderedProminent)
             }
-            Spacer(minLength: 0)
             if let permissionError { Text(permissionError).font(.footnote).foregroundStyle(.orange).lineLimit(2) }
             HStack {
                 if !microphoneReady {
@@ -56,7 +62,7 @@ struct CoordinatorView: View {
                 Spacer()
             }.frame(height: 96)
         }
-        .padding(24).frame(width: 480, height: 460)
+        .padding(24).frame(width: 520, height: 560)
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
         .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
         .sheet(isPresented: $showingDetails) { details }
@@ -81,6 +87,44 @@ struct CoordinatorView: View {
         }
     }
 
+    private var conversation: some View {
+        ScrollViewReader { reader in
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 18) {
+                    if state.conversation.isEmpty {
+                        Text(state.responseText).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    ForEach(state.conversation) { turn in
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(turn.text).textSelection(.enabled)
+                                .padding(12).background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                                .frame(maxWidth: .infinity, alignment: .trailing)
+                            if let reply = turn.reply { CoordinatorMarkdown(text: reply) }
+                            if let result = turn.resultExcerpt {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Agent result").font(.caption).foregroundStyle(.secondary)
+                                    CoordinatorMarkdown(text: result)
+                                }
+                            }
+                            if !turn.progress.isEmpty { Text(turn.progress).font(.caption).foregroundStyle(.secondary) }
+                        }.id(turn.id)
+                    }
+                    Color.clear.frame(height: 1).id("latest")
+                }.padding(.vertical, 4)
+            }
+            .onScrollGeometryChange(for: Bool.self) { geometry in
+                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 48
+            } action: { _, atBottom in followingLatest = atBottom }
+            .onAppear { reader.scrollTo("latest", anchor: .bottom) }
+            .onChange(of: state.conversation.last) { _, _ in
+                if followingLatest { reader.scrollTo("latest", anchor: .bottom) }
+            }
+            .onChange(of: state.submitting) { _, submitting in
+                if submitting { followingLatest = true; reader.scrollTo("latest", anchor: .bottom) }
+            }
+        }
+    }
+
     private var details: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack { Text("Coordinator details").font(.headline); Spacer(); Button("Done") { showingDetails = false } }
@@ -89,7 +133,7 @@ struct CoordinatorView: View {
                     if let reply = state.snapshot?.reply {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("Last coordinator reply").font(.caption).foregroundStyle(.secondary)
-                            Text(reply).textSelection(.enabled)
+                            CoordinatorMarkdown(text: reply)
                         }
                     }
                     ForEach(state.snapshot?.workers ?? []) { worker in
@@ -108,7 +152,7 @@ struct CoordinatorView: View {
                                     Button("Decline", role: .cancel) { answer(worker, accept: false) }.buttonStyle(.bordered)
                                 }
                             }
-                            if let result = worker.result { Text(result).textSelection(.enabled) }
+                            if let result = worker.result { CoordinatorMarkdown(text: result) }
                         }
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading)

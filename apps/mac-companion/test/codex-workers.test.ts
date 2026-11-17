@@ -33,6 +33,9 @@ test(
           HOME: process.env.HOME!,
           PATH: process.env.PATH!,
           SHELL: "/bin/sh",
+          TERM_PROGRAM: "iTerm.app",
+          ITERM_SESSION_ID: "unrelated-parent",
+          TERM_SESSION_ID: "unrelated-parent",
         },
       },
       clientId: client,
@@ -56,6 +59,9 @@ test(
         workers.start(launch),
       ]);
       assert.equal(a.threadId, b.threadId);
+      const environment = (await rows()).find((x) => x.event === "environment");
+      assert.equal(environment.terminalProgram, "SlopZooka");
+      assert.equal(environment.inheritedTerminalIdentity, false);
       assert.equal(manager.summaries().length, 1);
       assert.equal(manager.summaries()[0]!.codexThreadId, a.threadId);
       assert.equal((await rows()).filter((x) => x.event === "start").length, 1);

@@ -1,6 +1,6 @@
 # Next coordinator UX: compact independent voice window
 
-Status: implemented in this branch after the [headset gate](2026-11-17-coordinator-headset-results.md); local verification is recorded below; an isolated signed rig is staged for the physical voice gate. The installed headset test app still has the earlier typed surface until the next authorized device slot.
+Status: the independent voice window passed its initial physical gate. See [voice results and feedback](2026-11-17-coordinator-voice-headset-results.md). The next revision adds the continuous conversation, explicit SlopZooka context/naming and foreground notification acknowledgement; those refinements await a new device slot.
 
 ## Confirmed product requirements
 
@@ -37,8 +37,9 @@ Normal contents:
 - One brief current response or activity line, with Stop when applicable.
 - Details and approval information only when needed or explicitly expanded.
 
-Do not fill the panel with worker cards, tool traces, IDs, or a permanent chat
-history. Detailed coding progress stays in the existing Codex terminal. A failed
+Do not fill the panel with worker cards, tool traces or IDs. Later headset feedback
+requires one scrolling conversation with concise Markdown replies; this supersedes
+the original latest-message-only presentation below. Detailed coding progress stays in the existing Codex terminal. A failed
 operation or approval must still be visible and actionable; minimal presentation
 must not conceal an uncertain delivery or required decision.
 
@@ -139,7 +140,7 @@ or add every underlying capability.
 
 | Capability | Current boundary / remaining work |
 | --- | --- |
-| Launch/name new work | Existing workspace create/name and owned-worker launch are available. Independent terminal naming can reuse the existing session rename owner; Pi currently names the workspace, not every terminal independently. |
+| Launch/name new work | Existing workspace create/name and owned-worker launch are available. Explicit terminal and native-preview naming now uses the existing session/layout owners through coordinator tools. |
 | Existing workspaces/threads | Existing workspaces and owned workers can be reused. The launcher's saved-thread resume is separate from coordinator ownership. Adopting an already-running arbitrary terminal or resuming a saved thread into an owned backend still needs an explicit ownership contract. |
 | Browser windows | A coding worker can launch/control a Mac browser through its available tools and request a native preview. Background extension control and a first-class browser lifecycle adapter remain separate qualification. |
 | Multiple targets per request | Pi can sequence multiple tool operations, with exact per-worker correlations. That does not grant parallel foreground desktop input; the native worker lifetime limit still applies. Multi-workspace fan-out needs a targeted end-to-end gate. |

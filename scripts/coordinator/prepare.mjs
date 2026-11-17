@@ -109,7 +109,11 @@ await fs.writeFile(
   path.join(workspace, "README.md"),
   `# Disposable coordinator fixture\n\nNo source edits, builds, new worktrees or network are needed. The fixture app is at ${JSON.stringify(fixture)}. Use native computer use (slopzooka-native MCP) to open that exact path. For the requested fixture test, click Increment exactly twice and enter headset-ready in Probe input. Do not edit the fixture state file. If the user requests a headset preview, use slopzooka-previews: check availability and locate the exact running app/window, then open it as Coordinator check. Report missing permission or offline state honestly. For a follow-up, make only the changes the user asks for.\n`,
 );
+const rigName = process.env.SLZ_COORDINATOR_NAME ?? "Slz Coordinator Test";
+if (!/^[A-Za-z][A-Za-z0-9 -]{0,63}$/.test(rigName))
+  throw new Error("Invalid rig discovery name");
 const rig = {
+  name: rigName,
   home,
   companion,
   headset,
