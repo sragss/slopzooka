@@ -212,3 +212,19 @@ response completes the pending check; timeout, stale IDs, and other clients do n
 Checks are coalesced per client and bounded to 64 outstanding clients; readiness is
 never cached or persisted. The adapter checks again immediately before each CAS
 write and does not enqueue offline intent. Readiness is not a visibility receipt.
+
+## Experimental coordinator
+
+`coordinator.ts` hosts an opt-in ephemeral Pi conversation inside the existing HTTP
+companion. Authenticated `coordinator-http.ts` routes capture a headset client and
+destination. Workspace creation/naming and window intent reuse existing owners;
+`preview-control.ts` can present an existing terminal through the same readiness
+and layout boundary. The headset's Ask view owns only request and display state.
+
+The retained session service owns `codex-workers.ts`: a private app-server and
+ordinary remote TUI for each new coordinated Codex thread. `codex-rpc.ts` adapts
+native queue/steer/interrupt and approvals without terminal prompt injection.
+HTTP restarts discard Pi history but keep these workers and PTYs. Explicit
+session end closes the owned backend. The optional `installed-cua.ts` adapter
+uses the installed native runtime and its live guidance; it provides no delegated
+browser authority. See [usage and experimental limits](coordinator.md).

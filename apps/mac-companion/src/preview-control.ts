@@ -166,6 +166,29 @@ export class PreviewControl {
       previews: layout.windows.filter((record) => this.native(record)),
     };
   }
+  async showTerminal(sessionId: string) {
+    await this.verifyHost();
+    const sessions = z
+      .object({ sessions: z.array(z.object({ id: z.string() })) })
+      .parse(await this.request("/api/sessions"));
+    if (!sessions.sessions.some((session) => session.id === sessionId))
+      throw new ServiceError("Terminal is unavailable", 404);
+    return this.mutate((layout) => {
+      const record = layout.windows.find((window) => window.id === sessionId);
+      if (
+        record &&
+        (record.kind !== "terminal" || record.targetID !== sessionId)
+      )
+        throw new ServiceError("Window identity conflict", 409);
+      if (!record)
+        layout.windows.push({
+          id: sessionId,
+          kind: "terminal",
+          targetID: sessionId,
+        });
+      return sessionId;
+    });
+  }
   private native(record: WindowRecord): boolean {
     return record.kind === "preview" && record.targetID.startsWith("window:");
   }

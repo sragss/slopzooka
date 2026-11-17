@@ -76,6 +76,7 @@ struct ContentView: View {
         case sessions = "Terminals"
         case projects = "Projects"
         case frontends = "Frontends"
+        case ask = "Ask"
         var id: String { rawValue }
     }
 
@@ -122,6 +123,8 @@ struct ContentView: View {
                     projectsContent
                 case .frontends:
                     FrontendListView(hostID: client.current?.id)
+                case .ask:
+                    CoordinatorView()
                         .id(client.current?.id)
                 }
             }

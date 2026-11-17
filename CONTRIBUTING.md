@@ -221,3 +221,20 @@ permission prompts, or install anything on a headset. See the
 [native preview plan](.plans/2026-11-10-native-preview-implementation.md) for the
 separate signed-app/device gate. Packaging and simulator builds alone cannot
 establish capture permission attribution, perceived latency, or scene sizing.
+
+### Coordinator development
+
+See [the coordinator guide](docs/coordinator.md) for private opt-in configuration.
+The normal regression suite does not call a live model or control the desktop.
+For an explicitly authorized live Mac smoke using a disposable workspace:
+
+```sh
+pnpm --filter @slz/mac-companion exec tsx ../../scripts/coordinator/mac-smoke.mts
+```
+
+The optional native fixture mode controls a real Mac window; its environment,
+packaged build paths and isolated headset procedure are documented in the
+[coordinator device gate](.plans/2026-11-17-coordinator-implementation.md).
+Prepare signed artifacts with `scripts/coordinator/prepare.mjs`; this does not
+install a headset app or disturb the installed companion. Keep real-model results
+and transcripts in the generated private local directories, not repository logs.

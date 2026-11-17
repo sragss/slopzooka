@@ -183,3 +183,12 @@ provider restarts, select the current window again: SlopZooka will not silently
 substitute another window with a similar title. Locked-desktop
 fallbacks, attention-based quality changes, and automatic app launching are later
 steps. The feature stays off by default during this experimental rollout.
+
+## Experimental Ask tab
+
+With a configured Mac companion, **Ask** can create and name a workspace, start
+its Codex worker, and route follow-ups to that same worker. Preview requests stay
+explicit. The destination picker selects Global or a coordinated workspace;
+**Stop this request** cancels its work without closing apps or terminals. This
+opt-in version uses typed requests. See [the coordinator guide](coordinator.md)
+for setup, approvals, recovery behavior and current limits.

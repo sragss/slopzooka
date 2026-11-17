@@ -18,6 +18,7 @@ const companionSources = [
 const suites = {
   DiagnosticsChecks: [...companionSources, "BugReportState"],
   CompanionClientChecks: companionSources,
+  CoordinatorChecks: [...companionSources, "CoordinatorState"],
   LauncherStateChecks: [
     ...companionSources,
     "LauncherState",

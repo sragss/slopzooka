@@ -50,6 +50,9 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     res.json({ hostId: pairing.hostId });
   });
   pairing.install(app);
+  app.get("/api/sessions", (_req, res) =>
+    res.json({ sessions: [{ id: "coordinated-terminal" }] }),
+  );
   app.get("/api/frontends", (_req, res) => {
     res.json({ windows: { state, sources: [source("a"), source("b")] } });
   });
@@ -284,6 +287,27 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       ).isError,
       true,
     );
+    const presentation = new PreviewControl(config);
+    await assert.rejects(
+      presentation.showTerminal("unknown"),
+      /Terminal is unavailable/,
+    );
+    await presentation.showTerminal("coordinated-terminal");
+    await presentation.showTerminal("coordinated-terminal");
+    assert.equal(
+      (await store.get(clientId)).windows.filter(
+        (w) => w.id === "coordinated-terminal",
+      ).length,
+      1,
+    );
+    headset = "offline";
+    const beforeOfflineTerminal = await store.get(clientId);
+    await assert.rejects(
+      presentation.showTerminal("coordinated-terminal"),
+      /not available right now/,
+    );
+    assert.deepEqual(await store.get(clientId), beforeOfflineTerminal);
+    headset = "active";
     const beforeWrongHost = requests.length;
     await assert.rejects(
       new PreviewControl({ ...config, hostId: otherClient }).open("window:a"),
@@ -342,7 +366,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     assert.ok(
       requests.every(
         (r) =>
-          !r.includes("/api/sessions") &&
+          !(r.startsWith("POST ") && r.includes("/api/sessions")) &&
           !r.includes("/api/workspaces") &&
           !r.includes("/window-previews/open"),
       ),

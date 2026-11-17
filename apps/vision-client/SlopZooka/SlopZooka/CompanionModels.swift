@@ -282,3 +282,28 @@ struct BugReportDraft: Decodable, Equatable {
         return Self(draftId: nil, body: body, account: nil, browserURL: destination)
     }
 }
+
+struct CoordinatorWorker: Decodable, Identifiable {
+    var sessionId: String
+    var workspaceId: String
+    var status: String
+    var result: String?
+    var error: String?
+    var question: CoordinatorQuestion?
+    var id: String { sessionId }
+}
+struct CoordinatorQuestion: Decodable {
+    var id: String
+    var title: String
+    var details: String
+    var choices: [String]
+}
+struct CoordinatorSnapshot: Decodable {
+    var available: Bool
+    var message: String?
+    var requestId: String?
+    var status: String
+    var activity: String?
+    var reply: String?
+    var workers: [CoordinatorWorker]
+}

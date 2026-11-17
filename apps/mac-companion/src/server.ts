@@ -1,3 +1,5 @@
+import { Coordinator } from "./coordinator.js";
+import { installCoordinatorRoutes } from "./coordinator-http.js";
 import { CompanionTransport, connectionMethod } from "./companion-transport.js";
 import { WindowPreviews, windowPresentation } from "./window-previews.js";
 import { webPresentation } from "./presentation.js";
@@ -88,6 +90,20 @@ const windowPreviews = new WindowPreviews(
   diagnostics.logger("window-previews"),
 );
 const codexThreads = new CodexThreads(diagnostics.logger("codex-threads"));
+const coordinator = new Coordinator({
+  home: workspacePaths().slopzookaHome,
+  configFile: process.env.SLOPZOOKA_COORDINATOR_CONFIG,
+  service: sessionService,
+  logger: diagnostics.logger("coordinator"),
+  previewCommand: process.execPath,
+  previewArgs: import.meta.url.endsWith(".ts")
+    ? [
+        path.join(import.meta.dirname, "../node_modules/tsx/dist/cli.mjs"),
+        path.join(import.meta.dirname, "preview-mcp.ts"),
+      ]
+    : [path.join(import.meta.dirname, "preview-mcp.mjs")],
+});
+
 // Pairing codes are intentionally printed only to the local console, never the log file.
 let displayedPairingCode = pairing.code;
 console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
@@ -152,6 +168,12 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installCoordinatorRoutes(
+  app,
+  coordinator,
+  pairing.hostId,
+  `http://127.0.0.1:${PORT}`,
+);
 installCodexThreadRoutes(app, codexThreads, sessionService, workspaceService);
 installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
@@ -1006,6 +1028,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   const httpClosed = new Promise<void>((resolve) =>
     server.close(() => resolve()),
   );
+  coordinator.close();
   windowPreviews.stop();
   codexThreads.stop();
   await Promise.allSettled([
