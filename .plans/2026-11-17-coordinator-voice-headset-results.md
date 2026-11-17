@@ -107,3 +107,35 @@ Next-slot bell preparation is scripted in `scripts/coordinator/notification-chec
 `prepare` creates one isolated shell with a stable saved session ID; `open` uses the
 existing headset window adapter; `bell` submits one literal bell command through
 the normal input endpoint. No production sessions are targeted.
+
+## Staged next-slot rig
+
+- Final code revision `26983bd`; signed rig:
+  `~/.slopzooka/test-rigs/coordinator-thread-2026-11-17-final`.
+- Discovery name **Slz Ask Test**, companion port **55433**, host
+  `b9744301-9fb3-4270-ab9f-2fc8df51e7e4`. Fetch its current LAN address and fresh
+  pairing code at the slot; do not reuse a code recorded hours earlier.
+- Matching signed headset binary is staged in that directory as
+  `Slz Coordinator Test.app` (bundle `com.slopzooka.probe.coordinator`), not installed.
+- Companion/session service/coordinator preflight succeeded. A plain fixture shell
+  named **Notification-check** is prepared; its ID is in `notification-session.json`.
+  It is intentionally not an owned Codex worker: these checks verify direct
+  SlopZooka naming and notification ownership without repeating the CUA gate.
+- **Slz Thread Fixture** was opened in the background. Its initial counter is 0.
+  The Mac reported `locked` during capture preflight; catalog/source resolution
+  must be refreshed after unlocking. This is expected capability gating, not a
+  verified ready stream while locked. No unlock or headset action was attempted.
+- In a disposable predecessor of this rig, the actual bell script advanced the
+  real PTY notification sequence exactly once. That preflight shell/service was
+  retired; the final shell has no seeded unread notification.
+- Signed Mac regression tests pass on the final package. The PR remains draft;
+  local checks and live-model probes do not replace the three physical checks.
+
+Operator sequence: install/launch only the isolated test app; pair to **Slz Ask
+Test**; use `notification-check.mts open <rig> <headset-client-id>` and the existing
+preview adapter to show the exact Slz Thread Fixture source as **Fixture preview**.
+There should be two content windows before the count/naming prompts. Use the same
+shell for the final foreground-notification check via `notification-check.mts bell`.
+The session service's existing name normalization turns “the nice window” into
+`the-nice-window`; report the saved name, not an invented literal title. Leave all
+production sessions untouched. Expected user time: roughly 3–5 minutes.
