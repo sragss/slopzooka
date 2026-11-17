@@ -266,3 +266,90 @@ The named dashboard supports Portless HTTPS with Secure cookies and exact-origin
 ## Workspace storage
 
 Workspace mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Legacy indexes with `clusterId` migrate to `workspaceId` on the next mutation. An explicit nonexistent branch fails. Defaults follow the repository's default branch.
+
+## Terminal preview MCP (development)
+
+The optional `slopzooka-previews` MCP lets a terminal agent list, open, name and
+close native Mac-window previews on one explicitly configured headset. It leaves
+app interaction to the agent's existing computer-use tools. Closing a preview
+releases its viewer; it does not quit the source app or end a terminal.
+
+This first version requires an operator-provisioned configuration file. It does
+not automatically register with existing Codex terminals or change global Codex
+settings. Enable native capture on the companion and use an updated headset app
+with remote-layout reconciliation before testing it. Keep development on an
+isolated companion home/port until the device gate is complete.
+
+Create an owner-only JSON file (`chmod 600`) containing:
+
+```json
+{
+  "origin": "http://127.0.0.1:7778",
+  "hostId": "<paired companion UUID>",
+  "clientId": "<intended headset client UUID>",
+  "token": "<credential issued by that companion's pairing flow>"
+}
+```
+
+Use the intended headset's existing client ID, not a new UUID or a value inferred
+from whichever launcher is visible. The client ID partitions layouts; the bearer
+credential authenticates access. Do not paste credentials into agent prompts or
+commit this file. The adapter accepts only explicit loopback HTTP origins, checks
+companion identity before each tool operation, rejects redirects, and keeps
+credentials outside tool responses.
+
+The packaged stdio command is:
+
+```text
+/Applications/SlopZooka.app/Contents/Resources/runtime/node
+```
+
+with arguments:
+
+```text
+/Applications/SlopZooka.app/Contents/Resources/host/src/preview-mcp.mjs
+/absolute/path/to/private-preview-config.json
+```
+
+Use that command/argument pair in the terminal agent's MCP configuration. For a
+checkout, run `pnpm --filter @slz/mac-companion exec tsx src/preview-mcp.ts
+/absolute/path/to/private-preview-config.json` from the repository root. Standard
+output is exclusively MCP protocol traffic.
+
+Call `preview_list` to obtain current opaque source IDs and capture availability.
+Then use `preview_open(source_id, name?)`, `preview_rename(preview_id, name)` and
+`preview_close(preview_id)`. The companion supplies image dimensions/aspect ratio;
+the agent does not choose them. Names are presentation metadata and do not restart
+capture. Locked, permission-required, disabled and stale-source cases are explicit
+errors; resolve them through the normal companion UI or use an alternative surface.
+
+Mutation success means the desired layout was acknowledged after a fresh headset
+readiness check, not that the user has seen it. Both
+Local Network and Direct use the same saved layout and native streaming path.
+The headset's active terminal or preview scene can handle these commands with the
+launcher closed. Simultaneous edits re-read the layout and reapply only their own
+intent after a revision conflict.
+
+The MCP may remain configured during ordinary laptop coding. Its server instructions
+and tool descriptions tell agents to use it only when the user explicitly requests
+a Vision Pro/headset preview or a follow-up change to that preview. Initialization
+does not enumerate windows, check the headset, or open anything.
+
+On a request, `preview_list` checks the target headset before enumerating sources.
+`headset_available: false` means **“Headset preview is not available right now.”**
+The agent should report that once and continue ordinary work, without polling or
+queuing a retry. When true, `state` describes Mac capture readiness separately.
+Every open, rename and close requires a new readiness reply immediately before its
+layout write, including conflict retries. If the headset does not respond within
+five seconds, or has no active window presenter, the tool saves no change. Reconnect
+and explicitly ask again; keeping the MCP installed does not create deferred work.
+
+The readiness challenge travels through the existing authenticated window-layout
+sync and is answered by WindowGateway's active scene presenters. It works with the
+launcher closed when a terminal or preview can present windows. It uses no historical
+online flag and creates no durable presence state. Both companion and headset must
+be updated; older headsets that do not answer are unavailable to these tools.
+A device can disconnect just after answering, so even an accepted change remains
+“visibility not observed,” not proof that the wearer saw it. Existing user-requested
+saved windows still restore normally; a failed offline MCP call adds no new intent.
+Automatic terminal provisioning is not part of this development version.

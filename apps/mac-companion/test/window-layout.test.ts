@@ -52,6 +52,9 @@ test("layouts survive restart, isolate clients, serialize conflicting edits, and
       [terminal, terminal],
       [{ ...terminal, kind: "unknown" }],
       [{ ...terminal, targetID: "" }],
+      [{ ...preview, name: " " }],
+      [{ ...preview, name: "x".repeat(121) }],
+      [{ ...preview, name: "bad\nname" }],
       Array(129).fill(terminal),
     ]) {
       await assert.rejects(store.put(client, 2, invalid));
@@ -146,6 +149,107 @@ test("layout API requires pairing and a client ID, checks revisions, and persist
       (await new WindowLayoutStore(home).get(client)).windows,
       [],
     );
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    await fs.rm(home, { recursive: true, force: true });
+  }
+});
+
+test("presentation checks require a fresh, matching headset reply and never persist or cache availability", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-presentation-"));
+  const app = express();
+  const pairing = new Pairing(home);
+  const store = new WindowLayoutStore(home);
+  let checkRequests = 0;
+  app.use((req, _res, next) => {
+    if (req.method === "GET" && req.path === "/api/window-layout/availability")
+      checkRequests++;
+    next();
+  });
+  app.use(express.json());
+  pairing.install(app);
+  installWindowLayoutRoutes(app, store, 1000);
+  const server = app.listen(0, "127.0.0.1");
+  await once(server, "listening");
+  const base = `http://127.0.0.1:${(server.address() as import("node:net").AddressInfo).port}`;
+  try {
+    assert.equal(
+      (await fetch(base + "/api/window-layout/availability")).status,
+      401,
+    );
+    const { token } = (await fetch(base + "/api/pair", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: pairing.code }),
+    }).then((r) => r.json())) as { token: string };
+    const headers = {
+      Authorization: `Bearer ${token}`,
+      "X-SlopZooka-Client-ID": client,
+      "Content-Type": "application/json",
+    };
+    const check = () =>
+      fetch(base + "/api/window-layout/availability", { headers }).then((r) =>
+        r.json(),
+      ) as Promise<{ available: boolean }>;
+    const probe = async () => {
+      for (let i = 0; i < 100; i++) {
+        const layout = (await fetch(base + "/api/window-layout", {
+          headers,
+        }).then((r) => r.json())) as { presentationProbe?: string };
+        if (layout.presentationProbe) return layout.presentationProbe;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      throw new Error("Missing presentation challenge");
+    };
+    const answer = (id: string, available: boolean, clientID = client) =>
+      fetch(base + "/api/window-layout/availability", {
+        method: "POST",
+        headers: { ...headers, "X-SlopZooka-Client-ID": clientID },
+        body: JSON.stringify({ probe: id, available }),
+      });
+    const previousChecks = checkRequests;
+    const active = check(),
+      shared = check();
+    const first = await probe();
+    for (let i = 0; checkRequests < previousChecks + 2 && i < 100; i++)
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    assert.equal(checkRequests, previousChecks + 2);
+    await answer(first, true);
+    assert.equal((await active).available, true);
+    assert.equal((await shared).available, true);
+    // No positive presence cache: a fresh request with no headset reply fails.
+    const offline = check();
+    const expired = await probe();
+    assert.notEqual(expired, first);
+    assert.equal((await offline).available, false);
+    const stale = check();
+    const current = await probe();
+    await answer(expired, true);
+    await answer(current, true, otherClient);
+    assert.equal(
+      (await stale).available,
+      false,
+      "Expired and wrong-client replies cannot satisfy a new request",
+    );
+    const background = check();
+    await answer(await probe(), false);
+    assert.equal((await background).available, false);
+    const resumed = check();
+    await answer(await probe(), true);
+    assert.equal((await resumed).available, true);
+    assert.deepEqual(await store.get(client), {
+      version: 1,
+      revision: 0,
+      windows: [],
+    });
+    await assert.rejects(fs.stat(path.join(home, "window-layouts.json")), {
+      code: "ENOENT",
+    });
+    const plain = await fetch(base + "/api/window-layout", { headers }).then(
+      (r) => r.json(),
+    );
+    assert.equal(plain.presentationProbe, undefined);
   } finally {
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

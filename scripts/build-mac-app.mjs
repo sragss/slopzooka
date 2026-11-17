@@ -103,6 +103,9 @@ try {
     "--packages=external",
     `--outfile=${resources}/host/src/server.mjs`,
   ]);
+  run("pnpm", ["--filter", "@slz/mac-companion", "exec", "esbuild", "src/preview-mcp.ts",
+    "--bundle", "--platform=node", "--format=esm", "--packages=external",
+    `--outfile=${resources}/host/src/preview-mcp.mjs`]);
   run("node", [
     path.join(root, "apps/mac-companion/scripts/build-session-runtime.mjs"),
     path.join(resources, "session-runtime"),

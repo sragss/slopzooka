@@ -1,0 +1,178 @@
+{
+  "dateUTC": "2026-11-17",
+  "dateLocal": "2026-11-16",
+  "productCommit": "7ba259874791e177490f1e444358052537a372d6",
+  "rigCommit": "f31398caf1339fc492f15b46d752dc4d1b1330f8",
+  "verdict": "PASS: physical preview MCP lifecycle on LAN and Direct",
+  "wearerConfirmed": [
+    "named tall simulator fresh",
+    "launcher closed throughout mutations",
+    "LAN rename without interruption",
+    "Mac preview opened alongside simulator",
+    "LAN simulator close preserved Mac stream",
+    "simulator reopened and both streamed on Direct",
+    "Direct rename and simulator close preserved Mac stream",
+    "Direct simulator reopened; both fresh nonce 9b45ada8"
+  ],
+  "secondAdapter": "Independently initialized packaged MCP reused existing Mac preview; revision remained 7",
+  "streamEvents": [
+    {
+      "at": "2026-11-17T02:31:05.710Z",
+      "event": "stream.opened",
+      "connectionId": "8054c948-0f50-4a40-b069-5f7102f1b11d",
+      "connectionMethod": "localNetwork"
+    },
+    {
+      "at": "2026-11-17T02:31:40.189Z",
+      "event": "stream.opened",
+      "connectionId": "cad99e34-3ae7-47d1-8e59-f6263df7585a",
+      "connectionMethod": "localNetwork"
+    },
+    {
+      "at": "2026-11-17T02:32:11.498Z",
+      "event": "stream.closed",
+      "connectionId": "8054c948-0f50-4a40-b069-5f7102f1b11d",
+      "connectionMethod": "localNetwork",
+      "durationMs": 65885
+    },
+    {
+      "at": "2026-11-17T02:32:30.924Z",
+      "event": "stream.opened",
+      "connectionId": "127ce161-479a-4e4f-b576-8e5e94282d15",
+      "connectionMethod": "localNetwork"
+    },
+    {
+      "at": "2026-11-17T02:32:51.820Z",
+      "event": "stream.closed",
+      "connectionId": "127ce161-479a-4e4f-b576-8e5e94282d15",
+      "connectionMethod": "localNetwork",
+      "durationMs": 20971
+    },
+    {
+      "at": "2026-11-17T02:32:51.824Z",
+      "event": "stream.closed",
+      "connectionId": "cad99e34-3ae7-47d1-8e59-f6263df7585a",
+      "connectionMethod": "localNetwork",
+      "durationMs": 71696
+    },
+    {
+      "at": "2026-11-17T02:32:52.292Z",
+      "event": "peer.admitted",
+      "interfaceName": "awdl0"
+    },
+    {
+      "at": "2026-11-17T02:32:55.104Z",
+      "event": "stream.opened",
+      "connectionId": "327016b2-f76b-4544-a711-82e5292bd5d6",
+      "connectionMethod": "direct"
+    },
+    {
+      "at": "2026-11-17T02:32:55.104Z",
+      "event": "stream.opened",
+      "connectionId": "c02e5644-144b-4c6c-ba5f-e2fe48f25b34",
+      "connectionMethod": "direct"
+    },
+    {
+      "at": "2026-11-17T02:33:25.569Z",
+      "event": "stream.closed",
+      "connectionId": "327016b2-f76b-4544-a711-82e5292bd5d6",
+      "connectionMethod": "direct",
+      "durationMs": 30581
+    },
+    {
+      "at": "2026-11-17T02:33:44.540Z",
+      "event": "stream.opened",
+      "connectionId": "3e3a6dba-33f0-427f-a4ee-744d9975323e",
+      "connectionMethod": "direct"
+    },
+    {
+      "at": "2026-11-17T02:34:09.277Z",
+      "event": "stream.closed",
+      "connectionId": "3e3a6dba-33f0-427f-a4ee-744d9975323e",
+      "connectionMethod": "direct",
+      "durationMs": 24838
+    },
+    {
+      "at": "2026-11-17T02:34:09.283Z",
+      "event": "stream.closed",
+      "connectionId": "c02e5644-144b-4c6c-ba5f-e2fe48f25b34",
+      "connectionMethod": "direct",
+      "durationMs": 74282
+    }
+  ],
+  "senderSummaries": [
+    {
+      "at": "2026-11-17T02:32:11.498Z",
+      "frames": 1650,
+      "bytes": 3253649,
+      "durationMs": 65786,
+      "dropped": 0,
+      "reason": "disconnected"
+    },
+    {
+      "at": "2026-11-17T02:32:51.819Z",
+      "frames": 520,
+      "bytes": 1056709,
+      "durationMs": 20894,
+      "dropped": 0,
+      "reason": "disconnected"
+    },
+    {
+      "at": "2026-11-17T02:32:51.824Z",
+      "frames": 1820,
+      "bytes": 5299663,
+      "durationMs": 71633,
+      "dropped": 0,
+      "reason": "disconnected"
+    },
+    {
+      "at": "2026-11-17T02:33:25.569Z",
+      "frames": 896,
+      "bytes": 1773199,
+      "durationMs": 30463,
+      "dropped": 0,
+      "reason": "disconnected"
+    },
+    {
+      "at": "2026-11-17T02:34:09.277Z",
+      "frames": 727,
+      "bytes": 1475950,
+      "durationMs": 24736,
+      "dropped": 0,
+      "reason": "disconnected"
+    },
+    {
+      "at": "2026-11-17T02:34:09.282Z",
+      "frames": 2182,
+      "bytes": 6322173,
+      "durationMs": 74176,
+      "dropped": 0,
+      "reason": "disconnected"
+    }
+  ],
+  "finalDesiredWindows": [
+    {
+      "kind": "terminal",
+      "id": "preview-a"
+    },
+    {
+      "kind": "terminal",
+      "id": "preview-b"
+    }
+  ],
+  "testSessionServiceSurvived": true,
+  "testSessionsRunningBeforeCleanup": true,
+  "cleanup": {
+    "testServiceStopped": true,
+    "errors": 0,
+    "testAppUninstalled": true,
+    "liveCompanionUnchanged": true,
+    "liveServiceAvailable": true
+  },
+  "limits": [
+    "SDK-driven MCP; no live Codex model/CUA invocation in this slot",
+    "Operator-provisioned binding; automatic agent setup not implemented",
+    "No explicit headset reachability status; layout acknowledgements are not visibility receipts",
+    "No offline/reconnect backlog device test in this slot"
+  ]
+}
