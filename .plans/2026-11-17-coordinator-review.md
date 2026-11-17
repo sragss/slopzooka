@@ -1,5 +1,9 @@
 # Coordinator reliability review and launcher lag investigation
 
+Latest signed staging: **Slz Ask Check**, revision `9984b26`, port **55435**;
+see the second-pass artifact note at the end. Earlier rig entries are retained
+as evidence, not the current slot target.
+
 Follow-up to the voice headset slot and the user's request for a maintainability
 pass while the headset is unavailable. Existing production and staged test
 processes remain untouched. These changes stay in draft PR #65.
@@ -153,3 +157,12 @@ state, terminal keyboard/WebKit, lint, typecheck, formatting and harness asset p
 The added coordinator regression failed with “Missing expected rejection” before
 request-scoped Stop; the worker regression failed because the returned tail lacked
 its outcome. Logs: `/tmp/slz-coordinator-review2-*.log`.
+
+Second-pass artifacts: revision **9984b26** passed simulator, signed visionOS,
+signed Mac and packaged Mac checks. The latest isolated rig is
+`~/.slopzooka/test-rigs/coordinator-review2-2026-11-17-ready`, named **Slz Ask Check**
+on port **55435**, with **Slz Ask Fixture** and the same isolated headset bundle.
+It is staged and signature-verified, not launched or installed. Apply the existing
+pre-slot start/pair/operator-config/notification preparation to this directory.
+All older rigs and running applications remain unchanged; the user checklist is
+unchanged. Build/package logs use `/tmp/slz-coordinator-review2-*.log`.
