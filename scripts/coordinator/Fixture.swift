@@ -13,7 +13,7 @@ final class FixtureDelegate: NSObject, NSApplicationDelegate, NSTextFieldDelegat
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         window = NSWindow(contentRect: NSRect(x: 140, y: 140, width: 520, height: 280), styleMask: [.titled, .closable, .resizable], backing: .buffered, defer: false)
-        window.title = "Slz Runtime Fixture"
+        window.title = Bundle.main.object(forInfoDictionaryKey: "SlzFixtureTitle") as? String ?? "Slz Runtime Fixture"
         window.isReleasedWhenClosed = false
         let heading = NSTextField(labelWithString: "Disposable Codex runtime test")
         heading.font = NSFont.systemFont(ofSize: 22)

@@ -5,12 +5,13 @@ import UIKit
 struct WindowScene<Content: View>: View {
     @ObservedObject var windows: WindowGateway
     var id: String? = nil
+    var isCoordinator = false
     @ViewBuilder var content: () -> Content
 
     var body: some View {
         content()
             .background(SceneIdentity(reference: id.flatMap { windows.reference(for: $0) }, onRestore: windows.remember))
-            .modifier(SceneActions(windows: windows, id: id))
+            .modifier(SceneActions(windows: windows, id: id, isCoordinator: isCoordinator))
     }
 }
 
@@ -29,6 +30,7 @@ struct ImmersiveWorkspaceScene: View {
 private struct SceneActions: ViewModifier {
     @ObservedObject var windows: WindowGateway
     var id: String? = nil
+    var isCoordinator = false
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var phase
@@ -44,18 +46,21 @@ private struct SceneActions: ViewModifier {
             .onChange(of: phase) { _, _ in update() }
             .onDisappear {
                 windows.detachPresenter(presenterID)
+                if isCoordinator { windows.coordinator.observeScene(presenterID, active: false) }
                 windows.observe(id: id, isPresented: false, isFocused: false)
             }
     }
     private func update() {
         // Register observed scenes before reconciling, avoiding duplicate restore requests.
         windows.observe(id: id, isPresented: phase != .background, isFocused: phase == .active)
+        if isCoordinator { windows.coordinator.observeScene(presenterID, active: phase == .active) }
         if phase != .active { windows.detachPresenter(presenterID); return }
         windows.attachPresenter(presenterID) { command in
             switch command {
             case .open(let window): openWindow(id: window.kind.rawValue, value: window.id)
             case .close(let window): dismissWindow(id: window.kind.rawValue, value: window.id)
             case .openLauncher: openWindow(id: "launcher")
+            case .openCoordinator: openWindow(id: CoordinatorState.sceneID, value: CoordinatorState.sceneID)
             }
         }
     }
@@ -143,18 +148,26 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
         self.windows = windows
         voice = TerminalVoiceController(capture: SpeechCaptureController(),
             isAvailable: { [weak windows] id, mode in
-                mode == .rename ? windows?.canRename(id) == true : windows?.canReceiveVoice(id) == true
+                guard let windows else { return false }
+                if mode == .coordinator { return id == CoordinatorState.sceneID && windows.coordinator.canReceiveVoice(client: windows.client) }
+                return mode == .rename ? windows.canRename(id) : windows.canReceiveVoice(id)
             },
             rename: { [weak windows] id, name, target in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
                 try await windows.rename(id: id, name: name, target: target)
             },
-            hostID: { [weak windows] id in windows?.reference(for: id)?.hostID },
+            hostID: { [weak windows] id in
+                id == CoordinatorState.sceneID ? windows?.coordinator.context?.hostID : windows?.reference(for: id)?.hostID
+            },
             deliver: { [weak windows] command in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
-                try await windows.submitVoiceInput(command)
+                switch command.destination {
+                case .terminal: try await windows.submitVoiceInput(command)
+                case .coordinator: try await windows.coordinator.submit(client: windows.client, command: command)
+                }
             })
         super.init()
+        windows.coordinator.canChangeContext = { [weak voice] in voice?.mode != .coordinator }
     }
 
     func application(_ application: UIApplication, didDiscardSceneSessions sessions: Set<UISceneSession>) {

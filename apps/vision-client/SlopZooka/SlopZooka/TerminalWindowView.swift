@@ -223,6 +223,10 @@ struct TerminalWindowView: View {
                 isActionsPresented = false
                 windows.reload(id: payload.id)
             }
+            TerminalMenuAction(title: "Ask SlopZooka", symbol: "mic.badge.plus") {
+                isActionsPresented = false
+                windows.openCoordinator(from: payload.id)
+            }
             TerminalMenuAction(title: "Open Launcher", symbol: "square.grid.2x2") {
                 isActionsPresented = false
                 windows.openLauncher()

@@ -76,7 +76,6 @@ struct ContentView: View {
         case sessions = "Terminals"
         case projects = "Projects"
         case frontends = "Frontends"
-        case ask = "Ask"
         var id: String { rawValue }
     }
 
@@ -88,6 +87,10 @@ struct ContentView: View {
                 .foregroundStyle(client.isReady ? Color.green : Color.secondary)
                 .accessibilityLabel(client.isReady ? "Mac connected" : "Mac disconnected")
                 .help(client.isReady ? "Mac connected" : "Mac disconnected")
+            Button("Ask", systemImage: "mic") { windows.openCoordinator() }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Ask SlopZooka")
+                .help("Open the voice coordinator")
             Button { activeSheet = .settings } label: {
                 Image(systemName: "gearshape")
                     .frame(width: 44, height: 44)
@@ -123,9 +126,6 @@ struct ContentView: View {
                     projectsContent
                 case .frontends:
                     FrontendListView(hostID: client.current?.id)
-                case .ask:
-                    CoordinatorView()
-                        .id(client.current?.id)
                 }
             }
         }

@@ -55,6 +55,7 @@ enum WindowCommand: Equatable {
     case open(WindowRecord)
     case close(WindowRecord)
     case openLauncher
+    case openCoordinator
 }
 
 /// The only entry point for window intent, content resolution, and restoration.
@@ -63,6 +64,7 @@ enum WindowCommand: Equatable {
 final class WindowGateway: ObservableObject {
     private let log = AppLog("windows")
     let immersiveWorkspace = ImmersiveWorkspaceState()
+    let coordinator = CoordinatorState()
     let launcher: LauncherState
     let client: CompanionClient
     private let persistence: WindowPersistence
@@ -201,7 +203,7 @@ final class WindowGateway: ObservableObject {
     }
 
     func submitVoiceInput(_ command: TerminalVoiceCommand) async throws {
-        guard canReceiveVoice(command.targetID), let reference = windows[command.targetID]?.reference else {
+        guard command.destination == .terminal, canReceiveVoice(command.targetID), let reference = windows[command.targetID]?.reference else {
             throw CompanionError(message: "Terminal is not connected. Reconnect, then retry.")
         }
         for attempt in 0..<2 {
@@ -269,6 +271,22 @@ final class WindowGateway: ObservableObject {
         close(reference, dismiss: false)
     }
     func openLauncher() { presenters.values.first?(.openLauncher) }
+
+    func openCoordinator(from terminalID: String? = nil) {
+        let context: CoordinatorContext?
+        if let terminalID {
+            guard let payload = terminalPayload(for: terminalID), let reference = reference(for: terminalID) else { return }
+            context = CoordinatorContext(hostID: reference.hostID, workspaceID: payload.workspaceId,
+                sessionID: terminalID, label: payload.workspaceName ?? payload.title)
+        } else {
+            context = client.current.map { CoordinatorContext(hostID: $0.id) }
+        }
+        // A draft or uncertain submission keeps its captured destination even when
+        // another window asks to reveal the same coordinator scene.
+        let adopted = coordinator.select(context)
+        log.info("coordinator.open.requested", ["hostId": coordinator.context?.hostID ?? "", "contextAdopted": String(adopted)])
+        presenters.values.first?(.openCoordinator)
+    }
 
     func newShell(for id: String) async throws {
         guard let payload = terminalPayload(for: id), let reference = windows[id]?.reference else { return }

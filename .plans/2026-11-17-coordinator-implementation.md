@@ -157,9 +157,9 @@ Do not repair production or take over unrelated windows during this slot.
 
 ## What remains after this gate
 
-The user has now specified the next interaction: a compact independent voice
+The next interaction is implemented in this branch: a compact independent voice
 window, opened from the launcher or terminals, reusing the existing terminal
-voice UX. The [voice-window plan](2026-11-17-coordinator-voice-window.md) supersedes
+voice UX. Physical voice/window validation remains pending. The [voice-window plan](2026-11-17-coordinator-voice-window.md) supersedes
 the typed Ask tab as the intended product surface and takes priority over the
 older sequence below. The Mac orchestration ownership stays the same.
 

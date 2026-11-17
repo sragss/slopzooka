@@ -184,11 +184,14 @@ substitute another window with a similar title. Locked-desktop
 fallbacks, attention-based quality changes, and automatic app launching are later
 steps. The feature stays off by default during this experimental rollout.
 
-## Experimental Ask tab
+## Experimental voice coordinator
 
-With a configured Mac companion, **Ask** can create and name a workspace, start
-its Codex worker, and route follow-ups to that same worker. Preview requests stay
-explicit. The destination picker selects Global or a coordinated workspace;
-**Stop this request** cancels its work without closing apps or terminals. This
-opt-in version uses typed requests. See [the coordinator guide](coordinator.md)
-for setup, approvals, recovery behavior and current limits.
+Choose **Ask** in the launcher header, or **Ask SlopZooka** in a terminal's actions
+menu. A compact independent window opens. Hold its microphone, speak, release,
+and use the familiar two-second cancel window. Enable microphone permissions if
+prompted; normal use needs no typing.
+
+Opening from a terminal carries its workspace context. The same panel remains
+usable after closing the launcher. **Stop** cancels the latest request while
+keeping its apps and windows. **Details** contains full results and approvals.
+See [the coordinator guide](coordinator.md) for setup and current limits.

@@ -5,17 +5,18 @@ private let voiceAccent = Color("AccentHighlight")
 struct TerminalVoiceButton: View {
     let id: String
     let isAvailable: Bool
+    var mode: TerminalVoiceController.Mode = .terminal
     @EnvironmentObject private var voice: TerminalVoiceController
 
     var body: some View {
         VoiceInputButton(voice: voice, id: id, label: "Hold to dictate", onPressingChanged: { pressing in
-            if pressing { voice.beginTerminalHold(id) }
-            else { voice.endTerminalHold(id) }
+            if pressing { voice.beginHold(id, mode: mode) }
+            else { voice.endHold(id) }
         }) {}
         .accessibilityHint("Hold while speaking, then release. Tap the close button within two seconds to cancel before sending.")
         .accessibilityAction {
-            if voice.targetID == id && voice.mode == .terminal { voice.endTerminalHold(id) }
-            else { voice.beginTerminalHold(id) }
+            if voice.targetID == id && voice.mode == mode { voice.endHold(id) }
+            else { voice.beginHold(id, mode: mode) }
         }
         .opacity(isAvailable ? 1 : 0.45)
         .disabled(!isAvailable || voice.isSubmitting || voice.sendDeadline != nil)
@@ -116,6 +117,7 @@ struct TerminalVoiceOverlay: ViewModifier {
     let id: String
     let isAvailable: Bool
     let canRename: Bool
+    var mode: TerminalVoiceController.Mode = .terminal
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -145,7 +147,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                     .accessibilityHidden(voice.targetID != id)
             }
             .overlay(alignment: .bottomTrailing) {
-                TerminalVoiceButton(id: id, isAvailable: isAvailable)
+                TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
                     .fixedSize()
                     .padding(20)
             }
@@ -221,10 +223,10 @@ private struct TerminalVoiceDraft: View {
             .frame(height: voice.mode == .rename || voice.mode == .draft ? 148 : 80)
             // Recognition handoffs briefly pass through idle/preparing. They are
             // still part of the hold, and never expose a separate Send action.
-            if voice.mode != nil && (voice.mode != .terminal || voice.needsRetry) {
+            if voice.mode != nil && (!voice.usesHoldToTalk || voice.needsRetry) {
                 HStack {
                     Spacer()
-                    if voice.canResume && voice.mode != .terminal {
+                    if voice.canResume && !voice.usesHoldToTalk {
                         Button("Resume") { voice.resume() }
                     }
                     Button(voice.mode == .rename ? "Save Name" : (voice.needsRetry ? "Retry" : "Send")) { voice.send() }

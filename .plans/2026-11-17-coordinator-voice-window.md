@@ -1,8 +1,6 @@
 # Next coordinator UX: compact independent voice window
 
-Status: user-directed next UX slice after the [headset gate](2026-11-17-coordinator-headset-results.md).
-This is the implementation plan, not a description of shipped behavior. The
-current test build still has the typed Ask tab.
+Status: implemented in this branch after the [headset gate](2026-11-17-coordinator-headset-results.md); local verification is recorded below; an isolated signed rig is being staged for the physical voice gate. The installed headset test app still has the earlier typed surface until the next authorized device slot.
 
 ## Confirmed product requirements
 
@@ -108,7 +106,7 @@ binding must explain the limitation or get explicit intent to start a new worker
 
 ## Acceptance and next physical slot
 
-Local coverage: one scene under repeated opens; correct origin context; no retarget
+Local coverage: repeated opens emit the same scene identity (physical singleton reveal remains a device check); correct origin context; no retarget
 while holding/settling/counting down; one delivery after final recognition; cancelled
 countdown sends nothing; uncertain delivery reuses its ID; late host replies cannot
 replace the current state; one microphone across terminal/coordinator; closing the
@@ -129,3 +127,63 @@ Physical checks, with no typing required:
 Judge size, placement, readability, speech timing and ease of invoking it on the
 headset. Simulator builds cannot establish those UX properties. Wrist invocation
 can reuse the same gateway action later; it is not required by this feedback slice.
+
+
+## Capability contract for the singular interface
+
+The user explicitly asked whether this should launch/name terminals, connect to
+existing workspaces/threads, launch browser windows, dispatch across multiple
+workspaces in one pass, and run CUA against a workspace's previews. All five are
+the intended command surface. The voice implementation does not by itself prove
+or add every underlying capability.
+
+| Capability | Current boundary / remaining work |
+| --- | --- |
+| Launch/name new work | Existing workspace create/name and owned-worker launch are available. Independent terminal naming can reuse the existing session rename owner; Pi currently names the workspace, not every terminal independently. |
+| Existing workspaces/threads | Existing workspaces and owned workers can be reused. The launcher's saved-thread resume is separate from coordinator ownership. Adopting an already-running arbitrary terminal or resuming a saved thread into an owned backend still needs an explicit ownership contract. |
+| Browser windows | A coding worker can launch/control a Mac browser through its available tools and request a native preview. Background extension control and a first-class browser lifecycle adapter remain separate qualification. |
+| Multiple targets per request | Pi can sequence multiple tool operations, with exact per-worker correlations. That does not grant parallel foreground desktop input; the native worker lifetime limit still applies. Multi-workspace fan-out needs a targeted end-to-end gate. |
+| CUA for workspace previews | Native control and preview presentation passed individually and together for one fixture. Reliable multi-workspace targeting requires explicit preview/source association and foreground-input coordination, using existing schemas/owners rather than a second window registry. |
+
+The next headset slot should establish the new voice/window interaction. It is
+not a claim that thread adoption, parallel desktop control, or every browser path
+is already implemented.
+
+## Implementation notes
+
+- `WindowGateway.openCoordinator` captures origin and emits one utility-scene
+  intent. Launcher and terminal actions use it; the scene adapter alone opens the
+  constant native scene value. No terminal/preview layout schema was repurposed.
+- The shared hold-to-talk controller has an explicit coordinator destination.
+  The existing capture, transcript, countdown, cancellation and feedback views are
+  reused. Permissions can be granted before the first hold without starting audio.
+- Context is protected by the shared voice owner's active mode and submission
+  state. Closing cancels unsent speech; uncertain input retains its original UUID
+  and context for confirmation. Reopening does not restart the model task.
+- Current-request worker IDs are additive response metadata, allowing the compact
+  panel to show actual progress/results without presenting an old acknowledgement
+  as current activity. Unknown Stop results remain explicit and retryable.
+- Global name resolution and app-preview intent preservation are now explicit in
+  the coordinator instructions. Their natural-language behavior still needs the
+  next physical flow; instruction changes alone are not a new pass result.
+
+
+## Local verification (2026-11-17)
+
+Passed: TypeScript typecheck, both linters, formatting, native state checks,
+terminal keyboard/WebKit regression checks, regenerated harness asset parity,
+and visionOS simulator and signed device builds. The full companion suite includes
+regressions for uncertain Stop and preventing a new request from replacing ownership
+while cancellation is awaiting confirmation. Native checks exercise final speech,
+countdown cancellation, fixed context, same-ID retry after a lost reply, current
+worker feedback and late replies.
+
+Local logs are `/tmp/slz-coordinator-voice-*.log`. The isolated signed headset
+build is `/tmp/slz-coordinator/voice-vp/Build/Products/Debug-xros/SlopZooka.app`;
+Mac staging uses `/tmp/slz-coordinator/voice-mac/SlopZooka.app`. Neither is a
+production install. The next rig uses port 55432 and a uniquely identified
+**Slz Voice Fixture**, so it cannot accidentally reuse the previous fixture app.
+
+The four-step physical script above remains the acceptance gate. Microphone
+permissions, real recognition timing, native singleton reveal, compact readability
+and placement have not been claimed from compilation or substituted speech tests.

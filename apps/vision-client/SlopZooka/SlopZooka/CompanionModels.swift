@@ -306,4 +306,5 @@ struct CoordinatorSnapshot: Decodable {
     var activity: String?
     var reply: String?
     var workers: [CoordinatorWorker]
+    var workerSessionIds: [String]?
 }

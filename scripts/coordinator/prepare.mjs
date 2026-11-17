@@ -2,6 +2,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
+import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 const root = path.resolve(import.meta.dirname, "../..");
 const run =
@@ -57,13 +58,20 @@ execFileSync("plutil", [
   plist,
 ]);
 execFileSync("codesign", ["--force", "--sign", signing, companion]);
-const fixture = path.join(run, "Slz Coordinator Fixture.app");
+const fixtureName =
+  process.env.SLZ_COORDINATOR_FIXTURE_NAME ?? "Slz Coordinator Fixture";
+if (!/^[A-Za-z][A-Za-z0-9 -]{0,63}$/.test(fixtureName))
+  throw new Error("Invalid fixture name");
+const fixture = path.join(run, fixtureName + ".app");
+const fixtureBundle =
+  "dev.slopzooka.coordinator-fixture." +
+  createHash("sha256").update(run).digest("hex").slice(0, 12);
 await fs.mkdir(path.join(fixture, "Contents/MacOS"), { recursive: true });
 const state = path.join(run, "fixture-state.json");
 const xml = (s) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
 await fs.writeFile(
   path.join(fixture, "Contents/Info.plist"),
-  `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>dev.slopzooka.coordinator-fixture</string><key>CFBundleName</key><string>Slz Coordinator Fixture</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string><key>SlzFixtureStatePath</key><string>${xml(state)}</string></dict></plist>`,
+  `<?xml version="1.0" encoding="UTF-8"?><plist version="1.0"><dict><key>CFBundleIdentifier</key><string>${fixtureBundle}</string><key>CFBundleName</key><string>${xml(fixtureName)}</string><key>SlzFixtureTitle</key><string>${xml(fixtureName)}</string><key>CFBundleExecutable</key><string>Fixture</string><key>CFBundlePackageType</key><string>APPL</string><key>SlzFixtureStatePath</key><string>${xml(state)}</string></dict></plist>`,
 );
 execFileSync("swiftc", [
   path.join(root, "scripts/coordinator/Fixture.swift"),

@@ -1,81 +1,135 @@
 import SwiftUI
-import Combine
 
 struct CoordinatorView: View {
+    @ObservedObject var state: CoordinatorState
     @EnvironmentObject private var client: CompanionClient
     @EnvironmentObject private var launcher: LauncherState
-    @StateObject private var state = CoordinatorState()
-    @State private var draft = ""
-    @State private var selectedSession = ""
+    @EnvironmentObject private var voice: TerminalVoiceController
+    @Environment(\.scenePhase) private var phase
+    @State private var showingDetails = false
+    @State private var microphoneReady = SpeechCaptureController.hasPermissions
+    @State private var preparingMicrophone = false
+    @State private var permissionError: String?
 
-    private var selectedWorker: CoordinatorWorker? { state.snapshot?.workers.first { $0.sessionId == selectedSession } }
+    private var anotherDraft: Bool { voice.targetID != nil && voice.targetID != CoordinatorState.sceneID && voice.hasText }
+    private var canSpeak: Bool { microphoneReady && !anotherDraft && state.canReceiveVoice(client: client) }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Ask SlopZooka").font(.headline)
-            Text("Launch a workspace or send a task to its coding agent.").font(.footnote).foregroundStyle(.secondary)
-            Picker("Destination", selection: $selectedSession) {
-                Text("Global").tag("")
-                ForEach(state.snapshot?.workers ?? []) { worker in
-                    Text(name(worker)).tag(worker.sessionId)
-                }
-            }
-            TextField("Launch Poncho2 with admin and iOS open…", text: $draft, axis: .vertical)
-                .lineLimit(2...5).textFieldStyle(.roundedBorder)
             HStack {
-                Button("Send") {
-                    guard let hostID = client.current?.id else { return }
-                    let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
-                    let worker = selectedWorker
-                    Task { await state.submit(client: client, hostID: hostID, text: text, worker: worker) }
-                }.buttonStyle(.borderedProminent)
-                    .disabled(state.snapshot?.available != true || state.submitting || state.snapshot?.status == "running" || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                if state.snapshot?.requestId != nil {
-                    Button("Stop this request", role: .destructive) {
-                        guard let hostID = client.current?.id else { return }
-                        Task { await state.stop(client: client, hostID: hostID) }
-                    }.buttonStyle(.bordered)
+                Text("Ask SlopZooka").font(.title3.weight(.semibold))
+                Spacer()
+                Button("Details", systemImage: "ellipsis") { showingDetails = true }
+                    .labelStyle(.iconOnly).buttonStyle(.bordered)
+            }
+            HStack {
+                Text(state.context?.label ?? "Global").font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                if state.context?.workspaceID != nil {
+                    Button("Global") {
+                        if let hostID = state.context?.hostID { state.select(CoordinatorContext(hostID: hostID)) }
+                    }
+                    .font(.footnote).buttonStyle(.borderless)
+                    .disabled(!state.canChangeContext() || state.submitting)
                 }
             }
-            if let message = state.snapshot?.message { Text(message).foregroundStyle(.secondary) }
-            if let error = state.error { Text(error).foregroundStyle(.orange).font(.footnote) }
-            if let activity = state.snapshot?.activity { HStack { ProgressView(); Text(activity).font(.footnote) } }
-            if let reply = state.snapshot?.reply, !reply.isEmpty { Text(reply).textSelection(.enabled) }
-            ForEach(state.snapshot?.workers ?? []) { worker in
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack { Text(name(worker)).font(.subheadline.bold()); Spacer(); Text(worker.status).font(.caption).foregroundStyle(.secondary) }
-                    if let error = worker.error { Text(error).font(.footnote).foregroundStyle(.orange) }
-                    if let question = worker.question {
-                        Text(question.title).font(.subheadline.bold())
-                        DisclosureGroup("Review requested action") { Text(question.details).font(.caption.monospaced()).textSelection(.enabled) }
-                        HStack {
-                            Button("Allow once") { answer(worker, accept: true) }.buttonStyle(.bordered)
-                            Button("Decline", role: .cancel) { answer(worker, accept: false) }.buttonStyle(.bordered)
-                        }
-                    }
-                    if let result = worker.result { DisclosureGroup("Latest agent response") { Text(result).font(.footnote).textSelection(.enabled) } }
-                }.padding(12).background(.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12))
+            HStack(spacing: 8) {
+                if state.isWorking { ProgressView().controlSize(.small) }
+                Text(state.statusText).font(.subheadline.weight(.medium)).lineLimit(1)
             }
+            Text(anotherDraft ? "Finish or cancel the voice draft in your other window." : state.responseText)
+                .font(.body).lineLimit(3).frame(maxWidth: .infinity, alignment: .leading)
+            if state.needsApproval {
+                Button("Review requested action") { showingDetails = true }.buttonStyle(.borderedProminent)
+            }
+            Spacer(minLength: 0)
+            if let permissionError { Text(permissionError).font(.footnote).foregroundStyle(.orange).lineLimit(2) }
+            HStack {
+                if !microphoneReady {
+                    Button(preparingMicrophone ? "Getting ready…" : "Enable Microphone") { Task { await prepareMicrophone() } }
+                        .disabled(preparingMicrophone).buttonStyle(.bordered)
+                } else if state.canStop {
+                    Button("Stop", role: .destructive) {
+                        guard let hostID = state.context?.hostID else { return }
+                        Task { await state.stop(client: client, hostID: hostID) }
+                    }.buttonStyle(.bordered).accessibilityLabel("Stop the latest coordinator request")
+                }
+                Spacer()
+            }.frame(height: 96)
         }
-        .onChange(of: state.snapshot?.workers.map(\.sessionId)) { _, _ in
-            guard let hostID = client.current?.id else { return }
-            Task { await launcher.loadWorkspaces(hostID: hostID) }
+        .padding(24).frame(width: 480, height: 460)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+        .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
+        .sheet(isPresented: $showingDetails) { details }
+        .onAppear { selectInitialContext() }
+        .onChange(of: client.current?.id) { _, _ in selectInitialContext() }
+        .onChange(of: phase) { _, next in
+            if next == .active { microphoneReady = SpeechCaptureController.hasPermissions }
         }
-        .task(id: client.current?.id) {
-            let hostID = client.current?.id
-            state.observe(hostID: hostID)
-            selectedSession = ""
-            guard let hostID else { return }
+        .onDisappear {
+            voice.closeInput(CoordinatorState.sceneID)
+        }
+        .task(id: state.context?.hostID) {
+            guard let hostID = state.context?.hostID else { return }
             while !Task.isCancelled {
                 await state.refresh(client: client, hostID: hostID)
                 do { try await Task.sleep(for: .seconds(2)) } catch { return }
             }
         }
+        .onChange(of: state.snapshot?.workers.map(\.sessionId)) { _, _ in
+            guard let hostID = state.context?.hostID else { return }
+            Task { await launcher.loadWorkspaces(hostID: hostID) }
+        }
     }
-    private func name(_ worker: CoordinatorWorker) -> String {
-        launcher.recentWorkspaces.first { $0.workspaceId == worker.workspaceId }?.name ?? worker.workspaceId
+
+    private var details: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack { Text("Coordinator details").font(.headline); Spacer(); Button("Done") { showingDetails = false } }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    if let reply = state.snapshot?.reply {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Last coordinator reply").font(.caption).foregroundStyle(.secondary)
+                            Text(reply).textSelection(.enabled)
+                        }
+                    }
+                    ForEach(state.snapshot?.workers ?? []) { worker in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text(launcher.recentWorkspaces.first { $0.workspaceId == worker.workspaceId }?.name ?? "Coding agent").bold()
+                                Spacer()
+                                Text(worker.status).foregroundStyle(.secondary)
+                            }
+                            if let error = worker.error { Text(error).foregroundStyle(.orange) }
+                            if let question = worker.question {
+                                Text(question.title).bold()
+                                Text(question.details).font(.caption.monospaced()).textSelection(.enabled)
+                                HStack {
+                                    Button("Allow once") { answer(worker, accept: true) }.buttonStyle(.bordered)
+                                    Button("Decline", role: .cancel) { answer(worker, accept: false) }.buttonStyle(.bordered)
+                                }
+                            }
+                            if let result = worker.result { Text(result).textSelection(.enabled) }
+                        }
+                    }
+                }.frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }.padding(24).frame(width: 560, height: 520)
+    }
+    private func selectInitialContext() {
+        guard state.context == nil, let host = client.current else { return }
+        state.select(CoordinatorContext(hostID: host.id))
+    }
+    private func prepareMicrophone() async {
+        preparingMicrophone = true
+        defer { preparingMicrophone = false }
+        do {
+            try await SpeechCaptureController.requestPermissions()
+            microphoneReady = true
+            permissionError = nil
+        } catch { permissionError = "\(error.localizedDescription) Check SlopZooka's permissions in Settings." }
     }
     private func answer(_ worker: CoordinatorWorker, accept: Bool) {
-        guard let hostID = client.current?.id else { return }
+        guard let hostID = state.context?.hostID else { return }
         Task { await state.answer(client: client, hostID: hostID, worker: worker, accept: accept) }
     }
 }

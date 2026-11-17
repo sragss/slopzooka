@@ -226,7 +226,7 @@ struct WindowGatewayChecks {
             switch command {
             case .open(let window): opened.append(window.id)
             case .close(let window): dismissed.append(window.id)
-            case .openLauncher: break
+            case .openLauncher, .openCoordinator: break
             }
         }
         let session = HostSession(id: terminal.id, workspaceId: "workspace",
@@ -237,6 +237,18 @@ struct WindowGatewayChecks {
         await until { gateway.previewPayload(for: preview.id) != nil }
         precondition(opened == [preview.id], "An OS-restored scene is reused; only missing windows are opened")
         precondition(gateway.terminalPayload(for: terminal.id) != nil)
+        let beforeCoordinator = Fixture.requests
+        gateway.openCoordinator(from: terminal.id)
+        precondition(commands.last == .openCoordinator)
+        precondition(gateway.coordinator.context?.workspaceID == "workspace" && gateway.coordinator.context?.sessionID == terminal.id)
+        let capturedCoordinator = gateway.coordinator.context
+        gateway.coordinator.canChangeContext = { false }
+        gateway.openCoordinator()
+        precondition(gateway.coordinator.context == capturedCoordinator, "Revealing an active composer must not redirect its draft")
+        gateway.coordinator.canChangeContext = { true }
+        gateway.openCoordinator()
+        precondition(gateway.coordinator.context?.sessionID == nil && gateway.coordinator.context?.hostID == hostID)
+        precondition(Fixture.requests == beforeCoordinator, "Opening the coordinator creates no PTY, worktree, or layout record")
         precondition(gateway.terminalSessions.first?.id == terminal.id)
         precondition(gateway.terminalSessions.first?.isFocused == true, "Presence observed before payload resolution is retained")
         precondition(gateway.receiveTerminalNotification(id: terminal.id, sequence: 1, serviceInstanceID: "test"))

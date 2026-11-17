@@ -219,7 +219,13 @@ write and does not enqueue offline intent. Readiness is not a visibility receipt
 companion. Authenticated `coordinator-http.ts` routes capture a headset client and
 destination. Workspace creation/naming and window intent reuse existing owners;
 `preview-control.ts` can present an existing terminal through the same readiness
-and layout boundary. The headset's Ask view owns only request and display state.
+and layout boundary. The headset's compact voice utility scene owns only display state. Gateway-owned
+`CoordinatorState` holds ephemeral context and responses. `WindowGateway` routes
+its open/reveal intent; `WindowScene` uses a constant scene value for singleton
+presentation, following the launcher utility pattern. It is not a fake terminal
+or another durable layout registry. The existing microphone/hold controller routes
+an explicit coordinator command destination to the same API, preserving command
+IDs and context through retries; terminal input retains its separate destination.
 
 The retained session service owns `codex-workers.ts`: a private app-server and
 ordinary remote TUI for each new coordinated Codex thread. `codex-rpc.ts` adapts

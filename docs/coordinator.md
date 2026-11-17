@@ -1,45 +1,63 @@
 # Experimental coordinator
 
-The launcher's **Ask** tab sends a typed request to an ephemeral Pi agent in the
-Mac companion. Pi can find projects, create and name a workspace, start an owned
-Codex worker, queue a follow-up, and open or close requested previews. Codex does
-the project setup and computer use. Its normal terminal attaches to the same
-backend and thread; Ask does not type prompts into an arbitrary terminal.
+Use **Ask** in the launcher header or **Ask SlopZooka** in a terminal's actions
+menu to open the compact voice coordinator. It is a separate window and keeps
+working when the launcher closes. Repeated opens reveal the same scene.
 
 This is an opt-in development feature. It requires the matching companion,
 headset build and session service. Updating the HTTP companion does not replace
-an old session service or end existing terminals; Ask explains when that service
-needs an explicit update.
+an old session service or end existing terminals; the coordinator explains when
+that service needs an explicit update.
 
-## Using Ask
+## Speaking a request
 
-Choose **Global** for a new task, or choose an existing coordinated workspace in
-the destination picker for a follow-up. Selection is captured when you send; a
-later focus change cannot redirect the request. Ordinary follow-ups queue in
-Codex. Explicit steering targets the observed active turn and fails if it changed.
-The worker card shows progress, requests for supported approvals, and its latest
-response. A coordinator reply saying the worker started is not task completion.
+Enable microphone/speech permissions if needed. Hold the microphone while
+speaking, then release. Final words settle before the familiar two-second
+countdown; tap × to cancel before submission. Delivery uses the same click/pulse
+and transcript fade as terminal dictation. Pauses while holding do not send.
+There is no keyboard or separate Send step in the normal flow.
+
+Opening from the launcher supplies Global context on the selected Mac. Opening
+from a terminal supplies its Mac, workspace and session. The small context label
+shows that origin; **Global** clears workspace context. An active draft or
+uncertain delivery keeps its original destination even if another terminal
+reveals the coordinator. Terminal dictation remains terminal input; coordinator
+voice goes to the structured Pi endpoint and never types into an arbitrary PTY.
+
+Pi can find projects, create and name a workspace, start an owned Codex worker,
+queue follow-ups, and open/close explicitly requested native previews. Codex
+performs project setup and computer use. Its normal terminal attaches to the
+same backend and thread. Ordinary follow-ups queue; explicitly requested
+steering targets the observed active turn and fails if it changed.
 
 Examples:
 
 - “Launch Poncho2 in a new workspace named Login verification. Have its agent
-  get iOS running and show me a preview here.”
-- With that workspace selected: “Click through the login and stop at Settings.”
+  get iOS running and show me a preview on my headset.”
+- From that coordinated terminal: “Click through the login and stop at Settings.”
 - “Close the iPhone preview, keeping its app and terminal running.”
 
 These are intended workflows, not claims that every project's setup is tested.
-The coding worker reads the actual project and handles missing tools or permissions.
+The coding worker reads the actual project and reports missing capabilities.
+Existing ordinary terminals provide useful context but are not automatically
+adopted as controlled workers. A multi-workspace command still has to respect
+the native-input and worker limits below.
 
-**Stop this request** stops further coordinator actions and cancels only the
-worker submissions owned by that request. It preserves workspaces, terminals,
-apps and unrelated queued tasks. A resource already created when Stop arrives
-is kept. Closing Ask does not stop work. Ending the terminal explicitly ends its
-owned backend; merely closing its window does not.
+The main panel shows a short response and current activity. **Details** shows
+full replies, worker results and required approvals. A historical acknowledgement
+is labeled as such; it is not proof of completion or physical preview visibility.
+
+**Stop** stops further coordinator actions and cancels only the submissions owned
+by its latest request. It preserves workspaces, terminals, apps and unrelated
+queued tasks. An uncertain cancellation stays visible rather than claiming the
+agent stopped. Closing the window cancels unsubmitted voice/countdown, while an
+uncertain submission retains its ID for Retry. Already accepted work keeps running.
+Reopening refreshes its state without resubmitting. Ending the terminal explicitly
+ends its owned backend; merely closing that terminal window does not.
 
 Headset previews remain explicit requests. A disconnected headset returns
-“not available right now”; the coordinator may still run a requested coding task
-on the Mac. Preview intent is not queued for an offline headset, and a saved
-window layout is not proof that the user saw the stream.
+“not available right now”; a requested coding task may still run on the Mac.
+Preview intent is not queued for an offline headset.
 
 ## Mac configuration
 
@@ -72,8 +90,10 @@ coordinate unmanaged desktop agents or human input; those remain a test constrai
 
 ## Current limits
 
-- Typed launcher entry only: no voice/realtime session, gaze inference, wrist
-  entry point, or contextual action in existing terminal windows yet.
+- Speech uses the existing terminal capture and hold-to-talk UX. GPT Realtime,
+  gaze inference and a wrist entry point are not implemented. The new voice
+  window still needs its own physical-device UX pass; the earlier device gate
+  established the backend/control path through the typed test surface.
 - Newly created coordinated workers only; existing arbitrary Codex terminals
   cannot be adopted. No Pi-owned direct computer-use loop or browser authority.
 - Native command/file approvals and empty MCP confirmation forms have explicit
@@ -90,5 +110,5 @@ coordinate unmanaged desktop agents or human input; those remain a test constrai
   conversation limits without ending terminals. Worker request limits require
   a new worker. These are bounded experimental limits, not a long-running job system.
 
-See [the implementation and device gate](../.plans/2026-11-17-coordinator-implementation.md)
+See [the voice-window plan and device gate](../.plans/2026-11-17-coordinator-voice-window.md)
 for qualification and the isolated headset test.
