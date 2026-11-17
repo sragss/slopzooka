@@ -393,11 +393,7 @@ export class CodexWorkers {
               });
               w.rpc = rpc;
               await w.rpc.initialize();
-              const resumed = await w.rpc.call<{ thread: NativeThread }>(
-                "thread/resume",
-                { threadId: w.state.threadId },
-              );
-              w.state.status = resumed.thread.status.type;
+              await w.rpc.call("thread/resume", { threadId: w.state.threadId });
               await this.reconcile(w);
             } catch {
               w.state.status = "unavailable";
@@ -502,20 +498,30 @@ export class CodexWorkers {
     );
     w.state.turnId = active?.id;
     const latest = response.thread.turns?.at(-1);
+    // Thread status (active/idle) is not our turn status (running/completed).
+    // Reconnection must project the same state as live turn notifications.
+    w.state.status = w.pendingQuestion
+      ? "waiting"
+      : active
+        ? "running"
+        : (latest?.status ?? response.thread.status.type);
     const text = latest?.items
       .filter((item) => item.type === "agentMessage")
       .map((item) => item.text ?? "")
       .join("\n");
     w.state.result = text ? text.slice(-6000) : undefined;
-    for (const [id, { delivery }] of w.submissions) {
+    for (const delivery of w.state.deliveries) {
+      const id = delivery.requestId;
       const queued = queue.data.find((q) => q.clientUserMessageId === id);
       if (queued) {
         delivery.status = "queued";
         delivery.queuedId = queued.id;
         continue;
       }
-      const turn = response.thread.turns?.find((t) =>
-        t.items.some((i) => i.type === "userMessage" && i.clientId === id),
+      const turn = response.thread.turns?.find(
+        (t) =>
+          t.id === delivery.turnId ||
+          t.items.some((i) => i.type === "userMessage" && i.clientId === id),
       );
       if (turn) {
         delivery.turnId = turn.id;
@@ -561,11 +567,16 @@ export class CodexWorkers {
         { threadId: w.state.threadId },
       );
       for (const entry of queue.data)
-        if (requestIds?.includes(entry.clientUserMessageId))
+        if (requestIds?.includes(entry.clientUserMessageId)) {
           await w.rpc!.call("thread/queue/delete", {
             threadId: w.state.threadId,
             queuedSubmissionId: entry.id,
           });
+          const delivery = w.submissions.get(
+            entry.clientUserMessageId,
+          )?.delivery;
+          if (delivery) delivery.status = "interrupted";
+        }
       const turnId = w.state.turnId;
       const scoped =
         !requestIds ||

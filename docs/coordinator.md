@@ -63,7 +63,11 @@ by its latest request. It preserves workspaces, terminals, apps and unrelated
 queued tasks. An uncertain cancellation stays visible rather than claiming the
 agent stopped. Closing the window cancels unsubmitted voice/countdown, while an
 uncertain submission retains its ID for Retry. Already accepted work keeps running.
-Reopening refreshes its state without resubmitting. Ending the terminal explicitly
+Reopening refreshes its state without resubmitting. If the reply was lost after
+acceptance, **Retry** can confirm that same request while the coordinator is busy;
+it does not submit a new task. New voice requests wait for its reply. Worker
+reconnection restores turn progress/results, and a cancelled queued task is shown
+as interrupted instead of remaining queued. Ending the terminal explicitly
 ends its owned backend; merely closing that terminal window does not.
 
 Headset previews remain explicit requests. A disconnected headset returns

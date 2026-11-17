@@ -41,14 +41,6 @@ private struct WindowState {
         previewRequest = nil
         error = nil
     }
-
-    mutating func markTerminalUnavailable() {
-        content = nil
-        loadState = .idle
-        notifications = TerminalNotifications()
-        renameRequest = nil
-        error = "This terminal is no longer available. Its session may have ended or the Mac session service restarted."
-    }
 }
 
 enum WindowCommand: Equatable {
@@ -117,7 +109,7 @@ final class WindowGateway: ObservableObject {
             let sessions = snapshot.sessions
             let ids = Set(sessions.map(\.id))
             for (id, window) in self.windows where window.reference?.hostID == hostID && window.reference?.window.kind == .terminal && !ids.contains(id) {
-                self.windows[id]?.markTerminalUnavailable()
+                self.markTerminalUnavailable(id: id)
             }
             for session in sessions { self.registerTerminal(session, hostID: hostID) }
             await self.synchronize()
@@ -174,7 +166,7 @@ final class WindowGateway: ObservableObject {
     func contentError(for id: String) -> String? { windows[id]?.error }
     func reloadToken(for id: String) -> Int { windows[id]?.reloadRevision ?? 0 }
     func updateTerminalLoadState(id: String, loadState: TerminalLoadState) {
-        if windows[id]?.terminal != nil { windows[id]?.loadState = loadState }
+        if windows[id]?.terminal != nil, windows[id]?.loadState != loadState { windows[id]?.loadState = loadState }
     }
 
     func hasUnreadNotification(_ id: String) -> Bool { windows[id]?.notifications.hasUnread == true }
@@ -339,16 +331,18 @@ final class WindowGateway: ObservableObject {
     // Called only by WindowScene. Presence is ephemeral and never writes close intent.
     func observe(id: String?, isPresented: Bool, isFocused: Bool) {
         guard let id else { return }
-        if windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused {
-            log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
-        }
+        guard windows[id]?.isPresented != isPresented || windows[id]?.isFocused != isFocused
+            || windows[id]?.openRequested == nil else { return }
+        log.info("scene.observed", ["windowId": id, "hostId": windows[id]?.reference?.hostID ?? "", "presented": String(isPresented), "focused": String(isFocused)])
         let becameFocused = isPresented && isFocused && windows[id]?.isFocused != true
+        var next = windows[id] ?? WindowState()
         // A background OS-restored scene already exists. Late observations after
         // an explicit close must not re-arm it and swallow a future reopen.
-        if windows[id]?.openRequested != false { windows[id, default: WindowState()].openRequested = true }
-        windows[id]?.isPresented = isPresented
-        windows[id]?.isFocused = isFocused
-        if isFocused { windows[id]?.lastFocusedAt = Date() }
+        if next.openRequested != false { next.openRequested = true }
+        next.isPresented = isPresented
+        next.isFocused = isFocused
+        if becameFocused { next.lastFocusedAt = Date() }
+        windows[id] = next
         if becameFocused { readTerminalNotifications(id: id) }
     }
     func attachPresenter(_ id: UUID, action: @escaping (WindowCommand) -> Void) {
@@ -360,6 +354,18 @@ final class WindowGateway: ObservableObject {
     }
     func detachPresenter(_ id: UUID) { presenters.removeValue(forKey: id) }
 
+    private func markTerminalUnavailable(id: String) {
+        let message = "This terminal is no longer available. Its session may have ended or the Mac session service restarted."
+        guard var next = windows[id], next.content != nil || next.loadState != .idle
+            || next.renameRequest != nil || next.error != message else { return }
+        next.content = nil
+        next.loadState = .idle
+        next.notifications = TerminalNotifications()
+        next.renameRequest = nil
+        next.error = message
+        windows[id] = next
+    }
+
     private func registerTerminal(_ session: HostSession, hostID: String) {
         guard let base = try? client.endpoint(for: hostID) else { return }
         var url = URLComponents(url: base, resolvingAgainstBaseURL: false)!
@@ -368,10 +374,15 @@ final class WindowGateway: ObservableObject {
         let payload = TerminalWindowPayload(id: session.id, workspaceId: session.workspaceId,
             title: session.name ?? (session.workspaceName == nil ? "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)" : session.title),
             urlString: url.url!.absoluteString, projectName: session.projectName, workspaceName: session.workspaceName)
-        windows[session.id, default: WindowState()].content = .terminal(payload)
-        windows[session.id]?.reference = WindowReference(hostID: hostID,
+        let reference = WindowReference(hostID: hostID,
             window: WindowRecord(id: session.id, kind: .terminal, targetID: session.id))
-        windows[session.id]?.error = nil
+        guard windows[session.id]?.terminal != payload || windows[session.id]?.reference != reference
+            || windows[session.id]?.error != nil else { return }
+        var next = windows[session.id] ?? WindowState()
+        next.content = .terminal(payload)
+        next.reference = reference
+        next.error = nil
+        windows[session.id] = next
     }
     private func synchronize() async {
         guard !isSynchronizing else { return }
@@ -389,7 +400,7 @@ final class WindowGateway: ObservableObject {
             restoreWindows(hostID: hostID)
             reconcilePreviews(hostID: hostID)
         }
-        persistenceError = firstError
+        if persistenceError != firstError { persistenceError = firstError }
     }
     private func reconcileRemoteCloses(hostID: String) {
         // Only a successful sync is authoritative. Pending local intent is already
@@ -429,7 +440,7 @@ final class WindowGateway: ObservableObject {
         // Expected unavailability is state, not a failing Open every poll. A new
         // catalog/route can make it available again without another window cache.
         if record.targetID.hasPrefix("window:"), let message = client.frontendOpenError(id: record.targetID, hostID: hostID) {
-            windows[record.id]?.error = message
+            if windows[record.id]?.error != message { windows[record.id]?.error = message }
             return
         }
         if let availability = client.frontends(for: hostID).frontends.first(where: { $0.id == record.targetID })?.presentation,
@@ -461,9 +472,14 @@ final class WindowGateway: ObservableObject {
     private func restoreWindows(hostID: String? = nil) {
         for hostID in hostID.map({ [$0] }) ?? Array(client.knownHostIDs) {
             for record in persistence.windows(hostID: hostID) {
-                windows[record.id, default: WindowState()].reference = WindowReference(hostID: hostID, window: record)
+                let reference = WindowReference(hostID: hostID, window: record)
+                // WindowReference equality is scene identity (ignores names).
+                // Presentation metadata must still follow a remote rename.
+                if windows[record.id]?.reference?.hostID != hostID || windows[record.id]?.reference?.window != record {
+                    windows[record.id, default: WindowState()].reference = reference
+                }
                 if record.kind == .terminal && windows[record.id]?.terminal == nil {
-                    windows[record.id]?.markTerminalUnavailable()
+                    markTerminalUnavailable(id: record.id)
                 }
                 present(record)
             }

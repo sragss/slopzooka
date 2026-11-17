@@ -86,7 +86,7 @@ struct APIErrorResponse: Decodable {
 }
 
 // Resolved view data is deliberately not Codable. Persist WindowRecord instead.
-struct TerminalWindowPayload {
+struct TerminalWindowPayload: Equatable {
     let id: String
     let workspaceId: String
     let title: String
@@ -100,7 +100,7 @@ struct TerminalWindowPayload {
     }
 }
 
-struct FrontendSummary: Decodable, Identifiable {
+struct FrontendSummary: Equatable, Decodable, Identifiable {
     let id: String
     let hostname: String
     let url: String
@@ -116,21 +116,21 @@ struct FrontendSummary: Decodable, Identifiable {
     var displayTitle: String { title ?? hostname }
     var isService: Bool { category == "service" }
 }
-struct PresentationAvailability: Decodable {
+struct PresentationAvailability: Equatable, Decodable {
     let presentation: String
     let available: Bool
     let reasonCode: String?
     let message: String?
     let alternatives: [String]
 }
-struct NativeWindowSource: Decodable, Identifiable {
+struct NativeWindowSource: Equatable, Decodable, Identifiable {
     let id: String
     let title: String
     let application: String
     let contentWidth: Double
     let contentHeight: Double
 }
-struct NativeWindowCatalog: Decodable {
+struct NativeWindowCatalog: Equatable, Decodable {
     let sources: [NativeWindowSource]
     let state: String
     let presentation: PresentationAvailability
@@ -140,7 +140,7 @@ struct NativeWindowPayload {
     let source: NativeWindowSource
     let route: CompanionTransportRoute
 }
-struct FrontendCatalog: Decodable {
+struct FrontendCatalog: Equatable, Decodable {
     var windows: NativeWindowCatalog? = nil
     let frontends: [FrontendSummary]
     let warning: String?

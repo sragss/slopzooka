@@ -113,7 +113,12 @@ test(
         }),
         /uncertain|disconnected/,
       );
-      await workers.list(client); // reconnect and reconcile, never resubmit
+      const recovered = (await workers.list(client))[0]!; // reconnect, never resubmit
+      assert.equal(
+        recovered.status,
+        "running",
+        "Reconnect must restore the UI's active-turn state",
+      );
       await workers.submit(sessionId, {
         requestId: "lost",
         text: "lose-reply",
@@ -130,6 +135,11 @@ test(
       assert.equal(
         stopped.deliveries.find((d) => d.requestId === "queued-1")?.status,
         "queued",
+      );
+      assert.equal(
+        stopped.deliveries.find((d) => d.requestId === "lost")?.status,
+        "interrupted",
+        "A successfully removed queued task must not remain queued in the conversation",
       );
       assert.equal(manager.summaries()[0]!.status, "running");
       // Queue belongs to Codex and Stop did not clear an unrelated follow-up.
@@ -156,6 +166,31 @@ test(
       await assert.rejects(
         workers.answer(sessionId, question.id, true),
         /no longer/,
+      );
+      // Finish while the notification socket is down. Status/result must come
+      // from the existing thread, without launching or submitting again.
+      await until(
+        async () => (await workers.list(client))[0]?.status === "interrupted",
+      );
+      await workers.submit(sessionId, {
+        requestId: "offline-finish",
+        text: "finish-offline",
+        mode: "queue",
+      });
+      await until(async () => {
+        const worker = (await workers.list(client))[0]!;
+        return (
+          worker.status === "completed" &&
+          worker.deliveries.find((d) => d.requestId === "offline-finish")
+            ?.status === "completed"
+        );
+      });
+      assert.match((await workers.list(client))[0]!.result!, /^DONE /);
+      assert.equal(
+        (await rows()).filter(
+          (x) => x.event === "queue" && x.request === "offline-finish",
+        ).length,
+        1,
       );
     } finally {
       await workers.close();

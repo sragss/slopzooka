@@ -132,6 +132,8 @@ private struct SceneIdentity: UIViewRepresentable {
                 return
             }
             guard let data = try? JSONEncoder().encode(reference) else { return }
+            // Polling/notification redraws are not scene identity changes.
+            guard session.userInfo?[referenceKey] as? Data != data else { return }
             var info = session.userInfo ?? [:]
             info[referenceKey] = data
             session.userInfo = info
@@ -151,6 +153,13 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
                 guard let windows else { return false }
                 if mode == .coordinator { return id == CoordinatorState.sceneID && windows.coordinator.canReceiveVoice(client: windows.client) }
                 return mode == .rename ? windows.canRename(id) : windows.canReceiveVoice(id)
+            },
+            canRetry: { [weak windows] command in
+                guard let windows else { return false }
+                switch command.destination {
+                case .terminal: return windows.canReceiveVoice(command.targetID)
+                case .coordinator: return windows.coordinator.canSubmit(client: windows.client, command: command)
+                }
             },
             rename: { [weak windows] id, name, target in
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }

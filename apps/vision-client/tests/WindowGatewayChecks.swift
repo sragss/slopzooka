@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // No discovery or process launch in these checks. Production gateway/persistence/
 // launcher code runs against a controllable transport, including delayed replies.
@@ -237,6 +238,12 @@ struct WindowGatewayChecks {
         await until { gateway.previewPayload(for: preview.id) != nil }
         precondition(opened == [preview.id], "An OS-restored scene is reused; only missing windows are opened")
         precondition(gateway.terminalPayload(for: terminal.id) != nil)
+        var idleUpdates = 0
+        let idleObserver = gateway.objectWillChange.sink { idleUpdates += 1 }
+        gateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        await gateway.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session, closedSession]), target)
+        idleObserver.cancel()
+        precondition(idleUpdates == 0, "Unchanged polling and repeated scene observation must not invalidate every launcher/window")
         let beforeCoordinator = Fixture.requests
         gateway.openCoordinator(from: terminal.id)
         precondition(commands.last == .openCoordinator)

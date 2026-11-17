@@ -70,6 +70,7 @@ struct CoordinatorChecks {
         let voice = TerminalVoiceController(capture: capture,
             waitBeforeSend: { await withCheckedContinuation { countdown = $0 } },
             isAvailable: { id, mode in mode == .coordinator ? state.canReceiveVoice(client: client) : true },
+            canRetry: { state.canSubmit(client: client, command: $0) },
             rename: { _, _, _ in preconditionFailure("Voice command must not rename") },
             deliver: { command in try await state.submit(client: client, command: command) })
         state.canChangeContext = { voice.mode != .coordinator }
@@ -108,11 +109,19 @@ struct CoordinatorChecks {
         voice.closeInput(CoordinatorState.sceneID)
         precondition(voice.needsRetry && !state.select(CoordinatorContext(hostID: "replacement")), "An uncertain delivery retains its context across closing")
         try client.accept(fixtureHealth("fixture", endpoint: base), endpoint: base, authenticated: true)
+        // The host accepted the lost-reply request and is still reasoning. A
+        // status poll must not turn safe confirmation into a disabled Retry.
+        responseOverride = ["available": true, "status": "running", "requestId": firstBody["requestId"]!, "workers": [],
+            "turns": [["requestId": firstBody["requestId"]!, "text": firstBody["text"]!, "status": "running"]]]
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.conversation.count == 1 && !state.canReceiveVoice(client: client))
         voice.send()
         await until { voice.mode == nil }
+        responseOverride = nil
         precondition(first.httpBody == requests.last!.httpBody, "Retry must confirm the identical command, never create another request")
         precondition(voice.lastSubmission?.commandID == firstBody["requestId"] as? String)
         precondition(state.context == destination)
+        await state.refresh(client: client, hostID: "fixture")
 
         release = nil
         blocked = true

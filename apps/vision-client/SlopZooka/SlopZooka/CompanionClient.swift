@@ -453,11 +453,14 @@ final class CompanionClient: NSObject, ObservableObject {
         do {
             let catalog: FrontendCatalog = try await request(hostID: hostID, path: "/api/frontends")
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
-            frontendCatalogs[hostID] = catalog
+            if frontendCatalogs[hostID] != catalog { frontendCatalogs[hostID] = catalog }
+            // Recovery still runs on unchanged catalogs; a prior resolve may
+            // have failed even when the source list itself did not change.
             onFrontendSnapshot?(hostID)
         } catch {
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
-            frontendCatalogs[hostID] = FrontendCatalog(frontends: frontends(for: hostID).frontends, warning: error.localizedDescription)
+            let failed = FrontendCatalog(frontends: frontends(for: hostID).frontends, warning: error.localizedDescription)
+            if frontendCatalogs[hostID] != failed { frontendCatalogs[hostID] = failed }
         }
     }
 

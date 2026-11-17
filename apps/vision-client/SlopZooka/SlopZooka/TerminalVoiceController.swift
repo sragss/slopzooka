@@ -110,6 +110,7 @@ final class TerminalVoiceController: ObservableObject {
     private var heldTargetID: String?
     private let capture: any SpeechCapturing
     private let availability: (String, Mode) -> Bool
+    private let retryAvailability: ((TerminalVoiceCommand) -> Bool)?
     private let deliver: (TerminalVoiceCommand) async throws -> Void
     private let rename: (String, String, NameTarget) async throws -> Void
     private let hostID: (String) -> String?
@@ -124,12 +125,14 @@ final class TerminalVoiceController: ObservableObject {
     init(capture: any SpeechCapturing,
         waitBeforeSend: @escaping () async throws -> Void = { try await Task.sleep(for: .seconds(sendDelay)) },
         isAvailable: @escaping (String, Mode) -> Bool,
+        canRetry: ((TerminalVoiceCommand) -> Bool)? = nil,
         rename: @escaping (String, String, NameTarget) async throws -> Void,
         hostID: @escaping (String) -> String? = { _ in nil },
         deliver: @escaping (TerminalVoiceCommand) async throws -> Void) {
         self.capture = capture
         self.waitBeforeSend = waitBeforeSend
         self.availability = isAvailable
+        self.retryAvailability = canRetry
         self.deliver = deliver
         self.rename = rename
         self.hostID = hostID
@@ -415,7 +418,8 @@ final class TerminalVoiceController: ObservableObject {
 
     private func submit() {
         guard let id = targetID, hasText, !isSubmitting else { return }
-        guard isAvailable(id) else { targetUnavailable(id); return }
+        let available = pendingCommand.flatMap { retryAvailability?($0) } ?? isAvailable(id)
+        guard available else { targetUnavailable(id); return }
         if mode == .draft {
             let text = transcript.trimmingCharacters(in: .whitespacesAndNewlines)
             let completion = finishDraft

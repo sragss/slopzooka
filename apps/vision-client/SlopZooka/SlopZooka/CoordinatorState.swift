@@ -42,10 +42,21 @@ final class CoordinatorState: ObservableObject {
         if active { presenter = id; sceneActive = true }
         else if presenter == id { presenter = nil; sceneActive = false }
     }
-    func canReceiveVoice(client: CompanionClient) -> Bool {
+    private func isAvailable(client: CompanionClient) -> Bool {
         guard sceneActive, let context, snapshot?.available == true,
-            snapshot?.status != "running", !submitting, client.pairedHostIDs.contains(context.hostID) else { return false }
+            !submitting, client.pairedHostIDs.contains(context.hostID) else { return false }
         return client.current?.id != context.hostID || client.isReady
+    }
+    func canReceiveVoice(client: CompanionClient) -> Bool {
+        isAvailable(client: client) && snapshot?.status != "running"
+    }
+    func canSubmit(client: CompanionClient, command: TerminalVoiceCommand) -> Bool {
+        guard command.destination == .coordinator, command.targetID == Self.sceneID,
+            isAvailable(client: client) else { return false }
+        // A lost reply can be confirmed while Pi is busy with that request.
+        // New utterances still wait; the host verifies the retried payload.
+        return snapshot?.status != "running" || snapshot?.requestId == command.commandID
+            || snapshot?.turns?.contains(where: { $0.requestId == command.commandID }) == true
     }
     func refresh(client: CompanionClient, hostID: String) async {
         guard !submitting, context?.hostID == hostID else { return }
@@ -61,8 +72,7 @@ final class CoordinatorState: ObservableObject {
         }
     }
     func submit(client: CompanionClient, command: TerminalVoiceCommand) async throws {
-        guard command.destination == .coordinator, command.targetID == Self.sceneID,
-            let captured = context, canReceiveVoice(client: client) else {
+        guard let captured = context, canSubmit(client: client, command: command) else {
             throw CompanionError(message: "Coordinator is not available right now. Reconnect and retry.")
         }
         revision += 1

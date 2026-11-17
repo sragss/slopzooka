@@ -21,10 +21,10 @@ if (!process.argv.includes('app-server')) {
     broadcast('turn/started',{turn});broadcast('item/completed',{turnId:turn.id,item:turn.items[0]});log({event:'start',text,clientId});
     if(text.includes('approval')) {
       question=99;for(const ws of peers)ws.send(JSON.stringify({id:99,method:'item/commandExecution/requestApproval',params:{threadId:thread.id,turnId:turn.id,command:'printf fixture',reason:'fixture'}}));
-    } else if(!text.includes('hold'))setTimeout(()=>finish(turn,'completed'),50);
+    } else if(!text.includes('hold'))setTimeout(()=>{if(text.includes('finish-offline'))for(const ws of peers)ws.terminate();finish(turn,'completed');},50);
     return turn;
   }
-  function finish(turn,status){if(active!==turn)return;turn.status=status;turn.items.push({type:'agentMessage',text:'DONE '+turn.id});broadcast('item/completed',{turnId:turn.id,item:turn.items.at(-1)});active=undefined;thread.status={type:'idle'};broadcast('turn/completed',{turn});if(status==='completed'&&pending.length){const p=pending.shift();start(p.text,p.clientUserMessageId);}}
+  function finish(turn,status){if(active!==turn)return;turn.status=status;turn.items.push({type:'agentMessage',text:'DONE '+turn.id});broadcast('item/completed',{turnId:turn.id,item:turn.items.at(-1)});active=undefined;thread.status={type:'idle'};log({event:'finish',turnId:turn.id});broadcast('turn/completed',{turn});if(status==='completed'&&pending.length){const p=pending.shift();start(p.text,p.clientUserMessageId);}}
   wss.on('connection',ws=>{peers.add(ws);ws.on('close',()=>peers.delete(ws));ws.on('message',raw=>{
     const m=JSON.parse(raw.toString()); const p=m.params??{};
     if(!m.method){if(m.id===question){log({event:'approval',decision:m.result?.decision});finish(active,m.result?.decision==='accept'?'completed':'interrupted');}return;}
