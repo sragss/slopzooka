@@ -72,3 +72,11 @@ The worker used thread `01a1eabd-fc13-73c3-a20d-310a93947ae0` throughout. Its fi
 turn and increment follow-up completed; cancellation turn
 `01a1eac1-1adf-7911-8eb9-4cd343ea91cb` was interrupted. No screenshot or transcript
 is committed here.
+
+## Subsequent user feedback
+
+The intended input must be voice using the existing terminal voice UX. The
+coordinator should be a concise independent window, launchable from both the
+launcher and terminal windows. The typed Ask tab is not the target UX. Recorded
+in the [next voice-window plan](2026-11-17-coordinator-voice-window.md), which
+supersedes the earlier plan's typed launcher surface for the next implementation.

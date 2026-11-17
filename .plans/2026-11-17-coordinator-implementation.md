@@ -157,6 +157,13 @@ Do not repair production or take over unrelated windows during this slot.
 
 ## What remains after this gate
 
+The user has now specified the next interaction: a compact independent voice
+window, opened from the launcher or terminals, reusing the existing terminal
+voice UX. The [voice-window plan](2026-11-17-coordinator-voice-window.md) supersedes
+the typed Ask tab as the intended product surface and takes priority over the
+older sequence below. The Mac orchestration ownership stays the same.
+
+
 Validate UX before generalizing: action feedback and ambiguity, whether global
 CUA belongs in Pi as well as workers, explicit foreground contention ownership,
 then voice/realtime and wrist access. Keep the transport and window gateway
