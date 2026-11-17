@@ -93,3 +93,26 @@ Local pass: `pnpm lint`, `pnpm typecheck`, `pnpm test` (86/86),
 Logs are local at `/tmp/slz-coordinator-review-*.log`. Signed artifacts and physical
 slot results are recorded separately below; no device performance claim follows
 from these checks.
+
+## Signed artifacts for the next slot
+
+Code revision **7e4ce05** passed the full visionOS simulator build, signed headset
+build, signed Mac build and packaged Mac regression checks. Build logs use the same
+`/tmp/slz-coordinator-review-*.log` prefix.
+
+New isolated rig: `~/.slopzooka/test-rigs/coordinator-review-2026-11-17-ready`.
+Its signed apps and fixture are prepared, **not launched or installed**. Name
+**Slz Ask Review**, port **55434**, fixture **Slz Review Fixture**, headset bundle
+`com.slopzooka.probe.coordinator`. Both app signatures were verified during staging.
+The earlier **Slz Ask Test** rig on 55433 remains untouched, including its shell;
+production is untouched. This avoids replacing a running executable under its
+session service and retains a pre-cleanup build for comparison.
+
+Before the user puts on the headset, start this isolated rig with `rig.mts start`,
+create its owner-only `operator.json` from a local pairing (never print the bearer
+token), and run `notification-check.mts prepare`. Open the exact fixture path in
+`rig.json` in the background and refresh capture availability after Mac unlock.
+Install only the test headset bundle when the slot starts. Fetch the fresh code
+then. Reuse the three count/name/unread checks from the voice results document;
+add the short pairing/connected-pointer comparison above. No fresh real-model or
+CUA discovery run is required for this cleanup.

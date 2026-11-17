@@ -139,3 +139,13 @@ shell for the final foreground-notification check via `notification-check.mts be
 The session service's existing name normalization turns “the nice window” into
 `the-nice-window`; report the saved name, not an invented literal title. Leave all
 production sessions untouched. Expected user time: roughly 3–5 minutes.
+
+## Subsequent cleanup build
+
+The [reliability review](2026-11-17-coordinator-review.md) records fixes for
+accepted-request retry, worker recovery/status, and redundant UI publications,
+plus the newly reported launcher pointer lag. Its signed **Slz Ask Review** rig
+(port 55434, revision `7e4ce05`) is prepared without launching or replacing the
+existing rig above. Use that document's pre-slot steps for the latest build.
+Pointer latency remains an unverified physical symptom; retain the previous rig
+for comparison if profiling is needed.
