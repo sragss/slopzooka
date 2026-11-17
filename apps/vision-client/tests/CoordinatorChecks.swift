@@ -137,8 +137,13 @@ struct CoordinatorChecks {
         state.observeScene(presenter, active: false)
         precondition(!state.canReceiveVoice(client: client))
         precondition(state.snapshot?.requestId == next.commandID, "Hiding the window does not stop or resubmit a task")
-        await state.stop(client: client, hostID: "fixture")
+        let beforeStaleStop = requests.count
+        await state.stop(client: client, hostID: "fixture", requestID: firstBody["requestId"] as! String)
+        precondition(requests.count == beforeStaleStop, "A stale button action cannot target the next request")
+        await state.stop(client: client, hostID: "fixture", requestID: next.commandID)
         precondition(requests.last!.url!.path == "/api/coordinator/stop")
+        let stopBody = try JSONSerialization.jsonObject(with: requests.last!.httpBody!) as! [String: String]
+        precondition(stopBody["requestId"] == next.commandID, "Stop carries the request captured by the UI")
         precondition(state.statusText == "Stopped" && !state.responseText.contains("Accepted"), "Current cancellation state replaces an earlier acknowledgement")
         blocked = false
         responseOverride = ["available": true, "status": "completed", "requestId": "current", "reply": "The agent is running", "workerSessionIds": ["ours"],

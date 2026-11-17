@@ -116,3 +116,40 @@ Install only the test headset bundle when the slot starts. Fetch the fresh code
 then. Reuse the three count/name/unread checks from the voice results document;
 add the short pairing/connected-pointer comparison above. No fresh real-model or
 CUA discovery run is required for this cleanup.
+
+
+## Second cleanup pass
+
+The previous pass's companion and vision CI jobs passed before this review.
+Two further defects were reproduced against the production owners:
+
+- **Delayed Stop could cancel a newer request.** The endpoint previously carried
+  only the client identity and cancelled whichever request was current at arrival.
+  Stop now captures the visible request ID in the Swift button action, carries it
+  through the existing client endpoint, and checks it on the Mac before aborting
+  Pi or cancelling any owned submission. An outdated request returns 409 without
+  touching newer work. Missing/malformed IDs are rejected; there is deliberately
+  no unscoped fallback. This experimental coordinator requires matching companion
+  and headset builds, as before. No new operation queue or cancellation owner.
+- **Result recovery could lose the outcome or change the answer.** Live worker
+  notifications retained the final 6,000 characters, losing the opening outcome
+  of a long answer. Thread reconciliation concatenated all progress and final
+  messages. Both now retain the beginning of the last agent message, matching the
+  concise-first worker guidance and keeping reconciliation consistent with live
+  delivery. The existing bounded result remains bounded; the terminal keeps the
+  full answer.
+
+Regression coverage includes a real Pi loop accepting two successive requests
+before an old Stop arrives, the authenticated HTTP Stop contract, native captured
+request/late-action checks, and the real disposable worker process returning a
+long final reply after progress messages. A repeated submission ID forces actual
+thread reconciliation without dispatching another task. Both new bug regressions
+failed before their fixes and pass afterward. No model/API credentials or headset
+interaction are needed for these tests. Launcher pointer lag remains pending the
+same physical check; this pass makes no further performance claim.
+
+Second-pass local verification: all **87** companion tests pass, along with native
+state, terminal keyboard/WebKit, lint, typecheck, formatting and harness asset parity.
+The added coordinator regression failed with “Missing expected rejection” before
+request-scoped Stop; the worker regression failed because the returned tail lacked
+its outcome. Logs: `/tmp/slz-coordinator-review2-*.log`.

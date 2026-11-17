@@ -16,7 +16,7 @@ if (!process.argv.includes('app-server')) {
   log({event:'environment', terminalProgram:process.env.TERM_PROGRAM, inheritedTerminalIdentity:Boolean(process.env.ITERM_SESSION_ID || process.env.TERM_SESSION_ID)});
   const broadcast=(method,params)=>{for(const ws of peers)ws.send(JSON.stringify({method,params:{threadId:thread.id,...params}}));};
   function start(text,clientId){
-    const turn={id:'turn-'+(++serial),status:'inProgress',items:[{type:'userMessage',clientId}]};
+    const turn={id:'turn-'+(++serial),status:'inProgress',items:[{type:'userMessage',clientId,text}]};
     thread.turns.push(turn);active=turn;thread.status={type:'active'};
     broadcast('turn/started',{turn});broadcast('item/completed',{turnId:turn.id,item:turn.items[0]});log({event:'start',text,clientId});
     if(text.includes('approval')) {
@@ -24,7 +24,7 @@ if (!process.argv.includes('app-server')) {
     } else if(!text.includes('hold'))setTimeout(()=>{if(text.includes('finish-offline'))for(const ws of peers)ws.terminate();finish(turn,'completed');},50);
     return turn;
   }
-  function finish(turn,status){if(active!==turn)return;turn.status=status;turn.items.push({type:'agentMessage',text:'DONE '+turn.id});broadcast('item/completed',{turnId:turn.id,item:turn.items.at(-1)});active=undefined;thread.status={type:'idle'};log({event:'finish',turnId:turn.id});broadcast('turn/completed',{turn});if(status==='completed'&&pending.length){const p=pending.shift();start(p.text,p.clientUserMessageId);}}
+  function finish(turn,status){if(active!==turn)return;turn.status=status;const long=turn.items[0].text.includes('long-result');if(long)turn.items.push({type:'agentMessage',text:'Earlier progress, not the final answer.'});turn.items.push({type:'agentMessage',text:long?'Outcome: fixture passed.\n\n'+('supporting detail '.repeat(500)):'DONE '+turn.id});broadcast('item/completed',{turnId:turn.id,item:turn.items.at(-1)});active=undefined;thread.status={type:'idle'};log({event:'finish',turnId:turn.id});broadcast('turn/completed',{turn});if(status==='completed'&&pending.length){const p=pending.shift();start(p.text,p.clientUserMessageId);}}
   wss.on('connection',ws=>{peers.add(ws);ws.on('close',()=>peers.delete(ws));ws.on('message',raw=>{
     const m=JSON.parse(raw.toString()); const p=m.params??{};
     if(!m.method){if(m.id===question){log({event:'approval',decision:m.result?.decision});finish(active,m.result?.decision==='accept'?'completed':'interrupted');}return;}

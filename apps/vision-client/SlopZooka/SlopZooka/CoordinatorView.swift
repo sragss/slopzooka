@@ -55,8 +55,8 @@ struct CoordinatorView: View {
                         .disabled(preparingMicrophone).buttonStyle(.bordered)
                 } else if state.canStop {
                     Button("Stop", role: .destructive) {
-                        guard let hostID = state.context?.hostID else { return }
-                        Task { await state.stop(client: client, hostID: hostID) }
+                        guard let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId else { return }
+                        Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
                     }.buttonStyle(.bordered).accessibilityLabel("Stop the latest coordinator request")
                 }
                 Spacer()

@@ -331,7 +331,7 @@ export class CodexWorkers {
     if (message.method === "item/completed") {
       const item = p.item as NativeTurn["items"][number];
       if (item?.type === "agentMessage" && typeof item.text === "string")
-        w.state.result = item.text.slice(-6000);
+        w.state.result = item.text.slice(0, 6000);
       if (item?.type === "userMessage" && item.clientId) {
         const delivery = w.submissions.get(item.clientId)?.delivery;
         if (delivery) {
@@ -505,11 +505,12 @@ export class CodexWorkers {
       : active
         ? "running"
         : (latest?.status ?? response.thread.status.type);
+    // Match item/completed: the last agent message is the current reply.
+    // Keep its opening outcome; supporting details remain in the terminal.
     const text = latest?.items
       .filter((item) => item.type === "agentMessage")
-      .map((item) => item.text ?? "")
-      .join("\n");
-    w.state.result = text ? text.slice(-6000) : undefined;
+      .at(-1)?.text;
+    w.state.result = text ? text.slice(0, 6000) : undefined;
     for (const delivery of w.state.deliveries) {
       const id = delivery.requestId;
       const queued = queue.data.find((q) => q.clientUserMessageId === id);

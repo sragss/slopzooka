@@ -46,7 +46,9 @@ the native-input and worker limits below.
 Ask shows one scrolling conversation across voice requests and workspace changes on
 that Mac. Your complete utterances and concise coordinator replies remain visible.
 Markdown headings, lists, emphasis, code and links render natively. Completed worker
-results contribute a short excerpt; **Details** and the terminal retain fuller output.
+results contribute a short excerpt from the final reply's opening outcome;
+**Details** and the terminal retain fuller output. Reconnection restores that same
+final reply rather than combining earlier progress messages with it.
 Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
 earlier result. Reading older messages does not force the scroll back to the bottom.
 
@@ -59,8 +61,9 @@ the session rename API; native preview naming uses the existing layout owner. Th
 actions do not require a coding worker or Mac terminal title manipulation.
 
 **Stop** stops further coordinator actions and cancels only the submissions owned
-by its latest request. It preserves workspaces, terminals, apps and unrelated
-queued tasks. An uncertain cancellation stays visible rather than claiming the
+by the request shown when you tap it. A delayed Stop cannot cancel a newer
+request; refresh if Ask reports that the request changed. It preserves workspaces,
+terminals, apps and unrelated queued tasks. An uncertain cancellation stays visible rather than claiming the
 agent stopped. Closing the window cancels unsubmitted voice/countdown, while an
 uncertain submission retains its ID for Retry. Already accepted work keeps running.
 Reopening refreshes its state without resubmitting. If the reply was lost after

@@ -787,9 +787,13 @@ export class Coordinator {
       clearTimeout(timer);
     }
   }
-  async stop(clientId: string) {
+  async stop(clientId: string, requestId: string) {
     const c = this.conversations.get(clientId);
-    if (!c) return this.status(clientId);
+    if (!c || c.request?.requestId !== requestId)
+      throw new ServiceError(
+        "Coordinator request changed. Refresh before stopping it.",
+        409,
+      );
     if (c.stopping)
       throw new ServiceError("Cancellation is still being confirmed.", 409);
     c.stopping = true;

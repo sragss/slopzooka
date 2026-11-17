@@ -168,7 +168,7 @@ test("Stop during workspace creation prevents later rename and preserves the acc
     const request = { requestId: randomUUID(), text: "Launch fixture" };
     await f.coordinator.submit(f.config, request);
     await until(async () => created === 1);
-    await f.coordinator.stop(clientId);
+    await f.coordinator.stop(clientId, request.requestId);
     release();
     await until(
       async () => (await f.coordinator.status(clientId)).status === "stopped",
@@ -226,13 +226,14 @@ test("Stop scopes cancellation to the submitted request and blocks the next queu
     },
   );
   try {
+    const requestId = randomUUID();
     await f.coordinator.submit(f.config, {
-      requestId: randomUUID(),
+      requestId,
       text: "Do the tasks",
       sessionId: "ours",
     });
     await until(async () => calls.some((c) => c.route.endsWith("/submit")));
-    await f.coordinator.stop(clientId);
+    await f.coordinator.stop(clientId, requestId);
     release({ status: "queued" });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(calls.filter((c) => c.route.endsWith("/submit")).length, 1);
@@ -266,7 +267,10 @@ test("coordinator routes require pairing and capture the native client and desti
       calls.push({ config, request });
       return { status: "running", requestId: request.requestId };
     },
-    stop: async (id: string) => ({ clientId: id, status: "stopped" }),
+    stop: async (id: string, requestId: string) => {
+      calls.push({ stop: { clientId: id, requestId } });
+      return { clientId: id, status: "stopped" };
+    },
     answer: async (...args: any[]) => {
       calls.push({ answer: args });
     },
@@ -336,6 +340,21 @@ test("coordinator routes require pairing and capture the native client and desti
     assert.deepEqual(calls[0].request, request);
     assert.equal(calls[0].config.clientId, clientId);
     assert.equal(calls[0].config.token, pair.token);
+    const stop = (body: unknown) =>
+      fetch(origin + "/api/coordinator/stop", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(body),
+      });
+    assert.equal(
+      (await stop({})).status,
+      400,
+      "Untargeted cancellation is rejected",
+    );
+    assert.equal((await stop({ requestId: "not-an-id" })).status, 400);
+    assert.equal(calls.length, 1);
+    assert.equal((await stop({ requestId: request.requestId })).status, 200);
+    assert.deepEqual(calls[1].stop, { clientId, requestId: request.requestId });
     const other = randomUUID();
     assert.equal(
       (
@@ -377,8 +396,9 @@ test("uncertain Stop stays visible and retries only the same owned submissions",
     },
   );
   try {
+    const requestId = randomUUID();
     await f.coordinator.submit(f.config, {
-      requestId: randomUUID(),
+      requestId,
       text: "Wait",
       sessionId: "ours",
     });
@@ -386,14 +406,17 @@ test("uncertain Stop stays visible and retries only the same owned submissions",
       async () => (await f.coordinator.status(clientId)).status !== "running",
     );
     await assert.rejects(
-      f.coordinator.stop(clientId),
+      f.coordinator.stop(clientId, requestId),
       /could not be confirmed/,
     );
     const uncertain = await f.coordinator.status(clientId);
     assert.equal(uncertain.status, "failed");
     assert.match(uncertain.reply!, /may still be working/);
     failStop = false;
-    assert.equal((await f.coordinator.stop(clientId)).status, "stopped");
+    assert.equal(
+      (await f.coordinator.stop(clientId, requestId)).status,
+      "stopped",
+    );
     assert.deepEqual(stops[0], stops[1]);
   } finally {
     await f.close();
@@ -437,7 +460,7 @@ test("new requests cannot replace ownership while Stop is awaiting confirmation"
     await until(
       async () => (await f.coordinator.status(clientId)).status !== "running",
     );
-    const stop = f.coordinator.stop(clientId);
+    const stop = f.coordinator.stop(clientId, requestId);
     await until(async () => stopping);
     await assert.rejects(
       f.coordinator.submit(f.config, {
@@ -446,7 +469,10 @@ test("new requests cannot replace ownership while Stop is awaiting confirmation"
       }),
       /busy/,
     );
-    await assert.rejects(f.coordinator.stop(clientId), /still being confirmed/);
+    await assert.rejects(
+      f.coordinator.stop(clientId, requestId),
+      /still being confirmed/,
+    );
     assert.equal((await f.coordinator.status(clientId)).requestId, requestId);
     release();
     assert.equal((await stop).status, "stopped");
@@ -690,8 +716,9 @@ test("conversation progress stays attached to each delivery when a worker is reu
     worker.status = "completed";
     worker.result =
       "First **passed**.\n\nLong supporting details stay in the terminal.";
+    const secondRequestId = randomUUID();
     await f.coordinator.submit(f.config, {
-      requestId: randomUUID(),
+      requestId: secondRequestId,
       text: "Second",
       sessionId: "ours",
     });
@@ -702,7 +729,7 @@ test("conversation progress stays attached to each delivery when a worker is reu
       (await f.coordinator.status(clientId)).turns?.map((t) => t.workStatus),
       ["completed", "running"],
     );
-    await f.coordinator.stop(clientId);
+    await f.coordinator.stop(clientId, secondRequestId);
     const turns = (await f.coordinator.status(clientId)).turns!;
     assert.deepEqual(
       turns.map((t) => t.workStatus),
@@ -751,6 +778,76 @@ test("bounded model tool history preserves the visible conversation and target c
     assert.match(context, /Earlier conversation excerpts/);
     assert.match(context, /Remember the name Iris/);
     assert.match(context, /iris-workspace/);
+  } finally {
+    await f.close();
+  }
+});
+
+test("a delayed Stop cannot cancel a newer request on the same headset", async () => {
+  const stops: any[] = [];
+  const f = await fixture(
+    [
+      turn("worker_submit", {
+        sessionId: "ours",
+        text: "first",
+        mode: "queue",
+      }),
+      fauxAssistantMessage("First task accepted."),
+      turn("worker_submit", {
+        sessionId: "ours",
+        text: "second",
+        mode: "queue",
+      }),
+      fauxAssistantMessage("Second task accepted."),
+    ],
+    async (route, _method, body) => {
+      if (route.startsWith("/workers?"))
+        return {
+          workers: [
+            {
+              sessionId: "ours",
+              workspaceId: "one",
+              status: "running",
+              deliveries: [],
+            },
+          ],
+        };
+      if (route.endsWith("/stop")) stops.push(body);
+      return { status: "running" };
+    },
+  );
+  try {
+    const first = { requestId: randomUUID(), text: "First", sessionId: "ours" };
+    const second = {
+      requestId: randomUUID(),
+      text: "Second",
+      sessionId: "ours",
+    };
+    await f.coordinator.submit(f.config, first);
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    await f.coordinator.submit(f.config, second);
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    await assert.rejects(
+      f.coordinator.stop(clientId, first.requestId),
+      /request changed/i,
+    );
+    assert.equal(
+      stops.length,
+      0,
+      "A stale Stop must reach neither the worker nor the new request",
+    );
+    const current = await f.coordinator.status(clientId);
+    assert.equal(current.requestId, second.requestId);
+    assert.equal(current.status, "completed");
+    assert.equal(
+      (await f.coordinator.stop(clientId, second.requestId)).status,
+      "stopped",
+    );
+    assert.equal(stops.length, 1);
   } finally {
     await f.close();
   }

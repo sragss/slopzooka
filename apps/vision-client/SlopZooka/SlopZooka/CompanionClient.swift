@@ -566,8 +566,8 @@ final class CompanionClient: NSObject, ObservableObject {
         try await request(hostID: hostID, path: "/api/coordinator", method: "POST",
             body: Self.json(["requestId": requestID, "text": text, "workspaceId": workspaceID, "sessionId": sessionID]))
     }
-    func coordinatorStop(hostID: String) async throws -> CoordinatorSnapshot {
-        try await request(hostID: hostID, path: "/api/coordinator/stop", method: "POST", body: Self.json([:]))
+    func coordinatorStop(hostID: String, requestID: String) async throws -> CoordinatorSnapshot {
+        try await request(hostID: hostID, path: "/api/coordinator/stop", method: "POST", body: Self.json(["requestId": requestID]))
     }
     func coordinatorAnswer(hostID: String, sessionID: String, questionID: String, accept: Bool) async throws -> CoordinatorSnapshot {
         try await request(hostID: hostID, path: "/api/coordinator/answer", method: "POST",

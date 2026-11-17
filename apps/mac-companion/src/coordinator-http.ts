@@ -28,7 +28,12 @@ export function installCoordinatorRoutes(
     );
   });
   app.post("/api/coordinator/stop", async (req, res) =>
-    res.json(await coordinator.stop(client(req))),
+    res.json(
+      await coordinator.stop(
+        client(req),
+        z.object({ requestId: z.uuid() }).parse(req.body).requestId,
+      ),
+    ),
   );
   app.post("/api/coordinator/answer", async (req, res) => {
     const answer = z

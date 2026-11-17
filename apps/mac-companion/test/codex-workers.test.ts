@@ -186,6 +186,31 @@ test(
         );
       });
       assert.match((await workers.list(client))[0]!.result!, /^DONE /);
+      const longReply = {
+        requestId: "long-reply",
+        text: "long-result",
+        mode: "queue" as const,
+      };
+      await workers.submit(sessionId, longReply);
+      await until(
+        async () =>
+          (await workers.list(client))[0]!.deliveries.find(
+            (d) => d.requestId === "long-reply",
+          )?.status === "completed",
+      );
+      const liveResult = (await workers.list(client))[0]!.result!;
+      assert.match(
+        liveResult,
+        /^Outcome: fixture passed\./,
+        "Bounded results retain the outcome paragraph, not just the tail",
+      );
+      assert.ok(liveResult.length <= 6000);
+      const reconciled = await workers.submit(sessionId, longReply); // Same ID: read thread, never dispatch again.
+      assert.equal(
+        reconciled.result,
+        liveResult,
+        "Recovered results use the final answer, not earlier progress messages",
+      );
       assert.equal(
         (await rows()).filter(
           (x) => x.event === "queue" && x.request === "offline-finish",

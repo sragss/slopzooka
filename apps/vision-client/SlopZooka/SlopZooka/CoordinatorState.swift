@@ -95,12 +95,13 @@ final class CoordinatorState: ObservableObject {
             throw error
         }
     }
-    func stop(client: CompanionClient, hostID: String) async {
+    func stop(client: CompanionClient, hostID: String, requestID: String) async {
+        guard context?.hostID == hostID, snapshot?.requestId == requestID else { return }
         revision += 1
         let current = generation
         let mutation = revision
         do {
-            let value = try await client.coordinatorStop(hostID: hostID)
+            let value = try await client.coordinatorStop(hostID: hostID, requestID: requestID)
             guard current == generation, mutation == revision else { return }
             revision += 1
             apply(value)
