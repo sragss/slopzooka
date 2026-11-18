@@ -1,7 +1,7 @@
 # Coordinator reliability review and launcher lag investigation
 
-Latest signed staging: **Slz Ask Final**, Mac revision `b4b6e71`, port **55436**;
-see the third-pass artifact note at the end. Earlier rig entries are retained
+The latest **Slz Ask Final** staging uses Mac revision `5d0d420` on port **55436**.
+See the conversation history notes at the end. Earlier rig entries are retained
 as evidence, not the current slot target.
 
 Follow-up to the voice headset slot and the user's request for a maintainability
@@ -201,3 +201,24 @@ with request-scoped Stop. Signature verification passed for both. Fixture:
 no earlier rig or production session was modified. Follow the same pre-slot
 preparation in this latest directory. The physical gate remains conversation,
 count/naming, foreground unread acknowledgement and the short pointer-lag check.
+
+## Conversation history cleanup
+
+A single ordered entry per accepted request now stores the captured request,
+coordinator status, owned deliveries and observed results. Retry checks use that
+entry directly. The public snapshot adds the current worker list at response
+time, so each history entry no longer retains the full worker list from the
+moment of submission. The 64-request limit and ephemeral lifetime still apply.
+
+The regression fixture reproduced two failures. When its worker disappeared,
+the second exchange continued to report running. Reconstructing an identical
+request with different field order also produced a conflict in the coordinator.
+The fixture now verifies that completed results survive, active progress becomes
+unavailable until the worker returns, and retries accept identical content while
+rejecting changed content. All 87 companion tests and the lint, type and format
+checks passed. Local logs are under `/tmp/slz-coordinator-history-*.log`.
+
+The existing **Slz Ask Final** rig uses the signed Mac build from this pass and
+the previously qualified headset build. Its discovery name, port, headset ID
+and physical test procedure are the same. The launcher pointer comparison still
+requires a headset slot.
