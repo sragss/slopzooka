@@ -68,7 +68,7 @@ final class CoordinatorState: ObservableObject {
             apply(value)
         } catch {
             guard current == generation, observedRevision == revision else { return }
-            self.error = error.localizedDescription
+            if self.error != error.localizedDescription { self.error = error.localizedDescription }
         }
     }
     func submit(client: CompanionClient, command: TerminalVoiceCommand) async throws {
@@ -121,9 +121,9 @@ final class CoordinatorState: ObservableObject {
     }
 
     private func apply(_ value: CoordinatorSnapshot) {
-        snapshot = value
-        if value.turns?.contains(where: { $0.id == pendingTurn?.id }) == true { pendingTurn = nil }
-        error = nil
+        if snapshot != value { snapshot = value }
+        if let pendingTurn, value.turns?.contains(where: { $0.id == pendingTurn.id }) == true { self.pendingTurn = nil }
+        if error != nil { error = nil }
     }
 
     var conversation: [CoordinatorTurn] {
@@ -132,13 +132,19 @@ final class CoordinatorState: ObservableObject {
         return turns + [pendingTurn]
     }
 
-    var requestWorkers: [CoordinatorWorker] {
+    private var currentTurn: CoordinatorTurn? {
+        guard let snapshot, let id = snapshot.requestId else { return nil }
+        return snapshot.turns?.last { $0.id == id }
+    }
+    // Older companions only reported status for the whole worker.
+    private var requestWorkers: [CoordinatorWorker] {
         let ids = Set(snapshot?.workerSessionIds ?? [])
         return snapshot?.workers.filter { ids.contains($0.sessionId) } ?? []
     }
     var needsApproval: Bool { snapshot?.workers.contains { $0.question != nil } == true }
     var isWorking: Bool {
-        snapshot?.status == "running" || requestWorkers.contains { ["starting", "running", "waiting"].contains($0.status) }
+        if let currentTurn { return currentTurn.isWorking }
+        return snapshot?.status == "running" || requestWorkers.contains { ["starting", "running", "waiting"].contains($0.status) }
     }
     var canStop: Bool { snapshot?.requestId != nil && (isWorking || snapshot?.status == "failed") }
     var statusText: String {
@@ -146,8 +152,9 @@ final class CoordinatorState: ObservableObject {
         if needsApproval { return "Approval needed" }
         guard let snapshot else { return context == nil ? "Connect to your Mac" : "Connecting…" }
         if !snapshot.available { return "Not available right now" }
-        if snapshot.status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
         if snapshot.status == "running" { return snapshot.activity ?? "Working…" }
+        if let currentTurn { return currentTurn.progress.isEmpty ? "Done" : currentTurn.progress }
+        if snapshot.status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
         if snapshot.status == "failed" || requestWorkers.contains(where: { ["failed", "unavailable"].contains($0.status) }) { return "Needs attention" }
         if isWorking { return "Agent working…" }
         if requestWorkers.contains(where: { $0.status == "interrupted" }) { return "Interrupted" }

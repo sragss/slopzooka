@@ -52,6 +52,8 @@ final reply rather than combining earlier progress messages with it.
 Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
 earlier result. If a worker disappears mid-task, that exchange shows **Needs attention**
 until the Mac can confirm its progress again. Completed results stay readable.
+The Ask header follows the current exchange. If one of its tasks needs attention
+while another is still running, **Stop** remains available.
 Reading older messages does not force the scroll back to the bottom.
 
 “Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's

@@ -46,6 +46,7 @@ export type CoordinatorTurn = {
   status: string;
   reply?: string;
   workStatus?: string;
+  hasActiveWork: boolean;
   resultExcerpt?: string;
 };
 export type CoordinatorStatus = {
@@ -196,6 +197,9 @@ export class Coordinator {
         status,
         reply,
         workStatus,
+        hasActiveWork: deliveries.some(
+          (s) => s === "running" || s === "queued",
+        ),
         resultExcerpt:
           [
             ...new Set(

@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @MainActor
 private final class CoordinatorSpeech: SpeechCapturing {
@@ -165,6 +166,29 @@ struct CoordinatorChecks {
         await state.refresh(client: client, hostID: "fixture")
         precondition(state.conversation.count == 2 && state.conversation[0].reply == "Named **Login**.")
         precondition(state.conversation[0].progress == "Completed" && state.conversation[1].progress == "Needs attention")
+        // A worker can already be busy with a follow-up when this request is finished.
+        responseOverride?["status"] = "completed"
+        var turns = responseOverride!["turns"] as! [[String: Any]]
+        turns[1] = ["requestId": "current", "text": "Run its test", "status": "completed", "workStatus": "completed", "resultExcerpt": "Counter 3"]
+        responseOverride?["turns"] = turns
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.statusText == state.conversation.last?.progress && !state.isWorking && !state.canStop,
+            "Worker reuse must not keep the finished request spinning or offer Stop")
+        var redraws = 0
+        let observer = state.objectWillChange.sink { redraws += 1 }
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(redraws == 0, "An identical poll must not redraw the conversation")
+        turns[1]["workStatus"] = "unavailable"
+        responseOverride?["turns"] = turns
+        responseOverride?["workers"] = []
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(redraws > 0 && state.statusText == "Needs attention", "Missing delivery must update both the header and the turn")
+        turns[1]["hasActiveWork"] = true
+        responseOverride?["turns"] = turns
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.statusText == "Needs attention" && state.isWorking && state.canStop,
+            "A request with a missing worker can still stop its other active deliveries")
+        observer.cancel()
         state.observeScene(presenter, active: true)
         precondition(state.select(CoordinatorContext(hostID: "fixture")))
         precondition(state.conversation.count == 2, "Changing workspace context keeps the same conversation")

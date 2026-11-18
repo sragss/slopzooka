@@ -283,7 +283,7 @@ struct BugReportDraft: Decodable, Equatable {
     }
 }
 
-struct CoordinatorWorker: Decodable, Identifiable {
+struct CoordinatorWorker: Decodable, Identifiable, Equatable {
     var sessionId: String
     var workspaceId: String
     var status: String
@@ -292,7 +292,7 @@ struct CoordinatorWorker: Decodable, Identifiable {
     var question: CoordinatorQuestion?
     var id: String { sessionId }
 }
-struct CoordinatorQuestion: Decodable {
+struct CoordinatorQuestion: Decodable, Equatable {
     var id: String
     var title: String
     var details: String
@@ -306,14 +306,19 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
     var status: String
     var reply: String?
     var workStatus: String?
+    var hasActiveWork: Bool?
     var resultExcerpt: String?
     var id: String { requestId }
+
+    var isWorking: Bool {
+        status == "running" || (hasActiveWork ?? (workStatus == "running" || workStatus == "queued"))
+    }
 
     var progress: String {
         if status == "sending" { return "Sending…" }
         if status == "unconfirmed" { return "Delivery not confirmed — retry keeps this request" }
         if status == "failed" { return "Needs attention" }
-        if status == "stopped" { return workStatus == "running" || workStatus == "queued" ? "Stopping…" : "Stopped" }
+        if status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
         if status == "running" { return "Working…" }
         switch workStatus {
         case "running", "queued": return "Agent working…"
@@ -324,7 +329,7 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
         }
     }
 }
-struct CoordinatorSnapshot: Decodable {
+struct CoordinatorSnapshot: Decodable, Equatable {
     var available: Bool
     var message: String?
     var requestId: String?

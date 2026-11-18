@@ -694,6 +694,11 @@ test("conversation progress stays attached to each delivery when a worker is reu
         { sessionId: "ours", text: "second", mode: "queue" },
         "second",
       ),
+      turn(
+        "worker_submit",
+        { sessionId: "ours", text: "check", mode: "queue" },
+        "check",
+      ),
       fauxAssistantMessage("Started the second task."),
     ],
     async (route, _method, body) => {
@@ -706,7 +711,11 @@ test("conversation progress stays attached to each delivery when a worker is reu
       }
       if (route.endsWith("/stop"))
         for (const d of deliveries)
-          if (body.requestIds.includes(d.requestId)) d.status = "interrupted";
+          if (
+            body.requestIds.includes(d.requestId) &&
+            ["running", "queued"].includes(d.status)
+          )
+            d.status = "interrupted";
       return { status: "running" };
     },
   );
@@ -736,6 +745,16 @@ test("conversation progress stays attached to each delivery when a worker is reu
       (await f.coordinator.status(clientId)).turns?.map((t) => t.workStatus),
       ["completed", "running"],
     );
+    deliveries[1].status = "failed";
+    deliveries[2].status = "queued";
+    const mixed = (await f.coordinator.status(clientId)).turns!;
+    assert.equal(mixed[0].hasActiveWork, false);
+    assert.equal(mixed[1].workStatus, "failed");
+    assert.equal(
+      mixed[1].hasActiveWork,
+      true,
+      "A failure cannot hide queued work owned by this request",
+    );
     workerPresent = false;
     const missing = (await f.coordinator.status(clientId)).turns!;
     assert.equal(missing[0].resultExcerpt, "First **passed**.");
@@ -744,17 +763,21 @@ test("conversation progress stays attached to each delivery when a worker is reu
       "unavailable",
       "A missing worker cannot confirm previously running work",
     );
+    assert.equal(missing[1].hasActiveWork, false);
     workerPresent = true;
+    deliveries[2].status = "running";
     assert.equal(
-      (await f.coordinator.status(clientId)).turns![1].workStatus,
-      "running",
+      (await f.coordinator.status(clientId)).turns![1].hasActiveWork,
+      true,
     );
     await f.coordinator.stop(clientId, secondRequestId);
     const turns = (await f.coordinator.status(clientId)).turns!;
     assert.deepEqual(
       turns.map((t) => t.workStatus),
-      ["completed", "interrupted"],
+      ["completed", "failed"],
     );
+    assert.equal(turns[1].hasActiveWork, false);
+    assert.equal(deliveries[2].status, "interrupted");
     assert.equal(turns[0].reply, "Started the first task.");
     assert.equal(turns[1].status, "stopped");
     assert.equal(turns[0].resultExcerpt, "First **passed**.");
