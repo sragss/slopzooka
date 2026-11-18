@@ -1,7 +1,7 @@
 # Coordinator reliability review and launcher lag investigation
 
-The latest **Slz Ask Final** staging uses Mac revision `5d0d420` on port **55436**.
-See the conversation history notes at the end. Earlier rig entries are retained
+The latest **Slz Ask Final** staging uses revision `3f9065e` for both apps on port **55436**.
+See the Ask progress checks at the end. Earlier rig entries are retained
 as evidence, not the current slot target.
 
 Follow-up to the voice headset slot and the user's request for a maintainability
@@ -222,3 +222,18 @@ The existing **Slz Ask Final** rig uses the signed Mac build from this pass and
 the previously qualified headset build. Its discovery name, port, headset ID
 and physical test procedure are the same. The launcher pointer comparison still
 requires a headset slot.
+
+## Ask progress checks
+
+The Swift fixture reproduced a finished exchange whose header still showed a
+spinner and Stop after its worker moved on. The header and exchange now use the
+same request's delivery status. A separate active-work flag keeps Stop available
+when one delivery fails while another is queued. An unchanged two-second poll
+produced zero coordinator change notifications in the native regression test.
+
+All 87 companion tests, native state and keyboard checks, lint, types, formatting,
+harness asset parity, Mac packaging tests and visionOS simulator/device builds
+passed. Logs use `/tmp/slz-ask-progress-*.log`. The existing **Slz Ask Final**
+rig has both signed bundles staged at `3f9065e`. Physical validation remains
+the short conversation, window count/rename, foreground unread and launcher
+pointer check.
