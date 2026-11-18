@@ -36,6 +36,8 @@ performs repo setup and computer use. Its normal terminal attaches to the
 same backend and thread. Ordinary follow-ups queue; explicitly requested
 steering targets the observed active turn and fails if it changed.
 
+When you ask to see an app on the headset, Pi includes the intended worktree, app and screen in the coding agent’s task when known. If Codex will present a native window, Pi points it to its paired preview MCP. If Pi will present the window, Codex only needs to prepare it and identify the source. Ordinary coding requests carry no preview setup steps.
+
 Examples:
 
 - “Launch Poncho2 in a new worktree named Login verification. Have its agent
