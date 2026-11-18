@@ -29,10 +29,14 @@ struct CoordinatorView: View {
                     .labelStyle(.iconOnly).buttonStyle(.bordered)
             }
             HStack {
-                Text(contextLabel).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
-                if state.context?.workspaceID != nil {
-                    Button("Global") {
-                        if let hostID = state.context?.hostID { state.select(CoordinatorContext(hostID: hostID)) }
+                if let context = state.context {
+                    Text("\(client.destinationName(for: context.hostID)) · \(contextLabel)")
+                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                }
+                if let selected = client.current?.id, let context = state.context,
+                    context.workspaceID != nil || context.hostID != selected {
+                    Button(context.hostID == selected ? "Global" : "Use " + client.destinationName(for: selected)) {
+                        state.select(CoordinatorContext(hostID: selected))
                     }
                     .font(.footnote).buttonStyle(.borderless)
                     .disabled(!state.canChangeContext() || state.submitting)

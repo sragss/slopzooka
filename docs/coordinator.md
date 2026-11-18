@@ -56,6 +56,11 @@ The Ask header follows the current exchange. If one of its tasks needs attention
 while another is still running, **Stop** remains available.
 Reading older messages does not force the scroll back to the bottom.
 
+The line below **Ask SlopZooka** identifies the companion and destination before
+you speak. Opening Ask from a terminal targets the Mac that owns it, including a
+restored terminal from an earlier connection. If the launcher is connected to a
+different Mac, **Use [companion name]** switches Ask to that Mac's global context.
+
 “Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's
 saved terminal/preview layout, current session names, workspace associations and
 matching preview sources. This is desired layout, not proof of physical visibility

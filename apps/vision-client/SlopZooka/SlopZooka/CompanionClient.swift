@@ -87,6 +87,12 @@ final class CompanionClient: NSObject, ObservableObject {
     var pairedHostIDs: Set<String> { Set(routes.filter { $0.value.paired }.keys) }
     // URL access is limited to content adapters; control callers address the host.
     func endpoint(for hostID: String) throws -> URL { try route(for: hostID).endpoint }
+    func destinationName(for hostID: String) -> String {
+        guard let route = routes[hostID] else { return hostID }
+        if let name = route.health.bonjourServiceName, !name.isEmpty { return name }
+        let endpoint = route.remoteEndpoint
+        return endpoint.host(percentEncoded: false).map { host in endpoint.port.map { "\(host):\($0)" } ?? host } ?? hostID
+    }
     func previewHostname(for hostID: String) throws -> String {
         guard let host = try route(for: hostID).remoteEndpoint.host else { throw URLError(.badURL) }
         return host.contains(":") ? "[\(host)]" : host
@@ -517,6 +523,7 @@ final class CompanionClient: NSObject, ObservableObject {
         let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/sessions/\(id)", method: "DELETE")
     }
     func submitInput(hostID: String, sessionID: String, commandID: String, text: String) async throws {
+        log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID, "commandId": commandID, "destination": "terminal"])
         let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/sessions/\(sessionID)/input", method: "POST",
             body: Self.json(["commandId": commandID, "text": text, "sendReturn": true]))
     }
@@ -563,7 +570,8 @@ final class CompanionClient: NSObject, ObservableObject {
         try await request(hostID: hostID, path: "/api/coordinator")
     }
     func coordinatorSubmit(hostID: String, requestID: String, text: String, workspaceID: String?, sessionID: String?) async throws -> CoordinatorSnapshot {
-        try await request(hostID: hostID, path: "/api/coordinator", method: "POST",
+        log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID ?? "", "workspaceId": workspaceID ?? "", "commandId": requestID, "destination": "coordinator"])
+        return try await request(hostID: hostID, path: "/api/coordinator", method: "POST",
             body: Self.json(["requestId": requestID, "text": text, "workspaceId": workspaceID, "sessionId": sessionID]))
     }
     func coordinatorStop(hostID: String, requestID: String) async throws -> CoordinatorSnapshot {

@@ -276,7 +276,12 @@ final class WindowGateway: ObservableObject {
         // A draft or uncertain submission keeps its captured destination even when
         // another window asks to reveal the same coordinator scene.
         let adopted = coordinator.select(context)
-        log.info("coordinator.open.requested", ["hostId": coordinator.context?.hostID ?? "", "contextAdopted": String(adopted)])
+        log.info("coordinator.open.requested", [
+            "hostId": coordinator.context?.hostID ?? "", "sessionId": coordinator.context?.sessionID ?? "",
+            "selectedHostId": client.current?.id ?? "", "requestedHostId": context?.hostID ?? "",
+            "origin": terminalID == nil ? "launcher" : "terminal", "originSessionId": terminalID ?? "",
+            "contextAdopted": String(adopted),
+        ])
         presenters.values.first?(.openCoordinator)
     }
 

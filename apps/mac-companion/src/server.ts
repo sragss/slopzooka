@@ -217,6 +217,7 @@ app.get("/health", (_req, res) => {
     hostname: os.hostname(),
     localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
+    bonjourServiceName: BONJOUR_SERVICE_NAME,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
     logFilePath: diagnostics.store.file,

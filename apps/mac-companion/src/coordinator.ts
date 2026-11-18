@@ -28,6 +28,7 @@ import {
 } from "./codex-workers.js";
 import type { SessionServiceClient } from "./session-service-client.js";
 import type { Logger } from "./logger.js";
+import type { LogFields } from "./log-events.js";
 import type { WindowLayout } from "./window-layout.js";
 
 export const coordinatorRequest = z.object({
@@ -311,6 +312,9 @@ export class Coordinator {
     this.options.logger.info("coordinator.request.started", {
       requestId: request.requestId,
       clientId: config.clientId,
+      workspaceId: request.workspaceId,
+      sessionId: request.sessionId,
+      hostId: config.hostId,
     });
     current.active = this.run(current)
       .catch((error: unknown) => {
@@ -381,7 +385,11 @@ export class Coordinator {
       name: string,
       description: string,
       schema: T,
-      fn: (args: z.infer<T>, callId: string) => Promise<unknown>,
+      fn: (
+        args: z.infer<T>,
+        callId: string,
+        trace: LogFields,
+      ) => Promise<unknown>,
     ): AgentTool => ({
       name,
       label: name,
@@ -408,9 +416,17 @@ export class Coordinator {
               workspace_rename: "Naming the workspace…",
             } as Record<string, string>
           )[name] ?? "Working…";
+        const trace: LogFields = {
+          requestId: c.turn.request.requestId,
+          tool: name,
+          operation: c.calls,
+        };
         try {
-          return result(await fn(schema.parse(args), callId));
+          const output = await fn(schema.parse(args), callId, trace);
+          this.options.logger.info("coordinator.tool.completed", trace);
+          return result(output);
         } catch (error) {
+          this.options.logger.warn("coordinator.tool.failed", trace);
           if (!c.stopped)
             c.failure =
               error instanceof ServiceError
@@ -426,7 +442,7 @@ export class Coordinator {
         "context_get",
         "Read SlopZooka headset windows, their terminal sessions, projects, workspaces and workers. Use this for questions about windows here; Mac capture sources are a separate catalog. Refresh before choosing IDs. Selected context is captured, not live gaze.",
         z.object({}),
-        async () => {
+        async (_args, _callId, trace) => {
           const [repos, workspaces, workers, layout, sessions, catalog] =
             await Promise.all([
               this.api(c, "/api/repos/recent"),
@@ -451,6 +467,8 @@ export class Coordinator {
                 };
               }>(c, "/api/frontends").catch(() => undefined),
             ]);
+          trace.windowCount = layout.windows.length;
+          trace.layoutRevision = layout.revision;
           return {
             surface: "SlopZooka Ask on Apple Vision Pro",
             hostId: c.config.hostId,
@@ -493,7 +511,7 @@ export class Coordinator {
           windowId: z.string().min(1).max(512),
           name: previewName,
         }),
-        async ({ windowId, name }) => {
+        async ({ windowId, name }, _callId, trace) => {
           const layout = await this.api<WindowLayout>(c, "/api/window-layout");
           const window = layout.windows.find((w) => w.id === windowId);
           if (!window)
@@ -501,6 +519,8 @@ export class Coordinator {
               "Window is not in this headset's SlopZooka layout. Refresh context before choosing a target.",
               404,
             );
+          trace.windowId = window.id;
+          trace.windowKind = window.kind;
           if (window.kind === "terminal") {
             const result = await this.api<{
               session: { id: string; name: string };

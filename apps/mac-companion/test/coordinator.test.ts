@@ -13,7 +13,7 @@ import {
 import { Coordinator } from "../src/coordinator.js";
 import { normalizedName } from "../src/names.js";
 const clientId = randomUUID();
-const log = { info() {}, warn() {}, error() {} };
+import type { LogFields } from "../src/log-events.js";
 const turn = (name: string, args: unknown, id = "call-1") =>
   fauxAssistantMessage([fauxToolCall(name, args as any, { id })], {
     stopReason: "toolUse",
@@ -51,6 +51,10 @@ async function fixture(
   models.setProvider(faux.provider);
   faux.setResponses(responses);
   const modelContexts: any[] = [];
+  const events: { event: string; fields?: LogFields }[] = [];
+  const record = (event: string, fields?: LogFields) => {
+    events.push({ event, fields });
+  };
   const coordinator = new Coordinator({
     home,
     configFile,
@@ -58,7 +62,7 @@ async function fixture(
       info: async () => ({ capabilities: ["coordinator-workers-v1"] }),
       request: serviceRequest,
     } as any,
-    logger: log,
+    logger: { info: record, warn: record, error: record },
     previewCommand: process.execPath,
     previewArgs: [],
     inference: {
@@ -77,6 +81,7 @@ async function fixture(
   };
   return {
     coordinator,
+    events,
     modelContexts,
     config,
     home,
@@ -633,6 +638,27 @@ test("SlopZooka context and rename use headset identities, not Mac capture windo
     );
     assert.deepEqual(context.selected, { sessionId: "session-one" });
     assert.equal(status.turns?.[0].text, "Name my windows");
+    const outcomes = f.events.filter(
+      (e) =>
+        e.event === "coordinator.tool.completed" &&
+        e.fields?.requestId === requestId,
+    );
+    assert.ok(
+      outcomes.some(
+        (e) => e.fields?.tool === "context_get" && e.fields?.windowCount === 2,
+      ),
+    );
+    assert.deepEqual(
+      outcomes
+        .filter((e) => e.fields?.tool === "window_rename")
+        .map((e) => e.fields?.windowKind)
+        .sort(),
+      ["preview", "terminal"],
+    );
+    assert.doesNotMatch(
+      JSON.stringify(f.events),
+      /Name my windows|Login preview|The-nice-window/i,
+    );
     await f.coordinator.submit(f.config, {
       requestId,
       text: "Name my windows",

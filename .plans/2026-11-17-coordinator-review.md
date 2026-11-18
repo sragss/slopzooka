@@ -1,6 +1,6 @@
 # Coordinator reliability review and launcher lag investigation
 
-The latest **Slz Ask Final** staging uses revision `3f9065e` for both apps on port **55436**.
+The November 18 device rerun uses **Slz Ask Routing** with **Slz Ask Final** on port **55436**.
 See the Ask progress checks at the end. Earlier rig entries are retained
 as evidence, not the current slot target.
 
@@ -237,3 +237,30 @@ passed. Logs use `/tmp/slz-ask-progress-*.log`. The existing **Slz Ask Final**
 rig has both signed bundles staged at `3f9065e`. Physical validation remains
 the short conversation, window count/rename, foreground unread and launcher
 pointer check.
+
+## November 18 headset routing incident
+
+The shared test app paired to the new companion on port 55436. Between 17:22:52
+and 17:23:58 Eastern, the headset sent all four Ask requests to the older
+companion on 55432. The first was stopped. The last reply said it queued a
+rename. On inspection, that companion had one saved terminal window, no saved
+session name, and a completed worker. The intended companion had zero voice
+turns and its two original names. The headset user reported a wrong count and
+target. The old open event recorded the adopted host but omitted the originating
+terminal, so the trace cannot distinguish which surface the user invoked.
+The preview also briefly closed and reopened during the slot.
+
+An operator replay on 55436 supplied the intended headset client and terminal
+IDs through the coordinator HTTP endpoint. It counted two content windows. Both
+saved names were independently read back as `the-nice-window` and `Login check`.
+This replay exercised the live model and both Mac mutation paths. It bypassed
+headset voice capture and scene selection.
+
+For the rerun we closed the three older test HTTP companions (55431–55433) and
+the old test headset app. The separate session services retained their PTYs.
+The fresh headset bundle `com.slopzooka.probe.askrouting` has independent
+preferences and restored scenes. Rig preparation now reads the ID from the signed
+test app. Ask shows its companion and destination, with a switch to the launcher's
+selected Mac when they differ. Diagnostics correlate the origin, selected host,
+captured destination, voice command ID, tool result, and verified window ID or
+layout count. Speech, labels and model tool arguments stay out of these events.

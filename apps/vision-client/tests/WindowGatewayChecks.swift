@@ -443,6 +443,14 @@ struct WindowGatewayChecks {
         }
         await switching.client.refreshSessions()
         precondition(switchingStore.windows(hostID: "host-2") == [otherWindow])
+        switching.openCoordinator(from: terminal.id)
+        precondition(switching.coordinator.context?.hostID == hostID && switching.coordinator.context?.sessionID == terminal.id,
+            "Ask from a restored terminal must retain that terminal's Mac when a different Mac is selected")
+        precondition(switching.client.destinationName(for: hostID) != switching.client.destinationName(for: otherTarget.id),
+            "Older companions on different endpoints must remain distinguishable")
+        switching.openCoordinator()
+        precondition(switching.coordinator.context?.hostID == otherTarget.id && switching.coordinator.context?.sessionID == nil,
+            "Opening Ask from the launcher explicitly selects its current Mac")
         switching.close(reference, dismiss: false)
         await until { Fixture.layouts[base.host!]!.windows.isEmpty }
         precondition(Fixture.layouts[otherBase.host!]!.windows == [otherWindow], "Closing on one Mac never changes another Mac's layout")

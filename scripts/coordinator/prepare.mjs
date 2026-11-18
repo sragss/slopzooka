@@ -27,6 +27,15 @@ if (!signing || signing === "-")
   );
 for (const app of [mac, vp])
   execFileSync("codesign", ["--verify", "--deep", "--strict", app]);
+const bundleId = execFileSync(
+  "plutil",
+  ["-extract", "CFBundleIdentifier", "raw", path.join(vp, "Info.plist")],
+  { encoding: "utf8" },
+).trim();
+if (!bundleId.startsWith("com.slopzooka.probe."))
+  throw new Error(
+    "Select a signed headset test bundle with a dedicated probe identifier.",
+  );
 await fs.mkdir(run, { recursive: true, mode: 0o700 });
 await fs.access(path.join(run, "rig.json")).then(
   () => {
@@ -121,7 +130,7 @@ const rig = {
   state,
   workspace,
   config: privateConfig,
-  bundleId: "com.slopzooka.probe.coordinator",
+  bundleId,
   port: Number(process.env.SLZ_COORDINATOR_PORT ?? 55431),
   revision: execFileSync("git", ["rev-parse", "HEAD"], {
     cwd: root,
