@@ -22,7 +22,7 @@ final class ImmersiveWorkspaceState: ObservableObject {
                 if !receivedSceneEvent { isPresented = true }
             case .cancelled: break
             case .failed:
-                error = "Couldn’t open the immersive workspace. Try again."
+                error = "Couldn’t open the immersive mode. Try again."
             }
         } else {
             await dismiss()

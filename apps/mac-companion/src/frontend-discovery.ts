@@ -17,6 +17,7 @@ export type Frontend = {
   category?: "app" | "service";
   project?: string;
   workspaceId?: string;
+  worktreeLabel?: { repo: string; worktree: string };
   frontendId?: string;
   preferred?: boolean;
   workspaceVisible?: boolean;

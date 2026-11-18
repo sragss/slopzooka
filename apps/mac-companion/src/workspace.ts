@@ -20,6 +20,14 @@ const REPOS_ROOT = path.join(WORKSPACES_ROOT, "repos");
 const WORKTREES_ROOT = path.join(WORKSPACES_ROOT, "worktrees");
 const WORKSPACE_INDEX_PATH = path.join(WORKSPACES_ROOT, "index.json");
 
+type LocalRepo = Pick<
+  RecentRepo,
+  "name" | "nameWithOwner" | "defaultBranch" | "owner" | "isPrivate"
+> & {
+  source: "local";
+};
+type TrackedRepo = RecentRepo | LocalRepo;
+
 export type LaunchWorkspaceRequest = {
   nameWithOwner: string;
   profile: TuiProfile | null;
@@ -27,7 +35,7 @@ export type LaunchWorkspaceRequest = {
 };
 
 export type LaunchWorkspaceResult = {
-  repo: RecentRepo;
+  repo: TrackedRepo;
   localCheckoutPath: string;
   worktreePath: string;
   branchName: string;
@@ -48,7 +56,7 @@ export type WorkspaceRecord = {
   workspaceId: string;
   name?: string;
   windowNames?: Record<string, string>;
-  repo: RecentRepo;
+  repo: TrackedRepo;
   profile: TuiProfile | null;
   localCheckoutPath: string;
   worktreePath: string;
@@ -138,23 +146,121 @@ export class WorkspaceService {
     });
   }
 
+  async localRepos(): Promise<LocalRepo[]> {
+    const repos = new Map<string, LocalRepo>();
+    for (const { repo } of await readWorkspaceIndex()) {
+      if ("source" in repo) repos.set(repo.nameWithOwner, repo);
+    }
+    return [...repos.values()];
+  }
+
+  createLocalRepo(
+    name: string,
+    profile: TuiProfile | null,
+  ): Promise<LaunchWorkspaceResult> {
+    if (!/^[a-z0-9][a-z0-9-]{0,79}$/.test(name))
+      throw new ServiceError(
+        "Use a repo name of up to 80 letters, digits or dashes.",
+        400,
+      );
+    return mutate(async () => {
+      // The prefix cannot be a GitHub owner and is reserved for Mac-local repos.
+      const repo: LocalRepo = {
+        source: "local",
+        name,
+        nameWithOwner: `~local/${name}`,
+        defaultBranch: "main",
+        isPrivate: true,
+        owner: { login: "~local", name: "On this Mac", avatarUrl: "" },
+      };
+      const directory = repoCheckoutPath(repo);
+      if (
+        (await this.localRepos()).some(
+          (r) => r.nameWithOwner === repo.nameWithOwner,
+        )
+      )
+        throw new ServiceError(
+          "A local repo with this name already exists.",
+          409,
+        );
+      await fs.mkdir(path.dirname(directory), { recursive: true });
+      try {
+        await fs.mkdir(directory, { mode: 0o700 });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === "EEXIST")
+          throw new ServiceError("This repo folder already exists.", 409);
+        throw error;
+      }
+      try {
+        await git(["init", "--template=", "-b", "main", directory]);
+        await git([
+          "-C",
+          directory,
+          "-c",
+          "user.name=SlopZooka",
+          "-c",
+          "user.email=slopzooka@localhost",
+          "-c",
+          "core.hooksPath=/dev/null",
+          "commit",
+          "--no-gpg-sign",
+          "--allow-empty",
+          "-m",
+          "Initialize local repo",
+        ]);
+        const result = {
+          workspaceId: crypto.randomUUID(),
+          repo,
+          localCheckoutPath: directory,
+          worktreePath: directory,
+          baseRef: "main",
+          branchName: "main",
+          wasCloned: false,
+        };
+        const now = new Date().toISOString();
+        await upsertWorkspaceRecord({
+          ...result,
+          name,
+          profile,
+          createdAt: now,
+          updatedAt: now,
+        });
+        return result;
+      } catch (error) {
+        // Only this call could have reserved the directory. Keep any concurrent user files.
+        await fs.rm(path.join(directory, ".git"), {
+          recursive: true,
+          force: true,
+        });
+        await fs.rmdir(directory).catch(() => undefined);
+        throw error;
+      }
+    });
+  }
+
   launchWorkspace(
     input: LaunchWorkspaceRequest,
-    repo: RecentRepo,
+    repo: TrackedRepo,
   ): Promise<LaunchWorkspaceResult> {
     return mutate(() => this.launch(input, repo));
   }
   private async launch(
     input: LaunchWorkspaceRequest,
-    repo: RecentRepo,
+    repo: TrackedRepo,
   ): Promise<LaunchWorkspaceResult> {
     const localCheckoutPath = repoCheckoutPath(repo);
-    const ensureResult = await ensureLocalCheckout(
-      localCheckoutPath,
-      repo,
-      this.logger,
-    );
-    await git(["-C", localCheckoutPath, "fetch", "origin", "--prune"]);
+    let wasCloned = false;
+    if ("source" in repo) {
+      if (!(await pathExists(path.join(localCheckoutPath, ".git"))))
+        throw new ServiceError("Local repo is missing on this Mac.", 404);
+    } else {
+      ({ wasCloned } = await ensureLocalCheckout(
+        localCheckoutPath,
+        repo,
+        this.logger,
+      ));
+      await git(["-C", localCheckoutPath, "fetch", "origin", "--prune"]);
+    }
 
     const baseRef = await resolveBaseRef(
       localCheckoutPath,
@@ -176,14 +282,14 @@ export class WorkspaceService {
       baseRef,
     ]);
 
-    this.logger.info("Workspace launched", {
+    this.logger.info("Worktree launched", {
       repo: repo.nameWithOwner,
       localCheckoutPath,
       worktreePath,
       branchName,
       baseRef,
       profile: input.profile ?? "terminal",
-      wasCloned: ensureResult.wasCloned,
+      wasCloned,
     });
 
     await upsertWorkspaceRecord({
@@ -204,13 +310,22 @@ export class WorkspaceService {
       worktreePath,
       branchName,
       baseRef,
-      wasCloned: ensureResult.wasCloned,
+      wasCloned,
       workspaceId,
     };
   }
 
-  async frontendWorkspaces(): Promise<WorkspaceRecord[]> {
-    return (await readWorkspaceIndex()).filter((record) => !record.archivedAt);
+  async frontendWorkspaces() {
+    return (await readWorkspaceIndex())
+      .filter((record) => !record.archivedAt)
+      .map((record) => ({
+        workspaceId: record.workspaceId,
+        worktreePath: record.worktreePath,
+        worktreeLabel: {
+          repo: record.repo.name,
+          worktree: workspaceName(record),
+        },
+      }));
   }
 
   async listWorkspaces(
@@ -249,7 +364,7 @@ export class WorkspaceService {
 
     if (!(await pathExists(record.worktreePath))) {
       throw new ServiceError(
-        `Workspace is missing on disk: ${record.worktreePath}`,
+        `Worktree is missing on disk: ${record.worktreePath}`,
         409,
       );
     }
@@ -264,7 +379,7 @@ export class WorkspaceService {
     };
     await upsertWorkspaceRecord(updatedRecord);
 
-    this.logger.info("Workspace reopened", {
+    this.logger.info("Worktree reopened", {
       repo: record.repo.nameWithOwner,
       workspaceId,
       worktreePath: record.worktreePath,
@@ -295,7 +410,7 @@ export class WorkspaceService {
     };
     await upsertWorkspaceRecord(updatedRecord);
 
-    this.logger.info("Workspace archived", {
+    this.logger.info("Worktree archived", {
       workspaceId,
       repo: record.repo.nameWithOwner,
       worktreePath: record.worktreePath,
@@ -335,7 +450,7 @@ export class WorkspaceService {
 
     if (mutated) {
       await writeWorkspaceIndex(nextRecords);
-      this.logger.info("Pruned missing workspaces", {
+      this.logger.info("Pruned missing worktrees", {
         archivedCount,
       });
     }
@@ -360,7 +475,7 @@ export class WorkspaceService {
       (candidate) => candidate.workspaceId === workspaceId,
     );
     if (!record) {
-      throw new ServiceError(`Workspace not found: ${workspaceId}`, 404);
+      throw new ServiceError(`Worktree not found: ${workspaceId}`, 404);
     }
 
     return record;
@@ -406,7 +521,7 @@ async function readWorkspaceIndex(): Promise<WorkspaceRecord[]> {
   try {
     const data = await fs.readFile(WORKSPACE_INDEX_PATH, "utf8");
     const payload = JSON.parse(data) as unknown;
-    if (!Array.isArray(payload)) throw new Error("Invalid workspace index");
+    if (!Array.isArray(payload)) throw new Error("Invalid worktree index");
 
     const records = payload.map((value) => {
       if (!value || typeof value !== "object") return value;
@@ -415,7 +530,7 @@ async function readWorkspaceIndex(): Promise<WorkspaceRecord[]> {
     });
     if (!records.every(isWorkspaceRecord))
       throw new Error(
-        "Workspace index contains invalid records; restore it from backup before writing",
+        "Worktree index contains invalid records; restore it from backup before writing",
       );
     return records;
   } catch (error) {
@@ -499,7 +614,7 @@ async function assertRepoMatches(
 
 export async function resolveBaseRef(
   localCheckoutPath: string,
-  repo: RecentRepo,
+  repo: TrackedRepo,
   requestedBaseRef?: string,
 ): Promise<string> {
   if (requestedBaseRef?.trim()) {
@@ -580,7 +695,7 @@ async function refExists(
 }
 
 async function reserveWorktreePath(
-  repo: RecentRepo,
+  repo: TrackedRepo,
   branchName: string,
 ): Promise<string> {
   const baseRoot = path.join(WORKTREES_ROOT, repo.owner.login, repo.name);
@@ -621,7 +736,7 @@ function makeBranchName(profile: TuiProfile | null): string {
   return `slz/${prefix}-${timestamp}-${shortId}`;
 }
 
-function repoCheckoutPath(repo: RecentRepo): string {
+function repoCheckoutPath(repo: TrackedRepo): string {
   return path.join(REPOS_ROOT, repo.owner.login, repo.name);
 }
 

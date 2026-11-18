@@ -89,7 +89,7 @@ final class TerminalVoiceController: ObservableObject {
         var isHoldToTalk: Bool { self == .terminal || self == .coordinator }
     }
     var usesHoldToTalk: Bool { mode?.isHoldToTalk == true }
-    enum NameTarget: String { case window, workspace }
+    enum NameTarget: String { case window; case workspace = "worktree" }
     @Published private(set) var renameTarget: NameTarget = .window
 
     @Published private(set) var mode: Mode?

@@ -18,7 +18,7 @@ export type CodexThread = {
 // Only the configured command is shell code; every RPC/CLI argument stays quoted.
 export const CODEX_EXEC = String.raw`slz_codex_command=$1; shift; eval "exec $slz_codex_command \"\$@\""`;
 
-/** Metadata only. Codex owns its history format, indexing, and migrations. */
+/** Read-only catalog and bounded excerpts. Codex owns history, indexing and migrations. */
 export class CodexThreads {
   private listing?: Promise<CodexThread[]>;
   private readonly children = new Map<ChildProcess, () => void>();
@@ -31,28 +31,81 @@ export class CodexThreads {
   ) {}
 
   list(): Promise<CodexThread[]> {
-    return (this.listing ??= this.request("thread/list", {
-      limit: 25,
-      sortKey: "updated_at",
-      sortDirection: "desc",
-      archived: false,
-      modelProviders: [],
-      sourceKinds: ["cli", "vscode", "appServer", "exec"],
-    })
-      .then(async (result) => {
-        if (!Array.isArray(result.data)) throw this.unavailable();
-        const threads = await Promise.all(
-          result.data
-            .slice(0, 25)
-            .map((thread: unknown) => this.summary(thread)),
-        );
-        const unique = new Map(threads.map((thread) => [thread.id, thread]));
-        this.logger.info("catalog.loaded", { count: unique.size });
-        return [...unique.values()];
-      })
+    return (this.listing ??= this.page(25)
+      .then((page) => page.threads)
       .finally(() => {
         this.listing = undefined;
       }));
+  }
+
+  async page(limit: number, cursor?: string, query?: string) {
+    const filters = {
+      limit,
+      cursor,
+      sortKey: "updated_at",
+      sortDirection: "desc",
+      archived: false,
+      sourceKinds: ["cli", "vscode", "appServer", "exec"],
+    };
+    const result = query
+      ? await this.request("thread/search", { ...filters, searchTerm: query })
+      : await this.request("thread/list", { ...filters, modelProviders: [] });
+    if (!Array.isArray(result.data)) throw this.unavailable();
+    const threads = await Promise.all(
+      result.data.slice(0, limit).map(async (row) => {
+        const thread = await this.summary(query ? row?.thread : row);
+        return query
+          ? { ...thread, snippet: String(row?.snippet ?? "").slice(0, 220) }
+          : thread;
+      }),
+    );
+    const unique = new Map(threads.map((thread) => [thread.id, thread]));
+    this.logger.info("catalog.loaded", { count: unique.size });
+    return {
+      threads: [...unique.values()],
+      nextCursor:
+        typeof result.nextCursor === "string" ? result.nextCursor : undefined,
+    };
+  }
+
+  async peek(id: string, cursor?: string) {
+    if (!validCodexThreadId(id))
+      throw new ServiceError("Invalid Codex thread ID", 400);
+    const result = await this.request("thread/turns/list", {
+      threadId: id,
+      cursor,
+      limit: 3,
+      sortDirection: "desc",
+      itemsView: "summary",
+    });
+    if (!Array.isArray(result.data)) throw this.unavailable();
+    const turns = result.data.slice(0, 3).map((turn) => {
+      if (!Array.isArray(turn?.items)) throw this.unavailable();
+      let user = "",
+        assistant = "";
+      for (const item of turn.items) {
+        if (item?.type === "userMessage" && Array.isArray(item.content)) {
+          user = item.content
+            .filter(
+              (part: { type?: string; text?: string }) =>
+                part?.type === "text" && typeof part.text === "string",
+            )
+            .map((part: { text: string }) => part.text)
+            .join(" ")
+            .slice(0, 280);
+        } else if (
+          item?.type === "agentMessage" &&
+          typeof item.text === "string"
+        )
+          assistant = item.text.slice(0, 280);
+      }
+      return { user, assistant };
+    });
+    return {
+      turns,
+      nextCursor:
+        typeof result.nextCursor === "string" ? result.nextCursor : undefined,
+    };
   }
 
   async read(id: string): Promise<CodexThread> {
@@ -224,6 +277,7 @@ export class CodexThreads {
         id: 1,
         method: "initialize",
         params: {
+          capabilities: { experimentalApi: true },
           clientInfo: {
             name: "slopzooka",
             title: "SlopZooka",

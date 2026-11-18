@@ -31,7 +31,7 @@ struct LauncherSettingsView: View {
                 } header: {
                     Text("Voice")
                 } footer: {
-                    Text("Pinch and hold the terminal microphone while speaking, then release. A two-second countdown gives you time to cancel with × before sending. Works in either workspace mode.")
+                    Text("Pinch and hold the terminal microphone while speaking, then release. A two-second countdown gives you time to cancel with × before sending. Works in both windowed and immersive modes.")
                 }
                 Section {
                     ImmersiveWorkspaceControl()
@@ -45,13 +45,13 @@ struct LauncherSettingsView: View {
                         .disabled(workspace.isTransitioning)
                     }
                     if workspace.isTransitioning {
-                        ProgressView("Updating workspace…")
+                        ProgressView("Updating immersive mode…")
                     }
                     if let error = workspace.error {
                         Text(error).foregroundStyle(.orange)
                     }
                 } header: {
-                    Text("Workspace")
+                    Text("Presentation")
                 } footer: {
                     Text("Adds wrist controls while keeping your room visible. Other apps are hidden until you turn this off.")
                 }

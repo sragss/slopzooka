@@ -2,15 +2,15 @@
 
 [Back to README](../README.md) · [Development](../CONTRIBUTING.md)
 
-The Mac owns workspaces and terminal processes. The headset owns native presentation and input. The HTTP companion connects them; a separate local session service keeps terminals alive when the companion restarts.
+The Mac owns worktrees and terminal processes. The headset owns native presentation and input. The HTTP companion connects them; a separate local session service keeps terminals alive when the companion restarts.
 
-## Repository map
+## Repo map
 
 | Path                                                | Responsibility                                                                  |
 | --------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [apps/shared](../apps/shared) | Native diagnostics runtime and Mac file sink shared by both apps |
 | [apps/mac-menu](../apps/mac-menu)                   | SwiftUI menu-bar app, companion supervision, pairing display, and login startup |
-| [apps/mac-companion/src](../apps/mac-companion/src) | HTTP companion, session service, workspace management, and browser UI           |
+| [apps/mac-companion/src](../apps/mac-companion/src) | HTTP companion, session service, worktree management, and browser UI           |
 | [apps/vision-client](../apps/vision-client)         | Native visionOS launcher, windows, WebViews, and speech input                   |
 | [packages/protocol](../packages/protocol)           | Terminal messages, runtime validators, and the shared window-layout fixture     |
 | [scripts](../scripts)                               | App packaging and native regression checks                                      |
@@ -31,13 +31,13 @@ Paths below are relative to `apps/mac-companion/src`.
 | `session-service-client.ts`              | Connect-or-start, retained runtime installation, HTTP control, and bounded viewer relay; no session registry                      |
 | `session-service-protocol.ts`            | Versioned local control contract                                                                                                  |
 | `window-layout.ts`                       | Client-scoped desired window layouts, atomic persistence, and revision checking                                                   |
-| `workspace.ts`                           | Git worktrees and workspace persistence                                                                                           |
+| `workspace.ts`                           | Git worktrees and worktree persistence                                                                                           |
 | `bug-report.ts` / `bug-report-draft.ts` / `bug-report-http.ts` | Browser composition, explicit public draft projection, and bounded native review/submission; captures stay local |
-| `github.ts`                              | Repository discovery/creation and fixed-destination bug issue submission through host credentials                                                                                  |
+| `github.ts`                              | Repo discovery/creation and fixed-destination bug issue submission through host credentials                                                                                  |
 | `dashboard-address.ts`                   | Optional Portless dashboard alias, verified redirects, and localhost fallback                                                     |
 | `frontend-discovery.ts`                  | Read-only Portless adapter, listener inventory, and bounded HTTP probes                                                           |
 | `frontends.ts`                           | Unified frontend catalog, saved URLs, and preview gateways                                                                        |
-| `project-frontends.ts`                   | Workspace frontend configuration and ownership matching                                                                           |
+| `project-frontends.ts`                   | Worktree frontend configuration and ownership matching                                                                           |
 | `harness.ts`                             | Browser dashboard                                                                                                                 |
 | `terminal.ts` / `terminal-connection.ts` | Browser terminal renderer, reconnect, and ordered rendering                                                                       |
 | `terminal-performance.ts` | Payload-free input receipts and browser queue/parser/render timing summaries through the existing scoped logger |
@@ -46,7 +46,7 @@ Paths below are relative to `apps/mac-companion/src`.
 
 The companion connects to the existing session service or launches it under macOS's kernel-backed `lockf` utility. Local sockets live in a private user-owned directory, with no extra LAN listener or OS service registration. A versioned runtime under `SLOPZOOKA_HOME/session-runtimes` retains Node and native PTY helpers across app replacement. Only the service holding the lifetime lock prunes inactive runtimes at startup. Incompatible services are left running, and the Mac menu retains diagnostics and explicit restart controls. Logs share [`SLOPZOOKA_HOME/logs`](mac-companion.md#diagnostics). Each process owns its writer; diagnostics never own terminal lifetime or require another daemon. The session service reports its actual log path; a retained writer is never relocated implicitly. Older services keep their legacy log until explicitly restarted.
 
-Workspace display names and stable default window labels live in the Mac workspace index, using its existing serialized mutations and atomic writes. `workspace.ts` enriches HTTP session summaries with project/workspace context and defaults, including sessions from an older retained service. Explicit window renames remain with `SessionManager`; `names.ts` shares the normalization and validation. Naming metadata does not own process or window lifetime. Workspace renames keep Git branches and worktree paths unchanged. Native naming uses one voice controller and gateway route for both targets. Metadata naming availability is independent of renderer readiness and terminal input focus; scene inactivity still pauses capture. The header uses the same diagonal geometry for divider lines, hit targets, and full-height hover fills, clipped once to its outer glass shape; a forced session refresh rejects pre-mutation replies and also works for windows tied to another accepted Mac.
+Worktree display names and stable default window labels live in the Mac worktree index, using its existing serialized mutations and atomic writes. `workspace.ts` enriches HTTP session summaries with repo/worktree context and defaults, including sessions from an older retained service. Explicit window renames remain with `SessionManager`; `names.ts` shares the normalization and validation. Naming metadata does not own process or window lifetime. Worktree renames keep Git branches and worktree paths unchanged. Native naming uses one voice controller and gateway route for both targets. Metadata naming availability is independent of renderer readiness and terminal input focus; scene inactivity still pauses capture. The header uses the same diagonal geometry for divider lines, hit targets, and full-height hover fills, clipped once to its outer glass shape; a forced session refresh rejects pre-mutation replies and also works for windows tied to another accepted Mac.
 
 ## Terminal transport
 
@@ -82,20 +82,20 @@ Paths below are relative to `apps/vision-client/SlopZooka/SlopZooka`.
 | `WindowPersistence.swift`                                         | Layout synchronization and the pending local outbox                                                                                        |
 | `WindowScene.swift`                                               | Native scene actions and lifecycle; permanent discards record close intent, disconnect/background events update presence                   |
 | `CompanionClient.swift`                                          | Mac discovery, accepted host identity, pairing, connection state, refresh lifetime, and typed native control requests                         |
-| `LauncherState.swift`                                             | Shared project browsing and launch state                                                                                                   |
+| `LauncherState.swift`                                             | Shared repo browsing and launch state                                                                                                   |
 | `CompanionWebView.swift`                                          | `TerminalSessionController` and the terminal WebView bridge                                                                                |
 | `BugReportView.swift` / `BugReportState.swift` | Native voice composition and explicit review from the terminal menu; rejected reviews can be renewed, uncertain submissions cannot be retried |
 | `TerminalVoiceController.swift` / `SpeechCaptureController.swift` | Shared terminal, naming, and local-composition voice state with one microphone owner                                                                                                   |
 
 `CompanionClient.swift` owns discovery, accepted routes, pairing, connection state, and native HTTP requests. Any scene can start it through `WindowGateway`, independently of the launcher. Views observe the client; the gateway consumes session snapshots for window recovery. Control callers pass stable host IDs. Health/protocol checks accept a route, and route revisions reject late replies even when an address changes away and back. Replacement routes can refresh while an old request is stalled; network failures publish reconnecting state until a request succeeds.
 
-Each Mac has one shared frontend catalog and poll, independent of session polling and other Macs. Launcher and workspace views read that catalog without local copies or timers. Concurrent reads coalesce; URL edits refresh the shared catalog and supersede older reads. Both poll types use the same client-lifetime loop.
+Each Mac has one shared frontend catalog and poll, independent of session polling and other Macs. Launcher and worktree views read that catalog without local copies or timers. Concurrent reads coalesce; URL edits refresh the shared catalog and supersede older reads. Both poll types use the same client-lifetime loop.
 
 Pairing credentials are keyed by host ID in Keychain. Separate trusted-origin bindings restrict where those credentials may be sent; a matching ID from unauthenticated discovery or health never authorizes a new origin. Successful legacy authentication migrates the existing origin credential. A new origin requires explicit pairing until an authenticated transport can establish route trust. Pairing uses the accepted route and saves credentials only while that selection is current.
 
 The client's injected request exchange exercises the production routes, bodies, timeouts, authentication, and decoding in native checks. Response models contain only consumed fields and use standard JSON decoding; unused Mac metadata is ignored. Control and terminal content use a route-owned native transport described below. Arbitrary preview WebView networking remains separate and is available only on qualified Local Network routes. Window intent, persistence conflicts, and process lifetime stay with their existing owners.
 
-`LauncherState` represents its mutually exclusive project operations with one operation value. Workspace commands share their operation guard, error handling, and catalog refresh. Repository and workspace catalogs use `CatalogState<Value>` and one loader; loaded data is part of the state, with no separately maintained arrays or counts. Connection changes reset catalogs and cancel their shared parent task. The three catalogs load concurrently, independently of window recovery; connection and request identities reject superseded results.
+`LauncherState` represents its mutually exclusive repo operations with one operation value. Worktree commands share their operation guard, error handling, and catalog refresh. Repo and worktree catalogs use `CatalogState<Value>` and one loader; loaded data is part of the state, with no separately maintained arrays or counts. Connection changes reset catalogs and cancel their shared parent task. The three catalogs load concurrently, independently of window recovery; connection and request identities reject superseded results.
 
 `WindowGateway` keeps one ephemeral state record per window: stable reference, terminal or preview content, native presence, notifications, errors, and pending work. The record owns reload and unavailable-session cleanup, including invalidating pending renames. Its reload revision also versions preview resolution, replacing a separate refresh list. Newer resolutions replace cancelled work immediately and reject late results and cleanup; the current payload remains available during reload. Durable intent remains solely in `WindowPersistence`.
 
@@ -118,14 +118,14 @@ Direct's CA is learned only over an already authenticated Local Network route an
 ## Codex threads
 
 `codex-threads.ts` reads only metadata through a bounded local Codex app-server
-reader; Codex owns its history/index formats. The Projects catalog requests one
+reader; Codex owns its history/index formats. The Repos catalog requests one
 page of 25 non-archived threads sorted by update time. Resume revalidates the
 thread and folder on the Mac, then asks the session service to execute
 `codex resume <thread-id>`. The service owns request deduplication and reuses a
 running terminal for that thread and Codex home/command. Resumed terminals exit
 with Codex so an idle fallback shell cannot masquerade as a running resume.
-External folders use a stable directory-derived workspace ID without creating a
-Git workspace record. Their shell requests resolve only through an existing
+External folders use a stable directory-derived worktree ID without creating a
+Git worktree record. Their shell requests resolve only through an existing
 service-owned session. Window registration and restoration still use
 `WindowGateway` and the existing terminal layout records. Codex activity in other
 applications is not inferred from the reader's process-local runtime status.
@@ -217,7 +217,7 @@ write and does not enqueue offline intent. Readiness is not a visibility receipt
 
 `coordinator.ts` hosts an opt-in ephemeral Pi conversation inside the existing HTTP
 companion. Authenticated `coordinator-http.ts` routes capture a headset client and
-destination. Workspace creation/naming and window intent reuse existing owners;
+destination. Worktree creation/naming and window intent reuse existing owners;
 `preview-control.ts` can present an existing terminal through the same readiness
 and layout boundary. The headset's compact voice utility scene owns only display state. Gateway-owned
 `CoordinatorState` holds ephemeral context and responses. `WindowGateway` routes

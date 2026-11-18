@@ -116,6 +116,9 @@ struct CoordinatorChecks {
             "turns": [["requestId": firstBody["requestId"]!, "text": firstBody["text"]!, "status": "running"]]]
         await state.refresh(client: client, hostID: "fixture")
         precondition(state.conversation.count == 1 && !state.canReceiveVoice(client: client))
+        responseOverride?["acceptsQueuedRequests"] = true
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.canReceiveVoice(client: client), "A queue-capable companion accepts speech while processing its active turn")
         voice.send()
         await until { voice.mode == nil }
         responseOverride = nil
@@ -165,7 +168,7 @@ struct CoordinatorChecks {
         ]
         await state.refresh(client: client, hostID: "fixture")
         precondition(state.conversation.count == 2 && state.conversation[0].reply == "Named **Login**.")
-        precondition(state.conversation[0].progress == "Completed" && state.conversation[1].progress == "Needs attention")
+        precondition(state.conversation[0].progress == "Completed" && state.conversation[1].progress == "Request failed")
         // A worker can already be busy with a follow-up when this request is finished.
         responseOverride?["status"] = "completed"
         var turns = responseOverride!["turns"] as! [[String: Any]]
@@ -182,11 +185,11 @@ struct CoordinatorChecks {
         responseOverride?["turns"] = turns
         responseOverride?["workers"] = []
         await state.refresh(client: client, hostID: "fixture")
-        precondition(redraws > 0 && state.statusText == "Needs attention", "Missing delivery must update both the header and the turn")
+        precondition(redraws > 0 && state.statusText == "Agent unavailable", "Missing delivery must update both the header and the turn")
         turns[1]["hasActiveWork"] = true
         responseOverride?["turns"] = turns
         await state.refresh(client: client, hostID: "fixture")
-        precondition(state.statusText == "Needs attention" && state.isWorking && state.canStop,
+        precondition(state.statusText == "Agent unavailable" && state.isWorking && state.canStop,
             "A request with a missing worker can still stop its other active deliveries")
         observer.cancel()
         state.observeScene(presenter, active: true)

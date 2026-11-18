@@ -13,7 +13,7 @@ type Workspace = {
 };
 const sections = {
   sessions: "Terminals",
-  workspaces: "Workspaces",
+  workspaces: "Worktrees",
   frontends: "Frontends",
 };
 type Section = keyof typeof sections;
@@ -214,7 +214,7 @@ function workspaceFrontends(actions: HTMLElement, workspaceId: string) {
   }
   const picker = document.createElement("select");
   picker.className = "button";
-  picker.setAttribute("aria-label", "Open workspace frontend");
+  picker.setAttribute("aria-label", "Open worktree frontend");
   const placeholder = new Option(`Frontends (${frontends.length})`, "");
   picker.append(placeholder);
   for (const frontend of frontends) {
@@ -365,8 +365,8 @@ function render(key: Section, force = false) {
   if (!list.children.length) {
     const hints = {
       sessions:
-        "Open a workspace to start a shell, or launch an agent from Vision Pro.",
-      workspaces: "Open a repository from Vision Pro to get started.",
+        "Open a worktree to start a shell, or launch an agent from Vision Pro.",
+      workspaces: "Open a repo from Vision Pro to get started.",
       frontends: "Start a web app on your Mac or add a URL.",
     };
     const empty = document.createElement("li");

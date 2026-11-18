@@ -24,6 +24,11 @@ export function installCoordinatorRoutes(
       await coordinator.submit(
         { hostId, origin, clientId: client(req), token },
         coordinatorRequest.parse(req.body),
+        z
+          .array(z.string().max(256))
+          .max(24)
+          .optional()
+          .parse(req.body?.launcherNames),
       ),
     );
   });

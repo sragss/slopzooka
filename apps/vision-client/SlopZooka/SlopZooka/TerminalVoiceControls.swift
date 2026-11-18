@@ -32,11 +32,28 @@ struct VoiceInputButton: View {
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        VoiceControlButton(label: label, onPressingChanged: onPressingChanged, action: action) {
             VoiceOrb(isSelected: voice.targetID == id,
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
                 meter: voice.audioMeter)
+        }
+        .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
+    }
+}
+
+/// Shared glass, hover feedback and pinch target for the mic and its companion Stop control.
+struct VoiceControlButton<Content: View>: View {
+    let label: String
+    var onPressingChanged: ((Bool) -> Void)? = nil
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Button(action: action) {
+            content()
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.white)
                 .frame(width: 88, height: 88)
                 .glassBackgroundEffect(in: Circle())
                 .frame(width: 120, height: 120)
@@ -47,7 +64,6 @@ struct VoiceInputButton: View {
         .contentShape(.hoverEffect, Circle())
         .hoverEffect(.lift)
         .accessibilityLabel(label)
-        .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
     }
 }
 
@@ -86,7 +102,6 @@ private struct VoiceOrb: View {
                 VoiceWaveform(meter: meter)
             } else {
                 Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: 30, weight: .medium))
                     .foregroundStyle(isSelected ? voiceAccent : .white)
             }
         }
@@ -147,9 +162,11 @@ struct TerminalVoiceOverlay: ViewModifier {
                     .accessibilityHidden(voice.targetID != id)
             }
             .overlay(alignment: .bottomTrailing) {
-                TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
-                    .fixedSize()
-                    .padding(20)
+                if mode != .coordinator {
+                    TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
+                        .fixedSize()
+                        .padding(20)
+                }
             }
             .onChange(of: voice.mode == .rename ? canRename : isAvailable) { _, available in
                 if !available { voice.targetUnavailable(id) }

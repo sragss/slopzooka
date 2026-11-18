@@ -7,7 +7,10 @@ import { ServiceError } from "./errors.js";
 
 /** Experimental opt-in: use the user's installed native runtime; never copy vendor binaries
  * or borrow a desktop task's browser/session authority. Live MCP guidance stays with it. */
-export async function installedNativeCua(home: string): Promise<string[]> {
+export async function installedNativeCua(
+  home: string,
+  directory: string,
+): Promise<string[]> {
   try {
     const { stdout } = await promisify(execFile)("/usr/bin/plutil", [
       "-extract",
@@ -46,6 +49,17 @@ export async function installedNativeCua(home: string): Promise<string[]> {
         ([key, value]) => `${JSON.stringify(key)} = ${JSON.stringify(value)}`,
       )
       .join(", ")} }`;
+    const wrapper = path.join(
+      path.dirname(process.argv[1]!),
+      "native-cua-stdio.cjs",
+    );
+    await fs.access(wrapper);
+    const args = [
+      wrapper,
+      path.join(directory, "native-input.sqlite"),
+      entry.command,
+      ...entry.args,
+    ];
     return [
       "-c",
       "mcp_servers.cua_repl.enabled=false",
@@ -56,9 +70,9 @@ export async function installedNativeCua(home: string): Promise<string[]> {
       "-c",
       'mcp_servers.node_repl.command="/usr/bin/false"',
       "-c",
-      `mcp_servers.slopzooka-native.command=${JSON.stringify(entry.command)}`,
+      `mcp_servers.slopzooka-native.command=${JSON.stringify(process.execPath)}`,
       "-c",
-      `mcp_servers.slopzooka-native.args=${JSON.stringify(entry.args)}`,
+      `mcp_servers.slopzooka-native.args=${JSON.stringify(args)}`,
       "-c",
       `mcp_servers.slopzooka-native.env=${inline}`,
     ];

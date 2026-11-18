@@ -9,6 +9,7 @@ struct CoordinatorView: View {
     @Environment(\.scenePhase) private var phase
     @State private var showingDetails = false
     @State private var followingLatest = true
+    @State private var scrolledPastTop = false
     @State private var microphoneReady = SpeechCaptureController.hasPermissions
     @State private var preparingMicrophone = false
     @State private var permissionError: String?
@@ -29,22 +30,19 @@ struct CoordinatorView: View {
                     .labelStyle(.iconOnly).buttonStyle(.bordered)
             }
             HStack {
-                if let context = state.context {
-                    Text("\(client.destinationName(for: context.hostID)) · \(contextLabel)")
-                        .font(.footnote).foregroundStyle(.secondary).lineLimit(2)
+                Text(contextLabel).font(.footnote).foregroundStyle(.secondary).lineLimit(1)
+                if let selected = client.current?.id, let context = state.context, context.hostID != selected {
+                    Text(client.destinationName(for: context.hostID))
+                        .font(.footnote).foregroundStyle(.secondary).lineLimit(1)
                 }
                 if let selected = client.current?.id, let context = state.context,
                     context.workspaceID != nil || context.hostID != selected {
-                    Button(context.hostID == selected ? "Global" : "Use " + client.destinationName(for: selected)) {
+                    Button(context.hostID == selected ? "Global" : "Use connected Mac") {
                         state.select(CoordinatorContext(hostID: selected))
                     }
                     .font(.footnote).buttonStyle(.borderless)
                     .disabled(!state.canChangeContext() || state.submitting)
                 }
-            }
-            HStack(spacing: 8) {
-                if state.isWorking { ProgressView().controlSize(.small) }
-                Text(state.statusText).font(.subheadline.weight(.medium)).lineLimit(1)
             }
             conversation
             if anotherDraft { Text("Finish or cancel the voice draft in your other window.").font(.footnote).foregroundStyle(.secondary) }
@@ -53,21 +51,27 @@ struct CoordinatorView: View {
                 Button("Review requested action") { showingDetails = true }.buttonStyle(.borderedProminent)
             }
             if let permissionError { Text(permissionError).font(.footnote).foregroundStyle(.orange).lineLimit(2) }
-            HStack {
-                if !microphoneReady {
-                    Button(preparingMicrophone ? "Getting ready…" : "Enable Microphone") { Task { await prepareMicrophone() } }
-                        .disabled(preparingMicrophone).buttonStyle(.bordered)
-                } else if state.canStop {
-                    Button("Stop", role: .destructive) {
-                        guard let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId else { return }
-                        Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
-                    }.buttonStyle(.bordered).accessibilityLabel("Stop the latest coordinator request")
-                }
-                Spacer()
-            }.frame(height: 96)
+            if !microphoneReady {
+                Button(preparingMicrophone ? "Getting ready…" : "Enable Microphone") { Task { await prepareMicrophone() } }
+                    .disabled(preparingMicrophone).buttonStyle(.bordered)
+            }
         }
-        .padding(24).frame(width: 520, height: 560)
+        .padding(24)
+        .frame(minWidth: 380, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
         .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+        .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
+            VStack(spacing: 0) {
+                if state.canStop, let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId {
+                    VoiceControlButton(label: "Stop this request", action: {
+                        Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
+                    }) {
+                        Image(systemName: "stop.fill").accessibilityHidden(true)
+                    }
+                }
+                TerminalVoiceButton(id: CoordinatorState.sceneID, isAvailable: canSpeak, mode: .coordinator)
+            }
+            .fixedSize()
+        }
         .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
         .sheet(isPresented: $showingDetails) { details }
         .onAppear { selectInitialContext() }
@@ -95,7 +99,8 @@ struct CoordinatorView: View {
         ScrollViewReader { reader in
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 18) {
-                    if state.conversation.isEmpty {
+                    if state.conversation.isEmpty || state.snapshot?.available == false {
+                        Text(state.statusText).font(.subheadline.weight(.medium))
                         Text(state.responseText).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                     }
                     ForEach(state.conversation) { turn in
@@ -110,12 +115,27 @@ struct CoordinatorView: View {
                                     CoordinatorMarkdown(text: result)
                                 }
                             }
-                            if !turn.progress.isEmpty { Text(turn.progress).font(.caption).foregroundStyle(.secondary) }
+                            if turn.id == state.snapshot?.requestId && state.snapshot?.available == true {
+                                HStack(spacing: 8) {
+                                    if state.isWorking { ProgressView().controlSize(.small) }
+                                    Text(state.statusText).font(.caption).foregroundStyle(.secondary)
+                                }
+                            } else if !turn.progress.isEmpty {
+                                Text(turn.progress).font(.caption).foregroundStyle(.secondary)
+                            }
                         }.id(turn.id)
                     }
                     Color.clear.frame(height: 1).id("latest")
                 }.padding(.vertical, 4)
             }
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [scrolledPastTop ? .clear : .black, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
+                    Color.black
+                }
+            }
+            .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 1 }
+                action: { _, pastTop in scrolledPastTop = pastTop }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 48
             } action: { _, atBottom in followingLatest = atBottom }

@@ -2,7 +2,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import type { Frontend } from "./frontend-discovery.js";
 
-export type FrontendWorkspace = { workspaceId: string; worktreePath: string };
+export type FrontendWorkspace = {
+  workspaceId: string;
+  worktreePath: string;
+  worktreeLabel?: Frontend["worktreeLabel"];
+};
 type Definition = {
   id: string;
   name: string;
@@ -73,7 +77,7 @@ async function definitions(root: string): Promise<Definition[] | undefined> {
     const resolved = path.resolve(root, directory);
     if (path.isAbsolute(directory) || !contains(root, resolved))
       throw new Error(
-        `Frontend ${value.id} directory must be inside the workspace`,
+        `Frontend ${value.id} directory must be inside the worktree`,
       );
     let canonical = resolved;
     try {
@@ -83,7 +87,7 @@ async function definitions(root: string): Promise<Definition[] | undefined> {
     }
     if (!contains(root, canonical))
       throw new Error(
-        `Frontend ${value.id} directory resolves outside the workspace`,
+        `Frontend ${value.id} directory resolves outside the worktree`,
       );
     result.push({
       id: value.id,
@@ -124,6 +128,7 @@ export async function projectFrontends(
   return async (frontend: Frontend, cwd?: string): Promise<Frontend> => {
     // Recompute on every refresh: edits, moved processes and port reuse must not retain ownership.
     const {
+      worktreeLabel: _label,
       workspaceId: _,
       frontendId: __,
       preferred: ___,
@@ -143,7 +148,11 @@ export async function projectFrontends(
       .sort((a, b) => b.root.length - a.root.length);
     const project = matches[0];
     if (!project || matches[1]?.root === project.root) return base;
-    const associated = { ...base, workspaceId: project.workspaceId };
+    const associated = {
+      ...base,
+      workspaceId: project.workspaceId,
+      worktreeLabel: project.worktreeLabel,
+    };
     if (project.frontends === undefined) return associated;
     const definitions = project.frontends
       .filter((item) => contains(item.directory, directory))

@@ -101,14 +101,18 @@ const coordinator = new Coordinator({
   previewArgs: [],
 });
 const config = { origin, hostId, clientId, token: "disposable-fixture-token" };
-async function ask(text: string) {
+async function ask(text: string, launcherNames: string[] = []) {
   const id = randomUUID();
-  await coordinator.submit(config, {
-    requestId: id,
-    text,
-    sessionId,
-    workspaceId: "fixture",
-  });
+  await coordinator.submit(
+    config,
+    {
+      requestId: id,
+      text,
+      sessionId,
+      workspaceId: "fixture",
+    },
+    launcherNames,
+  );
   const deadline = Date.now() + 90000;
   while (Date.now() < deadline) {
     const status = await coordinator.status(clientId);
@@ -128,6 +132,20 @@ try {
   console.log(
     "PASS: live model counts the two SlopZooka content windows, not 59 Mac capture sources",
   );
+  const before = await store.get(clientId);
+  const ambiguous = await ask("Let us preview the login check.");
+  assert.deepEqual(
+    await store.get(clientId),
+    before,
+    "An unmatched preview must not alias an unrelated source",
+  );
+  assert.match(
+    ambiguous.reply ?? "",
+    /which|what|couldn.t find|not (found|available)|can.t (find|identify)|no .*match|don.t see|do you mean/i,
+  );
+  console.log(
+    "PASS: an unmatched preview request leaves the layout untouched and asks for a source or reports the missing target",
+  );
   await ask("Name this terminal the nice window.");
   assert.equal(title, "the-nice-window");
   console.log(
@@ -135,16 +153,23 @@ try {
   );
   const renamed = await ask("Rename the Fixture preview to Login check.");
   assert.equal((await store.get(clientId)).windows[1].name, "Login check");
-  assert.equal(renamed.turns?.length, 3);
+  assert.equal(renamed.turns?.length, 4);
   assert.equal(renamed.turns?.[0].text, "How many windows are open here?");
   console.log(
-    "PASS: preview renamed through the existing layout owner; all three exchanges retained",
+    "PASS: preview renamed through the existing layout owner; all four exchanges retained",
   );
   const remembered = await ask("What did you name the terminal?");
   assert.match(remembered.reply ?? "", /the[- ]nice[- ]window/i);
   console.log(
     "PASS: follow-up retains conversation and current SlopZooka naming context",
   );
+  const aliases = await ask(
+    "Which two launcher repos do I mean by Poncho two and Slop Zuka? Give their exact full names.",
+    ["merit-systems/poncho2", "sragss/SlopZooka"],
+  );
+  assert.match(aliases.reply ?? "", /merit-systems\/poncho2/i);
+  assert.match(aliases.reply ?? "", /sragss\/slopzooka/i);
+  console.log("PASS: spoken repo names resolve to both exact launcher entries");
 } finally {
   coordinator.close();
   server.closeAllConnections();

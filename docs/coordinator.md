@@ -2,7 +2,7 @@
 
 Use **Ask** in the launcher header or **Ask SlopZooka** in a terminal's actions
 menu to open the compact voice coordinator. It is a separate window and keeps
-working when the launcher closes. Repeated opens reveal the same scene.
+working when the launcher closes. Repeated opens reveal the same scene. Resize either edge to give the conversation more room.
 
 This is an opt-in development feature. It requires the matching companion,
 headset build and session service. Updating the HTTP companion does not replace
@@ -15,54 +15,66 @@ Enable microphone/speech permissions if needed. Hold the microphone while
 speaking, then release. Final words settle before the familiar two-second
 countdown; tap × to cancel before submission. Delivery uses the same click/pulse
 and transcript fade as terminal dictation. Pauses while holding do not send.
-There is no keyboard or separate Send step in the normal flow.
+Ask accepts another utterance while the coordinator is working. It displays
+accepted follow-ups as **Queued** and runs them in order with their captured
+destinations. The mic sits at the bottom of the right edge. A matching Stop button appears directly above it while a request can be stopped. Both leave the chat area clear. Recent repo
+and worktree names from the selected launcher's catalog help interpret spoken
+names. The model can ask about ambiguous matches.
 
 Opening from the launcher supplies Global context on the selected Mac. Opening
-from a terminal supplies its Mac, workspace and session. The small context label
-shows that origin; **Global** clears workspace context. An active draft or
+from a terminal supplies its Mac, worktree and session. The small context label
+shows that origin; **Global** clears worktree context. An active draft or
 uncertain delivery keeps its original destination even if another terminal
 reveals the coordinator. Terminal dictation remains terminal input; coordinator
 voice goes to the structured Pi endpoint and never types into an arbitrary PTY.
 
-Pi can find projects, create and name a workspace, start an owned Codex worker,
+A **repo** holds a Git history. A **worktree** is a named checkout on the Mac with its own branch from that repo. One repo can have several worktrees. A **terminal** runs a session in a worktree, and a **thread** is a Codex conversation. Ask can start a worktree from an existing repo or create a new local repo with its first worktree. “Create a new project called Email Test” creates `email-test` on the Mac. Publishing requires a separate explicit request to the coding agent.
+
+Pi can find repos, create and name a worktree, start an owned Codex worker,
 queue follow-ups, and open/close explicitly requested native previews. Codex
-performs project setup and computer use. Its normal terminal attaches to the
+performs repo setup and computer use. Its normal terminal attaches to the
 same backend and thread. Ordinary follow-ups queue; explicitly requested
 steering targets the observed active turn and fails if it changed.
 
 Examples:
 
-- “Launch Poncho2 in a new workspace named Login verification. Have its agent
+- “Launch Poncho2 in a new worktree named Login verification. Have its agent
   get iOS running and show me a preview on my headset.”
 - From that coordinated terminal: “Click through the login and stop at Settings.”
 - “Close the iPhone preview, keeping its app and terminal running.”
 
-These are intended workflows, not claims that every project's setup is tested.
-The coding worker reads the actual project and reports missing capabilities.
+These are intended workflows, not claims that every repo's setup is tested.
+The coding worker reads the actual repo and reports missing capabilities.
 Existing ordinary terminals provide useful context but are not automatically
-adopted as controlled workers. A multi-workspace command still has to respect
+adopted as controlled workers. A multi-worktree command still has to respect
 the native-input and worker limits below.
 
-Ask shows one scrolling conversation across voice requests and workspace changes on
+Ask shows one scrolling conversation across voice requests and worktree changes on
 that Mac. Your complete utterances and concise coordinator replies remain visible.
 Markdown headings, lists, emphasis, code and links render natively. Completed worker
 results contribute a short excerpt from the final reply's opening outcome;
 **Details** and the terminal retain fuller output. Reconnection restores that same
 final reply rather than combining earlier progress messages with it.
 Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
-earlier result. If a worker disappears mid-task, that exchange shows **Needs attention**
+earlier result. If a worker disappears mid-task, that exchange shows **Agent unavailable**
 until the Mac can confirm its progress again. Completed results stay readable.
-The Ask header follows the current exchange. If one of its tasks needs attention
+Activity appears inside the exchange it describes. If one of its tasks needs attention
 while another is still running, **Stop** remains available.
 Reading older messages does not force the scroll back to the bottom.
 
-The line below **Ask SlopZooka** identifies the companion and destination before
-you speak. Opening Ask from a terminal targets the Mac that owns it, including a
-restored terminal from an earlier connection. If the launcher is connected to a
-different Mac, **Use [companion name]** switches Ask to that Mac's global context.
+The line below **Ask SlopZooka** shows Global or the terminal context. Opening
+Ask from a terminal targets the Mac that owns it, including a restored terminal.
+If that Mac differs from the launcher's selection, Ask shows the destination
+companion and **Use connected Mac** switches to the launcher's global context.
+
+Ask can find older or in-flight Codex threads in this Mac's saved catalog. For
+example, ask “Find the thread about the Poncho2 pairing UX.” It searches or
+pages through recent metadata and can peek at three short user/assistant
+excerpts at a time. Looking up a thread leaves its session and input alone.
+The catalog can only show what Codex has persisted.
 
 “Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's
-saved terminal/preview layout, current session names, workspace associations and
+saved terminal/preview layout, current session names, worktree associations and
 matching preview sources. This is desired layout, not proof of physical visibility
 or gaze; Ask and launcher utility panels are excluded from that content-window count.
 Unshared Mac capture sources are a separate catalog. “Name this terminal Login” uses
@@ -71,13 +83,13 @@ actions do not require a coding worker or Mac terminal title manipulation.
 
 **Stop** stops further coordinator actions and cancels only the submissions owned
 by the request shown when you tap it. A delayed Stop cannot cancel a newer
-request; refresh if Ask reports that the request changed. It preserves workspaces,
+request; refresh if Ask reports that the request changed. It preserves worktrees,
 terminals, apps and unrelated queued tasks. An uncertain cancellation stays visible rather than claiming the
 agent stopped. Closing the window cancels unsubmitted voice/countdown, while an
 uncertain submission retains its ID for Retry. Already accepted work keeps running.
 Reopening refreshes its state without resubmitting. If the reply was lost after
 acceptance, **Retry** can confirm that same request while the coordinator is busy;
-it does not submit a new task. New voice requests wait for its reply. Worker
+it does not submit a new task. Queued voice requests start after the current coordinator turn finishes. Worker
 reconnection restores turn progress/results. If resuming the connection fails,
 Ask keeps it unavailable and retries on a later status refresh without resubmitting
 the task. A cancelled queued task is shown
@@ -93,7 +105,7 @@ Preview intent is not queued for an offline headset.
 Set `SLOPZOOKA_COORDINATOR_CONFIG` to an owner-only JSON file when launching the
 companion. The setting is inherited by the packaged companion as well as the
 source host. The file contains `model`, `apiKey`, `codexExecutable`, optional
-`workerModel`, and optional `nativeControl`. Store it outside the repository with
+`workerModel`, and optional `nativeControl`. A configured `workerModel` overrides Codex’s default at thread creation. Omit it to inherit the app-server default. Store it outside the repo with
 mode `0600`; do not put credentials in prompts or commit them. Restart the HTTP
 companion after changing this configuration.
 
@@ -103,7 +115,7 @@ not supplied to worker launch arguments or tools. `codexExecutable` must be an
 absolute executable path. The worker requires the experimental remote app-server,
 thread queue and TUI attachment interfaces; stock CLI versions are not all
 interchangeable. Qualification on this Mac uses the installed ChatGPT-bundled
-Codex `0.167.0-alpha.3.2`, Pi packages `1.4.0`, and `gpt-5.6-sol` for both models.
+Codex `0.167.0-alpha.3.2`, Pi packages `1.4.0`, and `gpt-5.6-sol` for the original fixture.
 
 `nativeControl: true` opts into the user's installed ChatGPT native computer-use
 runtime. The adapter reads its versioned MCP manifest; it does not redistribute
@@ -112,10 +124,12 @@ access. The worker receives the runtime's live guidance. Missing or changed
 installation, permissions, or tools fail visibly. This is an unstable integration,
 not a supported third-party API or a release commitment.
 
-Only one coordinated native-control worker may remain alive at a time. Reuse it
-for multiple apps/previews, or end its terminal before starting another. This
-avoids two managed native workers competing for foreground input. It does not
-coordinate unmanaged desktop agents or human input; those remain a test constraint.
+Each coordinated worker has its own terminal, Codex thread and native REPL.
+Coding tasks can run concurrently. An active native REPL interaction reserves
+foreground input across workers on the same session service until completion,
+reset, disconnect, or 60 seconds idle between calls. A competing native tool call
+receives a busy result; after an idle expiry the worker must reset and observe
+again. Human input and other applications operate outside this mechanism.
 
 ## Current limits
 

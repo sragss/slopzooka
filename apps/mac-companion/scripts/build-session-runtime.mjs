@@ -12,6 +12,7 @@ await fs.mkdir(destination, { recursive: true });
 await build({
   entryPoints: {
     service: path.join(root, "src/session-service.ts"),
+    "native-cua-stdio": path.join(root, "src/native-cua-stdio.ts"),
     bootstrap: path.join(root, "src/diagnostics-bootstrap.ts"),
   },
   bundle: true,

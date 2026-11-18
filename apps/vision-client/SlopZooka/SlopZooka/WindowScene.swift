@@ -77,9 +77,9 @@ struct ImmersiveWorkspaceControl: View {
     var body: some View {
         Group {
             if exitOnly {
-                Button("Exit Immersive Workspace", systemImage: "arrow.uturn.backward") { changeMode(false) }
+                Button("Exit Immersive Mode", systemImage: "arrow.uturn.backward") { changeMode(false) }
             } else {
-                Toggle("Immersive workspace", isOn: Binding(
+                Toggle("Immersive mode", isOn: Binding(
                     get: { workspace.isPresented }, set: changeMode))
             }
         }
@@ -172,7 +172,9 @@ final class WindowApplicationDelegate: NSObject, UIApplicationDelegate {
                 guard let windows else { throw CompanionError(message: "Terminal unavailable.") }
                 switch command.destination {
                 case .terminal: try await windows.submitVoiceInput(command)
-                case .coordinator: try await windows.coordinator.submit(client: windows.client, command: command)
+                case .coordinator:
+                    let names = windows.launcher.voiceNames(for: windows.coordinator.context?.hostID)
+                    try await windows.coordinator.submit(client: windows.client, command: command, launcherNames: names)
                 }
             })
         super.init()

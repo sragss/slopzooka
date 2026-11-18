@@ -91,6 +91,7 @@ const windowPreviews = new WindowPreviews(
 );
 const codexThreads = new CodexThreads(diagnostics.logger("codex-threads"));
 const coordinator = new Coordinator({
+  threads: codexThreads,
   home: workspacePaths().slopzookaHome,
   configFile: process.env.SLOPZOOKA_COORDINATOR_CONFIG,
   service: sessionService,
@@ -275,7 +276,7 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
         };
       });
     if (!workspace.existsOnDisk)
-      throw new ServiceError("Workspace directory is missing", 409);
+      throw new ServiceError("Worktree directory is missing", 409);
     const session = await sessionService.create({
       workspaceId: workspace.workspaceId,
       cwd: workspace.worktreePath,
@@ -324,10 +325,19 @@ app.get("/api/repos/recent", async (req, res) => {
   const limit = normalizeLimit(req.query.limit);
 
   try {
-    const result = await gitHubClient.listRecentRepos(limit);
+    const local = await workspaceService.localRepos();
+    const result = await gitHubClient
+      .listRecentRepos(limit)
+      .catch((error: unknown) => {
+        if (!local.length) throw error;
+        logger.warn("Remote repo catalog unavailable", {
+          error: logError(error),
+        });
+        return { viewerLogin: null, repos: [] };
+      });
     res.json({
       viewerLogin: result.viewerLogin,
-      repos: result.repos,
+      repos: [...local, ...result.repos].slice(0, limit),
     });
   } catch (error) {
     logger.error("Failed to load recent repositories", {
@@ -373,10 +383,10 @@ app.get("/api/workspaces", async (req, res) => {
       workspaces,
     });
   } catch (error) {
-    logger.error("Failed to load workspaces", {
+    logger.error("Failed to load worktrees", {
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to load workspaces.");
+    sendWorkspaceError(res, error, "Failed to load worktrees.");
   }
 });
 
@@ -398,7 +408,12 @@ app.post("/api/workspaces/launch", async (req, res) => {
   }
 
   try {
-    const repo = await gitHubClient.getRepo(nameWithOwner);
+    const repo = nameWithOwner.startsWith("~local/")
+      ? (await workspaceService.localRepos()).find(
+          (repo) => repo.nameWithOwner === nameWithOwner,
+        )
+      : await gitHubClient.getRepo(nameWithOwner);
+    if (!repo) throw new ServiceError("Local repo not found", 404);
     const result = await workspaceService.launchWorkspace(
       {
         nameWithOwner,
@@ -410,12 +425,29 @@ app.post("/api/workspaces/launch", async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error("Failed to launch workspace", {
+    logger.error("Failed to launch worktree", {
       repo: nameWithOwner,
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to launch workspace.");
+    sendWorkspaceError(res, error, "Failed to launch worktree.");
+  }
+});
+
+app.post("/api/repos/local", async (req, res) => {
+  try {
+    const name = normalizeRepoName(req.body?.repoName);
+    if (!name) throw new ServiceError("A repo name is required.", 400);
+    res
+      .status(201)
+      .json(
+        await workspaceService.createLocalRepo(
+          name,
+          normalizeProfile(req.body?.profile),
+        ),
+      );
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not create local repo.");
   }
 });
 
@@ -484,7 +516,7 @@ app.patch("/api/workspaces/:workspaceId", async (req, res) => {
     );
     res.json({ workspace });
   } catch (error) {
-    sendWorkspaceError(res, error, "Could not rename workspace");
+    sendWorkspaceError(res, error, "Could not rename worktree");
   }
 });
 
@@ -507,12 +539,12 @@ app.post("/api/workspaces/:workspaceId/reopen", async (req, res) => {
     );
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Failed to reopen workspace", {
+    logger.error("Failed to reopen worktree", {
       workspaceId,
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to reopen workspace.");
+    sendWorkspaceError(res, error, "Failed to reopen worktree.");
   }
 });
 
@@ -532,11 +564,11 @@ app.post("/api/workspaces/:workspaceId/archive", async (req, res) => {
       workspace,
     });
   } catch (error) {
-    logger.error("Failed to archive workspace", {
+    logger.error("Failed to archive worktree", {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to archive workspace.");
+    sendWorkspaceError(res, error, "Failed to archive worktree.");
   }
 });
 
@@ -545,10 +577,10 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
     const result = await workspaceService.pruneMissingWorkspaces();
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Failed to prune missing workspaces", {
+    logger.error("Failed to prune missing worktrees", {
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to prune missing workspaces.");
+    sendWorkspaceError(res, error, "Failed to prune missing worktrees.");
   }
 });
 

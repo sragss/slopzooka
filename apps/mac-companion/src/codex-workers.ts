@@ -102,21 +102,6 @@ export class CodexWorkers {
     if (worker && worker.fingerprint !== signature)
       throw new ServiceError("Worker ID already used for another launch", 409);
     if (!worker) {
-      if (
-        launch.nativeControl &&
-        [...this.workers.values()].some(
-          (other) =>
-            other.launch.nativeControl &&
-            (other.state.status === "starting" ||
-              (other.child?.pid &&
-                other.child.exitCode === null &&
-                other.child.signalCode === null)),
-        )
-      )
-        throw new ServiceError(
-          "One native-control worker is supported at a time. Reuse it or end its terminal before starting another.",
-          409,
-        );
       if (this.workers.size >= 8)
         throw new ServiceError("Coordinated worker limit reached", 409);
       worker = {
@@ -157,7 +142,10 @@ export class CodexWorkers {
   private async boot(w: Worker) {
     const launch = w.launch;
     const nativeArgs = launch.nativeControl
-      ? await this.nativeRuntime(launch.session.environment.HOME!)
+      ? await this.nativeRuntime(
+          launch.session.environment.HOME!,
+          this.directory,
+        )
       : [];
     const args = [
       ...nativeArgs,
@@ -216,16 +204,19 @@ export class CodexWorkers {
     });
     w.rpc = rpc;
     await rpc.initialize();
-    const start = await rpc.call<{ thread: NativeThread }>("thread/start", {
-      cwd: launch.session.cwd,
-      ...(launch.model ? { model: launch.model } : {}),
-      developerInstructions:
-        `SlopZooka workspace ID: ${JSON.stringify(launch.session.workspaceId)}. Terminal/session ID: ${JSON.stringify(launch.session.id)}. ` +
-        "This is a SlopZooka coordinated workspace. Your terminal is rendered inside SlopZooka on Apple Vision Pro, not iTerm or Terminal.app. SlopZooka window/workspace display names are owned by the coordinator's explicit tools. Do not try shell OSC title escapes or native Mac terminal control to rename them; report that the coordinator must perform that action. The user's request may include preparing apps and showing previews on their headset. Use the configured slopzooka-previews MCP only for explicitly requested headset previews. Use your existing tools for setup and app interaction. Do not claim a layout acknowledgement proves the user sees the content. Report missing tools, permissions, or offline headset honestly. Begin the final reply with a concise outcome paragraph including essential limitations; put supporting details after it. Do not spawn other coding agents for these coordination tasks." +
-        (launch.nativeControl
-          ? " Native computer control is provided by the slopzooka-native MCP. Follow its live guidance. Use native app control with an exact app path or bundle ID, not browser/tab APIs; this worker has no delegated browser-extension authority."
-          : ""),
-    });
+    const start = await rpc.call<{ thread: NativeThread; model?: string }>(
+      "thread/start",
+      {
+        cwd: launch.session.cwd,
+        ...(launch.model ? { model: launch.model } : {}),
+        developerInstructions:
+          `SlopZooka worktree ID: ${JSON.stringify(launch.session.workspaceId)}. Terminal/session ID: ${JSON.stringify(launch.session.id)}. ` +
+          "This is a SlopZooka coordinated worktree. Use repo and worktree in user-facing replies. Keep local repos on this Mac. Only add a remote, publish or push when the user explicitly asks. Your terminal is rendered inside SlopZooka on Apple Vision Pro, not iTerm or Terminal.app. SlopZooka window/worktree display names are owned by the coordinator's explicit tools. Do not try shell OSC title escapes or native Mac terminal control to rename them; report that the coordinator must perform that action. The user's request may include preparing apps and showing previews on their headset. Use the configured slopzooka-previews MCP only for explicitly requested headset previews. Use your existing tools for setup and app interaction. Do not claim a layout acknowledgement proves the user sees the content. Report missing tools, permissions, or offline headset honestly. Begin the final reply with a concise outcome paragraph including essential limitations; put supporting details after it. Do not spawn other coding agents for these coordination tasks." +
+          (launch.nativeControl
+            ? " Native computer control is provided by the slopzooka-native MCP. Follow its live guidance and finish each interaction with its completion summary to release shared Mac input. Other workers may code in parallel. After a busy response, reobserve the exact target before acting. Use native app control with an exact app path or bundle ID, not browser/tab APIs; this worker has no delegated browser-extension authority."
+            : ""),
+      },
+    );
     if (!start.thread?.id)
       throw new ServiceError("Codex did not return a thread identity", 503);
     w.state.threadId = start.thread.id;
@@ -261,6 +252,7 @@ export class CodexWorkers {
     this.logger.info("worker.started", {
       sessionId: launch.session.id,
       threadId: start.thread.id,
+      model: start.model,
     });
     if (w.stopped) await this.stop(launch.session.id);
   }

@@ -48,14 +48,14 @@ final class CoordinatorState: ObservableObject {
         return client.current?.id != context.hostID || client.isReady
     }
     func canReceiveVoice(client: CompanionClient) -> Bool {
-        isAvailable(client: client) && snapshot?.status != "running"
+        isAvailable(client: client) && (snapshot?.status != "running" || snapshot?.acceptsQueuedRequests == true)
     }
     func canSubmit(client: CompanionClient, command: TerminalVoiceCommand) -> Bool {
         guard command.destination == .coordinator, command.targetID == Self.sceneID,
             isAvailable(client: client) else { return false }
         // A lost reply can be confirmed while Pi is busy with that request.
         // New utterances still wait; the host verifies the retried payload.
-        return snapshot?.status != "running" || snapshot?.requestId == command.commandID
+        return snapshot?.acceptsQueuedRequests == true || snapshot?.status != "running" || snapshot?.requestId == command.commandID
             || snapshot?.turns?.contains(where: { $0.requestId == command.commandID }) == true
     }
     func refresh(client: CompanionClient, hostID: String) async {
@@ -71,7 +71,7 @@ final class CoordinatorState: ObservableObject {
             if self.error != error.localizedDescription { self.error = error.localizedDescription }
         }
     }
-    func submit(client: CompanionClient, command: TerminalVoiceCommand) async throws {
+    func submit(client: CompanionClient, command: TerminalVoiceCommand, launcherNames: [String] = []) async throws {
         guard let captured = context, canSubmit(client: client, command: command) else {
             throw CompanionError(message: "Coordinator is not available right now. Reconnect and retry.")
         }
@@ -83,7 +83,7 @@ final class CoordinatorState: ObservableObject {
         defer { if current == generation { submitting = false } }
         do {
             let value = try await client.coordinatorSubmit(hostID: captured.hostID, requestID: command.commandID, text: command.text,
-                workspaceID: captured.workspaceID, sessionID: captured.sessionID)
+                workspaceID: captured.workspaceID, sessionID: captured.sessionID, launcherNames: launcherNames)
             guard current == generation, submittedRevision == revision else { return }
             pendingTurn = nil
             apply(value)
@@ -146,7 +146,7 @@ final class CoordinatorState: ObservableObject {
         if let currentTurn { return currentTurn.isWorking }
         return snapshot?.status == "running" || requestWorkers.contains { ["starting", "running", "waiting"].contains($0.status) }
     }
-    var canStop: Bool { snapshot?.requestId != nil && (isWorking || snapshot?.status == "failed") }
+    var canStop: Bool { snapshot?.requestId != nil && isWorking }
     var statusText: String {
         if submitting { return "Sending…" }
         if needsApproval { return "Approval needed" }

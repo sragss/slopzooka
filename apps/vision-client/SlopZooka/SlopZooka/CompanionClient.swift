@@ -493,8 +493,12 @@ final class CompanionClient: NSObject, ObservableObject {
         try await request(hostID: hostID, path: "/api/workspaces/launch", method: "POST",
             body: Self.json(["nameWithOwner": nameWithOwner, "profile": profile]), timeout: 300)
     }
-    func createRepository(hostID: String, owner: String, name: String, isPrivate: Bool, profile: String?) async throws -> LaunchWorkspaceResponse {
-        try await request(hostID: hostID, path: "/api/repos/create-and-launch", method: "POST",
+    func createRepository(hostID: String, owner: String?, name: String, isPrivate: Bool, profile: String?) async throws -> LaunchWorkspaceResponse {
+        guard let owner else {
+            return try await request(hostID: hostID, path: "/api/repos/local", method: "POST",
+                body: Self.json(["repoName": name, "profile": profile]))
+        }
+        return try await request(hostID: hostID, path: "/api/repos/create-and-launch", method: "POST",
             body: Self.json(["owner": owner, "repoName": name, "visibility": isPrivate ? "private" : "public", "profile": profile]), timeout: 300)
     }
     func reopenWorkspace(hostID: String, id: String, profile: String?) async throws -> LaunchWorkspaceResponse {
@@ -569,10 +573,12 @@ final class CompanionClient: NSObject, ObservableObject {
     func coordinatorStatus(hostID: String) async throws -> CoordinatorSnapshot {
         try await request(hostID: hostID, path: "/api/coordinator")
     }
-    func coordinatorSubmit(hostID: String, requestID: String, text: String, workspaceID: String?, sessionID: String?) async throws -> CoordinatorSnapshot {
+    func coordinatorSubmit(hostID: String, requestID: String, text: String, workspaceID: String?, sessionID: String?, launcherNames: [String]) async throws -> CoordinatorSnapshot {
         log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID ?? "", "workspaceId": workspaceID ?? "", "commandId": requestID, "destination": "coordinator"])
-        return try await request(hostID: hostID, path: "/api/coordinator", method: "POST",
-            body: Self.json(["requestId": requestID, "text": text, "workspaceId": workspaceID, "sessionId": sessionID]))
+        var body: [String: Any] = ["requestId": requestID, "text": text, "launcherNames": launcherNames]
+        body["workspaceId"] = workspaceID
+        body["sessionId"] = sessionID
+        return try await request(hostID: hostID, path: "/api/coordinator", method: "POST", body: JSONSerialization.data(withJSONObject: body, options: .sortedKeys))
     }
     func coordinatorStop(hostID: String, requestID: String) async throws -> CoordinatorSnapshot {
         try await request(hostID: hostID, path: "/api/coordinator/stop", method: "POST", body: Self.json(["requestId": requestID]))

@@ -152,6 +152,41 @@ test("real Pi loop retains captured destination, deduplicates a retried request 
     await f.close();
   }
 });
+test("a new project uses local repo creation and returns its existing first worktree to Pi", async () => {
+  const calls: string[] = [];
+  const f = await fixture(
+    [turn("repo_create_local", { name: "Email Test" })],
+    async () => ({ workers: [] }),
+    (app) => {
+      app.post("/api/repos/local", (req, res) => {
+        calls.push(req.body.repoName);
+        res.status(201).json({
+          repo: { nameWithOwner: "~local/email-test" },
+          workspaceId: "first",
+          worktreePath: "/tmp/email-test",
+        });
+      });
+    },
+  );
+  try {
+    await f.coordinator.submit(f.config, {
+      requestId: randomUUID(),
+      text: "Create a new project called Email Test",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    assert.deepEqual(calls, ["Email Test"]);
+    const result = f.modelContexts
+      .flatMap((context) => context.messages)
+      .find(
+        (m) => m.role === "toolResult" && m.toolName === "repo_create_local",
+      );
+    assert.equal(JSON.parse(result.content[0].text).worktreeId, "first");
+  } finally {
+    await f.close();
+  }
+});
 test("Stop during workspace creation prevents later rename and preserves the accepted partial resource", async () => {
   let release!: () => void,
     created = 0,
@@ -160,7 +195,7 @@ test("Stop during workspace creation prevents later rename and preserves the acc
     release = r;
   });
   const f = await fixture(
-    [turn("workspace_launch", { project: "test/fixture", name: "Purpose" })],
+    [turn("worktree_launch", { repo: "test/fixture", name: "Purpose" })],
     async () => ({ workers: [] }),
     (app) => {
       app.post("/api/workspaces/launch", async (_req, res) => {
@@ -918,6 +953,75 @@ test("a delayed Stop cannot cancel a newer request on the same headset", async (
     );
     assert.equal(stops.length, 1);
   } finally {
+    await f.close();
+  }
+});
+
+test("queued voice turns keep arrival order, captured destination and launcher names through a retry", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>((done) => {
+    release = done;
+  });
+  const f = await fixture(
+    [
+      turn("worker_submit", { sessionId: "ours", text: "hold", mode: "queue" }),
+      fauxAssistantMessage("First done."),
+      fauxAssistantMessage("Second done."),
+      fauxAssistantMessage("Third done."),
+    ],
+    async (route) => {
+      if (route.startsWith("/workers?"))
+        return {
+          workers: [
+            {
+              sessionId: "ours",
+              workspaceId: "first",
+              status: "idle",
+              deliveries: [],
+            },
+          ],
+        };
+      await gate;
+      return { status: "running" };
+    },
+  );
+  try {
+    const [a, b, c] = ["First", "Poncho two", "Slop Zuka"].map((text) => ({
+      requestId: randomUUID(),
+      text,
+      workspaceId: text,
+    }));
+    await f.coordinator.submit(f.config, a!);
+    await f.coordinator.submit(f.config, b!, ["owner/poncho2"]);
+    const queued = await f.coordinator.submit(f.config, c!, [
+      "owner/SlopZooka",
+    ]);
+    assert.equal(queued.requestId, a!.requestId);
+    assert.deepEqual(
+      queued.turns?.map((t) => t.status),
+      ["running", "queued", "queued"],
+    );
+    await f.coordinator.submit(f.config, b!, ["updated launcher"]);
+    release();
+    await until(
+      async () =>
+        (await f.coordinator.status(clientId)).turns?.every(
+          (t) => t.status === "completed",
+        ) === true,
+    );
+    const turns = (await f.coordinator.status(clientId)).turns!;
+    assert.deepEqual(
+      turns.map((t) => t.reply),
+      ["First done.", "Second done.", "Third done."],
+    );
+    assert.deepEqual(
+      turns.map((t) => t.workspaceId),
+      ["First", "Poncho two", "Slop Zuka"],
+    );
+    assert.match(JSON.stringify(f.modelContexts.at(-1)), /owner\/SlopZooka/);
+    assert.doesNotMatch(JSON.stringify(f.modelContexts), /updated launcher/);
+  } finally {
+    release();
     await f.close();
   }
 });

@@ -33,7 +33,7 @@ struct WorkspaceFrontendButton: View {
             }
         }
         .disabled(hostID == nil)
-        .accessibilityLabel("Show workspace frontends")
+        .accessibilityLabel("Show worktree frontends")
         .accessibilityValue(accessibilityStatus)
         .popover(isPresented: $expanded, arrowEdge: .top) {
             ScrollView {
@@ -86,7 +86,7 @@ struct FrontendListView: View {
             if visibleFrontends.allSatisfy({ $0.isService }) && catalog.warning == nil {
                 Text(workspaceId == nil
                     ? "Ask your agent to start a web app on your Mac, or add a URL."
-                    : "No frontends for this workspace yet. Ask your agent to start a web app on your Mac.").font(.caption)
+                    : "No frontends for this worktree yet. Ask your agent to start a web app on your Mac.").font(.caption)
                     .foregroundStyle(.secondary)
             }
             ForEach(visibleFrontends.filter { !$0.isService }) { frontend in

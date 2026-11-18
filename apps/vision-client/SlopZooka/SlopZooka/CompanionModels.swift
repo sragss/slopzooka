@@ -102,6 +102,11 @@ struct TerminalWindowPayload: Equatable {
 }
 
 struct FrontendSummary: Equatable, Decodable, Identifiable {
+    struct WorktreeLabel: Equatable, Decodable {
+        let repo: String
+        let worktree: String
+    }
+    var worktreeLabel: WorktreeLabel? = nil
     let id: String
     let hostname: String
     let url: String
@@ -318,12 +323,15 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
     var progress: String {
         if status == "sending" { return "Sending…" }
         if status == "unconfirmed" { return "Delivery not confirmed — retry keeps this request" }
-        if status == "failed" { return "Needs attention" }
+        if status == "queued" { return "Queued" }
+        if status == "failed" { return "Request failed" }
         if status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
         if status == "running" { return "Working…" }
         switch workStatus {
         case "running", "queued": return "Agent working…"
-        case "failed", "uncertain", "unavailable": return "Needs attention"
+        case "failed": return "Agent task failed"
+        case "uncertain": return "Delivery unconfirmed"
+        case "unavailable": return "Agent unavailable"
         case "interrupted": return "Interrupted"
         case "completed": return "Completed"
         default: return ""
@@ -332,6 +340,7 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
 }
 struct CoordinatorSnapshot: Decodable, Equatable {
     var available: Bool
+    var acceptsQueuedRequests: Bool?
     var message: String?
     var requestId: String?
     var status: String

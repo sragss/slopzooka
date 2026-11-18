@@ -1,7 +1,7 @@
 # Coordinator reliability review and launcher lag investigation
 
 The November 18 device rerun uses **Slz Ask Routing** with **Slz Ask Final** on port **55436**.
-See the Ask progress checks at the end. Earlier rig entries are retained
+See the [November 18 playtest](2026-11-18-coordinator-playtest.md) for later builds and outcomes. Earlier rig entries are retained
 as evidence, not the current slot target.
 
 Follow-up to the voice headset slot and the user's request for a maintainability

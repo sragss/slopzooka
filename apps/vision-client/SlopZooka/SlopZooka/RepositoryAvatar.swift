@@ -5,7 +5,7 @@ struct RepositoryAvatar: View {
 
     var body: some View {
         Group {
-            if let url = URL(string: urlString) {
+            if !urlString.isEmpty, let url = URL(string: urlString) {
                 AsyncImage(url: url) { image in
                     image.resizable().scaledToFill()
                 } placeholder: {

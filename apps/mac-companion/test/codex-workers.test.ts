@@ -66,14 +66,15 @@ test(
       assert.equal(manager.summaries()[0]!.codexThreadId, a.threadId);
       assert.equal((await rows()).filter((x) => x.event === "start").length, 1);
       assert.deepEqual(await workers.list(randomUUID()), []);
-      await assert.rejects(
-        workers.start({
-          ...launch,
-          clientId: randomUUID(),
-          session: { ...launch.session, id: randomUUID() },
-        }),
-        /One native-control worker/,
-      );
+      // A second native-capable worker gets an independent terminal while the first is running.
+      const secondId = randomUUID();
+      const other = await workers.start({
+        ...launch,
+        session: { ...launch.session, id: secondId },
+      });
+      assert.equal(other.sessionId, secondId);
+      assert.equal(manager.summaries().length, 2);
+      await workers.end(secondId);
       await assert.rejects(
         workers.start({ ...launch, task: "another task" }),
         /another launch/,

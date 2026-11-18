@@ -18,12 +18,12 @@ struct RepoRowView: View {
                     if repo.isPrivate {
                         Image(systemName: "lock.fill")
                             .font(.caption)
-                            .accessibilityLabel("Private repository")
+                            .accessibilityLabel("Private repo")
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Text(repo.defaultBranch ?? "Repository")
+                Text(repo.defaultBranch ?? "Repo")
                     .font(.caption)
                     .lineLimit(1)
                     .padding(.horizontal, 8)

@@ -40,6 +40,7 @@ test("automatic association uses canonical worktree boundaries, not package name
   const associate = await projectFrontends(
     roots.map((root) => ({
       workspaceId: root,
+      worktreeLabel: { repo: "Poncho2", worktree: root },
       worktreePath: path.join(home, root),
     })),
     warnings,
@@ -63,13 +64,20 @@ test("automatic association uses canonical worktree boundaries, not package name
     "repo",
   );
   assert.equal((await associate(frontend, home)).workspaceId, undefined);
+  assert.deepEqual(
+    (await associate(frontend, path.join(home, "repo-other/apps/web")))
+      .worktreeLabel,
+    { repo: "Poncho2", worktree: "repo-other" },
+  );
   const stale = {
+    worktreeLabel: { repo: "Poncho2", worktree: "old" },
     ...frontend,
     workspaceId: "old",
     frontendId: "web",
     preferred: true,
   };
   assert.equal((await associate(stale, home)).workspaceId, undefined);
+  assert.equal((await associate(stale, home)).worktreeLabel, undefined);
   assert.equal((await associate(stale)).frontendId, undefined);
   assert.deepEqual(warnings, []);
 });
@@ -133,7 +141,7 @@ test("optional hints distinguish automatic, multiple and zero frontends; invalid
   await fs.symlink(os.tmpdir(), path.join(home, "escape"));
   await write([{ id: "web", directory: "escape" }]);
   await projectFrontends(workspaces, warnings);
-  assert.match(warnings.at(-1)!, /outside the workspace/);
+  assert.match(warnings.at(-1)!, /outside the worktree/);
   await fs.writeFile(config, "{partial");
   associate = await projectFrontends(workspaces, warnings);
   assert.equal((await associate(frontend, home)).title, "Original");
