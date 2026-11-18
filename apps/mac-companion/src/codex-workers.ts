@@ -10,6 +10,7 @@ import type { SessionManager } from "./sessions.js";
 import type { SessionLaunch } from "./session-service-protocol.js";
 import { stopProcessTree } from "./process-tree.js";
 
+const MAX_COORDINATED_WORKERS = 20;
 export const WORKER_CAPABILITY = "coordinator-workers-v1";
 export type WorkerLaunch = {
   nativeControl?: boolean;
@@ -102,8 +103,11 @@ export class CodexWorkers {
     if (worker && worker.fingerprint !== signature)
       throw new ServiceError("Worker ID already used for another launch", 409);
     if (!worker) {
-      if (this.workers.size >= 8)
-        throw new ServiceError("Coordinated worker limit reached", 409);
+      if (this.workers.size >= MAX_COORDINATED_WORKERS)
+        throw new ServiceError(
+          `All ${MAX_COORDINATED_WORKERS} coordinated worker slots are in use on this Mac. End a session you no longer need, then retry in the existing worktree.`,
+          409,
+        );
       worker = {
         launch,
         fingerprint: signature,

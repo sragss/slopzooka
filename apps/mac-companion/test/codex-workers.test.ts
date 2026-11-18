@@ -66,15 +66,22 @@ test(
       assert.equal(manager.summaries()[0]!.codexThreadId, a.threadId);
       assert.equal((await rows()).filter((x) => x.event === "start").length, 1);
       assert.deepEqual(await workers.list(randomUUID()), []);
-      // A second native-capable worker gets an independent terminal while the first is running.
-      const secondId = randomUUID();
-      const other = await workers.start({
-        ...launch,
-        session: { ...launch.session, id: secondId },
-      });
-      assert.equal(other.sessionId, secondId);
-      assert.equal(manager.summaries().length, 2);
-      await workers.end(secondId);
+      // Keep the first worker active while eight more bind their own terminals.
+      const siblings = await Promise.all(
+        Array.from({ length: 8 }, () =>
+          workers.start({
+            ...launch,
+            session: { ...launch.session, id: randomUUID() },
+          }),
+        ),
+      );
+      const sessionIds = manager.summaries().map((s) => s.id);
+      assert.equal(new Set(sessionIds).size, 9);
+      assert.deepEqual(
+        new Set([sessionId, ...siblings.map((w) => w.sessionId)]),
+        new Set(sessionIds),
+      );
+      await Promise.all(siblings.map((w) => workers.end(w.sessionId)));
       await assert.rejects(
         workers.start({ ...launch, task: "another task" }),
         /another launch/,

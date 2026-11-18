@@ -152,7 +152,8 @@ again. Human input and other applications operate outside this mechanism.
   excerpts and target IDs rather than silently starting an unrelated conversation. Inspect state
   before resending an unconfirmed creation across a restart; there is no durable
   exactly-once promise.
-- Limits: eight workers, eight client conversations, 64 coordinator requests per
+- The Mac session service allows up to 20 coordinated workers across its paired clients. Each launched worker has a Codex backend and a terminal, and its terminal also counts toward the service’s 100-session limit. A worker stays available for follow-ups after its turn finishes. **End Session** frees its slot. If a worktree was created before the limit was reached, ask to start the worker in that existing worktree.
+- Other limits: eight client conversations, 64 coordinator requests per
   HTTP lifetime per client, 128 follow-up correlations per worker, 16 tool calls
   and two minutes per coordinator turn. Restarting the HTTP companion resets
   conversation limits without ending terminals. Worker request limits require
