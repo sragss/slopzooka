@@ -1,8 +1,9 @@
-import { logError } from "../../../packages/protocol/src/diagnostics.js";
 import { eventLogger, logId } from "./log-events.js";
 import {
+  DIAGNOSTICS_VERSION,
   MAX_LOG_BATCH,
   boundedLogEvent,
+  logError,
   type LogEvent,
   type LogClock,
 } from "../../../packages/protocol/src/diagnostics.js";
@@ -56,7 +57,11 @@ export async function flushBrowserLogs() {
     const response = await fetch("/api/diagnostics/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: 1, clock, events: batch }),
+      body: JSON.stringify({
+        version: DIAGNOSTICS_VERSION,
+        clock,
+        events: batch,
+      }),
       signal: AbortSignal.timeout(4000),
     });
     if (response.ok) {

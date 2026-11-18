@@ -1,4 +1,7 @@
-import { logError } from "../../../packages/protocol/src/diagnostics.js";
+import {
+  logError,
+  validLogId,
+} from "../../../packages/protocol/src/diagnostics.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import http from "node:http";
@@ -10,7 +13,6 @@ import { WebSocketServer } from "ws";
 import { SessionManager, send } from "./sessions.js";
 import { ServiceError } from "./errors.js";
 import { createDiagnostics, logContext } from "./logger.js";
-import { validLogId } from "../../../packages/protocol/src/diagnostics.js";
 import {
   isClientMessage,
   validId,

@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import {
+  DIAGNOSTICS_VERSION,
   boundedLogEvent,
   isLogEvent,
   type LogEvent,
@@ -141,7 +142,7 @@ export class LogStore {
       const gaps = this.gaps;
       if (gaps) {
         const event: LogEvent = {
-          version: 1,
+          version: DIAGNOSTICS_VERSION,
           source: this.role,
           instanceId: this.instanceId,
           sequence: ++this.gapSequence,

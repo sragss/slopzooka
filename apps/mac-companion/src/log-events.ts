@@ -1,4 +1,5 @@
 import {
+  DIAGNOSTICS_VERSION,
   type LogEvent,
   type LogLevel,
   type LogSource,
@@ -48,7 +49,7 @@ export function eventLogger(
       if (level === "debug" && !options.debug) return;
       try {
         sink({
-          version: 1,
+          version: DIAGNOSTICS_VERSION,
           source,
           instanceId,
           sequence: ++sequence,
