@@ -128,7 +128,12 @@ test("real Pi loop retains captured destination, deduplicates a retried request 
       (await f.coordinator.status(clientId)).reply!,
       /no worker binding/,
     );
-    await f.coordinator.submit(f.config, request);
+    // A retry may reconstruct the same captured fields in a different order.
+    await f.coordinator.submit(f.config, {
+      sessionId: request.sessionId,
+      text: request.text,
+      requestId: request.requestId,
+    });
     assert.equal(writes.length, 0);
     await assert.rejects(
       f.coordinator.submit(f.config, { ...request, text: "changed" }),
@@ -668,6 +673,7 @@ test("SlopZooka context and rename use headset identities, not Mac capture windo
 
 test("conversation progress stays attached to each delivery when a worker is reused", async () => {
   const deliveries: any[] = [];
+  let workerPresent = true;
   const worker = {
     sessionId: "ours",
     workspaceId: "one",
@@ -691,7 +697,8 @@ test("conversation progress stays attached to each delivery when a worker is reu
       fauxAssistantMessage("Started the second task."),
     ],
     async (route, _method, body) => {
-      if (route.startsWith("/workers?")) return { workers: [worker] };
+      if (route.startsWith("/workers?"))
+        return { workers: workerPresent ? [worker] : [] };
       if (route.endsWith("/submit")) {
         worker.status = "running";
         worker.result = undefined;
@@ -728,6 +735,19 @@ test("conversation progress stays attached to each delivery when a worker is reu
     assert.deepEqual(
       (await f.coordinator.status(clientId)).turns?.map((t) => t.workStatus),
       ["completed", "running"],
+    );
+    workerPresent = false;
+    const missing = (await f.coordinator.status(clientId)).turns!;
+    assert.equal(missing[0].resultExcerpt, "First **passed**.");
+    assert.equal(
+      missing[1].workStatus,
+      "unavailable",
+      "A missing worker cannot confirm previously running work",
+    );
+    workerPresent = true;
+    assert.equal(
+      (await f.coordinator.status(clientId)).turns![1].workStatus,
+      "running",
     );
     await f.coordinator.stop(clientId, secondRequestId);
     const turns = (await f.coordinator.status(clientId)).turns!;

@@ -50,7 +50,9 @@ results contribute a short excerpt from the final reply's opening outcome;
 **Details** and the terminal retain fuller output. Reconnection restores that same
 final reply rather than combining earlier progress messages with it.
 Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
-earlier result. Reading older messages does not force the scroll back to the bottom.
+earlier result. If a worker disappears mid-task, that exchange shows **Needs attention**
+until the Mac can confirm its progress again. Completed results stay readable.
+Reading older messages does not force the scroll back to the bottom.
 
 “Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's
 saved terminal/preview layout, current session names, workspace associations and

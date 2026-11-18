@@ -237,8 +237,9 @@ browser authority. See [usage and experimental limits](coordinator.md).
 
 
 Coordinator conversation history is ephemeral Mac-owned presentation data, bounded
-by the existing request limit. Each exchange retains its captured target and owned
-delivery correlations; the headset renders that history and holds only an uncertain
+by the existing request limit. One entry per request ID owns the captured target,
+coordinator reply and delivery correlations. The same entry confirms retries.
+Worker snapshots are read when projecting status. The headset holds only an uncertain
 pending submission locally. Model tool-history compaction carries earlier exchange
 excerpts forward. This is not a durable job scheduler or another window registry.
 Coordinator window context reads the existing client-partitioned layout and joins
