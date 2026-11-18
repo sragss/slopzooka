@@ -328,7 +328,8 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
         if status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
         if status == "running" { return "Working…" }
         switch workStatus {
-        case "running", "queued": return "Agent working…"
+        case "queued": return "Queued in terminal · waiting to start"
+        case "running": return "Agent working…"
         case "failed": return "Agent task failed"
         case "uncertain": return "Delivery unconfirmed"
         case "unavailable": return "Agent unavailable"

@@ -136,7 +136,7 @@ struct TerminalWindowView: View {
                                 .frame(width: 60, height: 60)
                         }
                         .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
-                        .disabled(!canSubmitSpeech)
+                        .disabled(!canUseKeyboard)
                         .accessibilityLabel("Show terminal keyboard")
 
                         Button {
@@ -148,7 +148,7 @@ struct TerminalWindowView: View {
                                 .frame(minHeight: 60)
                         }
                         .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
-                        .disabled(!canSubmitSpeech)
+                        .disabled(!canUseKeyboard)
                         .accessibilityHint("Send Escape to the terminal")
 
                         Button(role: .destructive) {
@@ -172,7 +172,7 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech, canRename: canRename))
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: windows.canReceiveVoice(payload.id), canRename: canRename))
         .overlay {
             if windows.hasUnreadNotification(payload.id) {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -330,9 +330,8 @@ struct TerminalWindowView: View {
         scenePhase == .active && sessionID.map(windows.canRename) == true
     }
 
-    private var canSubmitSpeech: Bool {
-        if case .loaded = loadState { return payload != nil && scenePhase == .active }
-        return false
+    private var canUseKeyboard: Bool {
+        scenePhase == .active && loadState == .loaded
     }
 
     private func newShell(payload: TerminalWindowPayload) async {

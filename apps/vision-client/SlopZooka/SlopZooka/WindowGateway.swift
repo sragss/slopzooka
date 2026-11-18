@@ -176,10 +176,12 @@ final class WindowGateway: ObservableObject {
         var next = window.notifications
         let isNew = next.receive(sequence: sequence, serviceInstanceID: serviceInstanceID)
         if window.notifications != next { windows[id]?.notifications = next }
+        if isNew { log.info("notification.received", ["windowId": id, "sequence": String(sequence)]) }
         return isNew
     }
     func readTerminalNotifications(id: String) {
         guard hasUnreadNotification(id) else { return }
+        log.info("notification.read", ["windowId": id, "sequence": String(windows[id]?.notifications.sequence ?? 0)])
         windows[id]?.notifications.markRead()
     }
 
@@ -188,7 +190,8 @@ final class WindowGateway: ObservableObject {
     }
 
     func canReceiveVoice(_ id: String) -> Bool {
-        guard let window = windows[id], window.isPresented, window.isFocused,
+        // Dictation addresses the mic’s original session even when keyboard focus moves.
+        guard let window = windows[id], window.isPresented,
             let reference = window.reference, persistence.windows(hostID: reference.hostID).contains(reference.window),
             window.terminal != nil, case .loaded = window.loadState else { return false }
         return true

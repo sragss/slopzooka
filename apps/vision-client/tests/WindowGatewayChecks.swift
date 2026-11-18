@@ -465,6 +465,8 @@ struct WindowGatewayChecks {
         voiceGateway.updateTerminalLoadState(id: terminal.id, loadState: .loaded)
         precondition(voiceGateway.canReceiveVoice(terminal.id))
         let input = TerminalVoiceCommand(targetID: terminal.id, commandID: UUID().uuidString, text: "hello")
+        voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: false)
+        precondition(voiceGateway.canReceiveVoice(terminal.id), "Looking elsewhere preserves the original dictation destination")
         Fixture.loseInputReply = true
         try await voiceGateway.submitVoiceInput(input)
         precondition(Fixture.inputBodies.count == 2 && Fixture.inputBodies[0] == Fixture.inputBodies[1])

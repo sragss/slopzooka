@@ -14,7 +14,7 @@ that service needs an explicit update.
 Enable microphone/speech permissions if needed. Hold the microphone while
 speaking, then release. Final words settle before the familiar two-second
 countdown; tap × to cancel before submission. Delivery uses the same click/pulse
-and transcript fade as terminal dictation. Pinch the Ask mic once and keep holding while looking elsewhere or pausing between phrases. Releasing that pinch starts the send countdown. If visionOS cancels the gesture, Ask pauses with the draft retained.
+and transcript fade as terminal dictation. Pinch the Ask mic once and keep holding while looking elsewhere or pausing between phrases. Releasing that pinch starts the send countdown. Hold the mic again before delivery to append to the same message. If visionOS cancels the gesture, Ask pauses with the draft retained.
 Ask accepts another utterance while the coordinator is working. It displays
 accepted follow-ups as **Queued** and runs them in order with their captured
 destinations. The mic sits at the bottom of the right edge. A matching Stop button appears directly above it while a request can be stopped. Both leave the chat area clear. Recent repo
@@ -33,8 +33,7 @@ A **repo** holds a Git history. A **worktree** is a named checkout on the Mac wi
 Pi can find repos, create and name a worktree, start an owned Codex worker,
 queue follow-ups, and open/close explicitly requested native previews. Codex
 performs repo setup and computer use. Its normal terminal attaches to the
-same backend and thread. Ordinary follow-ups queue; explicitly requested
-steering targets the observed active turn and fails if it changed.
+same backend and thread. When you change the direction of work already underway, Ask steers the observed active turn. If that turn has changed, Codex rejects the steer. Separate or deferred tasks enter the terminal’s queue. Ask shows **Queued in terminal · waiting to start** until Codex takes up that message.
 
 When you ask to see an app on the headset, Pi includes the intended worktree, app and screen in the coding agent’s task when known. If Codex will present a native window, Pi points it to its paired preview MCP. If Pi will present the window, Codex only needs to prepare it and identify the source. Ordinary coding requests carry no preview setup steps.
 

@@ -9390,12 +9390,16 @@ var TerminalConnection = class {
     if (log3)
       this.performance = new TerminalPerformance(terminal2, () => this.log);
     this.inputSubscription = terminal2.onData((data) => {
-      if (this.attached && this.writable && this.running)
-        this.send({
-          type: "input",
-          sessionId: sessionId2,
-          data,
-          probeId: this.performance?.submitted(this.supportsInputAck)
+      if (!this.attached || !this.writable || !this.running) return;
+      this.send({
+        type: "input",
+        sessionId: sessionId2,
+        data,
+        probeId: this.performance?.submitted(this.supportsInputAck)
+      });
+      if (data === "\x1B[I" || data === "\x1B[O")
+        this.log?.info("terminal.focus.reported", {
+          focused: data === "\x1B[I"
         });
     });
   }
@@ -9833,7 +9837,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "b3c56e96ea02bcd5462bea0c86fbdc57b2e061245d48e7abb16aa7a8f06b0d33" : "unknown"
+    buildId: true ? "82e25f888a5e828d608c825bd7c64a8605401bd403abca880b2e0f8805886a0d" : "unknown"
   }
 );
 var log = browserLog("diagnostics");

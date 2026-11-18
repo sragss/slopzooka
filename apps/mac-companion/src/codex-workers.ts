@@ -441,13 +441,14 @@ export class CodexWorkers {
               "Active turn changed; refresh before steering",
               409,
             );
-          await rpc.call("turn/steer", {
+          const receipt = await rpc.call<{ turnId: string }>("turn/steer", {
             threadId: w.state.threadId,
             expectedTurnId: request.expectedTurnId,
+            clientUserMessageId: request.requestId,
             input: input(request.text),
           });
-          delivery.turnId = request.expectedTurnId;
-          delivery.status = "running";
+          delivery.turnId = receipt.turnId;
+          if (delivery.status === "uncertain") delivery.status = "running";
         } else {
           const result = await rpc.call<{ queuedSubmission: QueueEntry }>(
             "thread/queue/add",
@@ -458,8 +459,8 @@ export class CodexWorkers {
             },
           );
           delivery.queuedId = result.queuedSubmission.id;
-          delivery.status = "queued";
-          if (!w.state.turnId) {
+          if (delivery.status === "uncertain") delivery.status = "queued";
+          if (delivery.status === "queued" && !w.state.turnId) {
             try {
               await rpc.call("thread/queue/start", {
                 threadId: w.state.threadId,

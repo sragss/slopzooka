@@ -817,7 +817,11 @@ test("conversation progress stays attached to each delivery when a worker is reu
       if (route.endsWith("/submit")) {
         worker.status = "running";
         worker.result = undefined;
-        deliveries.push({ requestId: body.requestId, status: "running" });
+        deliveries.push({
+          requestId: body.requestId,
+          status: body.text === "check" ? "queued" : "running",
+        });
+        return worker;
       }
       if (route.endsWith("/stop"))
         for (const d of deliveries)
@@ -855,6 +859,19 @@ test("conversation progress stays attached to each delivery when a worker is reu
       (await f.coordinator.status(clientId)).turns?.map((t) => t.workStatus),
       ["completed", "running"],
     );
+    const receipts = f.events.filter(
+      (e) =>
+        e.event === "coordinator.tool.completed" &&
+        e.fields?.tool === "worker_submit",
+    );
+    assert.deepEqual(
+      receipts.map((e) => e.fields?.status),
+      ["running", "running", "queued"],
+    );
+    assert.equal(receipts[2]?.fields?.deliveryId, deliveries[2].requestId);
+    const lastMessage = f.modelContexts.at(-1).messages.at(-1);
+    assert.match(JSON.stringify(lastMessage.content), /queued/);
+    assert.doesNotMatch(JSON.stringify(lastMessage.content), /"deliveries"/);
     deliveries[1].status = "failed";
     deliveries[2].status = "queued";
     const mixed = (await f.coordinator.status(clientId)).turns!;

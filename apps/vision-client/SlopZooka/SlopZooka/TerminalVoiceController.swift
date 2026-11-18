@@ -107,7 +107,7 @@ final class TerminalVoiceController: ObservableObject {
     private let waitBeforeSend: () async throws -> Void
     private var countdownTask: Task<Void, Never>?
     private var countdownID: UUID?
-    private var heldTargetID: String?
+    private(set) var heldTargetID: String?
     private let capture: any SpeechCapturing
     private let availability: (String, Mode) -> Bool
     private let retryAvailability: ((TerminalVoiceCommand) -> Bool)?
@@ -180,14 +180,21 @@ final class TerminalVoiceController: ObservableObject {
     func cancelTerminalHold(_ id: String) { cancelHold(id) }
 
     func beginHold(_ id: String, mode requestedMode: Mode) {
-        guard requestedMode.isHoldToTalk else { return }
-        guard !isSubmitting, sendDeadline == nil, pendingCommand == nil,
-            captureState != .finishing, availability(id, requestedMode) else { return }
+        guard requestedMode.isHoldToTalk, heldTargetID == nil, !isSubmitting,
+            pendingCommand == nil, availability(id, requestedMode) else { return }
         if mode == requestedMode && targetID == id {
-            guard heldTargetID == nil else { return }
+            // Release may still be collecting the final recognition result. Keep that
+            // segment and let captureFinished continue listening under the new hold.
+            if captureState == .finishing {
+                heldTargetID = id
+                submitWhenFinished = false
+                return
+            }
+            cancelCountdown()
             heldTargetID = id
             resume()
         } else {
+            guard captureState != .finishing, sendDeadline == nil else { return }
             activate(id, mode: requestedMode)
             if mode == requestedMode && targetID == id { heldTargetID = id }
         }

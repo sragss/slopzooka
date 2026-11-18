@@ -9,30 +9,22 @@ struct TerminalVoiceButton: View {
     @EnvironmentObject private var voice: TerminalVoiceController
 
     var body: some View {
-        Group {
-            if mode == .coordinator {
-                VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
-                    .modifier(AskPinchHold(id: id, voice: voice))
-            } else {
-                VoiceInputButton(voice: voice, id: id, label: "Hold to dictate", onPressingChanged: { pressing in
-                    if pressing { voice.beginHold(id, mode: mode) }
-                    else { voice.endHold(id) }
-                }) {}
+        VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
+            .modifier(VoicePinchHold(id: id, mode: mode, voice: voice))
+            .accessibilityHint("Hold to speak. Release to send in two seconds. Hold again to add more, or tap close to cancel.")
+            .accessibilityAction {
+                if voice.heldTargetID == id { voice.endHold(id) }
+                else { voice.beginHold(id, mode: mode) }
             }
-        }
-        .accessibilityHint("Hold while speaking, then release. Tap the close button within two seconds to cancel before sending.")
-        .accessibilityAction {
-            if voice.targetID == id && voice.mode == mode { voice.endHold(id) }
-            else { voice.beginHold(id, mode: mode) }
-        }
-        .opacity(isAvailable ? 1 : 0.45)
-        .disabled(!isAvailable || voice.isSubmitting || voice.sendDeadline != nil)
+            .opacity(isAvailable ? 1 : 0.45)
+            .disabled(!isAvailable || voice.isSubmitting)
     }
 }
 
 /// Track the original spatial input through release, even after its location leaves the mic.
-private struct AskPinchHold: ViewModifier {
+private struct VoicePinchHold: ViewModifier {
     let id: String
+    let mode: TerminalVoiceController.Mode
     let voice: TerminalVoiceController
     @State private var owner: SpatialEventCollection.Event.ID?
     @GestureState private var tracking = false
@@ -44,7 +36,7 @@ private struct AskPinchHold: ViewModifier {
                 .onChanged { events in
                     if owner == nil, let first = events.first(where: { $0.phase == .active }) {
                         owner = first.id
-                        voice.beginHold(id, mode: .coordinator)
+                        voice.beginHold(id, mode: mode)
                     }
                     finish(events)
                 }
@@ -79,11 +71,10 @@ struct VoiceInputButton: View {
     @ObservedObject var voice: TerminalVoiceController
     let id: String
     let label: String
-    var onPressingChanged: ((Bool) -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
-        VoiceControlButton(label: label, onPressingChanged: onPressingChanged, action: action) {
+        VoiceControlButton(label: label, action: action) {
             VoiceOrb(isSelected: voice.targetID == id,
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
@@ -96,7 +87,6 @@ struct VoiceInputButton: View {
 /// Shared glass, hover feedback and pinch target for the mic and its companion Stop control.
 struct VoiceControlButton<Content: View>: View {
     let label: String
-    var onPressingChanged: ((Bool) -> Void)? = nil
     let action: () -> Void
     @ViewBuilder let content: () -> Content
 
@@ -110,22 +100,11 @@ struct VoiceControlButton<Content: View>: View {
                 .frame(width: 120, height: 120)
                 .contentShape(Circle())
         }
-        .buttonStyle(VoicePressStyle(onPressingChanged: onPressingChanged))
+        .buttonStyle(.plain)
         .buttonBorderShape(.circle)
         .contentShape(.hoverEffect, Circle())
         .hoverEffect(.lift)
         .accessibilityLabel(label)
-    }
-}
-
-/// Native button tracking recognizes the initial pinch and its release without
-/// requiring a drag or a minimum long-press duration.
-private struct VoicePressStyle: ButtonStyle {
-    let onPressingChanged: ((Bool) -> Void)?
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { _, pressing in onPressingChanged?(pressing) }
     }
 }
 
@@ -242,7 +221,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                 submitPulse = false
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .background || (phase == .inactive && mode != .coordinator) { voice.targetUnavailable(id) }
+                if phase == .background || (phase == .inactive && voice.mode == .rename) { voice.targetUnavailable(id) }
             }
             .onDisappear { voice.targetUnavailable(id) }
     }

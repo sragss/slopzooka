@@ -37,3 +37,17 @@ The next device build tracks the pinch that started Ask dictation. Previously th
 The WooCommerce exchange exposed a gap between the launcher's saved-thread resume action and Ask’s search/peek tools. After reboot, live Pi found and opened “Review Hark and Granola notes” in woo-demo through the existing resume route. The returned session was running with the original Codex thread ID in the current headset layout. All five previously running terminals survived the HTTP companion update.
 
 End Session releases session-owned previews across paired client layouts. A separate test client on the rebooted host ended a disposable shell and verified that its preview disappeared while an independent preview remained. Regression checks also verified a shared preview remains for its other owner, retries are idempotent, and a stale open cannot recreate the ended session's preview.
+
+### Follow-up checks from the November 18 evening slot
+
+- Trace the two production-telemetry follow-ups on Slow submit investigation from Ask acknowledgement to their actual Codex turns.
+- Share Ask’s pinch ownership with the terminal and agent mics. Allow a second pinch during the send countdown to append to the original draft.
+- Investigate the missing terminal notifications, including what the coordinated Codex TUI emits and how the headset receives and acknowledges it.
+
+At 18:43 EST, Ask had two successful worker submissions for Slow submit investigation. A read-only native Codex queue listing matched both delivery IDs on the correct thread. Its history still contained only the original in-progress turn. In a separate run with the installed Codex binary, a queued message automatically became a second turn after the first completed. The UI incorrectly used “Agent working…” for both states. The fix gives Pi a per-message receipt and the headset a distinct waiting label. Guidance directs corrections to the active turn and reserves the queue for subsequent work.
+
+Both the investigation terminal and a completed email worker had a PTY notification sequence of zero at 18:47 EST. Both had another viewer attached. That rules out a headset badge clearing the only emitted alert for those sessions. The previous headset bell check established the explicit bell path independently.
+
+A disposable end-to-end run sent a correction through real Pi while a real Codex worker was active. The receipt matched the initial turn ID and the final answer changed from the requested ORCHID to VIOLET. In the same run, the TUI enabled DEC focus reporting, received focus-out, and emitted one terminal notification. The staged builds record the writer’s focus reports and the headset’s unread and read transitions. The next headset check is a worker completion after switching to Ask. Capture the focus report, PTY counter and headset acknowledgement together.
+
+State checks exercise both terminal and Ask dictation through final transcription, re-grabbing during the grace period, waking a cancelled timer, and an OS-cancelled pinch. Each test delivered one combined message to its originating window. Physical gaze-away and re-grab still need confirmation.

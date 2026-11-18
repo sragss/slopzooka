@@ -26,6 +26,11 @@ private final class CoordinatorSpeech: SpeechCapturing {
 struct CoordinatorChecks {
     @MainActor
     static func main() async throws {
+        var queued = CoordinatorTurn(requestId: "test-receipt", text: "follow up", status: "completed", workStatus: "queued")
+        precondition(queued.isWorking && queued.progress == "Queued in terminal · waiting to start")
+        queued.workStatus = "running"
+        precondition(queued.progress == "Agent working…")
+
         defer { CompanionTestPreferences.clean() }
         var requests: [URLRequest] = []
         var release: CheckedContinuation<Void, Never>?
