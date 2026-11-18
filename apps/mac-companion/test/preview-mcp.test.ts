@@ -104,7 +104,11 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
         });
     }, 15);
     const file = path.join(home, "config.json");
-    await fs.writeFile(file, JSON.stringify(config), { mode: 0o600 });
+    await fs.writeFile(
+      file,
+      JSON.stringify({ ...config, ownerSessionId: "worker-a" }),
+      { mode: 0o600 },
+    );
     const start = async () => {
       const client = new Client({ name: "preview-test", version: "1.0.0" });
       clients.push(client);
@@ -205,6 +209,12 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       source_id: "window:a",
       name: "Login",
     });
+    assert.deepEqual(
+      (await store.get(clientId)).windows.find(
+        (w) => w.id === opened.preview_id,
+      )?.ownerSessionIds,
+      ["worker-a"],
+    );
     assert.equal(opened.status, "desired_state_acknowledged");
     assert.equal(opened.visibility, "not_observed");
     assert.equal((await store.get(clientId)).windows.length, 2);

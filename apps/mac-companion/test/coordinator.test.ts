@@ -152,6 +152,55 @@ test("real Pi loop retains captured destination, deduplicates a retried request 
     await f.close();
   }
 });
+test("Ask opens the original saved thread and presents the actual reused terminal", async () => {
+  const threadId = randomUUID(),
+    hostId = randomUUID();
+  let resumed = 0;
+  let shown: any;
+  const f = await fixture(
+    [turn("thread_open", { threadId })],
+    async () => ({ workers: [] }),
+    (app) => {
+      app.post(`/api/codex/threads/${threadId}/resume`, (req, res) => {
+        assert.ok(req.body.sessionId);
+        resumed++;
+        res.json({ session: { id: "reused" } });
+      });
+      app.get("/health", (_req, res) => res.json({ hostId }));
+      app.get("/api/sessions", (_req, res) =>
+        res.json({ sessions: [{ id: "reused" }] }),
+      );
+      app.get("/api/window-layout", (_req, res) =>
+        res.json({ version: 1, revision: 0, windows: [] }),
+      );
+      app.get("/api/window-layout/availability", (_req, res) =>
+        res.json({ available: true }),
+      );
+      app.put("/api/window-layout", (req, res) => {
+        shown = req.body.windows;
+        res.json({ ...req.body, revision: 1 });
+      });
+    },
+  );
+  try {
+    f.config.hostId = hostId;
+    const request = {
+      requestId: randomUUID(),
+      text: "Pull up that saved thread",
+    };
+    await f.coordinator.submit(f.config, request);
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    await f.coordinator.submit(f.config, request);
+    assert.equal(resumed, 1);
+    assert.deepEqual(shown, [
+      { id: "reused", kind: "terminal", targetID: "reused" },
+    ]);
+  } finally {
+    await f.close();
+  }
+});
 test("a new project uses local repo creation and returns its existing first worktree to Pi", async () => {
   const calls: string[] = [];
   const f = await fixture(

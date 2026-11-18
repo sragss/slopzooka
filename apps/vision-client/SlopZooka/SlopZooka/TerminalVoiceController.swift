@@ -195,6 +195,7 @@ final class TerminalVoiceController: ObservableObject {
 
     func endHold(_ id: String) {
         guard heldTargetID == id, targetID == id, usesHoldToTalk else { return }
+        log.info("hold.released", ["sessionId": id])
         heldTargetID = nil
         switch captureState {
         case .listening:
@@ -213,6 +214,12 @@ final class TerminalVoiceController: ObservableObject {
         case .failed, .unavailable:
             pause()
         }
+    }
+
+    func interruptHold(_ id: String) {
+        guard heldTargetID == id, targetID == id else { return }
+        log.info("hold.interrupted", ["sessionId": id])
+        pause()
     }
 
     func cancelHold(_ id: String) {

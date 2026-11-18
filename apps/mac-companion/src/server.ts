@@ -180,10 +180,16 @@ installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
   sessionService.flushLogs(),
 );
-installWindowLayoutRoutes(
-  app,
-  new WindowLayoutStore(workspacePaths().slopzookaHome),
+const windowLayouts = new WindowLayoutStore(
+  workspacePaths().slopzookaHome,
+  async () =>
+    new Set(
+      (await sessionService.info()).sessions
+        .filter((s) => s.status === "running" && !s.ending)
+        .map((s) => s.id),
+    ),
 );
+installWindowLayoutRoutes(app, windowLayouts);
 const publicRoot = path.join(import.meta.dirname, "..", "public");
 app.use(express.static(publicRoot));
 
@@ -315,6 +321,7 @@ app.patch("/api/sessions/:sessionId", async (req, res) => {
 app.delete("/api/sessions/:sessionId", async (req, res) => {
   try {
     await sessionService.end(req.params.sessionId);
+    await windowLayouts.closeSessionPreviews(req.params.sessionId);
     res.json({ ok: true });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not terminate session");

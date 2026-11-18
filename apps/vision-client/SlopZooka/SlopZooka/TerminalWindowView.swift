@@ -97,7 +97,7 @@ struct TerminalWindowView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 16) {
-                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId)
+                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId, sessionID: payload.id)
 
                     if let statusText = terminalStatusText {
                         Text(statusText)
@@ -201,7 +201,7 @@ struct TerminalWindowView: View {
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {
-            Text("This stops the terminal and its attached dev servers. Close the window to keep them running.")
+            Text("This stops the terminal and its attached dev servers and closes its session-owned previews. Close the window to keep them running.")
         }
         .onAppear {
             slzLog("terminal scene appeared \(payload.id)")

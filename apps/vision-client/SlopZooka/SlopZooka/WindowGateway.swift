@@ -218,10 +218,15 @@ final class WindowGateway: ObservableObject {
         present(reference.window, explicit: true)
         Task { await synchronize() }
     }
-    func openPreview(_ frontend: FrontendSummary, hostID: String) throws {
+    func openPreview(_ frontend: FrontendSummary, hostID: String, sessionID: String? = nil) throws {
         if let message = client.frontendOpenError(id: frontend.id, hostID: hostID) { throw CompanionError(message: message) }
         let id = "\(hostID):\(frontend.id)"
-        remember(WindowReference(hostID: hostID, window: WindowRecord(id: id, kind: .preview, targetID: frontend.id)))
+        var record = persistence.windows(hostID: hostID).first { $0.id == id }
+            ?? WindowRecord(id: id, kind: .preview, targetID: frontend.id, ownerSessionIds: sessionID.map { [$0] })
+        if let sessionID, let owners = record.ownerSessionIds, !owners.contains(sessionID) {
+            record.ownerSessionIds = owners + [sessionID]
+        }
+        windows[id, default: WindowState()].reference = WindowReference(hostID: hostID, window: record)
         try open(id: id)
     }
     func openWindowPreview(_ source: NativeWindowSource, hostID: String) throws {

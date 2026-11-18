@@ -18,7 +18,7 @@ final class CoordinatorState: ObservableObject {
     @Published private(set) var error: String?
     @Published private(set) var pendingTurn: CoordinatorTurn?
     @Published private(set) var submitting = false
-    @Published private(set) var sceneActive = false
+    @Published private(set) var scenePresented = false
     var canChangeContext: () -> Bool = { true }
     private var presenter: UUID?
     private var generation = UUID()
@@ -38,12 +38,12 @@ final class CoordinatorState: ObservableObject {
         revision += 1
         return true
     }
-    func observeScene(_ id: UUID, active: Bool) {
-        if active { presenter = id; sceneActive = true }
-        else if presenter == id { presenter = nil; sceneActive = false }
+    func observeScene(_ id: UUID, presented: Bool) {
+        if presented { presenter = id; scenePresented = true }
+        else if presenter == id { presenter = nil; scenePresented = false }
     }
     private func isAvailable(client: CompanionClient) -> Bool {
-        guard sceneActive, let context, snapshot?.available == true,
+        guard scenePresented, let context, snapshot?.available == true,
             !submitting, client.pairedHostIDs.contains(context.hostID) else { return false }
         return client.current?.id != context.hostID || client.isReady
     }

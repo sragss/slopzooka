@@ -199,3 +199,5 @@ Opening from a terminal carries its worktree context. The same panel remains
 usable after closing the launcher. **Stop** cancels the latest request while
 keeping its apps and windows. **Details** contains full results and approvals.
 See [the coordinator guide](coordinator.md) for setup and current limits.
+
+**End Session** also closes previews opened for that terminal. A shared preview stays open until its last owning session ends. Closing just the terminal window preserves its previews. Independently opened previews and those saved by older builds without a session association are kept.

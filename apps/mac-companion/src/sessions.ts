@@ -83,7 +83,10 @@ export class SessionManager {
   private stopping = false;
   constructor(private readonly logger?: Logger) {}
   summaries(): SessionSummary[] {
-    return [...this.sessions.values()].map((s) => ({ ...s.summary }));
+    return [...this.sessions.values()].map((s) => ({
+      ...s.summary,
+      ...(s.ending ? { ending: true } : {}),
+    }));
   }
   rename(id: string, name: unknown): SessionSummary {
     const session = this.require(id);
@@ -195,6 +198,7 @@ export class SessionManager {
     const shell = environment.SHELL ?? "/bin/zsh";
     const terminalEnvironment: NodeJS.ProcessEnv = {
       ...environment,
+      SLOPZOOKA_SESSION_ID: id,
       TERM: "xterm-256color",
       COLORTERM: "truecolor",
     };

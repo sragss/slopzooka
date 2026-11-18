@@ -7,6 +7,7 @@ struct WindowRecord: Codable, Hashable, Identifiable {
     let kind: Kind
     let targetID: String
     var name: String? = nil
+    var ownerSessionIds: [String]? = nil
 
     func sameContent(as other: Self) -> Bool {
         id == other.id && kind == other.kind && targetID == other.targetID

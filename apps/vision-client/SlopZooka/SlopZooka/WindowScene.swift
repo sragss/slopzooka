@@ -46,14 +46,14 @@ private struct SceneActions: ViewModifier {
             .onChange(of: phase) { _, _ in update() }
             .onDisappear {
                 windows.detachPresenter(presenterID)
-                if isCoordinator { windows.coordinator.observeScene(presenterID, active: false) }
+                if isCoordinator { windows.coordinator.observeScene(presenterID, presented: false) }
                 windows.observe(id: id, isPresented: false, isFocused: false)
             }
     }
     private func update() {
         // Register observed scenes before reconciling, avoiding duplicate restore requests.
         windows.observe(id: id, isPresented: phase != .background, isFocused: phase == .active)
-        if isCoordinator { windows.coordinator.observeScene(presenterID, active: phase == .active) }
+        if isCoordinator { windows.coordinator.observeScene(presenterID, presented: phase != .background) }
         if phase != .active { windows.detachPresenter(presenterID); return }
         windows.attachPresenter(presenterID) { command in
             switch command {

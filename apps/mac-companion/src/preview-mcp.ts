@@ -11,7 +11,11 @@ import { ServiceError } from "./errors.js";
 try {
   const file = process.argv[2];
   if (!file) throw new Error("Configuration file required");
-  const control = new PreviewControl(await readPreviewConfig(file));
+  const config = await readPreviewConfig(file);
+  const control = new PreviewControl({
+    ...config,
+    ownerSessionId: config.ownerSessionId ?? process.env.SLOPZOOKA_SESSION_ID,
+  });
   const run = async (operation: () => Promise<unknown>) => {
     try {
       const result = await operation();

@@ -9,10 +9,17 @@ struct TerminalVoiceButton: View {
     @EnvironmentObject private var voice: TerminalVoiceController
 
     var body: some View {
-        VoiceInputButton(voice: voice, id: id, label: "Hold to dictate", onPressingChanged: { pressing in
-            if pressing { voice.beginHold(id, mode: mode) }
-            else { voice.endHold(id) }
-        }) {}
+        Group {
+            if mode == .coordinator {
+                VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
+                    .modifier(AskPinchHold(id: id, voice: voice))
+            } else {
+                VoiceInputButton(voice: voice, id: id, label: "Hold to dictate", onPressingChanged: { pressing in
+                    if pressing { voice.beginHold(id, mode: mode) }
+                    else { voice.endHold(id) }
+                }) {}
+            }
+        }
         .accessibilityHint("Hold while speaking, then release. Tap the close button within two seconds to cancel before sending.")
         .accessibilityAction {
             if voice.targetID == id && voice.mode == mode { voice.endHold(id) }
@@ -20,6 +27,50 @@ struct TerminalVoiceButton: View {
         }
         .opacity(isAvailable ? 1 : 0.45)
         .disabled(!isAvailable || voice.isSubmitting || voice.sendDeadline != nil)
+    }
+}
+
+/// Track the original spatial input through release, even after its location leaves the mic.
+private struct AskPinchHold: ViewModifier {
+    let id: String
+    let voice: TerminalVoiceController
+    @State private var owner: SpatialEventCollection.Event.ID?
+    @GestureState private var tracking = false
+
+    func body(content: Content) -> some View {
+        content.highPriorityGesture(
+            SpatialEventGesture()
+                .updating($tracking) { _, active, _ in active = true }
+                .onChanged { events in
+                    if owner == nil, let first = events.first(where: { $0.phase == .active }) {
+                        owner = first.id
+                        voice.beginHold(id, mode: .coordinator)
+                    }
+                    finish(events)
+                }
+                .onEnded { events in
+                    finish(events)
+                    cancel()
+                }
+        )
+        .onChange(of: tracking) { _, active in if !active { cancel() } }
+    }
+
+    private func finish(_ events: SpatialEventCollection) {
+        guard let owner, let event = events.first(where: { $0.id == owner }) else { return }
+        switch event.phase {
+        case .ended:
+            self.owner = nil
+            voice.endHold(id)
+        case .cancelled: cancel()
+        default: break
+        }
+    }
+
+    private func cancel() {
+        guard owner != nil else { return }
+        owner = nil
+        voice.interruptHold(id)
     }
 }
 
@@ -191,7 +242,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                 submitPulse = false
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active { voice.targetUnavailable(id) }
+                if phase == .background || (phase == .inactive && mode != .coordinator) { voice.targetUnavailable(id) }
             }
             .onDisappear { voice.targetUnavailable(id) }
     }

@@ -11,6 +11,7 @@ export type WindowRecord = {
   kind: "terminal" | "preview";
   targetID: string;
   name?: string;
+  ownerSessionIds?: string[];
 };
 export type WindowLayout = {
   version: 1;
@@ -42,6 +43,12 @@ function windows(value: unknown): WindowRecord[] {
       !text(record.targetID) ||
       !["terminal", "preview"].includes(record.kind) ||
       ids.has(record.id) ||
+      (record.ownerSessionIds !== undefined &&
+        (record.kind !== "preview" ||
+          !Array.isArray(record.ownerSessionIds) ||
+          !record.ownerSessionIds.length ||
+          record.ownerSessionIds.length > 128 ||
+          !record.ownerSessionIds.every(text))) ||
       (record.name !== undefined &&
         (!text(record.name) ||
           record.name.length > 120 ||
@@ -53,6 +60,13 @@ function windows(value: unknown): WindowRecord[] {
       id: record.id,
       kind: record.kind,
       targetID: record.targetID,
+      ...(record.ownerSessionIds
+        ? {
+            ownerSessionIds: [
+              ...new Set<string>(record.ownerSessionIds),
+            ].sort(),
+          }
+        : {}),
       ...(record.name === undefined ? {} : { name: record.name }),
     };
   });
@@ -62,7 +76,10 @@ function windows(value: unknown): WindowRecord[] {
 export class WindowLayoutStore {
   private tail: Promise<unknown> = Promise.resolve();
   private readonly file: string;
-  constructor(home: string) {
+  constructor(
+    home: string,
+    private readonly runningSessions?: () => Promise<Set<string>>,
+  ) {
     this.file = path.join(home, "window-layouts.json");
   }
 
@@ -116,7 +133,7 @@ export class WindowLayoutStore {
           "Valid client and layout revision required",
           400,
         );
-      const nextWindows = windows(records);
+      const requested = windows(records);
       const store = await this.read();
       const current = store.clients[client] ?? empty();
       if (current.revision !== revision)
@@ -126,6 +143,32 @@ export class WindowLayoutStore {
         );
       if (!store.clients[client] && Object.keys(store.clients).length >= 64)
         throw new ServiceError("Window layout client limit reached", 409);
+      const nextWindows: WindowRecord[] = [];
+      let running: Set<string> | undefined;
+      for (const record of requested) {
+        const previous = current.windows.find(
+          (w) =>
+            w.id === record.id &&
+            w.targetID === record.targetID &&
+            w.kind === record.kind,
+        );
+        if (previous && !previous.ownerSessionIds) {
+          // An independently opened preview stays independent when a terminal reveals it.
+          delete record.ownerSessionIds;
+        } else if (previous?.ownerSessionIds || record.ownerSessionIds) {
+          const owners = new Set(previous?.ownerSessionIds);
+          for (const owner of record.ownerSessionIds ?? []) {
+            if (!owners.has(owner) && this.runningSessions) {
+              running ??= await this.runningSessions();
+              if (!running.has(owner)) continue;
+            }
+            owners.add(owner);
+          }
+          if (!owners.size) continue;
+          record.ownerSessionIds = [...owners].sort();
+        }
+        nextWindows.push(record);
+      }
       if (JSON.stringify(current.windows) === JSON.stringify(nextWindows))
         return current;
       const next: WindowLayout = {
@@ -134,16 +177,40 @@ export class WindowLayoutStore {
         windows: nextWindows,
       };
       store.clients[client] = next;
-      await fs.mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 });
-      const temporary = `${this.file}.${crypto.randomUUID()}.tmp`;
-      try {
-        await fs.writeFile(temporary, JSON.stringify(store), { mode: 0o600 });
-        await fs.rename(temporary, this.file);
-      } finally {
-        await fs.rm(temporary, { force: true });
-      }
+      await this.write(store);
       return next;
     });
+  }
+  closeSessionPreviews(sessionId: string): Promise<void> {
+    return this.serialized(async () => {
+      const store = await this.read();
+      let changed = false;
+      for (const layout of Object.values(store.clients)) {
+        if (!layout.windows.some((w) => w.ownerSessionIds?.includes(sessionId)))
+          continue;
+        layout.windows = layout.windows.filter((w) => {
+          if (!w.ownerSessionIds?.includes(sessionId)) return true;
+          w.ownerSessionIds = w.ownerSessionIds.filter(
+            (owner) => owner !== sessionId,
+          );
+          return w.ownerSessionIds.length > 0;
+        });
+        layout.revision++;
+        changed = true;
+      }
+      if (changed) await this.write(store);
+    });
+  }
+
+  private async write(store: Store) {
+    await fs.mkdir(path.dirname(this.file), { recursive: true, mode: 0o700 });
+    const temporary = `${this.file}.${crypto.randomUUID()}.tmp`;
+    try {
+      await fs.writeFile(temporary, JSON.stringify(store), { mode: 0o600 });
+      await fs.rename(temporary, this.file);
+    } finally {
+      await fs.rm(temporary, { force: true });
+    }
   }
 }
 

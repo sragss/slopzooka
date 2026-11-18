@@ -14,7 +14,7 @@ that service needs an explicit update.
 Enable microphone/speech permissions if needed. Hold the microphone while
 speaking, then release. Final words settle before the familiar two-second
 countdown; tap × to cancel before submission. Delivery uses the same click/pulse
-and transcript fade as terminal dictation. Pauses while holding do not send.
+and transcript fade as terminal dictation. Pinch the Ask mic once and keep holding while looking elsewhere or pausing between phrases. Releasing that pinch starts the send countdown. If visionOS cancels the gesture, Ask pauses with the draft retained.
 Ask accepts another utterance while the coordinator is working. It displays
 accepted follow-ups as **Queued** and runs them in order with their captured
 destinations. The mic sits at the bottom of the right edge. A matching Stop button appears directly above it while a request can be stopped. Both leave the chat area clear. Recent repo
@@ -73,7 +73,7 @@ Ask can find older or in-flight Codex threads in this Mac's saved catalog. For
 example, ask “Find the thread about the Poncho2 pairing UX.” It searches or
 pages through recent metadata and can peek at three short user/assistant
 excerpts at a time. Looking up a thread leaves its session and input alone.
-The catalog can only show what Codex has persisted.
+Say “pull it up” to open the matched original thread in a terminal through the same resume action as the launcher. The catalog can only show what Codex has persisted.
 
 “Here” and “windows” mean SlopZooka by default. The coordinator reads this headset's
 saved terminal/preview layout, current session names, worktree associations and

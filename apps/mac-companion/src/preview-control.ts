@@ -19,6 +19,7 @@ const configSchema = z.object({
   hostId: z.uuid(),
   clientId: z.uuid(),
   token: z.string().min(1),
+  ownerSessionId: identifier.optional(),
 });
 export type PreviewControlConfig = z.infer<typeof configSchema>;
 const layoutSchema = z.object({
@@ -31,6 +32,7 @@ const layoutSchema = z.object({
         kind: z.enum(["terminal", "preview"]),
         targetID: identifier,
         name: previewName.optional(),
+        ownerSessionIds: z.array(identifier).optional(),
       }),
     )
     .max(128),
@@ -216,6 +218,17 @@ export class PreviewControl {
       const id = existing?.id ?? `${this.config.hostId}:${sourceId}`;
       const record: WindowRecord = {
         ...(existing ?? { id, kind: "preview", targetID: sourceId }),
+        ...(this.config.ownerSessionId &&
+        (!existing || existing.ownerSessionIds)
+          ? {
+              ownerSessionIds: [
+                ...new Set([
+                  ...(existing?.ownerSessionIds ?? []),
+                  this.config.ownerSessionId,
+                ]),
+              ],
+            }
+          : {}),
         ...(label === undefined ? {} : { name: label }),
       };
       if (!existing && layout.windows.some((window) => window.id === id))
@@ -270,6 +283,14 @@ export class PreviewControl {
         const saved = layoutSchema.parse(
           await this.request("/api/window-layout", "PUT", layout),
         );
+        if (
+          layout.windows.some((w) => w.id === id) &&
+          !saved.windows.some((w) => w.id === id)
+        )
+          throw new ServiceError(
+            "The owning terminal has ended. The preview was not opened.",
+            410,
+          );
         return {
           preview_id: id,
           revision: saved.revision,

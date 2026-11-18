@@ -63,7 +63,7 @@ struct CoordinatorChecks {
         let destination = CoordinatorContext(hostID: "fixture", workspaceID: "workspace", sessionID: "worker", label: "Login")
         state.select(destination)
         let presenter = UUID()
-        state.observeScene(presenter, active: true)
+        state.observeScene(presenter, presented: true)
         await state.refresh(client: client, hostID: "fixture")
 
         let capture = CoordinatorSpeech()
@@ -91,9 +91,12 @@ struct CoordinatorChecks {
 
         voice.beginHold(CoordinatorState.sceneID, mode: .coordinator)
         await until { capture.state == .listening }
-        capture.transcript = "Queue this exact task"
+        capture.finish("Queue this exact task,")
+        await until { capture.state == .listening }
+        precondition(voice.sendDeadline == nil && countdown == nil, "A recognition endpoint while pinched cannot submit Ask")
+        capture.transcript = "final words"
         voice.endHold(CoordinatorState.sceneID)
-        capture.finish("Queue this exact task, final words")
+        capture.finish("final words")
         await until { countdown != nil }
         precondition(!state.select(CoordinatorContext(hostID: "replacement")), "Context remains captured through finalization and countdown")
         countdown?.resume(); countdown = nil
@@ -136,9 +139,9 @@ struct CoordinatorChecks {
         release?.resume()
         await oldPoll.value
         precondition(state.snapshot?.requestId == next.commandID, "A pre-submission poll cannot overwrite the new request")
-        state.observeScene(UUID(), active: false)
-        precondition(state.sceneActive, "An old scene must not deactivate the current composer")
-        state.observeScene(presenter, active: false)
+        state.observeScene(UUID(), presented: false)
+        precondition(state.scenePresented, "An old scene must not deactivate the current composer")
+        state.observeScene(presenter, presented: false)
         precondition(!state.canReceiveVoice(client: client))
         precondition(state.snapshot?.requestId == next.commandID, "Hiding the window does not stop or resubmit a task")
         let beforeStaleStop = requests.count
@@ -192,7 +195,7 @@ struct CoordinatorChecks {
         precondition(state.statusText == "Agent unavailable" && state.isWorking && state.canStop,
             "A request with a missing worker can still stop its other active deliveries")
         observer.cancel()
-        state.observeScene(presenter, active: true)
+        state.observeScene(presenter, presented: true)
         precondition(state.select(CoordinatorContext(hostID: "fixture")))
         precondition(state.conversation.count == 2, "Changing workspace context keeps the same conversation")
         precondition(state.select(CoordinatorContext(hostID: "another-host")))

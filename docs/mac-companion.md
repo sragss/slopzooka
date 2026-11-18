@@ -316,6 +316,8 @@ checkout, run `pnpm --filter @slz/mac-companion exec tsx src/preview-mcp.ts
 /absolute/path/to/private-preview-config.json` from the repo root. Standard
 output is exclusively MCP protocol traffic.
 
+For ordinary terminal Codex sessions, add `env_vars = ["SLOPZOOKA_SESSION_ID"]` to the existing `[mcp_servers.slopzooka-previews]` table so the MCP receives the launching terminal’s identity. New SlopZooka PTYs supply this variable. Ask-managed workers receive the identity in their private preview config directly. Preview windows with a session owner close on **End Session**; a shared preview stays open for its other sessions.
+
 Call `preview_list` to obtain current opaque source IDs and capture availability.
 Then use `preview_open(source_id, name?)`, `preview_rename(preview_id, name)` and
 `preview_close(preview_id)`. The companion supplies image dimensions/aspect ratio;
