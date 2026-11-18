@@ -190,7 +190,7 @@ export function safeLogFields(
 
 export function boundedLogEvent(event: LogEvent): LogEvent {
   const result: LogEvent = {
-    version: 1,
+    version: DIAGNOSTICS_VERSION,
     source: event.source,
     instanceId: event.instanceId,
     sequence: event.sequence,

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Express, Request, RequestHandler } from "express";
 import {
+  DIAGNOSTICS_VERSION,
   isLogEvent,
   isLogClock,
   MAX_LOG_BATCH,
@@ -82,7 +83,7 @@ export function installDiagnosticsRoutes(
     }
     const events: unknown = req.body?.events;
     if (
-      req.body?.version !== 1 ||
+      req.body?.version !== DIAGNOSTICS_VERSION ||
       !Array.isArray(events) ||
       events.length < 1 ||
       events.length > MAX_LOG_BATCH

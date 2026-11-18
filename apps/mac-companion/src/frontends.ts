@@ -24,7 +24,7 @@ import {
   type FrontendRoute,
   type LocalListener,
 } from "./frontend-discovery.js";
-export type { Frontend } from "./frontend-discovery.js";
+export type { Frontend };
 type Catalog = { frontends: Frontend[]; warning: string | null };
 type ProxyRecord = {
   frontendId: string;

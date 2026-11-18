@@ -1,6 +1,7 @@
 import { spawn } from "node:child_process";
 
 import type { Logger } from "./logger.js";
+import { PRODUCT_VERSION } from "./product.js";
 
 export const SLOPZOOKA_BONJOUR_TYPE = "slopzooka";
 
@@ -56,7 +57,7 @@ export function startBonjourAdvertiser(
       "local.",
       String(options.port),
       "name=SlopZooka",
-      "version=0.2.0",
+      `version=${PRODUCT_VERSION}`,
       `hostId=${options.hostId}`,
     ],
     { stdio: ["pipe", "pipe", "pipe"] },
