@@ -21,6 +21,17 @@ struct SlopZookaApp: App {
         .windowResizability(.contentSize)
         .defaultLaunchBehavior(.presented)
 
+        WindowGroup("Ask SlopZooka", id: CoordinatorState.sceneID, for: String.self) { _ in
+            WindowScene(windows: appDelegate.windows, isCoordinator: true) {
+                CoordinatorView(state: appDelegate.windows.coordinator)
+            }
+            .environmentObject(appDelegate.voice)
+        }
+        .defaultSize(width: 520, height: 560)
+        .windowStyle(.plain)
+        .windowResizability(.contentSize)
+        .defaultLaunchBehavior(.suppressed)
+
         WindowGroup("Terminal", id: "terminal", for: String.self) { sessionID in
             WindowScene(windows: appDelegate.windows, id: sessionID.wrappedValue) {
                 TerminalWindowView(sessionID: sessionID.wrappedValue)

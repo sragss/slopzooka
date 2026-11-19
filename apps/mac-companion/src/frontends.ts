@@ -483,10 +483,11 @@ export class FrontendService {
       }
     } catch (error) {
       warnings.push(
-        `Workspace association unavailable: ${(error as Error).message}`,
+        `Worktree association unavailable: ${(error as Error).message}`,
       );
       for (const route of routes) {
         delete route.frontend.workspaceId;
+        delete route.frontend.worktreeLabel;
         delete route.frontend.frontendId;
         delete route.frontend.preferred;
         delete route.frontend.workspaceVisible;

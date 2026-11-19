@@ -1,3 +1,5 @@
+import { Coordinator } from "./coordinator.js";
+import { installCoordinatorRoutes } from "./coordinator-http.js";
 import { CompanionTransport, connectionMethod } from "./companion-transport.js";
 import { WindowPreviews, windowPresentation } from "./window-previews.js";
 import { webPresentation } from "./presentation.js";
@@ -89,6 +91,21 @@ const windowPreviews = new WindowPreviews(
   diagnostics.logger("window-previews"),
 );
 const codexThreads = new CodexThreads(diagnostics.logger("codex-threads"));
+const coordinator = new Coordinator({
+  threads: codexThreads,
+  home: workspacePaths().slopzookaHome,
+  configFile: process.env.SLOPZOOKA_COORDINATOR_CONFIG,
+  service: sessionService,
+  logger: diagnostics.logger("coordinator"),
+  previewCommand: process.execPath,
+  previewArgs: import.meta.url.endsWith(".ts")
+    ? [
+        path.join(import.meta.dirname, "../node_modules/tsx/dist/cli.mjs"),
+        path.join(import.meta.dirname, "preview-mcp.ts"),
+      ]
+    : [path.join(import.meta.dirname, "preview-mcp.mjs")],
+});
+
 // Pairing codes are intentionally printed only to the local console, never the log file.
 let displayedPairingCode = pairing.code;
 console.log(`SlopZooka pairing code: ${displayedPairingCode}`);
@@ -153,15 +170,27 @@ app.use((req, res, next) => {
   next();
 });
 pairing.install(app);
+installCoordinatorRoutes(
+  app,
+  coordinator,
+  pairing.hostId,
+  `http://127.0.0.1:${PORT}`,
+);
 installCodexThreadRoutes(app, codexThreads, sessionService, workspaceService);
 installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
   sessionService.flushLogs(),
 );
-installWindowLayoutRoutes(
-  app,
-  new WindowLayoutStore(workspacePaths().slopzookaHome),
+const windowLayouts = new WindowLayoutStore(
+  workspacePaths().slopzookaHome,
+  async () =>
+    new Set(
+      (await sessionService.info()).sessions
+        .filter((s) => s.status === "running" && !s.ending)
+        .map((s) => s.id),
+    ),
 );
+installWindowLayoutRoutes(app, windowLayouts);
 const publicRoot = path.join(import.meta.dirname, "..", "public");
 app.use(express.static(publicRoot));
 
@@ -196,6 +225,7 @@ app.get("/health", (_req, res) => {
     hostname: os.hostname(),
     localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
+    bonjourServiceName: BONJOUR_SERVICE_NAME,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
     logFilePath: diagnostics.store.file,
@@ -253,7 +283,7 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
         };
       });
     if (!workspace.existsOnDisk)
-      throw new ServiceError("Workspace directory is missing", 409);
+      throw new ServiceError("Worktree directory is missing", 409);
     const session = await sessionService.create({
       workspaceId: workspace.workspaceId,
       cwd: workspace.worktreePath,
@@ -292,6 +322,7 @@ app.patch("/api/sessions/:sessionId", async (req, res) => {
 app.delete("/api/sessions/:sessionId", async (req, res) => {
   try {
     await sessionService.end(req.params.sessionId);
+    await windowLayouts.closeSessionPreviews(req.params.sessionId);
     res.json({ ok: true });
   } catch (error) {
     sendWorkspaceError(res, error, "Could not terminate session");
@@ -302,10 +333,19 @@ app.get("/api/repos/recent", async (req, res) => {
   const limit = normalizeLimit(req.query.limit);
 
   try {
-    const result = await gitHubClient.listRecentRepos(limit);
+    const local = await workspaceService.localRepos();
+    const result = await gitHubClient
+      .listRecentRepos(limit)
+      .catch((error: unknown) => {
+        if (!local.length) throw error;
+        logger.warn("Remote repo catalog unavailable", {
+          error: logError(error),
+        });
+        return { viewerLogin: null, repos: [] };
+      });
     res.json({
       viewerLogin: result.viewerLogin,
-      repos: result.repos,
+      repos: [...local, ...result.repos].slice(0, limit),
     });
   } catch (error) {
     logger.error("Failed to load recent repositories", {
@@ -351,10 +391,10 @@ app.get("/api/workspaces", async (req, res) => {
       workspaces,
     });
   } catch (error) {
-    logger.error("Failed to load workspaces", {
+    logger.error("Failed to load worktrees", {
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to load workspaces.");
+    sendWorkspaceError(res, error, "Failed to load worktrees.");
   }
 });
 
@@ -376,7 +416,12 @@ app.post("/api/workspaces/launch", async (req, res) => {
   }
 
   try {
-    const repo = await gitHubClient.getRepo(nameWithOwner);
+    const repo = nameWithOwner.startsWith("~local/")
+      ? (await workspaceService.localRepos()).find(
+          (repo) => repo.nameWithOwner === nameWithOwner,
+        )
+      : await gitHubClient.getRepo(nameWithOwner);
+    if (!repo) throw new ServiceError("Local repo not found", 404);
     const result = await workspaceService.launchWorkspace(
       {
         nameWithOwner,
@@ -388,12 +433,29 @@ app.post("/api/workspaces/launch", async (req, res) => {
 
     res.status(201).json(result);
   } catch (error) {
-    logger.error("Failed to launch workspace", {
+    logger.error("Failed to launch worktree", {
       repo: nameWithOwner,
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to launch workspace.");
+    sendWorkspaceError(res, error, "Failed to launch worktree.");
+  }
+});
+
+app.post("/api/repos/local", async (req, res) => {
+  try {
+    const name = normalizeRepoName(req.body?.repoName);
+    if (!name) throw new ServiceError("A repo name is required.", 400);
+    res
+      .status(201)
+      .json(
+        await workspaceService.createLocalRepo(
+          name,
+          normalizeProfile(req.body?.profile),
+        ),
+      );
+  } catch (error) {
+    sendWorkspaceError(res, error, "Could not create local repo.");
   }
 });
 
@@ -462,7 +524,7 @@ app.patch("/api/workspaces/:workspaceId", async (req, res) => {
     );
     res.json({ workspace });
   } catch (error) {
-    sendWorkspaceError(res, error, "Could not rename workspace");
+    sendWorkspaceError(res, error, "Could not rename worktree");
   }
 });
 
@@ -485,12 +547,12 @@ app.post("/api/workspaces/:workspaceId/reopen", async (req, res) => {
     );
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Failed to reopen workspace", {
+    logger.error("Failed to reopen worktree", {
       workspaceId,
       profile: profile ?? "terminal",
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to reopen workspace.");
+    sendWorkspaceError(res, error, "Failed to reopen worktree.");
   }
 });
 
@@ -510,11 +572,11 @@ app.post("/api/workspaces/:workspaceId/archive", async (req, res) => {
       workspace,
     });
   } catch (error) {
-    logger.error("Failed to archive workspace", {
+    logger.error("Failed to archive worktree", {
       workspaceId,
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to archive workspace.");
+    sendWorkspaceError(res, error, "Failed to archive worktree.");
   }
 });
 
@@ -523,10 +585,10 @@ app.post("/api/workspaces/prune-missing", async (_req, res) => {
     const result = await workspaceService.pruneMissingWorkspaces();
     res.status(200).json(result);
   } catch (error) {
-    logger.error("Failed to prune missing workspaces", {
+    logger.error("Failed to prune missing worktrees", {
       error: error instanceof Error ? error.message : String(error),
     });
-    sendWorkspaceError(res, error, "Failed to prune missing workspaces.");
+    sendWorkspaceError(res, error, "Failed to prune missing worktrees.");
   }
 });
 
@@ -1003,6 +1065,7 @@ async function shutdown(signal: string, exitCode = 0): Promise<void> {
   const httpClosed = new Promise<void>((resolve) =>
     server.close(() => resolve()),
   );
+  coordinator.close();
   windowPreviews.stop();
   codexThreads.stop();
   await Promise.allSettled([

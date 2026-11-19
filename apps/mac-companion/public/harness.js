@@ -181,7 +181,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "7c5f4d99974bcb90a90e8670940268f74b37e2e956260d6dac044e95d48a8da7" : "unknown"
+    buildId: true ? "98bc83ccaa2799de3ff3785fcce4c150af171f9e579f3ef2e7ac33ea5ff34dd8" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -277,7 +277,7 @@ async function loggedFetch(route, init = {}) {
 var log2 = browserLog("harness");
 var sections = {
   sessions: "Terminals",
-  workspaces: "Workspaces",
+  workspaces: "Worktrees",
   frontends: "Frontends"
 };
 var $ = (id) => document.getElementById(id);
@@ -455,7 +455,7 @@ function workspaceFrontends(actions, workspaceId) {
   }
   const picker = document.createElement("select");
   picker.className = "button";
-  picker.setAttribute("aria-label", "Open workspace frontend");
+  picker.setAttribute("aria-label", "Open worktree frontend");
   const placeholder = new Option(`Frontends (${frontends.length})`, "");
   picker.append(placeholder);
   for (const frontend of frontends) {
@@ -595,8 +595,8 @@ function render(key, force = false) {
     }
   if (!list.children.length) {
     const hints = {
-      sessions: "Open a workspace to start a shell, or launch an agent from Vision Pro.",
-      workspaces: "Open a repository from Vision Pro to get started.",
+      sessions: "Open a worktree to start a shell, or launch an agent from Vision Pro.",
+      workspaces: "Open a repo from Vision Pro to get started.",
       frontends: "Start a web app on your Mac or add a URL."
     };
     const empty = document.createElement("li");

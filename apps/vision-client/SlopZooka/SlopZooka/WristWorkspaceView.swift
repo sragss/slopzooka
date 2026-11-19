@@ -19,7 +19,7 @@ struct WristWorkspaceView: View {
             for index in 0..<3 {
                 menu.addChild(attachment("terminal-\(index)", view: WristTerminalControl(index: index)))
             }
-            menu.addChild(attachment("empty", view: Text("Open the launcher to choose a project.")
+            menu.addChild(attachment("empty", view: Text("Open the launcher to choose a repo.")
                 .font(.subheadline).foregroundStyle(.secondary)
                 .multilineTextAlignment(.center).frame(width: 240)))
             menu.addChild(attachment("exit", view: ImmersiveWorkspaceControl(exitOnly: true)

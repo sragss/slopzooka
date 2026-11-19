@@ -680,6 +680,41 @@ test(
         await fs.readFile(path.join(home, "workspaces", "index.json"), "utf8"),
       );
       assert.ok(index.every((r: any) => r.archivedAt));
+      // New local repos use the existing worktree index and require no GitHub lookup.
+      const creations = await Promise.all([
+        api("/api/repos/local", { repoName: "Email Test" }),
+        api("/api/repos/local", { repoName: "email-test" }),
+      ]);
+      assert.deepEqual(creations.map((r) => r.status).sort(), [201, 409]);
+      const local = creations.find((r) => r.status === 201)!.body;
+      assert.equal(local.repo.nameWithOwner, "~local/email-test");
+      assert.equal(local.repo.source, "local");
+      assert.equal(local.branchName, "main");
+      assert.equal(
+        execFileSync("git", ["-C", local.worktreePath, "remote"], {
+          encoding: "utf8",
+        }),
+        "",
+      );
+      const linked = await api("/api/workspaces/launch", {
+        nameWithOwner: local.repo.nameWithOwner,
+      });
+      assert.equal(linked.status, 201);
+      assert.notEqual(linked.body.worktreePath, local.worktreePath);
+      assert.equal(linked.body.baseRef, "main");
+      const reopened = await api(
+        `/api/workspaces/${local.workspaceId}/reopen`,
+        {},
+      );
+      assert.equal(reopened.body.worktreePath, local.worktreePath);
+      assert.equal(
+        (
+          await api("/api/workspaces/launch", {
+            nameWithOwner: "~local/absent",
+          })
+        ).status,
+        404,
+      );
       await api("/api/sessions/terminal-2/input", {
         commandId: "shutdown-child",
         text: "nohup sleep 60 >/dev/null 2>&1 & echo $! > shutdown-child",

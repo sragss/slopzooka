@@ -89,6 +89,11 @@ struct BrowserWindowView: View {
                     }
                     .padding(14)
                 }
+                .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
+                    if let reference = windows.reference(for: payload.id) {
+                        WebPreviewHeader(reference: reference, title: windows.previewName(for: payload.id) ?? payload.title)
+                    }
+                }
             } else {
                 WindowRecoveryView(id: previewID)
             }
@@ -122,6 +127,24 @@ struct BrowserWindowView: View {
             return AnyShapeStyle(.red)
         case .idle, .loading, .loaded:
             return AnyShapeStyle(.secondary)
+        }
+    }
+}
+
+private struct WebPreviewHeader: View {
+    let reference: WindowReference
+    let title: String
+    @EnvironmentObject private var client: CompanionClient
+
+    var body: some View {
+        if let owner = client.frontends(for: reference.hostID).frontends
+            .first(where: { $0.id == reference.window.targetID })?.worktreeLabel {
+            Text("\(owner.repo) / \(owner.worktree) / \(title)")
+                .font(.system(size: 48, weight: .bold, design: .rounded))
+                .lineLimit(1).minimumScaleFactor(0.5)
+                .padding(.horizontal, 28).padding(.vertical, 14)
+                .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+                .frame(maxWidth: 1000).padding(.bottom, 20)
         }
     }
 }

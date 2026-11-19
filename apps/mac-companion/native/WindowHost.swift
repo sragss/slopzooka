@@ -78,6 +78,7 @@ private final class WindowSourceHost {
                 var summaries: [CapturedWindow] = []
                 for window in content.windows.prefix(500) {
                     guard let app = window.owningApplication, app.processID != ProcessInfo.processInfo.processIdentifier,
+                          app.bundleIdentifier != "com.apple.loginwindow",
                           window.windowLayer == 0, window.frame.width >= 80, window.frame.height >= 80 else { continue }
                     // Epoch makes sources from an unprovable provider restart unavailable.
                     let id = "window:\(epoch):\(app.processID):\(window.windowID)"

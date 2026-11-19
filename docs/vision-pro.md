@@ -8,9 +8,9 @@ Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the hea
 
 The display dismisses after 45 seconds, successful pairing, or an authenticated reconnection by the device that requested it. Late display requests from a recently connected device do not reopen the prompt; other devices can still pair. Repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 
-Pairings are remembered by Mac identity. Existing pairings migrate automatically; a new address needs pairing once before it can use that Mac’s credential. During a connection loss, the launcher shows **Reconnecting to your Mac…** and retries its refresh. Switching the accepted route refreshes existing terminal and preview content while keeping their window and session identities. Switching Macs clears the previous Mac’s projects, repository owners, and frontend listing while the new catalogs load.
+Pairings are remembered by Mac identity. Existing pairings migrate automatically; a new address needs pairing once before it can use that Mac’s credential. During a connection loss, the launcher shows **Reconnecting to your Mac…** and retries its refresh. Switching the accepted route refreshes existing terminal and preview content while keeping their window and session identities. Switching Macs clears the previous Mac’s repos, repo owners, and frontend listing while the new catalogs load.
 
-Pairing stays on the accepted Mac after an unsuccessful address change. Project, workspace, and repository-owner listings load independently, so one slow request does not hold up the others.
+Pairing stays on the accepted Mac after an unsuccessful address change. Repo, worktree, and repo-owner listings load independently, so one slow request does not hold up the others.
 
 ## Connection method
 
@@ -24,15 +24,17 @@ Changing methods reconnects the existing windows while Mac terminals keep runnin
 
 The app uses a graphite and silver palette. Listening indicators and app icons use soft silver; native controls and the Mac companion dashboard use graphite shades to keep button labels readable. The microphone uses native visionOS glass with a neutral icon when idle and a silver waveform while listening. Motion and status text distinguish listening from idle.
 
-The headset launcher separates **Terminals**, **Projects**, and **Frontends**, and remembers your last tab. Project search and the tool selector are visible together. **Start from a repository** appears first to create a new workspace; **Continue a workspace** appears below it to reopen an existing one. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and **Close Window** live under the actions menu.
+The headset launcher separates **Terminals**, **Repos**, and **Frontends**, and remembers your last tab. Repo search and the tool selector are visible together. **Start from a repo** appears first to create a new worktree; **Continue a worktree** appears below it to reopen an existing one. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep frontend and dictation controls visible; shell creation, details, and **Close Window** live under the actions menu.
 
-**Codex threads** appears last under Projects: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka workspaces. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
+In **Repos → + → New Repo**, enter a name to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Continue a worktree** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately.
 
-The toolbar uses native glass controls. The larger **globe button** at the left opens workspace frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the workspace’s apps or discovery notices.
+**Codex threads** appears last under Repos: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
 
-Terminal rows match project rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
+The toolbar uses native glass controls. The larger **globe button** at the left opens worktree frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the worktree’s apps or discovery notices.
 
-Frontend rows in the launcher and terminal dropdown use the same bordered, rectangular surfaces as project rows, with compact titles, single-line details, and circular icons. The launcher list sits directly on the page without an extra glass panel. Choose **Add URL** to enter an address in a focused sheet. URL edits update all frontend lists for that Mac together. Windows connected to another Mac keep that Mac's listing; a slow terminal connection does not hold up frontend discovery.
+Terminal rows match repo rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
+
+Frontend rows in the launcher and terminal dropdown use the same bordered, rectangular surfaces as repo rows, with compact titles, single-line details, and circular icons. The launcher list sits directly on the page without an extra glass panel. Choose **Add URL** to enter an address in a focused sheet. URL edits update all frontend lists for that Mac together. Windows connected to another Mac keep that Mac's listing; a slow terminal connection does not hold up frontend discovery.
 
 In preview windows, VoiceOver identifies the reload and close controls as **Reload preview** and **Close preview**. Status messages carry the meaning of their adjacent decorative icons.
 
@@ -54,7 +56,7 @@ Zoom changes the terminal font size and explicitly refits the emulator and PTY w
 
 ## Terminal notifications
 
-Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Tap or pinch inside the window, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Automatic keyboard focus and content reloads do not mark notifications read.
+Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Bring that terminal into the foreground, tap or pinch inside it, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Repeated focus observations, automatic keyboard focus inside an already-active scene, and content reloads do not mark new notifications read. The native transition into the foreground is sufficient; no extra click inside the terminal is required.
 
 New alerts play a short chime anchored to the terminal window's position in the room. Bursts are limited to one chime per second per window. Reconnecting recovers missed notifications silently; replaying output or reloading content does not repeat a chime. Unread state stays with the window during the headset app's lifetime, including content reloads and reconnects.
 
@@ -64,23 +66,25 @@ This handles alerts emitted by the terminal program; it does not infer completio
 
 ## Dictation
 
-The header above each terminal shows **project / workspace / window** on the same rounded glass surface. Project is the repository name and cannot be edited. Workspaces default to a short UTC creation timestamp such as **nov-09-2104**. Window defaults are assigned per tool within each workspace: **codex**, **codex2**, **claude**, **terminal**, and so on. Labels remain stable when windows close, sessions are removed, or the HTTP companion restarts; existing custom window names are preserved.
+The header above each terminal shows **repo / worktree / window** on the same rounded glass surface. Repo is the repo name and cannot be edited. Worktrees default to a short UTC creation timestamp such as **nov-09-2104**. Window defaults are assigned per tool within each worktree: **codex**, **codex2**, **claude**, **terminal**, and so on. Labels remain stable when windows close, sessions are removed, or the HTTP companion restarts; existing custom window names are preserved.
 
-The diagonal dividers also bound the full-height hover regions: workspace fills between the slashes, and window fills through the rounded right edge. Naming is available independently of terminal keyboard/renderer readiness.
+Web previews show **repo / worktree / preview** above the window when the Mac can match the local web server’s directory to one managed worktree. The label follows the Mac’s frontend catalog when ownership or names change. Generic Mac window streams, including Simulator captures, have an app and window identity only.
 
-Look at the workspace or window segment and pinch to use the existing centered voice rename overlay. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes. A workspace rename updates its sibling windows and project listings; a window rename changes only that session. The launcher, companion dashboard, and wrist menu show the same naming context. These are display labels: renaming never changes the Git branch, worktree path, window identity, or running process.
+The diagonal dividers also bound the full-height hover regions: worktree fills between the slashes, and window fills through the rounded right edge. Naming is available independently of terminal keyboard/renderer readiness.
+
+Look at the worktree or window segment and pinch to use the existing centered voice rename overlay. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes. A worktree rename updates its sibling windows and repo listings; a window rename changes only that session. The launcher, companion dashboard, and wrist menu show the same naming context. These are display labels: renaming never changes the Git branch, worktree path, window identity, or running process.
 
 Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. The rename overlay’s **×** cancels naming; failed saves keep the draft for retry. Send, save, or cancel an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
 
-Look at the large glass microphone at the terminal’s bottom right, then **pinch and hold** while speaking. Release to finish transcription. A silver bar fills around the centered transcript box for **two seconds**, then the message sends with Return. Tap **×** during the countdown to cancel. A short mechanical click and a soft border pulse confirm delivery; the transcript fades out in place. The status title fades gently between messages and stays quiet while transcription finishes or the microphone is paused. The microphone stays off until your next hold.
+Look at the large glass microphone at the terminal’s bottom right, then **pinch and hold** while speaking. Keep holding through pauses or while looking at another window. Release to finish transcription. A silver bar fills around the centered transcript box for **two seconds**, then the message sends with Return. During the countdown, hold the same mic again to append more words, or tap **×** to discard the message. The next release starts a fresh countdown. This also works in Ask. A short mechanical click and a soft border pulse confirm delivery; the transcript fades out in place. The status title fades gently between messages and stays quiet while transcription finishes or the microphone is paused. The microphone stays off until your next hold.
 
-Pauses and long recordings keep appending to the same draft while you hold. Long drafts scroll to the newest words at the bottom; older text fades at the top, and you can scroll back to review it. Recording and recognition handoffs keep the same card without a separate Send button. The waveform follows microphone energy with smooth motion between measurements; no audio is retained for this visual feedback. Reduce Motion disables that interpolation. A listening border marks the destination. The same control works in normal and immersive workspaces, with no automatic head or eye targeting. Renaming and bug reports keep their own save/review controls.
+Pauses and long recordings keep appending to the same draft while you hold. Long drafts scroll to the newest words at the bottom; older text fades at the top, and you can scroll back to review it. Recording and recognition handoffs keep the same card without a separate Send button. The waveform follows microphone energy with smooth motion between measurements; no audio is retained for this visual feedback. Reduce Motion disables that interpolation. A listening border marks the destination. The same control works in normal and immersive modes, with no automatic head or eye targeting. Renaming and bug reports keep their own save/review controls.
 
-Listening never restores on launch. Losing the connection or scene activity cancels a pending countdown and keeps the draft. Reconnect, then hold and release the same microphone to continue and send, or use **×** to discard. **Retry** appears after a failed delivery and preserves the command ID and destination to avoid duplicate input after an uncertain acknowledgement. Reconnecting never starts the microphone or sends on its own.
+Listening never restores on launch. Losing the connection or backgrounding the destination cancels a pending countdown and keeps the draft. If visionOS interrupts a pinch, the draft stays available on its original mic. Reconnect, then hold and release the same microphone to continue and send, or use **×** to discard. **Retry** appears after a failed delivery and preserves the command ID and destination to avoid duplicate input after an uncertain acknowledgement. Reconnecting never starts the microphone or sends on its own.
 
-## Immersive workspace
+## Immersive mode
 
-**Settings → Immersive workspace** adds an optional wrist menu at runtime. It opens the launcher and up to three recent terminals through the same window gateway. Choose either wrist; exit from Settings or the wrist menu. Your room and SlopZooka windows remain visible while other apps are hidden. Immersion starts off on each launch. The simulator shows a stationary version of the same menu; physical wrist tracking and comfort require Vision Pro validation. See [the immersive workspace design](../.plans/2026-10-31-immersive-workspace.md) for architecture, scope, and device checks.
+**Settings → Immersive mode** adds an optional wrist menu at runtime. It opens the launcher and up to three recent terminals through the same window gateway. Choose either wrist; exit from Settings or the wrist menu. Your room and SlopZooka windows remain visible while other apps are hidden. Immersion starts off on each launch. The simulator shows a stationary version of the same menu; physical wrist tracking and comfort require Vision Pro validation. See [the immersive mode design](../.plans/2026-10-31-immersive-workspace.md) for architecture, scope, and device checks.
 
 ## Terminal lifecycle
 
@@ -88,10 +92,10 @@ The terminal’s **…** popover uses separate rounded action rows and circular 
 buttons, with space between their gaze targets. **Report a Bug** opens a native
 voice sheet after the popover closes, including while the terminal is disconnected.
 
-- A workspace is a git worktree. Each workspace can have multiple independent terminal sessions.
+- A worktree is a git worktree. Each worktree can have multiple independent terminal sessions.
 - Opening a session attaches a viewer. Closing a window or losing the network detaches it without killing the process.
 - Sessions reappear in the launcher after restarting the headset app. Reopening restores the current screen, including the alternate screen used by TUIs.
-- **New Shell** adds a terminal to the same workspace. The toolbar’s **Stop** button confirms before explicitly stopping the process and its current descendants. Ending an already exited session removes its retained screen.
+- **New Shell** adds a terminal to the same worktree. The toolbar’s **Stop** button confirms before explicitly stopping the process and its current descendants. Ending an already exited session removes its retained screen.
 - Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
 - Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or the launcher’s reload button; these preserve running sessions.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
@@ -183,3 +187,17 @@ provider restarts, select the current window again: SlopZooka will not silently
 substitute another window with a similar title. Locked-desktop
 fallbacks, attention-based quality changes, and automatic app launching are later
 steps. The feature stays off by default during this experimental rollout.
+
+## Experimental voice coordinator
+
+Choose **Ask** in the launcher header, or **Ask SlopZooka** in a terminal's actions
+menu. A compact independent window opens. Hold its microphone, speak, release,
+and use the familiar two-second cancel window. Enable microphone permissions if
+prompted; normal use needs no typing.
+
+Opening from a terminal carries its worktree context. The same panel remains
+usable after closing the launcher. **Stop** cancels the latest request while
+keeping its apps and windows. **Details** contains full results and approvals.
+See [the coordinator guide](coordinator.md) for setup and current limits.
+
+**End Session** also closes previews opened for that terminal. A shared preview stays open until its last owning session ends. Closing just the terminal window preserves its previews. Independently opened previews and those saved by older builds without a session association are kept.

@@ -199,6 +199,9 @@ struct TerminalVoiceChecks {
         voice.beginTerminalHold("b")
         await until { capture.state == .listening }
         voice.beginTerminalHold("a")
+        precondition(voice.targetID == "b", "A second mic cannot steal a held pinch even before the first word")
+        voice.interruptHold("b")
+        voice.beginTerminalHold("a")
         await until { capture.state == .listening && voice.targetID == "a" }
         precondition(!voice.hasText)
         print("PASS: late delivery cannot clear a newer draft; discarding permits explicit terminal switching")
@@ -330,6 +333,7 @@ struct TerminalVoiceChecks {
 
         await checkRecognitionContinuity()
         await checkHoldCountdown()
+        await checkRegrab()
         await checkReleaseDuringPreparation()
     }
 
@@ -394,6 +398,50 @@ struct TerminalVoiceChecks {
         precondition(!voice.hasText, "Only acknowledged delivery clears the terminal draft")
         voice.stop()
         print("PASS: long-recording rotations and endAudio errors keep each segment once; unsolicited failures require Resume")
+    }
+
+    @MainActor
+    private static func checkRegrab() async {
+        for mode in [TerminalVoiceController.Mode.terminal, .coordinator] {
+            let capture = FakeSpeechCapture()
+            var waits: [CheckedContinuation<Void, Never>] = []
+            var commands: [TerminalVoiceCommand] = []
+            let voice = TerminalVoiceController(capture: capture,
+                waitBeforeSend: { await withCheckedContinuation { waits.append($0) } },
+                isAvailable: { _, _ in true }, rename: { _, _, _ in preconditionFailure() },
+                deliver: { commands.append($0) })
+            voice.beginHold("a", mode: mode)
+            await until { capture.state == .listening }
+            capture.receive("first")
+            voice.endHold("a")
+            voice.beginHold("a", mode: mode) // Before the last recognition callback.
+            capture.finish("first corrected")
+            await until { capture.state == .listening }
+            precondition(waits.isEmpty && voice.transcript == "first corrected")
+            capture.receive("second")
+            voice.endHold("a")
+            capture.finish("second")
+            await until { waits.count == 1 }
+            voice.beginHold("b", mode: mode)
+            precondition(voice.sendDeadline != nil && voice.targetID == "a")
+            voice.beginHold("a", mode: mode)
+            waits[0].resume() // A cancelled timer can still wake.
+            await until { capture.state == .listening }
+            precondition(voice.sendDeadline == nil && commands.isEmpty)
+            capture.receive("third")
+            voice.interruptHold("a")
+            voice.endHold("a") // A late release after OS cancellation cannot send.
+            precondition(voice.transcript == "first corrected second third" && voice.sendDeadline == nil)
+            voice.beginHold("a", mode: mode)
+            await until { capture.state == .listening }
+            voice.endHold("a")
+            capture.finish("fourth")
+            await until { waits.count == 2 }
+            waits[1].resume()
+            await until { voice.mode == nil }
+            precondition(commands.count == 1 && commands[0].text == "first corrected second third fourth" && commands[0].targetID == "a")
+        }
+        print("PASS: regrabbing during finalization or countdown appends to one original terminal or Ask delivery")
     }
 
     @MainActor

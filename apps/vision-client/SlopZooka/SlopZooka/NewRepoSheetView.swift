@@ -6,36 +6,41 @@ struct NewRepoSheetView: View {
     let selectedTool: LaunchTarget
     let isSubmitting: Bool
     let error: String?
-    let onSubmit: (String, String, Bool) -> Void
+    let onSubmit: (String?, String, Bool) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @State private var selectedOwnerLogin = ""
     @State private var rawRepoName = ""
+    @State private var createOnGitHub = false
     @State private var isPrivate = true
 
     var body: some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 18) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("New repository")
+                    Text("New repo")
                         .font(.title2.weight(.semibold))
 
-                    Text("Create a GitHub repository and open \(selectedTool.title).")
+                    Text(createOnGitHub ? "Create on GitHub and open \(selectedTool.title)." : "Create on this Mac and open \(selectedTool.title).")
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Owner")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
+                Toggle("Create on GitHub", isOn: $createOnGitHub)
+                    .disabled(owners.isEmpty || isSubmitting)
+                if createOnGitHub {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Owner")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
 
-                    Picker("Owner", selection: $selectedOwnerLogin) {
-                        ForEach(owners) { owner in
-                            Text(owner.login).tag(owner.login)
+                        Picker("Owner", selection: $selectedOwnerLogin) {
+                            ForEach(owners) { owner in
+                                Text(owner.login).tag(owner.login)
+                            }
                         }
+                        .pickerStyle(.menu)
                     }
-                    .pickerStyle(.menu)
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
@@ -48,12 +53,12 @@ struct NewRepoSheetView: View {
                         .disableAutocorrection(true)
 
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("Repository")
+                        Text("Repo")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(.secondary)
 
                         Text(
-                            "\(selectedOwnerLogin)/\(normalizedRepoName.isEmpty ? "repository-name" : normalizedRepoName)"
+                            "\(createOnGitHub ? selectedOwnerLogin : "On this Mac")/\(normalizedRepoName.isEmpty ? "repo-name" : normalizedRepoName)"
                         )
                         .font(.footnote.monospaced())
                         .foregroundStyle(normalizedRepoName.isEmpty ? .tertiary : .primary)
@@ -62,15 +67,15 @@ struct NewRepoSheetView: View {
                     .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
 
-                Toggle("Private Repository", isOn: $isPrivate)
+                if createOnGitHub { Toggle("Private Repo", isOn: $isPrivate) }
 
                 if let error {
-                    Text("Couldn’t create the repository.").foregroundStyle(.orange)
+                    Text("Couldn’t create the repo.").foregroundStyle(.orange)
                     DisclosureGroup("Details") { Text(error).font(.caption).textSelection(.enabled) }
                 }
                 if isSubmitting {
-                    ProgressView("Creating repository on your Mac…")
-                    Text("Closing this window stops waiting; a repository already created on GitHub is kept.")
+                    ProgressView("Creating repo on your Mac…")
+                    Text("Closing this window stops waiting; a repo already created is kept.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -82,7 +87,7 @@ struct NewRepoSheetView: View {
                     .buttonStyle(.bordered)
 
                     Button(isSubmitting ? "Creating..." : "Create & Launch") {
-                        onSubmit(selectedOwnerLogin, normalizedRepoName, isPrivate)
+                        onSubmit(createOnGitHub ? selectedOwnerLogin : nil, normalizedRepoName, isPrivate)
                     }
                     .buttonStyle(.borderedProminent)
                     .disabled(!canSubmit)
@@ -104,7 +109,7 @@ struct NewRepoSheetView: View {
     }
 
     private var canSubmit: Bool {
-        !selectedOwnerLogin.isEmpty && !normalizedRepoName.isEmpty && !isSubmitting
+        (!createOnGitHub || !selectedOwnerLogin.isEmpty) && !normalizedRepoName.isEmpty && !isSubmitting
     }
 }
 

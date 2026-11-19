@@ -219,6 +219,7 @@ export class SessionServiceClient {
     route: string,
     method = "GET",
     body?: unknown,
+    timeoutMs = 5000,
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       const started = performance.now();
@@ -283,7 +284,7 @@ export class SessionServiceClient {
               503,
             ),
           ),
-        5000,
+        timeoutMs,
       );
       request.once("close", () => clearTimeout(deadline));
       request.on("error", (error) => {

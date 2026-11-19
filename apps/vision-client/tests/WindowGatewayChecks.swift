@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 // No discovery or process launch in these checks. Production gateway/persistence/
 // launcher code runs against a controllable transport, including delayed replies.
@@ -226,7 +227,7 @@ struct WindowGatewayChecks {
             switch command {
             case .open(let window): opened.append(window.id)
             case .close(let window): dismissed.append(window.id)
-            case .openLauncher: break
+            case .openLauncher, .openCoordinator: break
             }
         }
         let session = HostSession(id: terminal.id, workspaceId: "workspace",
@@ -237,14 +238,36 @@ struct WindowGatewayChecks {
         await until { gateway.previewPayload(for: preview.id) != nil }
         precondition(opened == [preview.id], "An OS-restored scene is reused; only missing windows are opened")
         precondition(gateway.terminalPayload(for: terminal.id) != nil)
+        var idleUpdates = 0
+        let idleObserver = gateway.objectWillChange.sink { idleUpdates += 1 }
+        gateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        await gateway.client.onSessionSnapshot?(HostSessionsResponse(sessions: [session, closedSession]), target)
+        idleObserver.cancel()
+        precondition(idleUpdates == 0, "Unchanged polling and repeated scene observation must not invalidate every launcher/window")
+        let beforeCoordinator = Fixture.requests
+        gateway.openCoordinator(from: terminal.id)
+        precondition(commands.last == .openCoordinator)
+        precondition(gateway.coordinator.context?.workspaceID == "workspace" && gateway.coordinator.context?.sessionID == terminal.id)
+        let capturedCoordinator = gateway.coordinator.context
+        gateway.coordinator.canChangeContext = { false }
+        gateway.openCoordinator()
+        precondition(gateway.coordinator.context == capturedCoordinator, "Revealing an active composer must not redirect its draft")
+        gateway.coordinator.canChangeContext = { true }
+        gateway.openCoordinator()
+        precondition(gateway.coordinator.context?.sessionID == nil && gateway.coordinator.context?.hostID == hostID)
+        precondition(Fixture.requests == beforeCoordinator, "Opening the coordinator creates no PTY, worktree, or layout record")
         precondition(gateway.terminalSessions.first?.id == terminal.id)
         precondition(gateway.terminalSessions.first?.isFocused == true, "Presence observed before payload resolution is retained")
         precondition(gateway.receiveTerminalNotification(id: terminal.id, sequence: 1, serviceInstanceID: "test"))
         precondition(gateway.hasUnreadNotification(terminal.id))
         gateway.readTerminalNotifications(id: "other-window")
         precondition(gateway.hasUnreadNotification(terminal.id))
-        gateway.readTerminalNotifications(id: terminal.id)
-        precondition(!gateway.hasUnreadNotification(terminal.id))
+        gateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        precondition(gateway.hasUnreadNotification(terminal.id), "Repeated focus observations cannot dismiss new alerts")
+        gateway.observe(id: terminal.id, isPresented: true, isFocused: false)
+        precondition(gateway.hasUnreadNotification(terminal.id), "Deactivation must not acknowledge an alert")
+        gateway.observe(id: terminal.id, isPresented: true, isFocused: true)
+        precondition(!gateway.hasUnreadNotification(terminal.id), "Foregrounding is sufficient without input or clicks")
         precondition(!gateway.receiveTerminalNotification(id: terminal.id, sequence: 1, serviceInstanceID: "test"))
         precondition(!gateway.hasUnreadNotification(terminal.id), "reattachment cannot re-alert after selection")
         let lastFocused = gateway.terminalSessions.first!.lastFocusedAt
@@ -420,6 +443,14 @@ struct WindowGatewayChecks {
         }
         await switching.client.refreshSessions()
         precondition(switchingStore.windows(hostID: "host-2") == [otherWindow])
+        switching.openCoordinator(from: terminal.id)
+        precondition(switching.coordinator.context?.hostID == hostID && switching.coordinator.context?.sessionID == terminal.id,
+            "Ask from a restored terminal must retain that terminal's Mac when a different Mac is selected")
+        precondition(switching.client.destinationName(for: hostID) != switching.client.destinationName(for: otherTarget.id),
+            "Older companions on different endpoints must remain distinguishable")
+        switching.openCoordinator()
+        precondition(switching.coordinator.context?.hostID == otherTarget.id && switching.coordinator.context?.sessionID == nil,
+            "Opening Ask from the launcher explicitly selects its current Mac")
         switching.close(reference, dismiss: false)
         await until { Fixture.layouts[base.host!]!.windows.isEmpty }
         precondition(Fixture.layouts[otherBase.host!]!.windows == [otherWindow], "Closing on one Mac never changes another Mac's layout")
@@ -434,6 +465,8 @@ struct WindowGatewayChecks {
         voiceGateway.updateTerminalLoadState(id: terminal.id, loadState: .loaded)
         precondition(voiceGateway.canReceiveVoice(terminal.id))
         let input = TerminalVoiceCommand(targetID: terminal.id, commandID: UUID().uuidString, text: "hello")
+        voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: false)
+        precondition(voiceGateway.canReceiveVoice(terminal.id), "Looking elsewhere preserves the original dictation destination")
         Fixture.loseInputReply = true
         try await voiceGateway.submitVoiceInput(input)
         precondition(Fixture.inputBodies.count == 2 && Fixture.inputBodies[0] == Fixture.inputBodies[1])

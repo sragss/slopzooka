@@ -4,6 +4,7 @@ struct WorkspaceFrontendButton: View {
     @EnvironmentObject private var client: CompanionClient
     let hostID: String?
     let workspaceId: String
+    let sessionID: String
     @State private var expanded = false
     private var catalog: FrontendCatalog { client.frontends(for: hostID) }
     private var frontends: [FrontendSummary] { catalog.visibleFrontends(workspaceID: workspaceId) }
@@ -33,11 +34,11 @@ struct WorkspaceFrontendButton: View {
             }
         }
         .disabled(hostID == nil)
-        .accessibilityLabel("Show workspace frontends")
+        .accessibilityLabel("Show worktree frontends")
         .accessibilityValue(accessibilityStatus)
         .popover(isPresented: $expanded, arrowEdge: .top) {
             ScrollView {
-                FrontendListView(hostID: hostID, workspaceId: workspaceId).id(hostID)
+                FrontendListView(hostID: hostID, workspaceId: workspaceId, sessionID: sessionID).id(hostID)
             }
             .frame(width: 420).frame(maxHeight: 420)
         }
@@ -53,6 +54,7 @@ struct WorkspaceFrontendButton: View {
 struct FrontendListView: View {
     let hostID: String?
     var workspaceId: String? = nil
+    var sessionID: String? = nil
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var client: CompanionClient
     @State private var error: String?
@@ -86,7 +88,7 @@ struct FrontendListView: View {
             if visibleFrontends.allSatisfy({ $0.isService }) && catalog.warning == nil {
                 Text(workspaceId == nil
                     ? "Ask your agent to start a web app on your Mac, or add a URL."
-                    : "No frontends for this workspace yet. Ask your agent to start a web app on your Mac.").font(.caption)
+                    : "No frontends for this worktree yet. Ask your agent to start a web app on your Mac.").font(.caption)
                     .foregroundStyle(.secondary)
             }
             ForEach(visibleFrontends.filter { !$0.isService }) { frontend in
@@ -203,7 +205,7 @@ struct FrontendListView: View {
         error = nil
         failureAction = "open this frontend"
         do {
-            try windows.openPreview(frontend, hostID: hostID)
+            try windows.openPreview(frontend, hostID: hostID, sessionID: sessionID)
         } catch { self.error = error.localizedDescription }
     }
 }

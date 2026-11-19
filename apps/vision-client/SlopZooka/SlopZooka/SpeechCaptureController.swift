@@ -40,7 +40,7 @@ final class SpeechCaptureController: SpeechCapturing {
         transcript = ""
         state = .preparing
         do {
-            try await requestPermissions()
+            try await Self.requestPermissions()
             guard captureID == id else { return }
             endpoint = SpeechEndpoint()
             segment = SpeechRecognitionSegment()
@@ -121,7 +121,11 @@ final class SpeechCaptureController: SpeechCapturing {
         }
     }
 
-    private func requestPermissions() async throws {
+    static var hasPermissions: Bool {
+        SFSpeechRecognizer.authorizationStatus() == .authorized && AVAudioApplication.shared.recordPermission == .granted
+    }
+
+    static func requestPermissions() async throws {
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)

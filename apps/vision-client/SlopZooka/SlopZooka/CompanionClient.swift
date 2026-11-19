@@ -87,6 +87,12 @@ final class CompanionClient: NSObject, ObservableObject {
     var pairedHostIDs: Set<String> { Set(routes.filter { $0.value.paired }.keys) }
     // URL access is limited to content adapters; control callers address the host.
     func endpoint(for hostID: String) throws -> URL { try route(for: hostID).endpoint }
+    func destinationName(for hostID: String) -> String {
+        guard let route = routes[hostID] else { return hostID }
+        if let name = route.health.bonjourServiceName, !name.isEmpty { return name }
+        let endpoint = route.remoteEndpoint
+        return endpoint.host(percentEncoded: false).map { host in endpoint.port.map { "\(host):\($0)" } ?? host } ?? hostID
+    }
     func previewHostname(for hostID: String) throws -> String {
         guard let host = try route(for: hostID).remoteEndpoint.host else { throw URLError(.badURL) }
         return host.contains(":") ? "[\(host)]" : host
@@ -453,11 +459,14 @@ final class CompanionClient: NSObject, ObservableObject {
         do {
             let catalog: FrontendCatalog = try await request(hostID: hostID, path: "/api/frontends")
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
-            frontendCatalogs[hostID] = catalog
+            if frontendCatalogs[hostID] != catalog { frontendCatalogs[hostID] = catalog }
+            // Recovery still runs on unchanged catalogs; a prior resolve may
+            // have failed even when the source list itself did not change.
             onFrontendSnapshot?(hostID)
         } catch {
             guard !Task.isCancelled, routes[hostID] == route, refreshingFrontends[hostID] == requestID else { return }
-            frontendCatalogs[hostID] = FrontendCatalog(frontends: frontends(for: hostID).frontends, warning: error.localizedDescription)
+            let failed = FrontendCatalog(frontends: frontends(for: hostID).frontends, warning: error.localizedDescription)
+            if frontendCatalogs[hostID] != failed { frontendCatalogs[hostID] = failed }
         }
     }
 
@@ -484,8 +493,12 @@ final class CompanionClient: NSObject, ObservableObject {
         try await request(hostID: hostID, path: "/api/workspaces/launch", method: "POST",
             body: Self.json(["nameWithOwner": nameWithOwner, "profile": profile]), timeout: 300)
     }
-    func createRepository(hostID: String, owner: String, name: String, isPrivate: Bool, profile: String?) async throws -> LaunchWorkspaceResponse {
-        try await request(hostID: hostID, path: "/api/repos/create-and-launch", method: "POST",
+    func createRepository(hostID: String, owner: String?, name: String, isPrivate: Bool, profile: String?) async throws -> LaunchWorkspaceResponse {
+        guard let owner else {
+            return try await request(hostID: hostID, path: "/api/repos/local", method: "POST",
+                body: Self.json(["repoName": name, "profile": profile]))
+        }
+        return try await request(hostID: hostID, path: "/api/repos/create-and-launch", method: "POST",
             body: Self.json(["owner": owner, "repoName": name, "visibility": isPrivate ? "private" : "public", "profile": profile]), timeout: 300)
     }
     func reopenWorkspace(hostID: String, id: String, profile: String?) async throws -> LaunchWorkspaceResponse {
@@ -514,6 +527,7 @@ final class CompanionClient: NSObject, ObservableObject {
         let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/sessions/\(id)", method: "DELETE")
     }
     func submitInput(hostID: String, sessionID: String, commandID: String, text: String) async throws {
+        log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID, "commandId": commandID, "destination": "terminal"])
         let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/sessions/\(sessionID)/input", method: "POST",
             body: Self.json(["commandId": commandID, "text": text, "sendReturn": true]))
     }
@@ -554,6 +568,24 @@ final class CompanionClient: NSObject, ObservableObject {
 
     private static func json(_ values: [String: Any?]) throws -> Data {
         try JSONSerialization.data(withJSONObject: values.compactMapValues { $0 }, options: .sortedKeys)
+    }
+
+    func coordinatorStatus(hostID: String) async throws -> CoordinatorSnapshot {
+        try await request(hostID: hostID, path: "/api/coordinator")
+    }
+    func coordinatorSubmit(hostID: String, requestID: String, text: String, workspaceID: String?, sessionID: String?, launcherNames: [String]) async throws -> CoordinatorSnapshot {
+        log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID ?? "", "workspaceId": workspaceID ?? "", "commandId": requestID, "destination": "coordinator"])
+        var body: [String: Any] = ["requestId": requestID, "text": text, "launcherNames": launcherNames]
+        body["workspaceId"] = workspaceID
+        body["sessionId"] = sessionID
+        return try await request(hostID: hostID, path: "/api/coordinator", method: "POST", body: JSONSerialization.data(withJSONObject: body, options: .sortedKeys))
+    }
+    func coordinatorStop(hostID: String, requestID: String) async throws -> CoordinatorSnapshot {
+        try await request(hostID: hostID, path: "/api/coordinator/stop", method: "POST", body: Self.json(["requestId": requestID]))
+    }
+    func coordinatorAnswer(hostID: String, sessionID: String, questionID: String, accept: Bool) async throws -> CoordinatorSnapshot {
+        try await request(hostID: hostID, path: "/api/coordinator/answer", method: "POST",
+            body: Self.json(["sessionId": sessionID, "questionId": questionID, "accept": accept]))
     }
 
     private static let clientID: String = {

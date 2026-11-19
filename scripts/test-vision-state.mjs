@@ -18,6 +18,7 @@ const companionSources = [
 const suites = {
   DiagnosticsChecks: [...companionSources, "BugReportState"],
   CompanionClientChecks: companionSources,
+  CoordinatorChecks: [...companionSources, "CoordinatorState", "TerminalVoiceController"],
   LauncherStateChecks: [
     ...companionSources,
     "LauncherState",
@@ -27,6 +28,7 @@ const suites = {
   WindowGatewayChecks: [
     ...companionSources,
     "WindowGateway",
+    "CoordinatorState",
     "TerminalNotifications",
     "TerminalVoiceController",
     "ImmersiveWorkspaceState",

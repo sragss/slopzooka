@@ -13,14 +13,14 @@ pnpm install
 pnpm build:mac-app
 ```
 
-Install your preferred agent CLI on the Mac. For GitHub repository browsing, run
+Install your preferred agent CLI on the Mac. For GitHub repo browsing, run
 `gh auth login` or set `GITHUB_TOKEN` / `GH_TOKEN`.
 
 Builds stage and verify a complete signed bundle before replacing the last good build. A failed compile leaves the previous app intact. Quit an app running directly from `build/mac-app` before rebuilding; the build refuses to overwrite a live app.
 
 Move `build/mac-app/SlopZooka.app` to Applications and open it. It lives in the menu bar, with a pairing code, terminal/frontend counts, **Open Dashboard**, **View Logs**, and **Start at Login**. The connection code is always visible for headset pairing; **Open Dashboard** signs your browser in automatically. Login startup and logs live under **Settings**. It does not occupy the Dock. Login startup is opt-in through macOS's login-item service; if macOS requires approval, the app links to Login Items settings.
 
-The app bundles Node, production dependencies (including native PTY support), and the compiled companion. Running it does not require the repo, pnpm, or an installed Node. Your project tools (`git`, `gh`, Codex, etc.) still need to be installed. The app loads your login-shell PATH with a bounded timeout so tools managed by nvm/mise/pnpm remain available when launched from Finder.
+The app bundles Node, production dependencies (including native PTY support), and the compiled companion. Running it does not require the repo, pnpm, or an installed Node. Your repo tools (`git`, `gh`, Codex, etc.) still need to be installed. The app loads your login-shell PATH with a bounded timeout so tools managed by nvm/mise/pnpm remain available when launched from Finder.
 
 ## Session controls
 
@@ -30,7 +30,7 @@ A companion crash triggers bounded restart attempts without restarting the sessi
 
 ## Signing and distribution
 
-The build uses an available Apple Development / Developer ID certificate so its signing identity survives updates and macOS can retain folder permissions. Set `SLOPZOOKA_SIGN_IDENTITY` to a specific identity when multiple teams are installed. Without a certificate, the build stops with setup guidance; `SLOPZOOKA_SIGN_IDENTITY=-` explicitly permits an ad-hoc test build, whose privacy permissions may reset after every rebuild. Run the app from Applications rather than from a repository inside Documents or Downloads. The bundle targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization.
+The build uses an available Apple Development / Developer ID certificate so its signing identity survives updates and macOS can retain folder permissions. Set `SLOPZOOKA_SIGN_IDENTITY` to a specific identity when multiple teams are installed. Without a certificate, the build stops with setup guidance; `SLOPZOOKA_SIGN_IDENTITY=-` explicitly permits an ad-hoc test build, whose privacy permissions may reset after every rebuild. Run the app from Applications rather than from a repo inside Documents or Downloads. The bundle targets the build machine's architecture. Distribution to other Macs still requires Developer ID signing/notarization.
 
 See [packaged-app verification](../CONTRIBUTING.md#verify) for build and supervision checks.
 
@@ -49,7 +49,7 @@ Portless is optional. The registry adapter is tested against the Portless 0.14 s
 | `SLOPZOOKA_PORT`                                                                      | Companion port, default `7777`                                                |
 | `SLOPZOOKA_PORTLESS`                                                                  | Set `0` to disable automatic dashboard alias registration and redirection     |
 | `SLOPZOOKA_HOST`                                                                      | Bind address, default dual-stack `::`                                         |
-| `SLOPZOOKA_HOME`                                                                      | Workspace index, clones, worktrees, and pairing store; default `~/.slopzooka` |
+| `SLOPZOOKA_HOME`                                                                      | Worktree index, clones, worktrees, and pairing store; default `~/.slopzooka` |
 | `SLOPZOOKA_SIGN_IDENTITY`                                                             | Build signing identity; `-` opts into ad-hoc signing                          |
 | `SLOPZOOKA_BUILD_DIR`                                                                 | Build output directory, default `build/mac-app`                               |
 | `SLOPZOOKA_CODEX_COMMAND` / `SLOPZOOKA_CLAUDE_COMMAND` / `SLOPZOOKA_OPENCODE_COMMAND` | Explicit agent command overrides                                              |
@@ -59,7 +59,7 @@ Agent commands use their normal permission behavior.
 
 ## Codex threads
 
-The headset's **Projects → Codex threads** reads the latest 25 saved threads
+The headset's **Repos → Codex threads** reads the latest 25 saved threads
 through the installed Codex CLI's app-server interface, using the same login-shell
 command as terminal launches (`SLOPZOOKA_CODEX_COMMAND`, or `codex`). Codex owns its
 history under `CODEX_HOME` (normally `~/.codex`); SlopZooka does not parse its
@@ -222,7 +222,7 @@ identities, or private error details. What you type or dictate is included as wr
 
 Logs stay local. **Download local snapshot** requires companion authentication
 and downloads the full JSON for your own inspection; it does not attach or upload
-it. Redacted diagnostics can still contain private paths, repository names, URLs,
+it. Redacted diagnostics can still contain private paths, repo names, URLs,
 and action history. Attachments on public GitHub issues are public too. Share a
 snapshot only through a separately agreed access-controlled channel. Retention
 and capture bounds are described above; a local report ID is not a remote
@@ -263,9 +263,9 @@ Pairing credentials are hashed in a mode-600 host store. HTTP control endpoints 
 
 The named dashboard supports Portless HTTPS with Secure cookies and exact-origin validation limited to the registered hostname through a loopback proxy. Direct LAN control transport remains HTTP; pairing is an access boundary, not transport encryption. Do not publish the control port to the internet.
 
-## Workspace storage
+## Worktree storage
 
-Workspace mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Legacy indexes with `clusterId` migrate to `workspaceId` on the next mutation. An explicit nonexistent branch fails. Defaults follow the repository's default branch.
+Worktree mutations are serialized within the companion and the index is replaced atomically. Run one companion per `SLOPZOOKA_HOME`. Legacy indexes with `clusterId` migrate to `workspaceId` on the next mutation. An explicit nonexistent branch fails. Defaults follow the repo's default branch.
 
 ## Terminal preview MCP (development)
 
@@ -313,8 +313,10 @@ with arguments:
 
 Use that command/argument pair in the terminal agent's MCP configuration. For a
 checkout, run `pnpm --filter @slz/mac-companion exec tsx src/preview-mcp.ts
-/absolute/path/to/private-preview-config.json` from the repository root. Standard
+/absolute/path/to/private-preview-config.json` from the repo root. Standard
 output is exclusively MCP protocol traffic.
+
+For ordinary terminal Codex sessions, add `env_vars = ["SLOPZOOKA_SESSION_ID"]` to the existing `[mcp_servers.slopzooka-previews]` table so the MCP receives the launching terminal’s identity. New SlopZooka PTYs supply this variable. Ask-managed workers receive the identity in their private preview config directly. Preview windows with a session owner close on **End Session**; a shared preview stays open for its other sessions.
 
 Call `preview_list` to obtain current opaque source IDs and capture availability.
 Then use `preview_open(source_id, name?)`, `preview_rename(preview_id, name)` and

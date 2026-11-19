@@ -6,6 +6,7 @@ struct CompanionHealthResponse: Decodable, Equatable {
     let protocolVersion: Int
     let controlOrigin: String
     let logFilePath: String
+    var bonjourServiceName: String? = nil
     var diagnosticsVersion: Int? = nil
     var transport: CompanionTransportSupport? = nil
 }
@@ -86,7 +87,7 @@ struct APIErrorResponse: Decodable {
 }
 
 // Resolved view data is deliberately not Codable. Persist WindowRecord instead.
-struct TerminalWindowPayload {
+struct TerminalWindowPayload: Equatable {
     let id: String
     let workspaceId: String
     let title: String
@@ -100,7 +101,12 @@ struct TerminalWindowPayload {
     }
 }
 
-struct FrontendSummary: Decodable, Identifiable {
+struct FrontendSummary: Equatable, Decodable, Identifiable {
+    struct WorktreeLabel: Equatable, Decodable {
+        let repo: String
+        let worktree: String
+    }
+    var worktreeLabel: WorktreeLabel? = nil
     let id: String
     let hostname: String
     let url: String
@@ -116,21 +122,21 @@ struct FrontendSummary: Decodable, Identifiable {
     var displayTitle: String { title ?? hostname }
     var isService: Bool { category == "service" }
 }
-struct PresentationAvailability: Decodable {
+struct PresentationAvailability: Equatable, Decodable {
     let presentation: String
     let available: Bool
     let reasonCode: String?
     let message: String?
     let alternatives: [String]
 }
-struct NativeWindowSource: Decodable, Identifiable {
+struct NativeWindowSource: Equatable, Decodable, Identifiable {
     let id: String
     let title: String
     let application: String
     let contentWidth: Double
     let contentHeight: Double
 }
-struct NativeWindowCatalog: Decodable {
+struct NativeWindowCatalog: Equatable, Decodable {
     let sources: [NativeWindowSource]
     let state: String
     let presentation: PresentationAvailability
@@ -140,7 +146,7 @@ struct NativeWindowPayload {
     let source: NativeWindowSource
     let route: CompanionTransportRoute
 }
-struct FrontendCatalog: Decodable {
+struct FrontendCatalog: Equatable, Decodable {
     var windows: NativeWindowCatalog? = nil
     let frontends: [FrontendSummary]
     let warning: String?
@@ -281,4 +287,67 @@ struct BugReportDraft: Decodable, Equatable {
         let destination = url.url.flatMap { $0.absoluteString.count <= 7800 ? $0 : nil }
         return Self(draftId: nil, body: body, account: nil, browserURL: destination)
     }
+}
+
+struct CoordinatorWorker: Decodable, Identifiable, Equatable {
+    var sessionId: String
+    var workspaceId: String
+    var status: String
+    var result: String?
+    var error: String?
+    var question: CoordinatorQuestion?
+    var id: String { sessionId }
+}
+struct CoordinatorQuestion: Decodable, Equatable {
+    var id: String
+    var title: String
+    var details: String
+    var choices: [String]
+}
+struct CoordinatorTurn: Decodable, Identifiable, Equatable {
+    var requestId: String
+    var text: String
+    var workspaceId: String?
+    var sessionId: String?
+    var status: String
+    var reply: String?
+    var workStatus: String?
+    var hasActiveWork: Bool?
+    var resultExcerpt: String?
+    var id: String { requestId }
+
+    var isWorking: Bool {
+        status == "running" || (hasActiveWork ?? (workStatus == "running" || workStatus == "queued"))
+    }
+
+    var progress: String {
+        if status == "sending" { return "Sending…" }
+        if status == "unconfirmed" { return "Delivery not confirmed — retry keeps this request" }
+        if status == "queued" { return "Queued" }
+        if status == "failed" { return "Request failed" }
+        if status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
+        if status == "running" { return "Working…" }
+        switch workStatus {
+        case "queued": return "Queued in terminal · waiting to start"
+        case "running": return "Agent working…"
+        case "failed": return "Agent task failed"
+        case "uncertain": return "Delivery unconfirmed"
+        case "unavailable": return "Agent unavailable"
+        case "interrupted": return "Interrupted"
+        case "completed": return "Completed"
+        default: return ""
+        }
+    }
+}
+struct CoordinatorSnapshot: Decodable, Equatable {
+    var available: Bool
+    var acceptsQueuedRequests: Bool?
+    var message: String?
+    var requestId: String?
+    var status: String
+    var activity: String?
+    var reply: String?
+    var workers: [CoordinatorWorker]
+    var workerSessionIds: [String]?
+    var turns: [CoordinatorTurn]?
 }

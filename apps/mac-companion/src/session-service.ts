@@ -2,6 +2,8 @@ import {
   logError,
   validLogId,
 } from "../../../packages/protocol/src/diagnostics.js";
+import { CodexWorkers, WORKER_CAPABILITY } from "./codex-workers.js";
+import { installWorkerRoutes } from "./worker-http.js";
 import fs from "node:fs/promises";
 import path from "node:path";
 import http from "node:http";
@@ -72,6 +74,11 @@ async function main() {
     }
   }
   const manager = new SessionManager(diagnostics.logger("sessions"));
+  const workers = new CodexWorkers(
+    path.dirname(socketPath),
+    manager,
+    diagnostics.logger("codex-workers"),
+  );
   const eventLoop = monitorEventLoopDelay({ resolution: 20 });
   eventLoop.enable();
   const diagnosticsTimer = setInterval(() => {
@@ -109,6 +116,7 @@ async function main() {
         "rename-session",
         "diagnostics-v1",
         CODEX_RESUME_CAPABILITY,
+        WORKER_CAPABILITY,
       ],
       logFilePath: diagnostics.store.file,
     } satisfies ServiceInfo),
@@ -116,6 +124,7 @@ async function main() {
   app.post("/diagnostics/flush", async (_req, res) =>
     res.json({ ok: await diagnostics.store.flush() }),
   );
+  installWorkerRoutes(app, workers);
   app.post("/sessions", (req, res) => {
     const { workspaceId, cwd, profile, id, environment, codexResume } =
       req.body ?? {};
@@ -142,7 +151,8 @@ async function main() {
       manager.create(workspaceId, cwd, profile, id, environment, codexResume),
     );
   });
-  app.delete("/sessions/:id", (req, res) => {
+  app.delete("/sessions/:id", async (req, res) => {
+    await workers.end(req.params.id);
     // Repeating an end after a lost reply must not end a different session.
     if (manager.summaries().some((session) => session.id === req.params.id))
       manager.terminate(req.params.id);
@@ -271,6 +281,7 @@ async function main() {
     const deadline = setTimeout(() => process.exit(1), 3000);
     deadline.unref();
     for (const ws of wss.clients) ws.terminate();
+    await workers.close();
     await manager.stop();
     server.closeAllConnections();
     await new Promise<void>((resolve) => server.close(() => resolve()));

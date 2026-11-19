@@ -31,6 +31,11 @@ final class LauncherState: ObservableObject {
     private var catalogTask: Task<Void, Never>?
     var recentRepos: [RecentRepoSummary] { repoState.value?.repos ?? [] }
     var recentWorkspaces: [WorkspaceSummary] { workspaceState.value?.workspaces ?? [] }
+    func voiceNames(for hostID: String?) -> [String] {
+        guard let hostID, client.current?.id == hostID else { return [] }
+        return (recentRepos.prefix(12).map(\.nameWithOwner) + recentWorkspaces.prefix(12).map(\.name))
+            .compactMap { $0 }.filter { !$0.isEmpty && $0.utf16.count <= 256 }
+    }
     @Published private(set) var availableOwners: [RepoOwnerSummary] = []
     @Published private(set) var repoState: CatalogState<RecentReposResponse> = .idle
     @Published private(set) var workspaceState: CatalogState<RecentWorkspacesResponse> = .idle
@@ -134,7 +139,7 @@ final class LauncherState: ObservableObject {
         }
     }
 
-    func createRepoAndLaunch(owner: String, repoName: String, isPrivate: Bool) async -> Bool {
+    func createRepoAndLaunch(owner: String?, repoName: String, isPrivate: Bool) async -> Bool {
         guard !isMutatingWorkspace, let hostID = client.current?.id else { return false }
         let profile = selectedTool.queryValue
         let creation = Operation.createRepo(UUID())
@@ -147,7 +152,7 @@ final class LauncherState: ObservableObject {
             let workspace = try await client.createRepository(hostID: hostID, owner: owner, name: repoName, isPrivate: isPrivate, profile: profile)
             try Task.checkCancellation()
             guard operation == creation else { return false }
-            UserDefaults.standard.set(owner, forKey: "newRepoOwnerLogin")
+            if let owner { UserDefaults.standard.set(owner, forKey: "newRepoOwnerLogin") }
             try await startSession(workspace: workspace, hostID: hostID, profile: profile)
             await loadWorkspaces(hostID: hostID)
             await loadRepositories(hostID: hostID)
@@ -161,7 +166,7 @@ final class LauncherState: ObservableObject {
     func cancelRepoCreation() {
         guard isCreatingRepo else { return }
         operation = nil
-        feedback = LaunchFeedback(message: "Stopped waiting. The repository may still finish creating on your Mac; check your projects before trying again.", style: .neutral)
+        feedback = LaunchFeedback(message: "Stopped waiting. The repo may still finish creating on your Mac; check your repos before trying again.", style: .neutral)
     }
 
     func reopen(_ workspace: WorkspaceSummary) async {
@@ -187,7 +192,7 @@ final class LauncherState: ObservableObject {
     func pruneMissingWorkspaces() async {
         await mutateWorkspace(.pruneWorkspaces) { hostID in
             let result = try await client.pruneMissingWorkspaces(hostID: hostID)
-            feedback = LaunchFeedback(message: "Hidden \(result.archivedCount) missing workspaces", style: .success)
+            feedback = LaunchFeedback(message: "Hidden \(result.archivedCount) missing worktrees", style: .success)
         }
     }
 

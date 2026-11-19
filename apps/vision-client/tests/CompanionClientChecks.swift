@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 
 @main
 struct CompanionClientChecks {
@@ -326,6 +327,16 @@ struct CompanionClientChecks {
         try await client.removeFrontend(hostID: "first", id: "new")
         precondition(client.frontends(for: "first").frontends.map(\.id) == ["old"])
         precondition(client.frontends(for: "second").frontends.map(\.id) == ["other"])
+
+        var unchangedUpdates = 0
+        var recoveries = 0
+        let observer = client.objectWillChange.sink { unchangedUpdates += 1 }
+        client.onFrontendSnapshot = { _ in recoveries += 1 }
+        await client.refreshFrontends(hostID: "first")
+        await client.refreshFrontends(hostID: "second")
+        observer.cancel()
+        precondition(unchangedUpdates == 0 && recoveries == 2,
+            "Unchanged polls keep preview recovery alive without invalidating the launcher")
 
         delayNext = true
         releaseCatalog = nil

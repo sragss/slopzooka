@@ -16,6 +16,7 @@ export type SessionSummary = {
   cols: number;
   rows: number;
   status: "running" | "exited";
+  ending?: boolean;
   exitCode: number | null;
 };
 export type ClientMessage =

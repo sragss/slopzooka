@@ -5,20 +5,64 @@ private let voiceAccent = Color("AccentHighlight")
 struct TerminalVoiceButton: View {
     let id: String
     let isAvailable: Bool
+    var mode: TerminalVoiceController.Mode = .terminal
     @EnvironmentObject private var voice: TerminalVoiceController
 
     var body: some View {
-        VoiceInputButton(voice: voice, id: id, label: "Hold to dictate", onPressingChanged: { pressing in
-            if pressing { voice.beginTerminalHold(id) }
-            else { voice.endTerminalHold(id) }
-        }) {}
-        .accessibilityHint("Hold while speaking, then release. Tap the close button within two seconds to cancel before sending.")
-        .accessibilityAction {
-            if voice.targetID == id && voice.mode == .terminal { voice.endTerminalHold(id) }
-            else { voice.beginTerminalHold(id) }
+        VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
+            .modifier(VoicePinchHold(id: id, mode: mode, voice: voice))
+            .accessibilityHint("Hold to speak. Release to send in two seconds. Hold again to add more, or tap close to cancel.")
+            .accessibilityAction {
+                if voice.heldTargetID == id { voice.endHold(id) }
+                else { voice.beginHold(id, mode: mode) }
+            }
+            .opacity(isAvailable ? 1 : 0.45)
+            .disabled(!isAvailable || voice.isSubmitting)
+    }
+}
+
+/// Track the original spatial input through release, even after its location leaves the mic.
+private struct VoicePinchHold: ViewModifier {
+    let id: String
+    let mode: TerminalVoiceController.Mode
+    let voice: TerminalVoiceController
+    @State private var owner: SpatialEventCollection.Event.ID?
+    @GestureState private var tracking = false
+
+    func body(content: Content) -> some View {
+        content.highPriorityGesture(
+            SpatialEventGesture()
+                .updating($tracking) { _, active, _ in active = true }
+                .onChanged { events in
+                    if owner == nil, let first = events.first(where: { $0.phase == .active }) {
+                        owner = first.id
+                        voice.beginHold(id, mode: mode)
+                    }
+                    finish(events)
+                }
+                .onEnded { events in
+                    finish(events)
+                    cancel()
+                }
+        )
+        .onChange(of: tracking) { _, active in if !active { cancel() } }
+    }
+
+    private func finish(_ events: SpatialEventCollection) {
+        guard let owner, let event = events.first(where: { $0.id == owner }) else { return }
+        switch event.phase {
+        case .ended:
+            self.owner = nil
+            voice.endHold(id)
+        case .cancelled: cancel()
+        default: break
         }
-        .opacity(isAvailable ? 1 : 0.45)
-        .disabled(!isAvailable || voice.isSubmitting || voice.sendDeadline != nil)
+    }
+
+    private func cancel() {
+        guard owner != nil else { return }
+        owner = nil
+        voice.interruptHold(id)
     }
 }
 
@@ -27,37 +71,40 @@ struct VoiceInputButton: View {
     @ObservedObject var voice: TerminalVoiceController
     let id: String
     let label: String
-    var onPressingChanged: ((Bool) -> Void)? = nil
     let action: () -> Void
 
     var body: some View {
-        Button(action: action) {
+        VoiceControlButton(label: label, action: action) {
             VoiceOrb(isSelected: voice.targetID == id,
                 isListening: voice.targetID == id && voice.captureState == .listening,
                 isBusy: voice.targetID == id && (voice.isSubmitting || voice.captureState == .preparing || voice.captureState == .finishing),
                 meter: voice.audioMeter)
+        }
+        .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
+    }
+}
+
+/// Shared glass, hover feedback and pinch target for the mic and its companion Stop control.
+struct VoiceControlButton<Content: View>: View {
+    let label: String
+    let action: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        Button(action: action) {
+            content()
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.white)
                 .frame(width: 88, height: 88)
                 .glassBackgroundEffect(in: Circle())
                 .frame(width: 120, height: 120)
                 .contentShape(Circle())
         }
-        .buttonStyle(VoicePressStyle(onPressingChanged: onPressingChanged))
+        .buttonStyle(.plain)
         .buttonBorderShape(.circle)
         .contentShape(.hoverEffect, Circle())
         .hoverEffect(.lift)
         .accessibilityLabel(label)
-        .accessibilityValue(voice.targetID == id ? voice.statusText : "Off")
-    }
-}
-
-/// Native button tracking recognizes the initial pinch and its release without
-/// requiring a drag or a minimum long-press duration.
-private struct VoicePressStyle: ButtonStyle {
-    let onPressingChanged: ((Bool) -> Void)?
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { _, pressing in onPressingChanged?(pressing) }
     }
 }
 
@@ -85,7 +132,6 @@ private struct VoiceOrb: View {
                 VoiceWaveform(meter: meter)
             } else {
                 Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
-                    .font(.system(size: 30, weight: .medium))
                     .foregroundStyle(isSelected ? voiceAccent : .white)
             }
         }
@@ -116,6 +162,7 @@ struct TerminalVoiceOverlay: ViewModifier {
     let id: String
     let isAvailable: Bool
     let canRename: Bool
+    var mode: TerminalVoiceController.Mode = .terminal
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -145,9 +192,11 @@ struct TerminalVoiceOverlay: ViewModifier {
                     .accessibilityHidden(voice.targetID != id)
             }
             .overlay(alignment: .bottomTrailing) {
-                TerminalVoiceButton(id: id, isAvailable: isAvailable)
-                    .fixedSize()
-                    .padding(20)
+                if mode != .coordinator {
+                    TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
+                        .fixedSize()
+                        .padding(20)
+                }
             }
             .onChange(of: voice.mode == .rename ? canRename : isAvailable) { _, available in
                 if !available { voice.targetUnavailable(id) }
@@ -172,7 +221,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                 submitPulse = false
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase != .active { voice.targetUnavailable(id) }
+                if phase == .background || (phase == .inactive && voice.mode == .rename) { voice.targetUnavailable(id) }
             }
             .onDisappear { voice.targetUnavailable(id) }
     }
@@ -221,10 +270,10 @@ private struct TerminalVoiceDraft: View {
             .frame(height: voice.mode == .rename || voice.mode == .draft ? 148 : 80)
             // Recognition handoffs briefly pass through idle/preparing. They are
             // still part of the hold, and never expose a separate Send action.
-            if voice.mode != nil && (voice.mode != .terminal || voice.needsRetry) {
+            if voice.mode != nil && (!voice.usesHoldToTalk || voice.needsRetry) {
                 HStack {
                     Spacer()
-                    if voice.canResume && voice.mode != .terminal {
+                    if voice.canResume && !voice.usesHoldToTalk {
                         Button("Resume") { voice.resume() }
                     }
                     Button(voice.mode == .rename ? "Save Name" : (voice.needsRetry ? "Retry" : "Send")) { voice.send() }

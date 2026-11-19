@@ -79,6 +79,31 @@ test("Codex catalog requests exactly one recent page, shares concurrent reads, a
       codex.read("--last"),
       (error: ServiceError) => error.statusCode === 400,
     );
+    const found = await codex.page(4, "page-1", "pairing");
+    assert.equal(found.nextCursor, "page-2");
+    assert.equal(found.threads[0]?.id, a[4]!.id);
+    const peek = await codex.peek(a[4]!.id, "newer");
+    assert.deepEqual(peek, {
+      turns: [{ user: "x".repeat(280), assistant: "y".repeat(280) }],
+      nextCursor: "older",
+    });
+    const callsAfterPeek = await f.calls();
+    assert.deepEqual(
+      callsAfterPeek.find((c) => c.method === "thread/turns/list")?.params,
+      {
+        threadId: a[4]!.id,
+        cursor: "newer",
+        limit: 3,
+        sortDirection: "desc",
+        itemsView: "summary",
+      },
+    );
+    assert.equal(
+      callsAfterPeek.find((c) => c.method === "thread/search")?.params
+        .searchTerm,
+      "pairing",
+    );
+    assert.ok(!callsAfterPeek.some((c) => c.method === "thread/resume"));
     await f.diagnostics.store.flush();
     const logs = await fs.readFile(f.diagnostics.store.file, "utf8");
     assert.ok(

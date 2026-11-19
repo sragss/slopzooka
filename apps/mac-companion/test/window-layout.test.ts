@@ -70,6 +70,41 @@ test("layouts survive restart, isolate clients, serialize conflicting edits, and
   }
 });
 
+test("End Session releases preview ownership across clients and prevents stale reopen", async (t) => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-end-previews-"));
+  t.after(() => fs.rm(home, { recursive: true, force: true }));
+  const active = new Set(["a", "b"]);
+  const store = new WindowLayoutStore(home, async () => active);
+  const solo = { ...preview, ownerSessionIds: ["a"] };
+  const shared = { ...preview, id: "shared", ownerSessionIds: ["a", "b"] };
+  const global = { ...preview, id: "global", ownerSessionIds: undefined };
+  await store.put(client, 0, [solo, shared, global]);
+  await store.put(otherClient, 0, [solo]);
+  active.delete("a");
+  await store.closeSessionPreviews("a");
+  const remaining = await store.get(client);
+  assert.deepEqual(
+    remaining.windows.map((w) => [w.id, w.ownerSessionIds]),
+    [
+      ["shared", ["b"]],
+      ["global", undefined],
+    ],
+  );
+  assert.deepEqual((await store.get(otherClient)).windows, []);
+  await assert.rejects(store.put(client, 1, [solo]), /changed/);
+  assert.deepEqual(
+    await store.put(client, remaining.revision, [solo, shared, global]),
+    remaining,
+  );
+  await store.closeSessionPreviews("a");
+  assert.equal((await store.get(client)).revision, remaining.revision);
+  await store.closeSessionPreviews("b");
+  assert.deepEqual(
+    (await store.get(client)).windows.map((w) => w.id),
+    ["global"],
+  );
+});
+
 test("layout API requires pairing and a client ID, checks revisions, and persists only content references", async () => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "slz-layout-api-"));
   const app = express();

@@ -1,0 +1,266 @@
+# Coordinator reliability review and launcher lag investigation
+
+The November 18 device rerun uses **Slz Ask Routing** with **Slz Ask Final** on port **55436**.
+See the [November 18 playtest](2026-11-18-coordinator-playtest.md) for later builds and outcomes. Earlier rig entries are retained
+as evidence, not the current slot target.
+
+Follow-up to the voice headset slot and the user's request for a maintainability
+pass while the headset is unavailable. Existing production and staged test
+processes remain untouched. These changes stay in draft PR #65.
+
+## Confirmed issues and narrow corrections
+
+- **Retry after a lost acceptance reply:** the shared voice flow asks whether a
+  new request can start. A status poll reporting the already accepted request as
+  running made Retry unavailable. Reproduced with the production Swift voice,
+  coordinator state and transport against a lost-reply fixture. Retry now checks
+  the immutable command's eligibility separately; a known request can be confirmed
+  while Pi is busy, while new utterances remain blocked. The server still checks
+  identity and payload and does not dispatch again. No duplicate draft owner.
+- **Worker reconnect projection:** native thread states `active`/`idle` were
+  exposed directly after reconnect, but the UI expects turn states such as
+  `running`/`completed`. Reproduced with the real owned worker/PTY and disposable
+  WebSocket protocol peer. Reconciliation now projects from the current/latest
+  turn, recovers the first delivery as well as later submissions, and restores a
+  result whose completion happened while disconnected.
+- **Queued cancellation:** an acknowledged native queue deletion did not change
+  the local delivery status. It now marks only that removed delivery interrupted;
+  unrelated queued submissions remain queued. The existing scoped-Stop integration
+  test exercises this through the protocol peer.
+- **Idle UI publications:** unchanged session snapshots, scene observations and
+  frontend catalogs triggered `objectWillChange` across launcher/window consumers.
+  State owners now compare actual presentation values and publish only changes.
+  Preview reconciliation still runs on unchanged catalogs so recovery is not
+  suppressed. Native scene identity no longer reassigns identical session metadata
+  on every render. Existing remote rename checks remain essential: scene identity
+  equality intentionally ignores labels, so metadata compares the full window
+  record. No new observation cache, layout owner or persistence mechanism.
+
+## Launcher pointer lag: reported, not yet physically reproduced
+
+The user reports extremely laggy cursor motion over the launcher on its pairing
+screen while also connected to the Mac; other windows do not show it. The input
+source (Mac Virtual Display pointer versus gaze) and whether it persists after
+pairing need confirmation. Do not interpret this as evidence that terminal/media
+transport is slow.
+
+Source review found no per-pointer-move state mutation or synchronous network call
+in the pairing view. Its focus/code-display task is keyed by selected host, and
+hover effects are system-managed. The unnecessary UI publications above are a
+confirmed inefficiency, **not proof of the reported lag's root cause**. In
+particular, a fresh unpaired host does not run authenticated session/catalog polls.
+Do not add a speculative debounce, disable all hover effects or redesign pairing
+before obtaining a device trace.
+
+Next slot adds one short observation to the existing conversation/name/unread gate:
+
+1. Keep the user's Mac display/input connection as in the report. On the isolated
+   test app, move the pointer across the pairing screen and blank space, then over
+   another native SlopZooka window. Note whether lag concerns cursor movement,
+   highlights or delayed clicks. Pair normally; repeat on Projects and Settings →
+   Connected Mac. No production unpairing or session restart.
+2. If lag remains, record 20–30 seconds around the same motion with Instruments
+   **SwiftUI** (long body/layout updates and update groups). **Time Profiler** is
+   the fallback for main-thread stacks. Templates and CLI syntax are present in
+   the installed Xcode (`xcrun xctrace list templates`, `xcrun xctrace help record`).
+   Resolve the isolated test bundle's PID first; never attach by `SlopZooka` process
+   name because production uses the same executable name.
+
+   ```sh
+   xcrun xctrace record --template SwiftUI \
+     --device FFA7104B-5972-57E0-B392-05D7A5976599 \
+     --attach "$SLZ_TEST_HEADSET_PID" --time-limit 30s \
+     --output /tmp/slz-launcher-pointer.trace
+   ```
+
+3. Compare main-thread/update spikes with the reported motion. If pointer latency
+   remains with quiet app activity, compare gaze and the shared Mac pointer before
+   blaming our model/polling code. Keep traces local. The earlier signed rig remains
+   available for comparison; a simulator build cannot establish pointer latency.
+
+No new permanent per-frame logging or watchdog is introduced. Use the existing
+scoped diagnostics and Xcode profiling to separate render/update work from the
+system's input path. Physical verification is pending the user's next slot.
+
+## Local verification
+
+The added lost-reply and worker-reconnect regressions failed before their fixes.
+The idle-publication check also failed before cleanup; it now observes zero gateway
+publications for a repeated unchanged session snapshot plus focus observation.
+The shared catalog check observes zero UI publications while both recovery callbacks
+still run. Full native state checks also exercise remote preview renames, explicit
+close versus disconnect, restoration and per-window notification acknowledgements.
+
+Local pass: `pnpm lint`, `pnpm typecheck`, `pnpm test` (86/86),
+`pnpm test:vision-state`, `pnpm test:terminal-keyboard`, `pnpm format:check`,
+`pnpm build:harness` with no generated-asset diff, and `git diff --check`.
+Logs are local at `/tmp/slz-coordinator-review-*.log`. Signed artifacts and physical
+slot results are recorded separately below; no device performance claim follows
+from these checks.
+
+## Signed artifacts for the next slot
+
+Code revision **7e4ce05** passed the full visionOS simulator build, signed headset
+build, signed Mac build and packaged Mac regression checks. Build logs use the same
+`/tmp/slz-coordinator-review-*.log` prefix.
+
+New isolated rig: `~/.slopzooka/test-rigs/coordinator-review-2026-11-17-ready`.
+Its signed apps and fixture are prepared, **not launched or installed**. Name
+**Slz Ask Review**, port **55434**, fixture **Slz Review Fixture**, headset bundle
+`com.slopzooka.probe.coordinator`. Both app signatures were verified during staging.
+The earlier **Slz Ask Test** rig on 55433 remains untouched, including its shell;
+production is untouched. This avoids replacing a running executable under its
+session service and retains a pre-cleanup build for comparison.
+
+Before the user puts on the headset, start this isolated rig with `rig.mts start`,
+create its owner-only `operator.json` from a local pairing (never print the bearer
+token), and run `notification-check.mts prepare`. Open the exact fixture path in
+`rig.json` in the background and refresh capture availability after Mac unlock.
+Install only the test headset bundle when the slot starts. Fetch the fresh code
+then. Reuse the three count/name/unread checks from the voice results document;
+add the short pairing/connected-pointer comparison above. No fresh real-model or
+CUA discovery run is required for this cleanup.
+
+
+## Second cleanup pass
+
+The previous pass's companion and vision CI jobs passed before this review.
+Two further defects were reproduced against the production owners:
+
+- **Delayed Stop could cancel a newer request.** The endpoint previously carried
+  only the client identity and cancelled whichever request was current at arrival.
+  Stop now captures the visible request ID in the Swift button action, carries it
+  through the existing client endpoint, and checks it on the Mac before aborting
+  Pi or cancelling any owned submission. An outdated request returns 409 without
+  touching newer work. Missing/malformed IDs are rejected; there is deliberately
+  no unscoped fallback. This experimental coordinator requires matching companion
+  and headset builds, as before. No new operation queue or cancellation owner.
+- **Result recovery could lose the outcome or change the answer.** Live worker
+  notifications retained the final 6,000 characters, losing the opening outcome
+  of a long answer. Thread reconciliation concatenated all progress and final
+  messages. Both now retain the beginning of the last agent message, matching the
+  concise-first worker guidance and keeping reconciliation consistent with live
+  delivery. The existing bounded result remains bounded; the terminal keeps the
+  full answer.
+
+Regression coverage includes a real Pi loop accepting two successive requests
+before an old Stop arrives, the authenticated HTTP Stop contract, native captured
+request/late-action checks, and the real disposable worker process returning a
+long final reply after progress messages. A repeated submission ID forces actual
+thread reconciliation without dispatching another task. Both new bug regressions
+failed before their fixes and pass afterward. No model/API credentials or headset
+interaction are needed for these tests. Launcher pointer lag remains pending the
+same physical check; this pass makes no further performance claim.
+
+Second-pass local verification: all **87** companion tests pass, along with native
+state, terminal keyboard/WebKit, lint, typecheck, formatting and harness asset parity.
+The added coordinator regression failed with “Missing expected rejection” before
+request-scoped Stop; the worker regression failed because the returned tail lacked
+its outcome. Logs: `/tmp/slz-coordinator-review2-*.log`.
+
+Second-pass artifacts: revision **9984b26** passed simulator, signed visionOS,
+signed Mac and packaged Mac checks. The latest isolated rig is
+`~/.slopzooka/test-rigs/coordinator-review2-2026-11-17-ready`, named **Slz Ask Check**
+on port **55435**, with **Slz Ask Fixture** and the same isolated headset bundle.
+It is staged and signature-verified, not launched or installed. Apply the existing
+pre-slot start/pair/operator-config/notification preparation to this directory.
+All older rigs and running applications remain unchanged; the user checklist is
+unchanged. Build/package logs use `/tmp/slz-coordinator-review2-*.log`.
+
+## Third cleanup pass
+
+A failed reconnect handshake could permanently strand an otherwise live worker.
+`list()` retried only disconnected sockets; after `thread/resume` or reconciliation
+failed, its newly open socket stayed connected, so later polls never retried.
+The existing recovery owner now retires that failed socket. The next status read
+can reconnect to the same backend and thread. It never replays task submission.
+No new timer, reconnect loop or process owner is added.
+
+The disposable native protocol peer now rejects one resume while leaving the
+socket open. The regression timed out before the fix and passes afterward: first
+status unavailable, later status running, one queue effect for the uncertain
+submission, same terminal/backend. This extends the existing process integration
+check rather than introducing a mock of the worker state machine.
+
+This pass changes no Swift, browser, shared wire schema or UI behavior. The second
+pass's native state, keyboard/WebKit, simulator and signed visionOS checks remain
+applicable to those unchanged sources. The third pass reruns companion tests,
+lint, typecheck and formatting; packaging validation uses its new Mac binary.
+
+Third-pass verification: **87/87** companion tests, lint, typecheck, formatting,
+signed Mac build and packaged Mac regressions pass. Logs use
+`/tmp/slz-coordinator-review3-*.log`. Native state/keyboard, harness parity and
+visionOS simulator/device builds passed in the immediately preceding pass and
+their sources have not changed since.
+
+Third-pass artifact note: **Slz Ask Final**, port **55436**, lives at
+`~/.slopzooka/test-rigs/coordinator-review3-2026-11-17-ready`. Its Mac binary is
+revision **b4b6e71**; its signed headset binary is the unchanged **9984b26** build
+with request-scoped Stop. Signature verification passed for both. Fixture:
+**Slz Ask Final Fixture**. Nothing was installed or launched from this rig, and
+no earlier rig or production session was modified. Follow the same pre-slot
+preparation in this latest directory. The physical gate remains conversation,
+count/naming, foreground unread acknowledgement and the short pointer-lag check.
+
+## Conversation history cleanup
+
+A single ordered entry per accepted request now stores the captured request,
+coordinator status, owned deliveries and observed results. Retry checks use that
+entry directly. The public snapshot adds the current worker list at response
+time, so each history entry no longer retains the full worker list from the
+moment of submission. The 64-request limit and ephemeral lifetime still apply.
+
+The regression fixture reproduced two failures. When its worker disappeared,
+the second exchange continued to report running. Reconstructing an identical
+request with different field order also produced a conflict in the coordinator.
+The fixture now verifies that completed results survive, active progress becomes
+unavailable until the worker returns, and retries accept identical content while
+rejecting changed content. All 87 companion tests and the lint, type and format
+checks passed. Local logs are under `/tmp/slz-coordinator-history-*.log`.
+
+The existing **Slz Ask Final** rig uses the signed Mac build from this pass and
+the previously qualified headset build. Its discovery name, port, headset ID
+and physical test procedure are the same. The launcher pointer comparison still
+requires a headset slot.
+
+## Ask progress checks
+
+The Swift fixture reproduced a finished exchange whose header still showed a
+spinner and Stop after its worker moved on. The header and exchange now use the
+same request's delivery status. A separate active-work flag keeps Stop available
+when one delivery fails while another is queued. An unchanged two-second poll
+produced zero coordinator change notifications in the native regression test.
+
+All 87 companion tests, native state and keyboard checks, lint, types, formatting,
+harness asset parity, Mac packaging tests and visionOS simulator/device builds
+passed. Logs use `/tmp/slz-ask-progress-*.log`. The existing **Slz Ask Final**
+rig has both signed bundles staged at `3f9065e`. Physical validation remains
+the short conversation, window count/rename, foreground unread and launcher
+pointer check.
+
+## November 18 headset routing incident
+
+The shared test app paired to the new companion on port 55436. Between 17:22:52
+and 17:23:58 Eastern, the headset sent all four Ask requests to the older
+companion on 55432. The first was stopped. The last reply said it queued a
+rename. On inspection, that companion had one saved terminal window, no saved
+session name, and a completed worker. The intended companion had zero voice
+turns and its two original names. The headset user reported a wrong count and
+target. The old open event recorded the adopted host but omitted the originating
+terminal, so the trace cannot distinguish which surface the user invoked.
+The preview also briefly closed and reopened during the slot.
+
+An operator replay on 55436 supplied the intended headset client and terminal
+IDs through the coordinator HTTP endpoint. It counted two content windows. Both
+saved names were independently read back as `the-nice-window` and `Login check`.
+This replay exercised the live model and both Mac mutation paths. It bypassed
+headset voice capture and scene selection.
+
+For the rerun we closed the three older test HTTP companions (55431–55433) and
+the old test headset app. The separate session services retained their PTYs.
+The fresh headset bundle `com.slopzooka.probe.askrouting` has independent
+preferences and restored scenes. Rig preparation now reads the ID from the signed
+test app. Ask shows its companion and destination, with a switch to the launcher's
+selected Mac when they differ. Diagnostics correlate the origin, selected host,
+captured destination, voice command ID, tool result, and verified window ID or
+layout count. Speech, labels and model tool arguments stay out of these events.

@@ -97,7 +97,7 @@ struct TerminalWindowView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 16) {
-                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId)
+                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId, sessionID: payload.id)
 
                     if let statusText = terminalStatusText {
                         Text(statusText)
@@ -136,7 +136,7 @@ struct TerminalWindowView: View {
                                 .frame(width: 60, height: 60)
                         }
                         .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
-                        .disabled(!canSubmitSpeech)
+                        .disabled(!canUseKeyboard)
                         .accessibilityLabel("Show terminal keyboard")
 
                         Button {
@@ -148,7 +148,7 @@ struct TerminalWindowView: View {
                                 .frame(minHeight: 60)
                         }
                         .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
-                        .disabled(!canSubmitSpeech)
+                        .disabled(!canUseKeyboard)
                         .accessibilityHint("Send Escape to the terminal")
 
                         Button(role: .destructive) {
@@ -172,7 +172,7 @@ struct TerminalWindowView: View {
             }
             .padding(14)
         }
-        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: canSubmitSpeech, canRename: canRename))
+        .modifier(TerminalVoiceOverlay(id: payload.id, isAvailable: windows.canReceiveVoice(payload.id), canRename: canRename))
         .overlay {
             if windows.hasUnreadNotification(payload.id) {
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -201,7 +201,7 @@ struct TerminalWindowView: View {
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
         } message: {
-            Text("This stops the terminal and its attached dev servers. Close the window to keep them running.")
+            Text("This stops the terminal and its attached dev servers and closes its session-owned previews. Close the window to keep them running.")
         }
         .onAppear {
             slzLog("terminal scene appeared \(payload.id)")
@@ -222,6 +222,10 @@ struct TerminalWindowView: View {
             TerminalMenuAction(title: "Reload Content", symbol: "arrow.clockwise") {
                 isActionsPresented = false
                 windows.reload(id: payload.id)
+            }
+            TerminalMenuAction(title: "Ask SlopZooka", symbol: "mic.badge.plus") {
+                isActionsPresented = false
+                windows.openCoordinator(from: payload.id)
             }
             TerminalMenuAction(title: "Open Launcher", symbol: "square.grid.2x2") {
                 isActionsPresented = false
@@ -326,9 +330,8 @@ struct TerminalWindowView: View {
         scenePhase == .active && sessionID.map(windows.canRename) == true
     }
 
-    private var canSubmitSpeech: Bool {
-        if case .loaded = loadState { return payload != nil && scenePhase == .active }
-        return false
+    private var canUseKeyboard: Bool {
+        scenePhase == .active && loadState == .loaded
     }
 
     private func newShell(payload: TerminalWindowPayload) async {

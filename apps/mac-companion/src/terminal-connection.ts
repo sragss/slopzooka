@@ -55,12 +55,16 @@ export class TerminalConnection {
     if (log)
       this.performance = new TerminalPerformance(terminal, () => this.log);
     this.inputSubscription = terminal.onData((data) => {
-      if (this.attached && this.writable && this.running)
-        this.send({
-          type: "input",
-          sessionId,
-          data,
-          probeId: this.performance?.submitted(this.supportsInputAck),
+      if (!this.attached || !this.writable || !this.running) return;
+      this.send({
+        type: "input",
+        sessionId,
+        data,
+        probeId: this.performance?.submitted(this.supportsInputAck),
+      });
+      if (data === "\x1b[I" || data === "\x1b[O")
+        this.log?.info("terminal.focus.reported", {
+          focused: data === "\x1b[I",
         });
     });
   }

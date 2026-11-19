@@ -6,7 +6,7 @@ struct ContentView: View {
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var state: LauncherState
     @EnvironmentObject private var client: CompanionClient
-    @AppStorage("launcherSection") private var section: LauncherSection = .projects
+    @AppStorage("launcherSection") private var section: LauncherSection = .repos
     private enum Sheet: String, Identifiable {
         case settings, newRepo
         var id: String { rawValue }
@@ -22,7 +22,7 @@ struct ContentView: View {
                 HStack(spacing: 4) {
                     ForEach(LauncherSection.allCases) { item in
                         Button { section = item } label: {
-                            Text(item.rawValue)
+                            Text(item.title)
                                 .font(.subheadline.weight(section == item ? .semibold : .regular))
                                 .foregroundStyle(section == item ? .primary : .secondary)
                                 .frame(maxWidth: .infinity)
@@ -74,8 +74,9 @@ struct ContentView: View {
 
     private enum LauncherSection: String, CaseIterable, Identifiable {
         case sessions = "Terminals"
-        case projects = "Projects"
+        case repos = "Projects" // Stored launcherSection value from earlier releases.
         case frontends = "Frontends"
+        var title: String { self == .repos ? "Repos" : rawValue }
         var id: String { rawValue }
     }
 
@@ -87,6 +88,10 @@ struct ContentView: View {
                 .foregroundStyle(client.isReady ? Color.green : Color.secondary)
                 .accessibilityLabel(client.isReady ? "Mac connected" : "Mac disconnected")
                 .help(client.isReady ? "Mac connected" : "Mac disconnected")
+            Button("Ask", systemImage: "mic") { windows.openCoordinator() }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Ask SlopZooka")
+                .help("Open the voice coordinator")
             Button { activeSheet = .settings } label: {
                 Image(systemName: "gearshape")
                     .frame(width: 44, height: 44)
@@ -115,14 +120,13 @@ struct ContentView: View {
                             .font(.footnote).foregroundStyle(.secondary)
                         quickOpenSessionsContent
                         if windows.terminalSessions.isEmpty {
-                            Button("Open a Project") { section = .projects }.buttonStyle(.borderedProminent)
+                            Button("Open a Repo") { section = .repos }.buttonStyle(.borderedProminent)
                         }
                     }
-                case .projects:
+                case .repos:
                     projectsContent
                 case .frontends:
                     FrontendListView(hostID: client.current?.id)
-                        .id(client.current?.id)
                 }
             }
         }
@@ -136,9 +140,8 @@ struct ContentView: View {
                 }.pickerStyle(.menu)
                 Spacer()
                 Menu {
-                    Button("New Repository…") { state.repoCreationError = nil; activeSheet = .newRepo }
-                        .disabled(state.availableOwners.isEmpty)
-                    Button(state.isPruningMissingWorkspaces ? "Hiding Missing…" : "Hide Missing Workspaces") {
+                    Button("New Repo…") { state.repoCreationError = nil; activeSheet = .newRepo }
+                    Button(state.isPruningMissingWorkspaces ? "Hiding Missing…" : "Hide Missing Worktrees") {
                         Task { await state.pruneMissingWorkspaces() }
                     }
                 } label: {
@@ -147,7 +150,7 @@ struct ContentView: View {
                 .disabled(state.isMutatingWorkspace)
             }
             HStack(spacing: 12) {
-                TextField("Search projects or branches", text: $state.searchText)
+                TextField("Search repos or branches", text: $state.searchText)
                     .textFieldStyle(.plain)
                     .focused($projectSearchFocused)
                     .textInputAutocapitalization(.never).autocorrectionDisabled()
@@ -175,12 +178,12 @@ struct ContentView: View {
                     .allowsHitTesting(false)
             }
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Start from a repository", count: state.filteredRepos.count)
+                sectionHeading("Start from a repo", count: state.filteredRepos.count)
                 quickRepoContent
             }
             Divider()
             VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Continue a workspace", count: matchingWorkspaces.count)
+                sectionHeading("Continue a worktree", count: matchingWorkspaces.count)
                 quickWorkspaceContent
             }
             Divider()
@@ -292,13 +295,13 @@ struct ContentView: View {
     private var quickWorkspaceContent: some View {
         switch state.workspaceState {
         case .idle, .loading:
-            compactLoadingView(title: "Loading workspaces...")
+            compactLoadingView(title: "Loading worktrees...")
         case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
             if matchingWorkspaces.isEmpty {
                 compactEmptyView(
-                    state.searchText.isEmpty ? "Your opened projects will appear here." : "No matching workspaces.")
+                    state.searchText.isEmpty ? "Your worktrees will appear here." : "No matching worktrees.")
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(matchingWorkspaces) { workspace in
@@ -322,7 +325,7 @@ struct ContentView: View {
 
                             Menu {
                                 Button(
-                                    workspace.existsOnDisk ? "Archive Workspace" : "Hide Missing Workspace",
+                                    workspace.existsOnDisk ? "Archive Worktree" : "Hide Missing Worktree",
                                     role: .destructive
                                 ) {
                                     Task {
@@ -353,14 +356,14 @@ struct ContentView: View {
     private var quickRepoContent: some View {
         switch state.repoState {
         case .idle, .loading:
-            compactLoadingView(title: "Loading repositories...")
+            compactLoadingView(title: "Loading repos...")
         case .failure(let message):
             compactFailureView(message: message)
         case .loaded:
             let quickRepos = state.filteredRepos
 
             if quickRepos.isEmpty {
-                compactEmptyView(state.searchText.isEmpty ? "No recent repositories yet." : "No matching repositories.")
+                compactEmptyView(state.searchText.isEmpty ? "No recent repos yet." : "No matching repos.")
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(quickRepos) { repo in
