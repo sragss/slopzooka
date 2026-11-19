@@ -4,6 +4,7 @@ import path from "node:path";
 import { stat } from "node:fs/promises";
 import { ServiceError } from "./errors.js";
 import type { Logger } from "./logger.js";
+import { PRODUCT_VERSION } from "./product.js";
 import { validCodexThreadId } from "./session-service-protocol.js";
 
 export type CodexThread = {
@@ -281,7 +282,7 @@ export class CodexThreads {
           clientInfo: {
             name: "slopzooka",
             title: "SlopZooka",
-            version: "0.2.0",
+            version: PRODUCT_VERSION,
           },
         },
       });

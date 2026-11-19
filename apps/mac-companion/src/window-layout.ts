@@ -26,7 +26,7 @@ const validClient = (value: unknown): value is string =>
   typeof value === "string" &&
   /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(value);
 
-function windows(value: unknown): WindowRecord[] {
+function parseWindowRecords(value: unknown): WindowRecord[] {
   const text = (v: unknown): v is string =>
     typeof v === "string" &&
     v.length > 0 &&
@@ -113,7 +113,7 @@ export class WindowLayoutStore {
         throw new Error(
           "Invalid window layout store; restore it before writing",
         );
-      windows(layout.windows);
+      parseWindowRecords(layout.windows);
     }
     return data;
   }
@@ -133,7 +133,7 @@ export class WindowLayoutStore {
           "Valid client and layout revision required",
           400,
         );
-      const requested = windows(records);
+      const requested = parseWindowRecords(records);
       const store = await this.read();
       const current = store.clients[client] ?? empty();
       if (current.revision !== revision)
@@ -248,7 +248,7 @@ export function installWindowLayoutRoutes(
     probes.set(id, { id: crypto.randomUUID(), reply, result });
     return result;
   }
-  function client(req: Request): string {
+  function clientIdFromRequest(req: Request): string {
     const id = req.header("X-SlopZooka-Client-ID");
     if (!validClient(id))
       throw new ServiceError(
@@ -259,7 +259,7 @@ export function installWindowLayoutRoutes(
   }
   app.get("/api/window-layout/availability", async (req, res) => {
     try {
-      const available = await checkPresentation(client(req));
+      const available = await checkPresentation(clientIdFromRequest(req));
       res.json({ available });
     } catch (error) {
       res
@@ -269,7 +269,7 @@ export function installWindowLayoutRoutes(
   });
   app.post("/api/window-layout/availability", (req, res) => {
     try {
-      const probe = probes.get(client(req));
+      const probe = probes.get(clientIdFromRequest(req));
       if (
         typeof req.body?.available !== "boolean" ||
         typeof req.body?.probe !== "string"
@@ -286,7 +286,7 @@ export function installWindowLayoutRoutes(
   });
   app.get("/api/window-layout", async (req, res) => {
     try {
-      const id = client(req);
+      const id = clientIdFromRequest(req);
       const layout = await store.get(id);
       const presentationProbe = probes.get(id)?.id;
       res.json({
@@ -304,7 +304,11 @@ export function installWindowLayoutRoutes(
       if (req.body?.version !== 1)
         throw new ServiceError("Unsupported window layout version", 400);
       res.json(
-        await store.put(client(req), req.body?.revision, req.body?.windows),
+        await store.put(
+          clientIdFromRequest(req),
+          req.body?.revision,
+          req.body?.windows,
+        ),
       );
     } catch (error) {
       res

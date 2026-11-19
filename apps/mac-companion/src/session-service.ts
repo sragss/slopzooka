@@ -1,4 +1,7 @@
-import { logError } from "../../../packages/protocol/src/diagnostics.js";
+import {
+  logError,
+  validLogId,
+} from "../../../packages/protocol/src/diagnostics.js";
 import { CodexWorkers, WORKER_CAPABILITY } from "./codex-workers.js";
 import { installWorkerRoutes } from "./worker-http.js";
 import fs from "node:fs/promises";
@@ -12,7 +15,6 @@ import { WebSocketServer } from "ws";
 import { SessionManager, send } from "./sessions.js";
 import { ServiceError } from "./errors.js";
 import { createDiagnostics, logContext } from "./logger.js";
-import { validLogId } from "../../../packages/protocol/src/diagnostics.js";
 import {
   isClientMessage,
   validId,

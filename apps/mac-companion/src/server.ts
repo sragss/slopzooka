@@ -44,6 +44,7 @@ import {
   installWindowLayoutRoutes,
   WindowLayoutStore,
 } from "./window-layout.js";
+import { PRODUCT_VERSION } from "./product.js";
 
 await loadDesktopPath();
 
@@ -220,7 +221,7 @@ app.get("/health", (_req, res) => {
     },
     protocolVersion: PROTOCOL_VERSION,
     name: "slopzooka-mac-companion",
-    version: "0.2.0",
+    version: PRODUCT_VERSION,
     hostname: os.hostname(),
     localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
@@ -882,11 +883,7 @@ function normalizeRepoName(value: unknown): string | null {
 }
 
 function normalizeProfile(value: unknown): TuiProfile | null {
-  if (value === "codex" || value === "claude" || value === "opencode") {
-    return value;
-  }
-
-  return null;
+  return validProfile(value) ? value : null;
 }
 
 function localHostName(): string {

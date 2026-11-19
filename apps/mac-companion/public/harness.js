@@ -1,4 +1,5 @@
 // ../../packages/protocol/src/diagnostics.ts
+var DIAGNOSTICS_VERSION = 1;
 var MAX_LOG_EVENT_BYTES = 8 * 1024;
 var MAX_LOG_BATCH = 32;
 var correlationKeys = [
@@ -76,7 +77,7 @@ function safeLogFields(fields) {
 }
 function boundedLogEvent(event) {
   const result = {
-    version: 1,
+    version: DIAGNOSTICS_VERSION,
     source: event.source,
     instanceId: event.instanceId,
     sequence: event.sequence,
@@ -128,7 +129,7 @@ function eventLogger(source, sink, options = {}) {
       if (level === "debug" && !options.debug) return;
       try {
         sink({
-          version: 1,
+          version: DIAGNOSTICS_VERSION,
           source,
           instanceId,
           sequence: ++sequence,
@@ -180,7 +181,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "62f492f912dc20f9976333e14533f38f95e11f5556b584dde4a8aef598ee63a9" : "unknown"
+    buildId: true ? "98bc83ccaa2799de3ff3785fcce4c150af171f9e579f3ef2e7ac33ea5ff34dd8" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -198,7 +199,11 @@ async function flushBrowserLogs() {
     const response = await fetch("/api/diagnostics/events", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ version: 1, clock, events: batch }),
+      body: JSON.stringify({
+        version: DIAGNOSTICS_VERSION,
+        clock,
+        events: batch
+      }),
       signal: AbortSignal.timeout(4e3)
     });
     if (response.ok) {

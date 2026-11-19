@@ -8,8 +8,10 @@ import { promisify } from "node:util";
 
 import type { Logger } from "./logger.js";
 import type { RecentRepo } from "./github.js";
-import type { TuiProfile } from "../../../packages/protocol/src/index.js";
-import type { SessionSummary } from "../../../packages/protocol/src/index.js";
+import type {
+  SessionSummary,
+  TuiProfile,
+} from "../../../packages/protocol/src/index.js";
 import { normalizedName } from "./names.js";
 
 const execFileAsync = promisify(execFile);

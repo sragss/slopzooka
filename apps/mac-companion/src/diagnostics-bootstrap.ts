@@ -3,7 +3,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID, createHash } from "node:crypto";
-import { boundedLogEvent } from "../../../packages/protocol/src/diagnostics.js";
+import {
+  DIAGNOSTICS_VERSION,
+  boundedLogEvent,
+} from "../../../packages/protocol/src/diagnostics.js";
 
 process.on("uncaughtExceptionMonitor", (error) => {
   const directory = process.env.SLOPZOOKA_DIAGNOSTICS_DIR;
@@ -26,7 +29,7 @@ process.on("uncaughtExceptionMonitor", (error) => {
       /* Preserve the fatal record when the entry file cannot be read. */
     }
     const event = boundedLogEvent({
-      version: 1,
+      version: DIAGNOSTICS_VERSION,
       source,
       instanceId: randomUUID(),
       sequence: 1,

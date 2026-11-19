@@ -5,6 +5,7 @@ import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { startBonjourAdvertiser } from "../src/bonjour.js";
 import type { Logger } from "../src/logger.js";
+import { PRODUCT_VERSION } from "../src/product.js";
 
 const delay = () => new Promise((resolve) => setTimeout(resolve, 30));
 async function until<T>(read: () => T | Promise<T>): Promise<NonNullable<T>> {
@@ -96,7 +97,10 @@ test(
     }).trim();
     await until(() => output.includes(`hostId=${context.hostId}`));
     assert.ok(output.includes(`at ${hostname}.local.:7777`), output);
-    assert.ok(output.includes("name=SlopZooka version=0.2.0"), output);
+    assert.ok(
+      output.includes(`name=SlopZooka version=${PRODUCT_VERSION}`),
+      output,
+    );
     await Promise.all([service.stop(), service.stop()]);
     await until(() => owned.every((row) => !alive(row.pid)));
     assert.equal(
