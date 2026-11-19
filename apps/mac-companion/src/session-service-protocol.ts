@@ -21,9 +21,22 @@ export type SessionLaunch = {
   profile: TuiProfile | null;
   id: string;
   environment: Record<string, string>;
+  previewMcp?: { command: string; args: string[] };
   codexResume?: { threadId: string; title: string };
 };
 
+export function codexPreviewOverrides(
+  mcp: NonNullable<SessionLaunch["previewMcp"]>,
+): string[] {
+  return [
+    "-c",
+    `mcp_servers.slopzooka-previews.command=${JSON.stringify(mcp.command)}`,
+    "-c",
+    `mcp_servers.slopzooka-previews.args=${JSON.stringify(mcp.args)}`,
+  ];
+}
+
+export const PREVIEW_ROUTE_CAPABILITY = "codex-preview-route-v1";
 export const CODEX_RESUME_CAPABILITY = "codex-resume-v1";
 export const validCodexThreadId = (value: unknown): value is string =>
   typeof value === "string" &&

@@ -10,7 +10,7 @@ const record = (value) =>
   );
 const args = process.argv.slice(2);
 record({ args, cwd: process.cwd(), pid: process.pid });
-if (args[0] === "resume") {
+if (args.includes("resume")) {
   console.log("RESUMED_FIXTURE");
   process.stdin.on("data", () => process.exit(0));
 } else if (args[0] === "app-server") {

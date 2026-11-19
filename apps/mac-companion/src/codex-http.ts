@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { realpath } from "node:fs/promises";
+import type { headsetCodexLaunch } from "./preview-launch.js";
 import type { Express } from "express";
 import { validId } from "../../../packages/protocol/src/index.js";
 import { CodexThreads } from "./codex-threads.js";
@@ -12,6 +13,7 @@ export function installCodexThreadRoutes(
   codex: CodexThreads,
   sessions: SessionServiceClient,
   workspaces: WorkspaceService,
+  bindPreview: ReturnType<typeof headsetCodexLaunch>,
 ): void {
   app.get("/api/codex/threads", async (_req, res, next) => {
     try {
@@ -36,6 +38,7 @@ export function installCodexThreadRoutes(
         workspaceId,
         cwd,
         profile: "codex",
+        previewMcp: await bindPreview(req, req.body.sessionId),
         codexResume: { threadId: thread.id, title: thread.title },
         environment: Object.fromEntries(
           Object.entries(process.env).filter(

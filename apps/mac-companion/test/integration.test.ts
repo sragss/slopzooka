@@ -9,6 +9,7 @@ import https from "node:https";
 import { once } from "node:events";
 import { WebSocket, WebSocketServer } from "ws";
 import { SessionServiceClient } from "../src/session-service-client.js";
+import { readPreviewConfig } from "../src/preview-control.js";
 import { FrontendService } from "../src/frontends.js";
 import { tlsFetch } from "./https.js";
 import { isClientMessage } from "../../../packages/protocol/src/index.js";
@@ -230,6 +231,43 @@ test(
       assert.equal(badOrigin.status, 403);
       token = (await api("/api/pair", { code })).body.token;
       assert.ok(token);
+      const clientId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+      const fresh = await fetch(base + "/api/workspaces/workspace-1/sessions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          "X-SlopZooka-Client-ID": clientId,
+        },
+        body: JSON.stringify({ profile: "codex", sessionId: "fresh-codex" }),
+      });
+      assert.equal(fresh.status, 201);
+      const launch = await until(async () => {
+        const lines = await fs
+          .readFile(path.join(codexHome, "calls.jsonl"), "utf8")
+          .catch(() => "");
+        return lines
+          .trim()
+          .split("\n")
+          .filter(Boolean)
+          .map((line) => JSON.parse(line))
+          .find((call) => call.args?.[0] === "-c");
+      });
+      const mcpArgs: string[] = JSON.parse(launch.args[3].split("args=")[1]);
+      assert.equal(mcpArgs.at(-1), "fresh-codex");
+      const route = await readPreviewConfig(mcpArgs.at(-2)!);
+      assert.equal(route.clientId, clientId);
+      assert.equal(route.origin, base);
+      assert.ok(route.token === token);
+      assert.ok(!JSON.stringify(launch.args).includes(token));
+      await api("/api/sessions/fresh-codex", undefined, "DELETE");
+      await until(
+        async () =>
+          (await api("/api/sessions")).body.sessions.find(
+            (s: any) => s.id === "fresh-codex",
+          )?.status === "exited",
+      );
+      await api("/api/sessions/fresh-codex", undefined, "DELETE");
       const codexCatalog = await api("/api/codex/threads");
       assert.equal(codexCatalog.status, 200);
       assert.equal(codexCatalog.body.threads.length, 25);

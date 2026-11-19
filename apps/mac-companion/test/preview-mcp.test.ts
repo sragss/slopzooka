@@ -37,6 +37,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
   });
   let state = "ready";
   let headset: "active" | "background" | "offline" = "active";
+  const respondingClients = new Set([clientId]);
   let polling = false;
   let poll: NodeJS.Timeout | undefined;
   let beforePut: (() => Promise<void>) | undefined;
@@ -74,30 +75,33 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       body: JSON.stringify({ code: pairing.code }),
     }).then((r) => r.json())) as { token: string };
     const config = { origin, hostId: pairing.hostId, clientId, token };
+    const prefix = pairing.hostId + "/" + clientId + "/";
     // Emulate only the headset's existing layout polling and readiness reply;
     // all companion auth, probe matching and persistence are real.
     poll = setInterval(() => {
       if (polling || headset === "offline") return;
       polling = true;
-      const headers = {
-        Authorization: `Bearer ${token}`,
-        "X-SlopZooka-Client-ID": clientId,
-        "Content-Type": "application/json",
-      };
-      void (async () => {
-        const layout = (await fetch(origin + "/api/window-layout", {
-          headers,
-        }).then((r) => r.json())) as { presentationProbe?: string };
-        if (layout.presentationProbe && headset !== "offline")
-          await fetch(origin + "/api/window-layout/availability", {
-            method: "POST",
+      void Promise.all(
+        [...respondingClients].map(async (id) => {
+          const headers = {
+            Authorization: `Bearer ${token}`,
+            "X-SlopZooka-Client-ID": id,
+            "Content-Type": "application/json",
+          };
+          const layout = (await fetch(origin + "/api/window-layout", {
             headers,
-            body: JSON.stringify({
-              probe: layout.presentationProbe,
-              available: headset === "active",
-            }),
-          });
-      })()
+          }).then((r) => r.json())) as { presentationProbe?: string };
+          if (layout.presentationProbe && headset !== "offline")
+            await fetch(origin + "/api/window-layout/availability", {
+              method: "POST",
+              headers,
+              body: JSON.stringify({
+                probe: layout.presentationProbe,
+                available: headset === "active",
+              }),
+            });
+        }),
+      )
         .catch(() => {})
         .finally(() => {
           polling = false;
@@ -109,7 +113,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       JSON.stringify({ ...config, ownerSessionId: "worker-a" }),
       { mode: 0o600 },
     );
-    const start = async () => {
+    const start = async (configFile = file) => {
       const client = new Client({ name: "preview-test", version: "1.0.0" });
       clients.push(client);
       await client.connect(
@@ -126,7 +130,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
                   process.env.SLOPZOOKA_MCP_TEST_APP,
                   "Contents/Resources/host/src/preview-mcp.mjs",
                 ),
-                file,
+                configFile,
               ]
             : [
                 "--import",
@@ -134,7 +138,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
                 fileURLToPath(
                   new URL("../src/preview-mcp.ts", import.meta.url),
                 ),
-                file,
+                configFile,
               ],
           cwd: fileURLToPath(new URL("..", import.meta.url)),
           stderr: "pipe",
@@ -182,7 +186,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     assert.match(offline.message, /not available right now/);
     const unavailableOpen = await first.callTool({
       name: "preview_open",
-      arguments: { source_id: "window:a" },
+      arguments: { source_id: prefix + "window:a" },
     });
     assert.equal(unavailableOpen.isError, true);
     assert.match(
@@ -195,6 +199,49 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     headset = "active";
     const catalog = await call(first, "preview_list");
     assert.equal(catalog.sources.length, 2);
+    assert.equal(catalog.sources[0].id, prefix + "window:a");
+    const otherFile = path.join(home, "other.json");
+    await fs.writeFile(
+      otherFile,
+      JSON.stringify({ ...config, clientId: otherClient }),
+      { mode: 0o600 },
+    );
+    const other = await start(otherFile);
+    respondingClients.add(otherClient);
+    respondingClients.delete(clientId);
+    assert.equal((await call(first, "preview_list")).state, "not_available");
+    const otherCatalog = await call(other, "preview_list");
+    assert.equal(otherCatalog.state, "ready");
+    respondingClients.add(clientId);
+    const [mine, theirs] = await Promise.all([
+      call(first, "preview_open", {
+        source_id: catalog.sources[0].id,
+        name: "Mine",
+      }),
+      call(other, "preview_open", {
+        source_id: otherCatalog.sources[0].id,
+        name: "Theirs",
+      }),
+    ]);
+    const original = await store.get(otherClient);
+    assert.equal(
+      original.windows.find((w) => w.kind === "preview")?.name,
+      "Theirs",
+    );
+    assert.notEqual(mine.preview_id, theirs.preview_id);
+    for (const [name, args] of [
+      ["preview_open", { source_id: catalog.sources[0].id }],
+      ["preview_rename", { preview_id: mine.preview_id, name: "Wrong client" }],
+      ["preview_close", { preview_id: mine.preview_id }],
+    ] as const) {
+      const result = await other.callTool({ name, arguments: args });
+      assert.equal(result.isError, true);
+      assert.match(JSON.stringify(result), /Refresh preview_list/);
+    }
+    await call(first, "preview_close", { preview_id: mine.preview_id });
+    assert.deepEqual(await store.get(otherClient), original);
+    await call(other, "preview_close", { preview_id: theirs.preview_id });
+    respondingClients.delete(otherClient);
     // An intervening user close and another agent open must survive the retry.
     beforePut = async () => {
       await new PreviewControl(config).open("window:b", "Second agent");
@@ -206,12 +253,12 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       );
     };
     const opened = await call(first, "preview_open", {
-      source_id: "window:a",
+      source_id: catalog.sources[0].id,
       name: "Login",
     });
     assert.deepEqual(
       (await store.get(clientId)).windows.find(
-        (w) => w.id === opened.preview_id,
+        (w) => prefix + w.id === opened.preview_id,
       )?.ownerSessionIds,
       ["worker-a"],
     );
@@ -223,7 +270,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     );
     assert.deepEqual((await store.get(otherClient)).windows, [terminal]);
     const duplicate = await call(second, "preview_open", {
-      source_id: "window:a",
+      source_id: prefix + "window:a",
     });
     assert.equal(duplicate.preview_id, opened.preview_id);
     await Promise.all([
@@ -232,7 +279,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
         name: "Admin login",
       }),
       call(second, "preview_close", {
-        preview_id: `${pairing.hostId}:window:b`,
+        preview_id: prefix + `${pairing.hostId}:window:b`,
       }),
     ]);
     assert.deepEqual(
@@ -241,7 +288,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     );
     await assert.rejects(
       new PreviewControl({ ...config, clientId: otherClient }).rename(
-        opened.preview_id,
+        opened.preview_id.slice(prefix.length),
         "Wrong target",
       ),
       /not open/,
@@ -281,7 +328,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
         (
           await first.callTool({
             name: "preview_open",
-            arguments: { source_id: "window:a" },
+            arguments: { source_id: prefix + "window:a" },
           })
         ).isError,
         true,
@@ -292,7 +339,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       (
         await first.callTool({
           name: "preview_open",
-          arguments: { source_id: "window:stale" },
+          arguments: { source_id: prefix + "window:stale" },
         })
       ).isError,
       true,
@@ -330,7 +377,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     );
     await assert.rejects(
       new PreviewControl({ ...config, clientId: otherClient }).rename(
-        opened.preview_id,
+        opened.preview_id.slice(prefix.length),
         "Wrong target",
       ),
       /not open/,
@@ -342,7 +389,7 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
       /only closes native/,
     );
     const retryPreview = await call(first, "preview_open", {
-      source_id: "window:a",
+      source_id: prefix + "window:a",
       name: "Keep original",
     });
     beforePut = async () => {
@@ -363,7 +410,9 @@ test("MCP stdio controls real authenticated layouts, rebases conflicts and isola
     assert.equal(lostReadiness.isError, true);
     const afterConflict = await store.get(clientId);
     assert.equal(
-      afterConflict.windows.find((w) => w.id === retryPreview.preview_id)?.name,
+      afterConflict.windows.find(
+        (w) => prefix + w.id === retryPreview.preview_id,
+      )?.name,
       "Keep original",
     );
     assert.ok(

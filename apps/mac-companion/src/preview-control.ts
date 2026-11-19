@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+import path from "node:path";
 import fs from "node:fs/promises";
 import * as z from "zod/v4";
 import { ServiceError } from "./errors.js";
@@ -54,6 +56,24 @@ const catalogSchema = z.object({
     })
     .optional(),
 });
+
+/** Publish complete credentials even if two launches from the same client overlap. */
+export async function writePreviewConfig(
+  file: string,
+  config: PreviewControlConfig,
+): Promise<void> {
+  await fs.mkdir(path.dirname(file), { recursive: true, mode: 0o700 });
+  const temporary = file + "." + randomUUID();
+  try {
+    await fs.writeFile(temporary, JSON.stringify(config), {
+      mode: 0o600,
+      flag: "wx",
+    });
+    await fs.rename(temporary, file);
+  } finally {
+    await fs.rm(temporary, { force: true });
+  }
+}
 
 export async function readPreviewConfig(
   file: string,

@@ -14,7 +14,31 @@ try {
   const config = await readPreviewConfig(file);
   const control = new PreviewControl({
     ...config,
-    ownerSessionId: config.ownerSessionId ?? process.env.SLOPZOOKA_SESSION_ID,
+    ownerSessionId:
+      config.ownerSessionId ??
+      process.argv[3] ??
+      process.env.SLOPZOOKA_SESSION_ID,
+  });
+  // Scene IDs are local to a client's layout. Keep a stale handle from a
+  // resumed conversation from naming the same source on another headset.
+  const scope =
+    config.hostId.toLowerCase() + "/" + config.clientId.toLowerCase() + "/";
+  const handleSchema = z
+    .string()
+    .min(1)
+    .max(scope.length + 512);
+  const handle = (id: string) => scope + id;
+  const localID = (value: string) => {
+    if (!value.startsWith(scope) || value.length === scope.length)
+      throw new ServiceError(
+        "This handle does not belong to the selected headset. Refresh preview_list.",
+        409,
+      );
+    return value.slice(scope.length);
+  };
+  const receipt = (result: Awaited<ReturnType<PreviewControl["open"]>>) => ({
+    ...result,
+    preview_id: handle(result.preview_id),
   });
   const run = async (operation: () => Promise<unknown>) => {
     try {
@@ -56,7 +80,22 @@ try {
         inputSchema: z.object({}),
         annotations: { readOnlyHint: true },
       },
-      () => run(() => control.list()),
+      () =>
+        run(async () => {
+          const result = await control.list();
+          return {
+            ...result,
+            sources: result.sources.map((source) => ({
+              ...source,
+              id: handle(source.id),
+            })),
+            previews: result.previews.map((preview) => ({
+              ...preview,
+              id: handle(preview.id),
+              targetID: handle(preview.targetID),
+            })),
+          };
+        }),
     );
     server.registerTool(
       "preview_open",
@@ -64,11 +103,12 @@ try {
         description:
           "Only after an explicit user request for a headset preview: request a native preview on the configured headset, reusing an existing preview of that source. Does not launch apps or prove the user can see it. List sources first. If unavailable, say 'not available right now'; do not poll or queue an automatic retry.",
         inputSchema: z.object({
-          source_id: z.string().min(1).max(512),
+          source_id: handleSchema,
           name: previewName.optional(),
         }),
       },
-      ({ source_id, name }) => run(() => control.open(source_id, name)),
+      ({ source_id, name }) =>
+        run(async () => receipt(await control.open(localID(source_id), name))),
     );
     server.registerTool(
       "preview_rename",
@@ -76,20 +116,24 @@ try {
         description:
           "Only as part of a user-requested headset preview workflow: name an open native preview without restarting its stream or changing its scene identity.",
         inputSchema: z.object({
-          preview_id: z.string().min(1).max(512),
+          preview_id: handleSchema,
           name: previewName,
         }),
       },
-      ({ preview_id, name }) => run(() => control.rename(preview_id, name)),
+      ({ preview_id, name }) =>
+        run(async () =>
+          receipt(await control.rename(localID(preview_id), name)),
+        ),
     );
     server.registerTool(
       "preview_close",
       {
         description:
           "Only as part of a user-requested headset preview workflow: request closure of a native preview. Leaves the Mac source app and terminal processes running. Acknowledgement is desired state, not observed headset visibility.",
-        inputSchema: z.object({ preview_id: z.string().min(1).max(512) }),
+        inputSchema: z.object({ preview_id: handleSchema }),
       },
-      ({ preview_id }) => run(() => control.close(preview_id)),
+      ({ preview_id }) =>
+        run(async () => receipt(await control.close(localID(preview_id)))),
     );
     return server;
   });

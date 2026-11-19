@@ -7,7 +7,10 @@ import { CodexRPC, type NativeMessage } from "./codex-rpc.js";
 import { ServiceError } from "./errors.js";
 import type { Logger } from "./logger.js";
 import type { SessionManager } from "./sessions.js";
-import type { SessionLaunch } from "./session-service-protocol.js";
+import {
+  codexPreviewOverrides,
+  type SessionLaunch,
+} from "./session-service-protocol.js";
 import { stopProcessTree } from "./process-tree.js";
 
 const MAX_COORDINATED_WORKERS = 20;
@@ -153,10 +156,10 @@ export class CodexWorkers {
       : [];
     const args = [
       ...nativeArgs,
-      "-c",
-      `mcp_servers.slopzooka-previews.command=${JSON.stringify(launch.previewCommand)}`,
-      "-c",
-      `mcp_servers.slopzooka-previews.args=${JSON.stringify([...launch.previewArgs, launch.previewConfig])}`,
+      ...codexPreviewOverrides({
+        command: launch.previewCommand,
+        args: [...launch.previewArgs, launch.previewConfig],
+      }),
       "app-server",
       "--listen",
       `unix://${w.socket}`,

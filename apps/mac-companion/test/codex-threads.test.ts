@@ -7,6 +7,8 @@ import http from "node:http";
 import { once } from "node:events";
 import express from "express";
 import { CodexThreads } from "../src/codex-threads.js";
+import { headsetCodexLaunch } from "../src/preview-launch.js";
+import { readPreviewConfig } from "../src/preview-control.js";
 import { installCodexThreadRoutes } from "../src/codex-http.js";
 import { SessionServiceClient } from "../src/session-service-client.js";
 import { createDiagnostics } from "../src/logger.js";
@@ -174,7 +176,19 @@ test("a retained service without resume support cannot silently launch a fresh c
         error.statusCode === 503 &&
         error.message.includes("updated session service"),
     );
-    assert.deepEqual(paths, ["/info"]);
+    await assert.rejects(
+      client.create({
+        id: "fresh",
+        workspaceId: "folder",
+        cwd: f.home,
+        profile: "codex",
+        environment: {},
+        previewMcp: { command: process.execPath, args: ["preview.mjs"] },
+      }),
+      (error: ServiceError) =>
+        error.statusCode === 503 && error.message.includes("preview routing"),
+    );
+    assert.deepEqual(paths, ["/info", "/info"]);
   } finally {
     await new Promise<void>((resolve) => server.close(() => resolve()));
     await fs.rm(path.dirname(client.socketPath), {
@@ -206,11 +220,24 @@ test(
     );
     const app = express();
     app.use(express.json());
+    const hostId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+    const clients = [
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    ];
     installCodexThreadRoutes(
       app,
       codex,
       sessions,
       new WorkspaceService(f.diagnostics.logger("workspaces")),
+      headsetCodexLaunch({
+        home: f.home,
+        hostId,
+        origin: "http://127.0.0.1:7778",
+        previewCommand: process.execPath,
+        previewArgs: ["preview.mjs"],
+        logger: f.diagnostics.logger("preview-routing"),
+      }),
     );
     app.use(
       (
@@ -231,7 +258,11 @@ test(
     const resume = (id: string, sessionId: string) =>
       fetch(`${base}/api/codex/threads/${id}/resume`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "X-SlopZooka-Client-ID": clients[sessionId === "second" ? 1 : 0]!,
+          Authorization: "Bearer fixture",
+        },
         body: JSON.stringify({ sessionId, cwd: "/wrong", command: "false" }),
       });
     try {
@@ -274,11 +305,21 @@ test(
       };
       await until(async () => {
         calls = await f.calls();
-        return calls.some((call) => call.args?.[0] === "resume");
+        return calls.some((call) => call.args?.includes("resume"));
       });
-      const launches = calls.filter((call) => call.args?.[0] === "resume");
+      const launches = calls.filter((call) => call.args?.includes("resume"));
       assert.equal(launches.length, 1);
-      assert.deepEqual(launches[0].args, ["resume", id]);
+      const args = launches[0].args as string[];
+      assert.deepEqual(args.slice(-2), ["resume", id]);
+      const [mcp, file, owner] = JSON.parse(
+        args[3]!.split("args=")[1]!,
+      ) as string[];
+      assert.equal(mcp, "preview.mjs");
+      assert.equal(owner, first.session.id);
+      const route = await readPreviewConfig(file!);
+      assert.equal(route.hostId, hostId);
+      assert.equal(route.clientId, clients[owner === "second" ? 1 : 0]);
+      assert.ok(!args.join(" ").includes("Bearer fixture"));
       assert.equal(launches[0].cwd, first.session.cwd);
       await sessions.paste(first.session.id, "exit", "x", true);
       await until(
