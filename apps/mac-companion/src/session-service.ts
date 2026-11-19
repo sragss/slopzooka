@@ -23,6 +23,7 @@ import {
 import {
   SESSION_SERVICE_VERSION,
   CODEX_RESUME_CAPABILITY,
+  PREVIEW_ROUTE_CAPABILITY,
   validCodexThreadId,
   type ServiceInfo,
 } from "./session-service-protocol.js";
@@ -116,6 +117,7 @@ async function main() {
         "rename-session",
         "diagnostics-v1",
         CODEX_RESUME_CAPABILITY,
+        PREVIEW_ROUTE_CAPABILITY,
         WORKER_CAPABILITY,
       ],
       logFilePath: diagnostics.store.file,
@@ -126,8 +128,15 @@ async function main() {
   );
   installWorkerRoutes(app, workers);
   app.post("/sessions", (req, res) => {
-    const { workspaceId, cwd, profile, id, environment, codexResume } =
-      req.body ?? {};
+    const {
+      workspaceId,
+      cwd,
+      profile,
+      id,
+      environment,
+      codexResume,
+      previewMcp,
+    } = req.body ?? {};
     if (
       !validId(workspaceId) ||
       !validId(id) ||
@@ -138,6 +147,13 @@ async function main() {
       typeof environment !== "object" ||
       Array.isArray(environment) ||
       Object.values(environment).some((value) => typeof value !== "string") ||
+      (previewMcp !== undefined &&
+        (profile !== "codex" ||
+          typeof previewMcp?.command !== "string" ||
+          !path.isAbsolute(previewMcp.command) ||
+          !Array.isArray(previewMcp.args) ||
+          previewMcp.args.length > 10 ||
+          previewMcp.args.some((arg: unknown) => typeof arg !== "string"))) ||
       (codexResume !== undefined &&
         (profile !== "codex" ||
           !validCodexThreadId(codexResume?.threadId) ||
@@ -148,7 +164,15 @@ async function main() {
     )
       throw new ServiceError("Invalid session launch", 400);
     res.json(
-      manager.create(workspaceId, cwd, profile, id, environment, codexResume),
+      manager.create(
+        workspaceId,
+        cwd,
+        profile,
+        id,
+        environment,
+        codexResume,
+        previewMcp,
+      ),
     );
   });
   app.delete("/sessions/:id", async (req, res) => {

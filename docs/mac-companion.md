@@ -316,7 +316,9 @@ checkout, run `pnpm --filter @slz/mac-companion exec tsx src/preview-mcp.ts
 /absolute/path/to/private-preview-config.json` from the repo root. Standard
 output is exclusively MCP protocol traffic.
 
-For ordinary terminal Codex sessions, add `env_vars = ["SLOPZOOKA_SESSION_ID"]` to the existing `[mcp_servers.slopzooka-previews]` table so the MCP receives the launching terminal’s identity. New SlopZooka PTYs supply this variable. Ask-managed workers receive the identity in their private preview config directly. Preview windows with a session owner close on **End Session**; a shared preview stays open for its other sessions.
+A Codex terminal started from the headset uses the companion and headset app that launched it. This includes a saved thread opened from the launcher or Ask. Opening a second viewer for a running thread keeps its original destination. Production and test builds can run side by side. Terminal launches carry the pairing automatically and require a session service with preview routing support. An older service reports the update it needs. Schedule its restart when you can end its terminals.
+
+Laptop Codex uses its installed configuration. For shells that start Codex manually, add `env_vars = ["SLOPZOOKA_SESSION_ID"]` to the existing `[mcp_servers.slopzooka-previews]` table to associate previews with the shell session. **End Session** closes its owned previews and preserves previews shared with another session. When resuming a conversation, refresh `preview_list` before reusing handles from an earlier pairing or an older MCP version.
 
 Call `preview_list` to obtain current opaque source IDs and capture availability.
 Then use `preview_open(source_id, name?)`, `preview_rename(preview_id, name)` and

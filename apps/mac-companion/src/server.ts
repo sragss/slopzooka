@@ -1,3 +1,4 @@
+import { headsetCodexLaunch } from "./preview-launch.js";
 import { Coordinator } from "./coordinator.js";
 import { installCoordinatorRoutes } from "./coordinator-http.js";
 import { CompanionTransport, connectionMethod } from "./companion-transport.js";
@@ -91,12 +92,7 @@ const windowPreviews = new WindowPreviews(
   diagnostics.logger("window-previews"),
 );
 const codexThreads = new CodexThreads(diagnostics.logger("codex-threads"));
-const coordinator = new Coordinator({
-  threads: codexThreads,
-  home: workspacePaths().slopzookaHome,
-  configFile: process.env.SLOPZOOKA_COORDINATOR_CONFIG,
-  service: sessionService,
-  logger: diagnostics.logger("coordinator"),
+const previewRuntime = {
   previewCommand: process.execPath,
   previewArgs: import.meta.url.endsWith(".ts")
     ? [
@@ -104,6 +100,21 @@ const coordinator = new Coordinator({
         path.join(import.meta.dirname, "preview-mcp.ts"),
       ]
     : [path.join(import.meta.dirname, "preview-mcp.mjs")],
+};
+const bindPreview = headsetCodexLaunch({
+  ...previewRuntime,
+  home: workspacePaths().slopzookaHome,
+  origin: `http://127.0.0.1:${PORT}`,
+  hostId: pairing.hostId,
+  logger: diagnostics.logger("preview-routing"),
+});
+const coordinator = new Coordinator({
+  threads: codexThreads,
+  home: workspacePaths().slopzookaHome,
+  configFile: process.env.SLOPZOOKA_COORDINATOR_CONFIG,
+  service: sessionService,
+  logger: diagnostics.logger("coordinator"),
+  ...previewRuntime,
 });
 
 // Pairing codes are intentionally printed only to the local console, never the log file.
@@ -176,7 +187,13 @@ installCoordinatorRoutes(
   pairing.hostId,
   `http://127.0.0.1:${PORT}`,
 );
-installCodexThreadRoutes(app, codexThreads, sessionService, workspaceService);
+installCodexThreadRoutes(
+  app,
+  codexThreads,
+  sessionService,
+  workspaceService,
+  bindPreview,
+);
 installBugReportRoutes(app, diagnostics.store.directory, gitHubClient);
 installDiagnosticsRoutes(app, diagnostics, pairing.hostId, () =>
   sessionService.flushLogs(),
@@ -289,6 +306,10 @@ app.post("/api/workspaces/:workspaceId/sessions", async (req, res) => {
       cwd: workspace.worktreePath,
       profile: req.body.profile ?? null,
       id: req.body.sessionId,
+      previewMcp:
+        req.body.profile === "codex"
+          ? await bindPreview(req, req.body.sessionId)
+          : undefined,
       environment: Object.fromEntries(
         Object.entries(process.env).filter(
           (entry): entry is [string, string] => entry[1] !== undefined,

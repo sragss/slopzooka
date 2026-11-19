@@ -13,6 +13,7 @@ import type { ServerMessage } from "../../../packages/protocol/src/index.js";
 import {
   SESSION_SERVICE_VERSION,
   CODEX_RESUME_CAPABILITY,
+  PREVIEW_ROUTE_CAPABILITY,
   type ServiceInfo,
   type SessionLaunch,
 } from "./session-service-protocol.js";
@@ -156,10 +157,16 @@ export class SessionServiceClient {
     );
   }
   async create(launch: SessionLaunch) {
-    if (
-      launch.codexResume &&
-      !(await this.info()).capabilities?.includes(CODEX_RESUME_CAPABILITY)
-    )
+    const capabilities =
+      launch.codexResume || launch.previewMcp
+        ? (await this.info()).capabilities
+        : undefined;
+    if (launch.previewMcp && !capabilities?.includes(PREVIEW_ROUTE_CAPABILITY))
+      throw new ServiceError(
+        "This headset Codex launch needs an updated session service for preview routing. Restart it from the Mac menu when you are ready to end existing terminals.",
+        503,
+      );
+    if (launch.codexResume && !capabilities?.includes(CODEX_RESUME_CAPABILITY))
       throw new ServiceError(
         "Resume needs an updated session service. Use the Mac menu to restart the session service when you are ready to end its existing terminals.",
         503,

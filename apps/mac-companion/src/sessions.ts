@@ -17,6 +17,7 @@ import type { Logger } from "./logger.js";
 import { observeTerminalNotifications } from "./terminal-notifications.js";
 import { CODEX_EXEC } from "./codex-threads.js";
 import {
+  codexPreviewOverrides,
   validCodexThreadId,
   type SessionLaunch,
 } from "./session-service-protocol.js";
@@ -108,6 +109,7 @@ export class SessionManager {
     id: string = crypto.randomUUID(),
     environment: NodeJS.ProcessEnv = process.env,
     codexResume?: SessionLaunch["codexResume"],
+    previewMcp?: SessionLaunch["previewMcp"],
   ): SessionSummary {
     if (this.stopping)
       throw new ServiceError("Companion is shutting down", 503);
@@ -209,16 +211,17 @@ export class SessionManager {
     // Interactive login configuration matches a normal terminal (including .zshrc PATH/tool managers).
     // That shell owns job control, so it reclaims the foreground PTY when the agent subshell exits.
     // Pass commands as arguments so overrides cannot escape the lifecycle wrapper.
+    const codexArgs = previewMcp ? codexPreviewOverrides(previewMcp) : [];
+    if (codexResume) codexArgs.push("resume", codexResume.threadId);
     const term = pty.spawn(
       shell,
-      codexResume
+      codexArgs.length
         ? [
             "-lic",
-            CODEX_EXEC,
+            codexResume ? CODEX_EXEC : `(${CODEX_EXEC}); exec "$0" -l`,
             shell,
             commands.codex,
-            "resume",
-            codexResume.threadId,
+            ...codexArgs,
           ]
         : profile
           ? ["-lic", '(eval "$1"); exec "$0" -l', shell, commands[profile]]

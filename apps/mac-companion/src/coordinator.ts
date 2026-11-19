@@ -20,6 +20,7 @@ import {
   PreviewControl,
   previewName,
   type PreviewControlConfig,
+  writePreviewConfig,
 } from "./preview-control.js";
 import {
   WORKER_CAPABILITY,
@@ -770,14 +771,15 @@ export class Coordinator {
             0,
             32,
           );
-          const dir = path.join(this.options.home, "coordinator-workers");
-          await fs.mkdir(dir, { recursive: true, mode: 0o700 });
-          const file = path.join(dir, sessionId + ".json");
-          await fs.writeFile(
-            file,
-            JSON.stringify({ ...c.config, ownerSessionId: sessionId }),
-            { mode: 0o600 },
+          const file = path.join(
+            this.options.home,
+            "coordinator-workers",
+            sessionId + ".json",
           );
+          await writePreviewConfig(file, {
+            ...c.config,
+            ownerSessionId: sessionId,
+          });
           const launch: WorkerLaunch = {
             nativeControl: settings.nativeControl,
             session: {
