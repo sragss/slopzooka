@@ -9,7 +9,7 @@ struct CoordinatorView: View {
     @Environment(\.scenePhase) private var phase
     @State private var showingDetails = false
     @State private var followingLatest = true
-    @State private var scrolledPastTop = false
+    @State private var clippedEdges: VerticalEdge.Set = []
     @State private var microphoneReady = SpeechCaptureController.hasPermissions
     @State private var preparingMicrophone = false
     @State private var permissionError: String?
@@ -130,12 +130,17 @@ struct CoordinatorView: View {
             }
             .mask {
                 VStack(spacing: 0) {
-                    LinearGradient(colors: [scrolledPastTop ? .clear : .black, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
+                    LinearGradient(colors: [clippedEdges.contains(.top) ? .clear : .black, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
                     Color.black
+                    LinearGradient(colors: [.black, clippedEdges.contains(.bottom) ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
                 }
             }
-            .onScrollGeometryChange(for: Bool.self) { $0.contentOffset.y + $0.contentInsets.top > 1 }
-                action: { _, pastTop in scrolledPastTop = pastTop }
+            .onScrollGeometryChange(for: VerticalEdge.Set.self) { geometry in
+                var edges: VerticalEdge.Set = []
+                if geometry.contentOffset.y + geometry.contentInsets.top > 1 { edges.insert(.top) }
+                if geometry.visibleRect.maxY < geometry.contentSize.height - 1 { edges.insert(.bottom) }
+                return edges
+            } action: { _, edges in clippedEdges = edges }
             .onScrollGeometryChange(for: Bool.self) { geometry in
                 geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 48
             } action: { _, atBottom in followingLatest = atBottom }

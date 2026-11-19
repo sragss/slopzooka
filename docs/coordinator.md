@@ -50,7 +50,7 @@ Existing ordinary terminals provide useful context but are not automatically
 adopted as controlled workers. A multi-worktree command still has to respect
 the native-input and worker limits below.
 
-Ask shows one scrolling conversation across voice requests and worktree changes on
+The chat fades at either edge when messages continue beyond it. Ask shows one scrolling conversation across voice requests and worktree changes on
 that Mac. Your complete utterances and concise coordinator replies remain visible.
 Markdown headings, lists, emphasis, code and links render natively. Completed worker
 results contribute a short excerpt from the final reply's opening outcome;
