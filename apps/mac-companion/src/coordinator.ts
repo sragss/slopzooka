@@ -405,6 +405,8 @@ export class Coordinator {
     return worker;
   }
   private tools(c: Conversation, settings: Config): AgentTool[] {
+    const previews = (ownerSessionId = c.config.ownerSessionId) =>
+      new PreviewControl({ ...c.config, ownerSessionId }, this.options.logger);
     const tool = <T extends z.ZodType>(
       name: string,
       description: string,
@@ -539,7 +541,7 @@ export class Coordinator {
           trace.sessionId = sessionId;
           c.turn.reply = "The thread has a terminal on the Mac.";
           if (c.stopped) return { sessionId, presentation: "stopped" };
-          await new PreviewControl(c.config).showTerminal(sessionId);
+          await previews().showTerminal(sessionId);
           return {
             threadId,
             sessionId,
@@ -680,7 +682,7 @@ export class Coordinator {
               name: result.session.name,
             };
           }
-          return new PreviewControl(c.config).rename(window.id, name);
+          return previews().rename(window.id, name);
         },
       ),
       tool(
@@ -822,9 +824,8 @@ export class Coordinator {
             );
             return worker;
           }
-          const preview = new PreviewControl(c.config);
           try {
-            await preview.showTerminal(sessionId);
+            await previews().showTerminal(sessionId);
           } catch {
             return {
               worker,
@@ -889,7 +890,7 @@ export class Coordinator {
         "preview_list",
         "Check availability, existing named headset previews, and Mac source titles and applications. An existing preview name and a Mac source are different identities.",
         z.object({}),
-        async () => new PreviewControl(c.config).list(),
+        async () => previews().list(),
       ),
       tool(
         "preview_open",
@@ -909,10 +910,9 @@ export class Coordinator {
         async ({ sourceId, name, sessionId }, _callId, trace) => {
           if (sessionId && sessionId !== c.turn.request.sessionId)
             await this.requireWorker(c, sessionId);
-          const saved = await new PreviewControl({
-            ...c.config,
-            ownerSessionId: sessionId ?? c.turn.request.sessionId,
-          }).open(sourceId, name);
+          const saved = await previews(
+            sessionId ?? c.turn.request.sessionId,
+          ).open(sourceId, name);
           trace.windowId = saved.preview_id;
           trace.layoutRevision = saved.revision;
           return saved;
@@ -922,7 +922,7 @@ export class Coordinator {
         "preview_close",
         "Close an explicitly requested preview only; keep the app and coding session running.",
         z.object({ previewId: z.string().min(1).max(512) }),
-        async ({ previewId }) => new PreviewControl(c.config).close(previewId),
+        async ({ previewId }) => previews().close(previewId),
       ),
     ];
   }

@@ -334,6 +334,10 @@ The headset's active terminal or preview scene can handle these commands with th
 launcher closed. Simultaneous edits re-read the layout and reapply only their own
 intent after a revision conflict.
 
+The mutation receipt records how the Mac confirmed the desired state. A normal save returns `confirmation: "write_reply"`. If the reply is lost, the adapter verifies the companion identity again and reads the same client's layout once. A matching result returns `confirmation: "layout_readback"`. If the state differs or the read fails, the tool reports uncertainty. Use `preview_list` to inspect the layout before deciding on another change. Readback never resends the write.
+
+For an incident, `preview.list.completed` identifies the pairing that answered and its availability. Search the companion diagnostics for `preview.write.confirmed`, `preview.write.uncertain`, `preview.write.rejected`, or `preview.route.rejected`. Use the host, client, session and action IDs to distinguish two running instances and match an MCP action to its HTTP requests. Terminal MCPs also emit bounded structured events on stderr, so their local trace is available if the companion cannot receive diagnostics. Fields include confirmation method, revision or rejection reason as applicable. Preview names, screen content and bearer credentials stay out of these events.
+
 The MCP may remain configured during ordinary laptop coding. Its server instructions
 and tool descriptions tell agents to use it only when the user explicitly requests
 a Vision Pro/headset preview or a follow-up change to that preview. Initialization

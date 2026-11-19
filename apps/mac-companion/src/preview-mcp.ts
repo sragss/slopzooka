@@ -6,19 +6,51 @@ import {
   previewName,
   readPreviewConfig,
 } from "./preview-control.js";
+import { randomUUID } from "node:crypto";
+import { eventLogger } from "./log-events.js";
+import { logContext } from "./logger.js";
+import { boundedLogEvent } from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
 
 try {
   const file = process.argv[2];
   if (!file) throw new Error("Configuration file required");
   const config = await readPreviewConfig(file);
-  const control = new PreviewControl({
-    ...config,
-    ownerSessionId:
-      config.ownerSessionId ??
-      process.argv[3] ??
-      process.env.SLOPZOOKA_SESSION_ID,
+  // No file writer per terminal. Stderr remains usable when the paired host is
+  // unreachable. Remote delivery is bounded, best effort, and never retried.
+  const sessionId =
+    config.ownerSessionId ??
+    process.argv[3] ??
+    process.env.SLOPZOOKA_SESSION_ID;
+  let sending = 0;
+  const logger = eventLogger(
+    "preview-mcp",
+    (raw) => {
+      const event = boundedLogEvent(raw);
+      if (!process.stderr.writableNeedDrain)
+        process.stderr.write(JSON.stringify(event) + "\n");
+      if (sending >= 4) return;
+      sending++;
+      void control
+        .sendDiagnostic(event)
+        .catch(() => {})
+        .finally(() => {
+          sending--;
+        });
+    },
+    { context: logContext },
+  )("preview-routing", {
+    hostId: config.hostId,
+    clientId: config.clientId,
+    sessionId,
   });
+  const control = new PreviewControl(
+    {
+      ...config,
+      ownerSessionId: sessionId,
+    },
+    logger,
+  );
   // Scene IDs are local to a client's layout. Keep a stale handle from a
   // resumed conversation from naming the same source on another headset.
   const scope =
@@ -29,20 +61,25 @@ try {
     .max(scope.length + 512);
   const handle = (id: string) => scope + id;
   const localID = (value: string) => {
-    if (!value.startsWith(scope) || value.length === scope.length)
+    if (!value.startsWith(scope) || value.length === scope.length) {
+      logger.warn("preview.route.rejected", { reason: "handle_mismatch" });
       throw new ServiceError(
         "This handle does not belong to the selected headset. Refresh preview_list.",
         409,
       );
+    }
     return value.slice(scope.length);
   };
   const receipt = (result: Awaited<ReturnType<PreviewControl["open"]>>) => ({
     ...result,
     preview_id: handle(result.preview_id),
   });
-  const run = async (operation: () => Promise<unknown>) => {
+  const run = async (tool: string, operation: () => Promise<unknown>) => {
     try {
-      const result = await operation();
+      const result = await logContext.run(
+        { actionId: randomUUID(), tool },
+        operation,
+      );
       return {
         content: [{ type: "text" as const, text: JSON.stringify(result) }],
       };
@@ -81,7 +118,7 @@ try {
         annotations: { readOnlyHint: true },
       },
       () =>
-        run(async () => {
+        run("preview_list", async () => {
           const result = await control.list();
           return {
             ...result,
@@ -108,7 +145,9 @@ try {
         }),
       },
       ({ source_id, name }) =>
-        run(async () => receipt(await control.open(localID(source_id), name))),
+        run("preview_open", async () =>
+          receipt(await control.open(localID(source_id), name)),
+        ),
     );
     server.registerTool(
       "preview_rename",
@@ -121,7 +160,7 @@ try {
         }),
       },
       ({ preview_id, name }) =>
-        run(async () =>
+        run("preview_rename", async () =>
           receipt(await control.rename(localID(preview_id), name)),
         ),
     );
@@ -133,7 +172,9 @@ try {
         inputSchema: z.object({ preview_id: handleSchema }),
       },
       ({ preview_id }) =>
-        run(async () => receipt(await control.close(localID(preview_id)))),
+        run("preview_close", async () =>
+          receipt(await control.close(localID(preview_id))),
+        ),
     );
     return server;
   });
