@@ -2,6 +2,11 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import fs from "node:fs/promises";
 import * as z from "zod/v4";
+import { logContext, type Logger } from "./logger.js";
+import {
+  DIAGNOSTICS_VERSION,
+  type LogEvent,
+} from "../../../packages/protocol/src/diagnostics.js";
 import { ServiceError } from "./errors.js";
 import type { WindowLayout, WindowRecord } from "./window-layout.js";
 
@@ -90,10 +95,30 @@ export async function readPreviewConfig(
   return configSchema.parse(JSON.parse(await fs.readFile(file, "utf8")));
 }
 
+// Compare only the requested effects. An unrelated rename, a new co-owner,
+// or a different window changing while the response was lost is independent.
+function matchesIntent(
+  expected: WindowRecord | undefined,
+  actual: WindowRecord | undefined,
+  name?: string,
+  owner?: string,
+): boolean {
+  if (!expected || !actual) return expected === actual;
+  return (
+    actual.kind === expected.kind &&
+    actual.targetID === expected.targetID &&
+    (name === undefined || actual.name === name) &&
+    (owner === undefined || actual.ownerSessionIds?.includes(owner) === true)
+  );
+}
+
 /** Stateless intent adapter. Layout persistence and lifecycle remain with their existing owners. */
 export class PreviewControl {
   private readonly config: PreviewControlConfig;
-  constructor(config: PreviewControlConfig) {
+  constructor(
+    config: PreviewControlConfig,
+    private readonly logger?: Logger,
+  ) {
     this.config = configSchema.parse(config);
     const origin = new URL(config.origin);
     if (
@@ -116,18 +141,25 @@ export class PreviewControl {
     method = "GET",
     body?: unknown,
     authenticated = true,
+    timeoutMs = 10_000,
   ): Promise<unknown> {
     const response = await fetch(this.config.origin + path, {
       method,
       redirect: "error",
-      signal: AbortSignal.timeout(10_000),
-      headers: authenticated
-        ? {
-            Authorization: `Bearer ${this.config.token}`,
-            "X-SlopZooka-Client-ID": this.config.clientId,
-            "Content-Type": "application/json",
-          }
-        : {},
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: {
+        "X-SlopZooka-Action-ID": String(
+          logContext.current().actionId ?? randomUUID(),
+        ),
+        ...(authenticated
+          ? {
+              "X-SlopZooka-Host-ID": this.config.hostId,
+              Authorization: `Bearer ${this.config.token}`,
+              "X-SlopZooka-Client-ID": this.config.clientId,
+              "Content-Type": "application/json",
+            }
+          : {}),
+      },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
     if (!response.ok) {
@@ -140,15 +172,26 @@ export class PreviewControl {
     }
     return response.json();
   }
-  private async verifyHost(): Promise<void> {
+  private async verifyHost(timeoutMs?: number): Promise<void> {
     const health = z
       .object({ hostId: z.string() })
-      .parse(await this.request("/health", "GET", undefined, false));
+      .parse(await this.request("/health", "GET", undefined, false, timeoutMs));
     if (health.hostId !== this.config.hostId)
       throw new ServiceError(
         "Companion identity changed; reconnect the preview configuration before continuing.",
         409,
       );
+  }
+  // MCP processes share the companion's bounded diagnostics intake and file writer.
+  async sendDiagnostic(event: LogEvent): Promise<void> {
+    await this.verifyHost(750);
+    await this.request(
+      "/api/diagnostics/events",
+      "POST",
+      { version: DIAGNOSTICS_VERSION, events: [event] },
+      true,
+      750,
+    );
   }
   private async catalog() {
     return catalogSchema.parse(await this.request("/api/frontends")).windows;
@@ -163,7 +206,16 @@ export class PreviewControl {
   }
   async list() {
     await this.verifyHost();
-    if (!(await this.headsetAvailable()))
+    const fields = {
+      hostId: this.config.hostId,
+      clientId: this.config.clientId,
+      sessionId: this.config.ownerSessionId,
+    };
+    if (!(await this.headsetAvailable())) {
+      this.logger?.info("preview.list.completed", {
+        ...fields,
+        state: "not_available",
+      });
       return {
         host_id: this.config.hostId,
         client_id: this.config.clientId,
@@ -174,10 +226,16 @@ export class PreviewControl {
         sources: [],
         previews: [],
       };
+    }
     const [catalog, layout] = await Promise.all([
       this.catalog(),
       this.layout(),
     ]);
+    this.logger?.info("preview.list.completed", {
+      ...fields,
+      state: catalog?.state ?? "disabled",
+      sourceCount: catalog?.sources.length ?? 0,
+    });
     return {
       host_id: this.config.hostId,
       client_id: this.config.clientId,
@@ -195,7 +253,7 @@ export class PreviewControl {
       .parse(await this.request("/api/sessions"));
     if (!sessions.sessions.some((session) => session.id === sessionId))
       throw new ServiceError("Terminal is unavailable", 404);
-    return this.mutate((layout) => {
+    return this.mutate("show_terminal", (layout) => {
       const record = layout.windows.find((window) => window.id === sessionId);
       if (
         record &&
@@ -231,56 +289,64 @@ export class PreviewControl {
         404,
       );
     const label = name === undefined ? undefined : previewName.parse(name);
-    return this.mutate((layout) => {
-      const existing = layout.windows.find(
-        (record) => this.native(record) && record.targetID === sourceId,
-      );
-      const id = existing?.id ?? `${this.config.hostId}:${sourceId}`;
-      const record: WindowRecord = {
-        ...(existing ?? { id, kind: "preview", targetID: sourceId }),
-        ...(this.config.ownerSessionId &&
-        (!existing || existing.ownerSessionIds)
-          ? {
-              ownerSessionIds: [
-                ...new Set([
-                  ...(existing?.ownerSessionIds ?? []),
-                  this.config.ownerSessionId,
-                ]),
-              ],
-            }
-          : {}),
-        ...(label === undefined ? {} : { name: label }),
-      };
-      if (!existing && layout.windows.some((window) => window.id === id))
-        throw new ServiceError(
-          "Preview ID conflicts with another window.",
-          409,
+    return this.mutate(
+      "open",
+      (layout) => {
+        const existing = layout.windows.find(
+          (record) => this.native(record) && record.targetID === sourceId,
         );
-      layout.windows = existing
-        ? layout.windows.map((window) => (window.id === id ? record : window))
-        : [...layout.windows, record];
-      return id;
-    });
+        const id = existing?.id ?? `${this.config.hostId}:${sourceId}`;
+        const record: WindowRecord = {
+          ...(existing ?? { id, kind: "preview", targetID: sourceId }),
+          ...(this.config.ownerSessionId &&
+          (!existing || existing.ownerSessionIds)
+            ? {
+                ownerSessionIds: [
+                  ...new Set([
+                    ...(existing?.ownerSessionIds ?? []),
+                    this.config.ownerSessionId,
+                  ]),
+                ],
+              }
+            : {}),
+          ...(label === undefined ? {} : { name: label }),
+        };
+        if (!existing && layout.windows.some((window) => window.id === id))
+          throw new ServiceError(
+            "Preview ID conflicts with another window.",
+            409,
+          );
+        layout.windows = existing
+          ? layout.windows.map((window) => (window.id === id ? record : window))
+          : [...layout.windows, record];
+        return id;
+      },
+      label,
+    );
   }
   async rename(id: string, name: string) {
     await this.verifyHost();
     const label = previewName.parse(name);
-    return this.mutate((layout) => {
-      const record = layout.windows.find(
-        (window) => window.id === id && this.native(window),
-      );
-      if (!record)
-        throw new ServiceError(
-          "Native preview is not open on this headset.",
-          404,
+    return this.mutate(
+      "rename",
+      (layout) => {
+        const record = layout.windows.find(
+          (window) => window.id === id && this.native(window),
         );
-      record.name = label;
-      return id;
-    });
+        if (!record)
+          throw new ServiceError(
+            "Native preview is not open on this headset.",
+            404,
+          );
+        record.name = label;
+        return id;
+      },
+      label,
+    );
   }
   async close(id: string) {
     await this.verifyHost();
-    return this.mutate((layout) => {
+    return this.mutate("close", (layout) => {
       const record = layout.windows.find((window) => window.id === id);
       if (record && !this.native(record))
         throw new ServiceError("This tool only closes native previews.", 400);
@@ -288,45 +354,116 @@ export class PreviewControl {
       return id;
     });
   }
-  private async mutate(apply: (layout: WindowLayout) => string) {
-    for (let attempt = 0; attempt < 4; attempt++) {
+  private async mutate(
+    operation: "show_terminal" | "open" | "rename" | "close",
+    apply: (layout: WindowLayout) => string,
+    requestedName?: string,
+  ) {
+    const fields = {
+      operation,
+      hostId: this.config.hostId,
+      clientId: this.config.clientId,
+      sessionId: this.config.ownerSessionId,
+    };
+    const started = performance.now();
+    for (let attempt = 1; attempt <= 4; attempt++) {
       const layout = await this.layout();
       const id = apply(layout);
-      // A fresh headset reply is required immediately before each write, including
-      // conflict retries. No offline intent is queued by agent tools.
-      if (!(await this.headsetAvailable()))
+      const expected = layout.windows.find((w) => w.id === id);
+      if (!(await this.headsetAvailable())) {
+        this.logger?.warn("preview.write.rejected", {
+          ...fields,
+          attempt,
+          reason: "headset_unavailable",
+        });
         throw new ServiceError(
           "Headset preview is not available right now. No preview change was saved. Open SlopZooka on your headset and try again when connected.",
           503,
         );
+      }
+      let saved: WindowLayout;
+      let confirmation: "write_reply" | "layout_readback" = "write_reply";
       try {
-        const saved = layoutSchema.parse(
+        saved = layoutSchema.parse(
           await this.request("/api/window-layout", "PUT", layout),
         );
-        if (
-          layout.windows.some((w) => w.id === id) &&
-          !saved.windows.some((w) => w.id === id)
-        )
-          throw new ServiceError(
-            "The owning terminal has ended. The preview was not opened.",
-            410,
-          );
-        return {
-          preview_id: id,
-          revision: saved.revision,
-          desired_open: saved.windows.some((record) => record.id === id),
-          status: "desired_state_acknowledged",
-          visibility: "not_observed",
-        };
       } catch (error) {
         if (
-          !(error instanceof ServiceError) ||
-          error.statusCode !== 409 ||
-          attempt === 3
-        )
+          error instanceof ServiceError &&
+          error.statusCode < 500 &&
+          error.statusCode !== 408
+        ) {
+          if (error.statusCode === 409 && attempt < 4) continue;
+          this.logger?.warn("preview.write.rejected", {
+            ...fields,
+            attempt,
+            status: error.statusCode,
+          });
           throw error;
-        // Re-read and apply only this intent, preserving intervening user/agent changes.
+        }
+        // The PUT may have committed. Revalidate identity before a single read;
+        // another user's concurrent changes are independent of this intent.
+        let observed: WindowLayout | undefined;
+        try {
+          await this.verifyHost();
+          observed = await this.layout();
+        } catch {
+          /* Unreachable or replaced companion. Keep the outcome uncertain. */
+        }
+        const actual = observed?.windows.find((w) => w.id === id);
+        const requiredOwner =
+          operation === "open" &&
+          expected?.ownerSessionIds?.includes(this.config.ownerSessionId ?? "")
+            ? this.config.ownerSessionId
+            : undefined;
+        if (
+          !observed ||
+          observed.revision < layout.revision ||
+          !matchesIntent(expected, actual, requestedName, requiredOwner)
+        ) {
+          this.logger?.warn("preview.write.uncertain", {
+            ...fields,
+            attempt,
+            durationMs: performance.now() - started,
+            reason: observed ? "state_mismatch" : "readback_unavailable",
+            baseRevision: layout.revision,
+            observedRevision: observed?.revision,
+          });
+          throw new ServiceError(
+            "Couldn’t confirm whether the preview change was saved. Check preview_list before taking any further action.",
+            503,
+          );
+        }
+        saved = observed;
+        confirmation = "layout_readback";
       }
+      const desiredOpen = saved.windows.some((w) => w.id === id);
+      if (expected && !desiredOpen) {
+        this.logger?.warn("preview.write.rejected", {
+          ...fields,
+          attempt,
+          reason: "owner_ended",
+        });
+        throw new ServiceError(
+          "The owning terminal has ended. The preview was not opened.",
+          410,
+        );
+      }
+      this.logger?.info("preview.write.confirmed", {
+        ...fields,
+        attempt,
+        confirmation,
+        revision: saved.revision,
+        durationMs: performance.now() - started,
+      });
+      return {
+        preview_id: id,
+        revision: saved.revision,
+        desired_open: desiredOpen,
+        status: "desired_state_acknowledged",
+        confirmation,
+        visibility: "not_observed",
+      };
     }
     throw new Error("Unreachable layout retry state");
   }

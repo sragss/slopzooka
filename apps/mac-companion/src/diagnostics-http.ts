@@ -123,7 +123,7 @@ export function installDiagnosticsRoutes(
       for (const raw of events) {
         if (
           !isLogEvent(raw) ||
-          !["vision-client", "browser"].includes(raw.source) ||
+          !["vision-client", "browser", "preview-mcp"].includes(raw.source) ||
           Buffer.byteLength(JSON.stringify(raw)) > MAX_LOG_EVENT_BYTES
         ) {
           rejected++;

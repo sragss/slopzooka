@@ -7,6 +7,7 @@ var LOG_SOURCES = [
   "session-service",
   "mac-menu",
   "vision-client",
+  "preview-mcp",
   "browser"
 ];
 var correlationKeys = [
@@ -224,7 +225,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "6e2491c158cd100b56eebaeb610dfdca6efaeacbb11b876b7e95b56a9f0e5520" : "unknown"
+    buildId: true ? "8ccf9e9cdba8a44802ab33bc8913c6b711c6760966b8bdd4ef8ea65dd398cf7c" : "unknown"
   }
 );
 var log = browserLog("diagnostics");

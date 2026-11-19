@@ -9,6 +9,7 @@ export const LOG_SOURCES = [
   "session-service",
   "mac-menu",
   "vision-client",
+  "preview-mcp",
   "browser",
 ] as const;
 export type LogSource = (typeof LOG_SOURCES)[number];
