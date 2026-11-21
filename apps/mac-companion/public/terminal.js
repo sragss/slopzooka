@@ -9838,7 +9838,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "4b403fd33598c58fea556157a8a5f3397c339518ffac5432d87bd15e1892ed34" : "unknown"
+    buildId: true ? "ed8e91a09d4a5f221caf4c5178c273362cd69f579b7301dbff5228e4f90b6109" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -10000,6 +10000,10 @@ window.slzBlurTerminal = () => terminal.blur();
 window.slzInterruptTerminal = () => {
   log2.info("interrupt.requested");
   terminal.input("\x1B", true);
+};
+window.slzSelectedTerminalText = () => document.activeElement === terminal.textarea ? terminal.getSelection() : "";
+window.slzSelectAllTerminalText = () => {
+  if (document.activeElement === terminal.textarea) terminal.selectAll();
 };
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));

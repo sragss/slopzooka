@@ -130,6 +130,12 @@ window.slzInterruptTerminal = () => {
   log.info("interrupt.requested");
   terminal.input("\u001b", true);
 };
+// Native copy/select all use the emulator's selection, which WebKit cannot see.
+window.slzSelectedTerminalText = () =>
+  document.activeElement === terminal.textarea ? terminal.getSelection() : "";
+window.slzSelectAllTerminalText = () => {
+  if (document.activeElement === terminal.textarea) terminal.selectAll();
+};
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
 // Only user interaction acknowledges an alert; programmatic focus/reconnect does not.
@@ -145,6 +151,8 @@ declare global {
     slzFocusTerminal?: (showKeyboard?: boolean) => void;
     slzBlurTerminal?: () => void;
     slzInterruptTerminal?: () => void;
+    slzSelectedTerminalText?: () => string;
+    slzSelectAllTerminalText?: () => void;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {

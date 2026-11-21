@@ -417,6 +417,29 @@ window.runViewportChecks = async () => {
   }
   check(JSON.stringify(inputs().slice(beforeText)) === JSON.stringify(['A', '!', '\\x1b[15;2~', 'A', '!', '\\x1b[15;2~']), 'Committed capitals, punctuation, and Shift-F5 must reach transport exactly once');
 
+  await new Promise(resolve => terminal.write('copy this\\r\\nand this', resolve));
+  terminal.select(0, 0, 4);
+  check(window.slzSelectedTerminalText() === 'copy', 'Copy must read the xterm selection');
+  window.slzSelectAllTerminalText();
+  check(window.slzSelectedTerminalText().includes('copy this\\nand this'), 'Select All must include xterm output');
+  terminal.clearSelection();
+  check(window.slzSelectedTerminalText() === '', 'Copy without a selection must return no text');
+  terminal.blur();
+  window.slzSelectAllTerminalText();
+  check(!terminal.hasSelection(), 'Select All must only act in the focused terminal');
+  window.slzFocusTerminal(false);
+
+  const paste = (text) => {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    terminal.textarea.dispatchEvent(new ClipboardEvent('paste', {clipboardData, bubbles: true, cancelable: true}));
+  };
+  await new Promise(resolve => terminal.write('\\x1b[?2004h', resolve));
+  const beforePaste = inputs().length;
+  paste('line one\\nline two');
+  check(JSON.stringify(inputs().slice(beforePaste)) === JSON.stringify(['\\x1b[200~line one\\rline two\\x1b[201~']), 'WebKit paste must use xterm bracketed paste exactly once');
+  await new Promise(resolve => terminal.write('\\x1b[?2004l', resolve));
+
   // A burst of tiny PTY frames must not pay one WebKit timer per frame.
   let burstWrites = 0;
   const originalWrite = terminal.write.bind(terminal);
@@ -442,7 +465,8 @@ window.runViewportChecks = async () => {
   hardwareKey('UIKeyInputUpArrow', '', 0, {altKey: true});
   hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
   commit('Z'); hardwareKey('F1', 'F1', 0);
-  check(inputs().length === beforeReadOnlyShortcut, 'Normalized arrow and Control shortcuts must respect read-only ownership');
+  paste('read-only paste');
+  check(inputs().length === beforeReadOnlyShortcut, 'Keyboard shortcuts and paste must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
   document.documentElement.dataset.nativeTerminal = 'true';

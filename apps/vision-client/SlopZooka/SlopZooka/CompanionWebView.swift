@@ -2,6 +2,8 @@ import SwiftUI
 import WebKit
 
 #if canImport(UIKit)
+import UIKit
+
 struct CompanionWebView: UIViewRepresentable {
     let url: URL
     let hostID: String?
@@ -28,7 +30,7 @@ struct CompanionWebView: UIViewRepresentable {
         configuration.userContentController.add(context.coordinator, name: "diagnostics")
         context.coordinator.onNotification = onNotification
         context.coordinator.onSelect = onSelect
-        let webView = WKWebView(frame: .zero, configuration: configuration)
+        let webView = TerminalWebView(frame: .zero, configuration: configuration)
         context.coordinator.requestZoom(zoom, in: webView)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
@@ -67,6 +69,39 @@ struct CompanionWebView: UIViewRepresentable {
         webView.navigationDelegate = nil
         webView.stopLoading()
         webView.loadHTMLString("", baseURL: nil)
+    }
+}
+
+private final class TerminalWebView: WKWebView {
+    private lazy var terminalKeyCommands: [UIKeyCommand] = [
+        keyCommand("a", title: "Select All Terminal Text", action: #selector(selectTerminalText(_:))),
+        keyCommand("c", title: "Copy Terminal Text", action: #selector(copyTerminalText(_:))),
+        // Keep paste in WebKit's edit pipeline so xterm receives the paste event.
+        keyCommand("v", title: "Paste", action: #selector(UIResponderStandardEditActions.paste(_:)))
+    ]
+
+    override var keyCommands: [UIKeyCommand]? {
+        terminalKeyCommands + (super.keyCommands ?? [])
+    }
+
+    private func keyCommand(_ input: String, title: String, action: Selector) -> UIKeyCommand {
+        let command = UIKeyCommand(title: title, action: action, input: input, modifierFlags: .command)
+        // The focused WebKit textarea has no native selection for xterm output.
+        command.wantsPriorityOverSystemBehavior = true
+        return command
+    }
+
+    @objc private func selectTerminalText(_ sender: UIKeyCommand) {
+        evaluateJavaScript("window.slzSelectAllTerminalText?.()")
+    }
+
+    @objc private func copyTerminalText(_ sender: UIKeyCommand) {
+        guard window?.isKeyWindow == true, let url else { return }
+        evaluateJavaScript("window.slzSelectedTerminalText?.()") { [weak self] result, _ in
+            guard let self, self.window?.isKeyWindow == true, self.url == url,
+                let text = result as? String, !text.isEmpty else { return }
+            UIPasteboard.general.string = text
+        }
     }
 }
 #endif
