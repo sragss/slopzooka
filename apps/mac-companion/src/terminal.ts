@@ -136,6 +136,10 @@ window.slzSelectedTerminalText = () =>
 window.slzSelectAllTerminalText = () => {
   if (document.activeElement === terminal.textarea) terminal.selectAll();
 };
+window.slzSetTerminalOptionAsMeta = (enabled) => {
+  terminal.options.macOptionIsMeta = enabled;
+  window.slzTerminalOptionAsMeta = enabled;
+};
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));
 // Only user interaction acknowledges an alert; programmatic focus/reconnect does not.
@@ -153,6 +157,8 @@ declare global {
     slzInterruptTerminal?: () => void;
     slzSelectedTerminalText?: () => string;
     slzSelectAllTerminalText?: () => void;
+    slzSetTerminalOptionAsMeta?: (enabled: boolean) => void;
+    slzTerminalOptionAsMeta?: boolean;
     slzDetachTerminal?: () => void;
     slzSetTerminalZoom?: (zoom: number) => void;
     webkit?: {

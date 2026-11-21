@@ -180,6 +180,8 @@ window.runKeyboardChecks = async () => {
   await new Promise(resolve => setTimeout(resolve, 0));
   check([], 'composing arrow must not be converted into a shortcut');
   arrow(input, {metaKey: true}); check([], 'Command must not be dropped from arrow shortcuts');
+  arrow(input, {key: 'Unidentified', code: 'ArrowUp', keyCode: 229});
+  check(['\\x1b[1;3A'], 'An unidentified navigation key must use its physical code');
   if (!arrow(document.getElementById('other'))) throw Error('other fields must retain native arrow behavior');
   check([], 'other fields must not send arrow shortcuts');
   const handledArrow = new KeyboardEvent('keydown', {key: 'UIKeyInputUpArrow', keyCode: 0, altKey: true, bubbles: true, cancelable: true});
@@ -397,6 +399,26 @@ window.runViewportChecks = async () => {
     check(isFocused() && terminal.textarea.inputMode === (showKeyboard ? 'text' : 'none'), 'Alt+Up must preserve focus and keyboard mode');
   }
   check(JSON.stringify(inputs().slice(beforeShortcut)) === JSON.stringify(['\\x1b[1;3A', '\\x1b[1;3A']), 'Alt+Up must reach the production PTY transport exactly once in each keyboard mode');
+  const nativeKey = window.slzTerminalModifiedKey;
+  const beforeNativeKeys = inputs().length;
+  window.slzFocusTerminal(false);
+  nativeKey('ArrowUp', {altKey: true});
+  nativeKey('ArrowUp', {altKey: true});
+  nativeKey('ArrowLeft', {shiftKey: true});
+  nativeKey('ArrowDown', {altKey: true, ctrlKey: true, shiftKey: true});
+  nativeKey('End', {ctrlKey: true});
+  nativeKey('Tab', {shiftKey: true});
+  nativeKey('Enter', {altKey: true});
+  nativeKey('Escape', {altKey: true});
+  check(JSON.stringify(inputs().slice(beforeNativeKeys)) === JSON.stringify([
+    '\\x1b[1;3A', '\\x1b[1;3A', '\\x1b[1;2D', '\\x1b[1;8B',
+    '\\x1b[1;5F', '\\x1b[Z', '\\x1b\\r', '\\x1b\\x1b',
+  ]), 'Native modifier chords must reach the PTY once with standard xterm encoding');
+  check(isFocused() && terminal.textarea.inputMode === 'none', 'Native shortcuts must preserve hardware focus');
+  window.slzFocusTerminal(true);
+  const beforeSoftwareKeyboard = inputs().length;
+  nativeKey('ArrowUp', {altKey: true});
+  check(JSON.stringify(inputs().slice(beforeSoftwareKeyboard)) === JSON.stringify(['\\x1b[1;3A']), 'Native Option+Up must also work with the software keyboard');
   const commit = (text, options = {}) => {
     const target = terminal.textarea;
     const key = {key: text, code: 'KeyA', keyCode: 0, shiftKey: true, bubbles: true, cancelable: true, ...options};
@@ -440,6 +462,28 @@ window.runViewportChecks = async () => {
   check(JSON.stringify(inputs().slice(beforePaste)) === JSON.stringify(['\\x1b[200~line one\\rline two\\x1b[201~']), 'WebKit paste must use xterm bracketed paste exactly once');
   await new Promise(resolve => terminal.write('\\x1b[?2004l', resolve));
 
+  const beforeMeta = inputs().length;
+  window.slzSetTerminalOptionAsMeta(true);
+  hardwareKey('∫', 'KeyB', 0, {altKey: true});
+  hardwareKey('ƒ', 'KeyF', 229, {altKey: true});
+  hardwareKey('≥', 'Period', 0, {altKey: true});
+  check(JSON.stringify(inputs().slice(beforeMeta)) === JSON.stringify(['\\x1bb', '\\x1bf', '\\x1b.']), 'Option as Meta must send CLI shortcuts using the physical key');
+  window.slzSetTerminalOptionAsMeta(false);
+  const beforeOptionText = inputs().length;
+  commit('é', {key: 'é', code: 'KeyE', altKey: true, shiftKey: false});
+  await new Promise(resolve => setTimeout(resolve, 0));
+  check(JSON.stringify(inputs().slice(beforeOptionText)) === JSON.stringify(['é']), 'Turning Option as Meta off must restore Option text input');
+
+  const beforeComposition = inputs().length;
+  terminal.textarea.dispatchEvent(new CompositionEvent('compositionstart', {bubbles: true}));
+  nativeKey('ArrowUp', {altKey: true});
+  terminal.textarea.dispatchEvent(new CompositionEvent('compositionend', {bubbles: true}));
+  terminal.blur();
+  nativeKey('ArrowUp', {altKey: true});
+  check(inputs().length === beforeComposition, 'Native modifier chords must leave composition and other focus alone');
+  window.slzFocusTerminal(false);
+  await new Promise(resolve => setTimeout(resolve, 0));
+
   // A burst of tiny PTY frames must not pay one WebKit timer per frame.
   let burstWrites = 0;
   const originalWrite = terminal.write.bind(terminal);
@@ -466,6 +510,7 @@ window.runViewportChecks = async () => {
   hardwareKey('c', 'KeyC', 0, {ctrlKey: true});
   commit('Z'); hardwareKey('F1', 'F1', 0);
   paste('read-only paste');
+  nativeKey('ArrowUp', {altKey: true});
   check(inputs().length === beforeReadOnlyShortcut, 'Keyboard shortcuts and paste must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
