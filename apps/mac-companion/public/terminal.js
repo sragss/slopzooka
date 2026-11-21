@@ -9838,7 +9838,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "ed8e91a09d4a5f221caf4c5178c273362cd69f579b7301dbff5228e4f90b6109" : "unknown"
+    buildId: true ? "83b8a6a2f0241ba744c5845eb986ea7038abe9faa3ff7bd9a6161d8497fafeea" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -10004,6 +10004,10 @@ window.slzInterruptTerminal = () => {
 window.slzSelectedTerminalText = () => document.activeElement === terminal.textarea ? terminal.getSelection() : "";
 window.slzSelectAllTerminalText = () => {
   if (document.activeElement === terminal.textarea) terminal.selectAll();
+};
+window.slzSetTerminalOptionAsMeta = (enabled) => {
+  terminal.options.macOptionIsMeta = enabled;
+  window.slzTerminalOptionAsMeta = enabled;
 };
 window.slzDetachTerminal = detach;
 mount.addEventListener("pointerdown", () => focusTerminal(true));

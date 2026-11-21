@@ -13,6 +13,7 @@ struct CompanionWebView: UIViewRepresentable {
     let focusRequestToken: Int
     let interruptRequestToken: Int
     let zoom: Double
+    @AppStorage(TerminalKeyboard.optionAsMetaKey) private var optionAsMeta = false
     var onNotification: (Int, String) -> Bool = { _, _ in false }
     var onSelect: () -> Void = {}
 
@@ -32,6 +33,7 @@ struct CompanionWebView: UIViewRepresentable {
         context.coordinator.onSelect = onSelect
         let webView = TerminalWebView(frame: .zero, configuration: configuration)
         context.coordinator.requestZoom(zoom, in: webView)
+        context.coordinator.requestOptionAsMeta(optionAsMeta, in: webView)
         webView.navigationDelegate = context.coordinator
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.02, green: 0.03, blue: 0.04, alpha: 1)
@@ -50,6 +52,7 @@ struct CompanionWebView: UIViewRepresentable {
         context.coordinator.reloadToken = reloadToken
         context.coordinator.load(url, in: webView, force: reload)
         context.coordinator.requestZoom(zoom, in: webView)
+        context.coordinator.requestOptionAsMeta(optionAsMeta, in: webView)
         if context.coordinator.interruptToken != interruptRequestToken {
             context.coordinator.interruptToken = interruptRequestToken
             webView.evaluateJavaScript("window.slzInterruptTerminal?.()")
@@ -80,8 +83,43 @@ private final class TerminalWebView: WKWebView {
         keyCommand("v", title: "Paste", action: #selector(UIResponderStandardEditActions.paste(_:)))
     ]
 
+    private static let navigationKeys = [
+        UIKeyCommand.inputUpArrow: "ArrowUp", UIKeyCommand.inputDownArrow: "ArrowDown",
+        UIKeyCommand.inputLeftArrow: "ArrowLeft", UIKeyCommand.inputRightArrow: "ArrowRight",
+        UIKeyCommand.inputHome: "Home", UIKeyCommand.inputEnd: "End"
+    ]
+    private static let editingKeys = ["\t": "Tab", "\r": "Enter", UIKeyCommand.inputEscape: "Escape"]
+
+    private lazy var navigationCommands: [UIKeyCommand] = {
+        let modifiers: [UIKeyModifierFlags] = [
+            .shift, .alternate, .control, [.shift, .alternate], [.shift, .control],
+            [.alternate, .control], [.shift, .alternate, .control]
+        ]
+        let chords = Self.navigationKeys.keys.sorted().flatMap { input in modifiers.map { (input, $0) } }
+            + [("\t", .shift), ("\r", .alternate), (UIKeyCommand.inputEscape, .alternate)]
+        return chords.map { input, flags in
+            let command = UIKeyCommand(input: input, modifierFlags: flags, action: #selector(sendModifiedKey(_:)))
+            command.wantsPriorityOverSystemBehavior = true
+            command.allowsAutomaticMirroring = false
+            command.allowsAutomaticLocalization = false
+            return command
+        }
+    }()
+
     override var keyCommands: [UIKeyCommand]? {
-        terminalKeyCommands + (super.keyCommands ?? [])
+        terminalKeyCommands + navigationCommands + (super.keyCommands ?? [])
+    }
+
+    @objc private func sendModifiedKey(_ sender: UIKeyCommand) {
+        guard window?.isKeyWindow == true, let input = sender.input,
+            let key = Self.navigationKeys[input] ?? Self.editingKeys[input] else { return }
+        let flags = sender.modifierFlags
+        evaluateJavaScript("""
+            window.slzTerminalModifiedKey?.('\(key)', {
+                shiftKey: \(flags.contains(.shift)), altKey: \(flags.contains(.alternate)),
+                ctrlKey: \(flags.contains(.control))
+            })
+            """)
     }
 
     private func keyCommand(_ input: String, title: String, action: Selector) -> UIKeyCommand {
@@ -129,6 +167,17 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     // nil means no pending focus; false keeps physical typing ready without software UI.
     private var pendingFocus: Bool?
     private var zoom = 1.0
+    private var optionAsMeta = false
+
+    func requestOptionAsMeta(_ enabled: Bool, in webView: WKWebView) {
+        guard optionAsMeta != enabled else { return }
+        optionAsMeta = enabled
+        if documentReady || terminalReady { applyOptionAsMeta(in: webView) }
+    }
+
+    private func applyOptionAsMeta(in webView: WKWebView) {
+        webView.evaluateJavaScript("window.slzSetTerminalOptionAsMeta?.(\(optionAsMeta))")
+    }
 
     func requestZoom(_ zoom: Double, in webView: WKWebView) {
         guard self.zoom != zoom else { return }
@@ -213,7 +262,10 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         case "running":
             terminalReady = true
             loadState.wrappedValue = .loaded
-            if let webView { applyZoom(in: webView) }
+            if let webView {
+                applyZoom(in: webView)
+                applyOptionAsMeta(in: webView)
+            }
             if let showKeyboard = pendingFocus, let webView { requestFocus(in: webView, showKeyboard: showKeyboard) }
         case "disconnected": loadState.wrappedValue = .disconnected
         case "failed": loadState.wrappedValue = .failed(body["message"] ?? "Session unavailable")
@@ -228,6 +280,7 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         documentReady = true
         applyZoom(in: webView)
+        applyOptionAsMeta(in: webView)
         // Older companion pages focus their textarea on load. Keep inactive
         // scenes unfocused when recovering those document revisions too.
         if !isActive { webView.evaluateJavaScript("window.slzBlurTerminal?.()") }

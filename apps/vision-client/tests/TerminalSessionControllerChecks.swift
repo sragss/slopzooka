@@ -31,6 +31,7 @@ private final class FixtureWebView: WKWebView {
             window.blurRequests = 0;
             window.slzFocusTerminal = showKeyboard => focusRequests.push(showKeyboard);
             window.slzBlurTerminal = () => { window.blurRequests += 1; };
+            window.slzSetTerminalOptionAsMeta = enabled => { window.optionAsMeta = enabled; };
             window.ready = () => webkit.messageHandlers.terminalState.postMessage({state: 'running'});
             </script>
             """, baseURL: request.url)
@@ -57,10 +58,15 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
                 let url = URL(string: "http://localhost/terminal?sessionId=fixture")!
 
                 controller.updateActivity(true, in: webView)
+                controller.requestOptionAsMeta(true, in: webView)
                 controller.load(url, in: webView)
                 try await documentReady(webView)
                 try await ready(webView, expecting: [false])
                 precondition(state == .loaded)
+                try await expectOptionAsMeta(webView, true)
+                controller.requestOptionAsMeta(false, in: webView)
+                try await expectOptionAsMeta(webView, false)
+                controller.requestOptionAsMeta(true, in: webView)
                 var alerts: [Int] = []
                 var selections = 0
                 controller.onNotification = { sequence, instance in
@@ -99,6 +105,7 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
                 try await documentReady(webView)
                 controller.webView(webView, didFinish: nil)
                 try await ready(webView, expecting: [])
+                try await expectOptionAsMeta(webView, true)
                 let reloadedBlur = try await webView.evaluateJavaScript("window.blurRequests") as? Int
                 precondition(reloadedBlur == 1, "loading in an inactive scene must clear the page's automatic focus")
                 controller.updateActivity(true, in: webView)
@@ -139,6 +146,10 @@ private final class FocusProbe: NSObject, NSApplicationDelegate {
             fputs("FAIL: native terminal focus checks timed out\n", stderr)
             exit(1)
         }
+    }
+
+    private func expectOptionAsMeta(_ webView: WKWebView, _ enabled: Bool) async throws {
+        try await until { try await webView.evaluateJavaScript("window.optionAsMeta") as? Bool == enabled }
     }
 
     private func documentReady(_ webView: FixtureWebView) async throws {

@@ -50,6 +50,8 @@ Use **Interrupt** in the terminal toolbar to send Escape without changing keyboa
 
 Hardware shortcuts preserve Shift, Control, Option/Alt, and Command when WebKit omits legacy key codes, including Shift-Tab, Home/End, Page Up/Down, and F1–F12. Shift/Caps Lock text and punctuation use the committed text from WebKit, including when no `keypress` arrives, without duplicating input already sent by xterm. Committed Option characters retain their native text; dead keys and IME composition remain owned by xterm. Update both apps for these fixes.
 
+**Option+Up** and **Option+Down** reach terminal apps as Alt+Up and Alt+Down. With the terminal focused, visionOS also routes Shift, Option, and Control with arrows and Home/End to xterm, along with Shift+Tab and Option+Return. These include Codex's queue navigation and Claude Code's Shift+Tab mode shortcut. Option-modified typing follows your keyboard layout by default. Turn on **Settings → Terminal → Use Option as Meta** for shortcuts such as Option+B and Option+F in Codex or Claude Code.
+
 Fn/Globe alone sends no terminal bytes. Function or navigation keys produced by Fn work when delivered to the app; macOS/visionOS shortcuts consumed by the system remain system-owned. The terminal keeps xterm’s normal key encoding, so modifiers that its classic protocol cannot distinguish are not assigned invented escape sequences.
 
 Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom** starts at **80%** and persists across app launches. Terminals without a custom zoom follow that default; existing scene zoom preferences are preserved. Reset Zoom applies the current saved default. Use the zoom controls in the actions menu; it stays open for repeated adjustments.

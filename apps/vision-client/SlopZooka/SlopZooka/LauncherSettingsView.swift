@@ -8,6 +8,7 @@ struct LauncherSettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("wristMenuHand") private var wrist: Wrist = .left
     @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
+    @AppStorage(TerminalKeyboard.optionAsMetaKey) private var optionAsMeta = false
 
     var body: some View {
         NavigationStack {
@@ -18,10 +19,11 @@ struct LauncherSettingsView: View {
                             Text("\(TerminalZoom.percent(steps: steps))%").tag(steps)
                         }
                     }
+                    Toggle("Use Option as Meta", isOn: $optionAsMeta)
                 } header: {
                     Text("Terminal")
                 } footer: {
-                    Text("Saved across launches. Terminals without a custom zoom use this value. Reset Zoom applies it to any terminal.")
+                    Text("Reset Zoom applies the saved default. Use Option as Meta for shortcuts like Option+B in Codex and Claude Code.")
                 }
                 Section {
                     Text("Hold to talk · Release to send")
