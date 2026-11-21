@@ -42,6 +42,8 @@ In preview windows, VoiceOver identifies the reload and close controls as **Relo
 
 Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose the **keyboard icon** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.
 
+With the terminal focused, select output and press **⌘C** to copy it. **⌘A** selects the terminal buffer, including scrollback. **⌘V** pastes text from the Vision Pro system clipboard into the focused terminal. Update both the headset app and the Mac companion for the terminal selection shortcuts.
+
 Physical **Control-C** sends the terminal interrupt byte through the ordinary input connection. It interrupts the foreground command and keeps the shell/session running. WebKit Control-letter shortcuts (including Control-A/D/E/L/Z) use the same normalization as hardware arrows when the headset omits legacy key codes. Read-only viewers remain read-only; Command/Option modifiers and composition are preserved.
 
 Use **Interrupt** in the terminal toolbar to send Escape without changing keyboard focus. The toolbar’s **Stop** button asks for confirmation before ending the session and its attached dev servers. **Close Window** in the actions menu dismisses the window immediately and keeps the session running. WebKit editing events for Return, Backspace, and Delete are routed through the terminal's key handling. Update both apps for separate floating-keyboard control; older companions retain typing focus but may also show the floating keyboard.
