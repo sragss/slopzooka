@@ -19,7 +19,7 @@ ID is `com.samragsdale.SlopZooka.TerminalLab`.
 To build and launch from the repository root with a single simulator booted:
 
 ```sh
-xcodebuild -project labs/terminal-controls/TerminalLab.xcodeproj \
+xcodebuild -project prototypes/terminal-controls/TerminalLab.xcodeproj \
   -scheme TerminalLab -sdk xrsimulator -configuration Debug \
   -destination 'generic/platform=visionOS Simulator' \
   -derivedDataPath /tmp/slz-terminal-lab CODE_SIGNING_ALLOWED=NO build
@@ -93,7 +93,7 @@ device installation require physical-device checks.
 `FixtureSurfaces.swift` owns the terminal text and alternate dictation UI.
 `LabModel.swift` owns fixtures and simulated responses. To update the checked-in
 Xcode project after moving or adding files, run
-`xcodegen generate --spec labs/terminal-controls/project.yml`.
+`xcodegen generate --spec prototypes/terminal-controls/project.yml`.
 
 To run the standalone model checks from the repository root:
 
@@ -103,6 +103,6 @@ source_dir=apps/vision-client/SlopZooka/SlopZooka
 xcrun swiftc -swift-version 6 -warnings-as-errors -o "$lab_checks_dir/checks" \
   apps/shared/Diagnostics.swift apps/shared/NativeLogFile.swift \
   "$source_dir/TerminalVoiceController.swift" "$source_dir/TerminalZoom.swift" \
-  labs/terminal-controls/TerminalLab/LabModel.swift labs/terminal-controls/tests/LabModelChecks.swift
+  prototypes/terminal-controls/TerminalLab/LabModel.swift prototypes/terminal-controls/tests/LabModelChecks.swift
 "$lab_checks_dir/checks"
 ```

@@ -209,7 +209,7 @@ still need the headset pass.
 
 ### Terminal Lab
 
-The standalone [Terminal Lab](labs/terminal-controls/README.md) compares headset
+The standalone [Terminal Lab](prototypes/terminal-controls/README.md) compares headset
 terminal controls and dictation treatments with simulated sessions. The guide
 covers installation, scenario controls, and model checks.
 

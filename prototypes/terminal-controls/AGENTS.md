@@ -19,5 +19,5 @@ approved, port the interaction through the production owners and verify the
 production entry point independently. For terminal windows, those owners are
 `TerminalWindowView`, `TerminalVoiceOverlay`, and `WindowGateway`.
 
-Run XcodeGen with `xcodegen generate --spec labs/terminal-controls/project.yml`
+Run XcodeGen with `xcodegen generate --spec prototypes/terminal-controls/project.yml`
 after adding or moving project files. Leave the lab out of production targets.

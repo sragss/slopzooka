@@ -9,7 +9,7 @@ Historical plans in `docs/archive` are context, not current requirements.
 
 - Keep process and workspace ownership on the Mac. Headset views request intent
   and render state; terminal processes belong to the session service.
-- Use the standalone [Terminal Controls Lab](labs/terminal-controls/AGENTS.md)
+- Use the standalone [Terminal Controls Lab](prototypes/terminal-controls/AGENTS.md)
   to try headset terminal UX changes before integrating them.
 - Edit browser sources in `apps/mac-companion/src`, then regenerate the checked-in
   assets with `pnpm build:harness`. Do not hand-edit bundled JavaScript.
