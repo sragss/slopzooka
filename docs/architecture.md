@@ -52,6 +52,12 @@ Worktree display names and stable default window labels live in the Mac worktree
 
 The stream uses ordered cursors, a bounded replay buffer, and headless xterm screen checkpoints. Clients acknowledge output after rendering. Slow viewers receive a checkpoint when their replay history expires. The host bounds parser input with PTY pause/resume and bounds each viewer's outstanding output. Checkpoints retain 1,000 scrollback lines; they are not an archival transcript. The terminal serializer is experimental, so unusual terminal extensions still need device validation.
 
+Native pinch-drag on the terminal body and the optional scrollback strip move
+xterm's local normal-buffer viewport through the first-party WebView bridge. The
+browser renderer owns the scroll position and signals when the body gesture is
+eligible. See the [scrolling investigation](terminal-scrolling.md) for the input
+paths, platform APIs, and alternatives.
+
 Replay and outstanding output are bounded by both bytes and frame count. Pumping
 starts at the next unsent cursor, independently of retained history length. The
 browser combines consecutive queued output into bounded parser batches while

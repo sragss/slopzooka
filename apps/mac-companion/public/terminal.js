@@ -9719,8 +9719,8 @@ var TerminalConnection = class {
 
 // src/terminal-text-input.ts
 function bindTerminalTextInput(terminal2) {
-  const input = terminal2.textarea;
-  if (!input) return () => {
+  const input2 = terminal2.textarea;
+  if (!input2) return () => {
   };
   let pending;
   let composing = false;
@@ -9747,21 +9747,21 @@ function bindTerminalTextInput(terminal2) {
   const subscription = terminal2.onKey(() => {
     if (pending) pending.emitted = true;
   });
-  input.addEventListener("keydown", keydown, true);
-  input.addEventListener("beforeinput", beforeinput, true);
+  input2.addEventListener("keydown", keydown, true);
+  input2.addEventListener("beforeinput", beforeinput, true);
   for (const type of ["keyup", "blur"])
-    input.addEventListener(type, reset, true);
+    input2.addEventListener(type, reset, true);
   for (const type of ["compositionstart", "compositionend"])
-    input.addEventListener(type, composition, true);
+    input2.addEventListener(type, composition, true);
   return () => {
     reset();
     subscription.dispose();
-    input.removeEventListener("keydown", keydown, true);
-    input.removeEventListener("beforeinput", beforeinput, true);
+    input2.removeEventListener("keydown", keydown, true);
+    input2.removeEventListener("beforeinput", beforeinput, true);
     for (const type of ["keyup", "blur"])
-      input.removeEventListener(type, reset, true);
+      input2.removeEventListener(type, reset, true);
     for (const type of ["compositionstart", "compositionend"])
-      input.removeEventListener(type, composition, true);
+      input2.removeEventListener(type, composition, true);
   };
 }
 
@@ -9838,7 +9838,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "83b8a6a2f0241ba744c5845eb986ea7038abe9faa3ff7bd9a6161d8497fafeea" : "unknown"
+    buildId: true ? "fbb1f76bd2f5ba1b1a3bd1716eb71fecca0ffd382c07d74fabff07f2027f672f" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -9913,16 +9913,59 @@ var terminal = new Dl({
 var fit = new o();
 terminal.loadAddon(fit);
 terminal.open(mount);
+var nativeTerminal = Boolean(window.webkit?.messageHandlers?.terminalState);
+var input = terminal.textarea;
+if (nativeTerminal && input) {
+  input.inputMode = "none";
+  input.addEventListener("blur", () => {
+    input.inputMode = "none";
+  });
+}
 var detachTextInput = bindTerminalTextInput(terminal);
+var scrollbackRemainder = 0;
+var scrollbackReady = false;
+var dragScrollbackAvailable = false;
+var canDragScrollback = () => scrollbackReady && terminal.buffer.active.type === "normal" && terminal.buffer.active.baseY > 0 && terminal.modes.mouseTrackingMode === "none";
+var publishDragScrollback = () => {
+  const available = canDragScrollback();
+  if (available === dragScrollbackAvailable) return;
+  dragScrollbackAvailable = available;
+  window.webkit?.messageHandlers?.terminalScrollback?.postMessage(
+    available ? "1" : "0"
+  );
+};
+var resetScrollbackMotion = () => {
+  scrollbackRemainder = 0;
+};
+var scrollbackSubscriptions = [
+  terminal.buffer.onBufferChange(resetScrollbackMotion),
+  terminal.onResize(resetScrollbackMotion),
+  terminal.onResize(publishDragScrollback),
+  terminal.onWriteParsed(publishDragScrollback)
+];
+window.slzScrollback = (pages, fromBody = false) => {
+  if (!scrollbackReady || !Number.isFinite(pages) || Math.abs(pages) > 4)
+    return;
+  if (fromBody && !canDragScrollback()) return;
+  const { type, baseY, viewportY } = terminal.buffer.active;
+  if (type !== "normal") return;
+  const targetDelta = Math.max(
+    -viewportY,
+    Math.min(baseY - viewportY, scrollbackRemainder + pages * terminal.rows)
+  );
+  const lines = Math.trunc(targetDelta);
+  scrollbackRemainder = targetDelta - lines;
+  if (lines !== 0) terminal.scrollLines(lines);
+};
 fit.fit();
-if (!window.webkit?.messageHandlers?.terminalState) focusTerminal();
+if (!nativeTerminal) focusTerminal();
 function focusTerminal(showKeyboard = false) {
-  const input = terminal.textarea;
-  if (input) {
+  const input2 = terminal.textarea;
+  if (input2) {
     const mode = showKeyboard ? "text" : "none";
-    if (input.inputMode !== mode) {
-      input.inputMode = mode;
-      if (document.activeElement === input) input.blur();
+    if (input2.inputMode !== mode || nativeTerminal && showKeyboard) {
+      if (document.activeElement === input2) input2.blur();
+      input2.inputMode = mode;
     }
   }
   terminal.focus();
@@ -9933,6 +9976,9 @@ var connection = sessionId ? new TerminalConnection(
   terminal,
   sessionId,
   (message, state, readOnly = false, canTakeControl = false) => {
+    scrollbackReady = state === "running";
+    if (!scrollbackReady) resetScrollbackMotion();
+    publishDragScrollback();
     if (state === "running" && !readOnly && terminal.modes.sendFocusMode)
       terminal.input(
         document.hasFocus() && document.activeElement === terminal.textarea ? "\x1B[I" : "\x1B[O",
@@ -9946,7 +9992,8 @@ var connection = sessionId ? new TerminalConnection(
     takeControlButton.hidden = !canTakeControl;
     window.webkit?.messageHandlers?.terminalState?.postMessage({
       state,
-      message
+      message,
+      scrollback: "1"
     });
   },
   () => fit.fit(),
@@ -9985,6 +10032,9 @@ window.slzSetTerminalZoom = (zoom) => {
 };
 window.addEventListener("online", reconnect);
 function detach() {
+  scrollbackReady = false;
+  publishDragScrollback();
+  for (const subscription of scrollbackSubscriptions) subscription.dispose();
   detachTextInput();
   resizeObserver.disconnect();
   cancelAnimationFrame(resizeFrame);
@@ -10010,7 +10060,10 @@ window.slzSetTerminalOptionAsMeta = (enabled) => {
   window.slzTerminalOptionAsMeta = enabled;
 };
 window.slzDetachTerminal = detach;
-mount.addEventListener("pointerdown", () => focusTerminal(true));
+mount.addEventListener("pointerdown", () => {
+  if (nativeTerminal) terminal.focus();
+  else focusTerminal(true);
+});
 var selectTerminal = () => window.webkit?.messageHandlers?.terminalNotification?.postMessage({
   kind: "selected"
 });
