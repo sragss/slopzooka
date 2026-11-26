@@ -168,6 +168,11 @@ final class TerminalVoiceController: ObservableObject {
         && captureState != .preparing && captureState != .finishing }
     var needsRetry: Bool { pendingCommand != nil && !isSubmitting }
 
+    func pendingDeliveryTarget(excluding id: String) -> String? {
+        guard let target = pendingCommand?.targetID, target != id else { return nil }
+        return target
+    }
+
     var statusText: String {
         if isSubmitting { return mode == .rename ? "Saving name…" : "Sending…" }
         if sendDeadline != nil { return "Sending in 2 seconds" }
