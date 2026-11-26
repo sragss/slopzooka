@@ -107,6 +107,10 @@ the task. A cancelled queued task is shown
 as interrupted instead of remaining queued. Ending the terminal explicitly
 ends its owned backend; merely closing that terminal window does not.
 
+Ask can retry a transient model connection failure once while opening the
+model response. Earlier tool actions and worker submissions keep their original
+receipts. If the model still fails, the exchange shows the failure category.
+
 Headset previews remain explicit requests. A disconnected headset returns
 “not available right now”; a requested coding task may still run on the Mac.
 Preview intent is not queued for an offline headset.
