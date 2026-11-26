@@ -228,9 +228,11 @@ struct WindowGatewayChecks {
             switch command {
             case .open(let window): opened.append(window.id)
             case .close(let window): dismissed.append(window.id)
-            case .openLauncher, .openCoordinator: break
+            case .openLauncher, .openCoordinator, .closeCoordinator: break
             }
         }
+        gateway.closeCoordinator()
+        precondition(commands.last == .closeCoordinator, "Ask closes through the native scene presenter")
         let session = HostSession(id: terminal.id, workspaceId: "workspace",
             title: "Shell", cwd: "/project")
         let closedSession = HostSession(id: "closed-session", workspaceId: "workspace",

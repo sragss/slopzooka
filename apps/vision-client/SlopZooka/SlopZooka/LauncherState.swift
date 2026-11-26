@@ -11,6 +11,7 @@ final class LauncherState: ObservableObject {
         client.onConnected = { [weak self] target in
             guard let self else { return }
             self.catalogTask?.cancel()
+            self.catalogHostID = target.id
             self.availableOwners = []
             self.repoState = .idle
             self.workspaceState = .idle
@@ -37,6 +38,7 @@ final class LauncherState: ObservableObject {
             .compactMap { $0 }.filter { !$0.isEmpty && $0.utf16.count <= 256 }
     }
     @Published private(set) var availableOwners: [RepoOwnerSummary] = []
+    @Published private(set) var catalogHostID: String?
     @Published private(set) var repoState: CatalogState<RecentReposResponse> = .idle
     @Published private(set) var workspaceState: CatalogState<RecentWorkspacesResponse> = .idle
     @Published private(set) var codexState: CatalogState<CodexThreadsResponse> = .idle
@@ -140,7 +142,7 @@ final class LauncherState: ObservableObject {
     }
 
     func createRepoAndLaunch(owner: String?, repoName: String, isPrivate: Bool) async -> Bool {
-        guard !isMutatingWorkspace, let hostID = client.current?.id else { return false }
+        guard !isMutatingWorkspace, client.isReady, let hostID = client.current?.id else { return false }
         let profile = selectedTool.queryValue
         let creation = Operation.createRepo(UUID())
         operation = creation

@@ -1,8 +1,6 @@
 import SwiftUI
 
 struct LauncherSettingsView: View {
-    @EnvironmentObject private var windows: WindowGateway
-    @EnvironmentObject private var client: CompanionClient
     @EnvironmentObject private var workspace: ImmersiveWorkspaceState
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.dismiss) private var dismiss
@@ -56,25 +54,6 @@ struct LauncherSettingsView: View {
                     Text("Presentation")
                 } footer: {
                     Text("Adds wrist controls while keeping your room visible. Other apps are hidden until you turn this off.")
-                }
-                Section {
-                    NavigationLink {
-                        ScrollView { MacConnectionView().padding(24) }
-                            .navigationTitle("Your Mac")
-                    } label: {
-                        LabeledContent("Connected Mac", value: client.isReady ? "Connected" : "Not connected")
-                    }
-                    DisclosureGroup("Troubleshooting") {
-                        Button("Reload All Window Content", systemImage: "arrow.clockwise") { windows.reload() }
-                            .disabled(!client.isReady)
-                        Text("Reloads content without ending sessions or moving windows.")
-                            .font(.footnote).foregroundStyle(.secondary)
-                        if case .success = client.healthState, let health = client.health {
-                            Text("Address: \(health.controlOrigin)").textSelection(.enabled)
-                            Text("Logs: \(health.logFilePath)").textSelection(.enabled)
-                        }
-                        if let error = windows.persistenceError { Text(error).foregroundStyle(.orange) }
-                    }
                 }
             }
             .navigationTitle("Settings")

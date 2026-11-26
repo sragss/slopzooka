@@ -4,37 +4,37 @@
 
 ## Connect to your Mac
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. Bonjour discovers the companion. When pairing is needed, the code briefly appears centered on the Mac without taking keyboard focus. The headset focuses its six-digit input and submits automatically; it saves the credential in Keychain. The Mac menu remains a fallback. On startup, the headset reconnects using the saved method for the selected Mac. Initial Local Network discovery tries candidate addresses one at a time; a previously selected paired Mac is not replaced by another discovered Mac automatically. Pairing errors show the attempted URL so companions on different ports can be distinguished.
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. On first launch, choose a nearby Mac in **Connect to a Mac**, or enter its address manually. The app tries discovered addresses for the selected Mac in order. If pairing is needed, the six-digit code appears on the Mac and the headset submits it automatically. The Mac menu also shows the code. The app stores pairing credentials in Keychain and uses the saved connection method on later launches.
 
 The display dismisses after 45 seconds, successful pairing, or an authenticated reconnection by the device that requested it. Late display requests from a recently connected device do not reopen the prompt; other devices can still pair. Repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 
-Pairings are remembered by Mac identity. Existing pairings migrate automatically; a new address needs pairing once before it can use that Mac’s credential. During a connection loss, the launcher shows **Reconnecting to your Mac…** and retries its refresh. Switching the accepted route refreshes existing terminal and preview content while keeping their window and session identities. Switching Macs clears the previous Mac’s repos, repo owners, and frontend listing while the new catalogs load.
+Pairings are remembered by Mac identity. A new address may need pairing before it can use a saved credential. Pairing errors include the attempted URL. Use **Cancel** to stop a pending connection check or pairing-code submission.
 
-Pairing stays on the accepted Mac after an unsuccessful address change. Repo, worktree, and repo-owner listings load independently, so one slow request does not hold up the others.
+During a connection loss, the launcher keeps your current section and labels worktree status **Last known**. The top-right Mac control shows **Connection interrupted** between attempts and an activity ring while reconnecting. Open it to retry, inspect the address and logs, reload window content, or choose another Mac. A switch clears the previous Mac’s catalogs as soon as the new Mac is accepted. The new catalogs load independently.
 
 ## Connection method
 
-In **Settings → Connected Mac**, choose **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and supports control, terminals, and experimental native Mac window previews. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
+In the launcher, open the top-right Mac control and choose **Connection options**. Select **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and supports control, terminals, and experimental native Mac window previews. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
 
 The choice is remembered for each paired Mac on this headset. A failed Direct connection stays on Direct: use **Try Again** or explicitly choose **Use Local Network**. The app does not silently switch methods. Manual IP/hostname entry belongs to Local Network.
 
-Changing methods reconnects the existing windows while Mac terminals keep running. Web previews show an unavailable placeholder on Direct; their catalog entries remain visible with a reason. A known unavailable preview waits for a supported connection instead of repeatedly trying to open. Switching back reloads still-open previews and may lose unsaved in-page edits. A preview closed while unavailable stays closed. From a disconnected window, **Open Launcher → Settings → Connected Mac** provides the same recovery controls.
+Changing methods reconnects the existing windows while Mac terminals keep running. Web previews show an unavailable placeholder on Direct; their catalog entries remain visible with a reason. A known unavailable preview waits for a supported connection instead of repeatedly trying to open. Switching back reloads still-open previews and may lose unsaved in-page edits. A preview closed while unavailable stays closed. From a disconnected window, choose **Open Launcher**, then open the top-right Mac control to recover.
 
 ## Launcher
 
 The app uses a graphite and silver palette. Listening indicators and app icons use soft silver; native controls and the Mac companion dashboard use graphite shades to keep button labels readable. The microphone uses native visionOS glass with a neutral icon when idle and a silver waveform while listening. Motion and status text distinguish listening from idle.
 
-The headset launcher separates **Terminals**, **Repos**, and **Frontends**, and remembers your last tab. Repo search and the tool selector are visible together. **Start from a repo** appears first to create a new worktree; **Continue a worktree** appears below it to reopen an existing one. Use the launcher’s **Settings** gear for Mac connection controls and troubleshooting; connection status remains visible in the header. Terminal windows keep Interrupt, Stop, and dictation visible. The top-left **…** menu starts with zoom, **Previews**, **Show Terminal Keyboard**, **Ask SlopZooka**, and **Open Launcher**. Shell creation, details, and **Close Window** are farther down the same menu.
+The sidebar separates **Repos**, **Worktrees**, and **Threads** from **Frontends**, and remembers your last selection. Worktrees are grouped by repository. The tool picker selects what opens when you use a repo or worktree row. Use **Worktrees → Reopen Terminal** to return to an existing terminal session. The **Settings** sidebar item contains app preferences.
 
-In **Repos → + → New Repo**, enter a name to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Continue a worktree** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately.
+Choose **Repos → New Repo** to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Worktrees** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately.
 
-**Codex threads** appears last under Repos: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
+**Threads** shows the 25 most recently updated saved Codex threads on the selected Mac. Search their titles and folders or refresh the list. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex, and **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
+
+Terminal windows keep Interrupt, Stop, and dictation visible. The top-left **…** menu starts with zoom, **Previews**, **Show Terminal Keyboard**, **Ask SlopZooka**, and **Open Launcher**. Shell creation, details, and **Close Window** are farther down the menu.
 
 If Codex opens an **Update available** menu, open **Session Actions (⋯)** in the new terminal. Move the highlight with the arrows in that menu, then tap **Return**. For example, move to **Skip** and confirm to continue with the installed version. Codex owns its update checks and choices, including **Update now**. SlopZooka sends a key only when you press one. The same buttons work in first-run sign-in and trust menus, whose choices can vary by Codex version. If Codex reports that the installed version can no longer start, update it on the Mac and launch again.
 
 Expand **… → Previews** to see the worktree’s apps and discovery notices. Choosing an available app opens its preview in a separate window.
-
-Terminal rows match repo rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
 
 Frontend rows in the launcher and terminal dropdown use the same bordered, rectangular surfaces as repo rows, with compact titles, single-line details, and circular icons. The launcher list sits directly on the page without an extra glass panel. Choose **Add URL** to enter an address in a focused sheet. URL edits update all frontend lists for that Mac together. Windows connected to another Mac keep that Mac's listing; a slow terminal connection does not hold up frontend discovery.
 
@@ -119,7 +119,7 @@ voice sheet after the popover closes, including while the terminal is disconnect
 - Sessions reappear in the launcher after restarting the headset app. Reopening restores the current screen, including the alternate screen used by TUIs.
 - **New Shell** adds a terminal to the same worktree. The toolbar’s **Stop** button confirms before explicitly stopping the process and its current descendants. Ending an already exited session removes its retained screen.
 - Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
-- Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or the launcher’s reload button; these preserve running sessions.
+- Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or **Reload All Window Content** in the launcher’s connection panel; these preserve running sessions.
 - If dictation delivery is unconfirmed, tap a mic in another window to review the pending draft. **Retry** sends the same message to its original destination when available. **×** discards the draft and frees the microphone.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
 
@@ -216,10 +216,11 @@ steps. The feature stays off by default during this experimental rollout.
 
 ## Experimental voice coordinator
 
-Choose **Ask** in the launcher header, or **Ask SlopZooka** in a terminal's actions
-menu. A compact independent window opens. Hold its microphone, speak, release,
-and use the familiar two-second cancel window. Enable microphone permissions if
-prompted; normal use needs no typing.
+Choose **Ask SlopZooka** in the launcher sidebar or in a terminal’s actions
+menu. If access is needed, Ask starts with a dedicated microphone and speech
+permission screen. Choose **Enable Microphone** to continue or **Not Now** to
+close Ask. Once access is available, hold the microphone, speak, and release
+to start the two-second cancel window.
 
 Opening from a terminal carries its worktree context. The same panel remains
 usable after closing the launcher. **Stop** cancels the latest request while

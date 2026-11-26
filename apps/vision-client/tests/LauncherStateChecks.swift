@@ -146,6 +146,50 @@ struct LauncherStateChecks {
         }
         print("PASS: saved-host priority, serialized discovery/retries, and fallback distinguish companions on different ports")
 
+        let cancellationClient = Fixture.api
+        var releaseCancelledCheck: CheckedContinuation<Void, Never>?
+        Fixture.healthReply = { base in
+            if base.port == 7777 {
+                await withCheckedContinuation { releaseCancelledCheck = $0 }
+            }
+            return health(base: base)
+        }
+        let cancelledCheck = Task {
+            await cancellationClient.select(DiscoveredCompanion(id: "mac", name: "Studio Mac",
+                candidateHosts: ["mac.local:7777", "mac.local:17777"]))
+        }
+        while releaseCancelledCheck == nil { await Task.yield() }
+        precondition(cancellationClient.isChecking && !cancellationClient.isActivelyReconnecting)
+        await cancellationClient.cancelConnection()
+        precondition(!cancellationClient.isChecking && cancellationClient.current == nil && cancellationClient.host.isEmpty)
+        releaseCancelledCheck!.resume()
+        await cancelledCheck.value
+        precondition(cancellationClient.current == nil, "Cancellation suppresses both stale replies and address fallback")
+        Fixture.healthReply = { base in
+            if base.port == 7777 { throw URLError(.cannotConnectToHost) }
+            return health(base: base)
+        }
+        await cancellationClient.select(DiscoveredCompanion(id: "mac", name: "Studio Mac",
+            candidateHosts: ["mac.local:7777", "mac.local:17777"]))
+        precondition(cancellationClient.needsPairing && cancellationClient.normalizedHost == "mac.local:17777")
+        Fixture.pendingPair = nil
+        cancellationClient.pairingCode = "123456"
+        let cancelledPair = Task { await cancellationClient.pair() }
+        while Fixture.pendingPair == nil { await Task.yield() }
+        await cancellationClient.cancelConnection()
+        let oldPairReply = Fixture.pendingPair
+        Fixture.pendingPair = nil
+        cancellationClient.pairingCode = "654321"
+        let replacementPair = Task { await cancellationClient.pair() }
+        while Fixture.pendingPair == nil { await Task.yield() }
+        oldPairReply?.resume()
+        await cancelledPair.value
+        precondition(cancellationClient.isPairing && cancellationClient.pairingError == nil,
+            "A cancelled pairing reply cannot clear or overwrite its replacement")
+        Fixture.pendingPair?.resume()
+        await replacementPair.value
+        print("PASS: Cancel restores Mac selection and rejects late discovery and pairing completions")
+
         // A manual selection supersedes discovery or a previous manual request.
         for oldFails in [false, true] {
             let client = Fixture.api

@@ -12,7 +12,8 @@ struct CoordinatorView: View {
     @State private var clippedEdges: VerticalEdge.Set = []
     @State private var microphoneReady = SpeechCaptureController.hasPermissions
     @State private var preparingMicrophone = false
-    @State private var permissionError: String?
+    @State private var permissionError = SpeechCaptureController.permissionDenial
+    @State private var permissionTask: Task<Void, Never>?
 
     private var contextLabel: String {
         if let id = state.context?.sessionID, let terminal = windows.terminalPayload(for: id) { return terminal.displayTitle }
@@ -22,6 +23,59 @@ struct CoordinatorView: View {
     private var canSpeak: Bool { microphoneReady && !anotherDraft && state.canReceiveVoice(client: client) }
 
     var body: some View {
+        Group {
+            if microphoneReady { askContent } else { permissionScreen }
+        }
+        .padding(24)
+        .frame(minWidth: 380, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+        .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
+            VStack(spacing: 0) {
+                if state.canStop, let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId {
+                    VoiceControlButton(label: "Stop Ask", action: {
+                        Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
+                    }) {
+                        Image(systemName: "stop.fill").accessibilityHidden(true)
+                    }
+                }
+                if microphoneReady {
+                    TerminalVoiceButton(id: CoordinatorState.sceneID, isAvailable: canSpeak, mode: .coordinator)
+                }
+            }
+            // Leave room for the system's lift effect beyond the circular hit regions.
+            .padding(12)
+            .fixedSize()
+        }
+        .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
+        .sheet(isPresented: $showingDetails) { details }
+        .onAppear { selectInitialContext() }
+        .onChange(of: client.current?.id) { _, _ in selectInitialContext() }
+        .onChange(of: phase) { _, next in
+            if next == .active && !preparingMicrophone {
+                microphoneReady = SpeechCaptureController.hasPermissions
+                permissionError = SpeechCaptureController.permissionDenial
+            }
+        }
+        .onDisappear {
+            permissionTask?.cancel()
+            permissionTask = nil
+            preparingMicrophone = false
+            voice.closeInput(CoordinatorState.sceneID)
+        }
+        .task(id: state.context?.hostID) {
+            guard let hostID = state.context?.hostID else { return }
+            while !Task.isCancelled {
+                await state.refresh(client: client, hostID: hostID)
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+            }
+        }
+        .onChange(of: state.snapshot?.workers.map(\.sessionId)) { _, _ in
+            guard let hostID = state.context?.hostID else { return }
+            Task { await launcher.loadWorkspaces(hostID: hostID) }
+        }
+    }
+
+    private var askContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("Ask SlopZooka").font(.title3.weight(.semibold))
@@ -52,51 +106,44 @@ struct CoordinatorView: View {
             if state.needsApproval {
                 Button("Review requested action") { showingDetails = true }.buttonStyle(.borderedProminent)
             }
-            if let permissionError { Text(permissionError).font(.footnote).foregroundStyle(.orange).lineLimit(2) }
-            if !microphoneReady {
-                Button(preparingMicrophone ? "Getting ready…" : "Enable Microphone") { Task { await prepareMicrophone() } }
-                    .disabled(preparingMicrophone).buttonStyle(.bordered)
-            }
         }
-        .padding(24)
-        .frame(minWidth: 380, maxWidth: .infinity, minHeight: 420, maxHeight: .infinity)
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
-        .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
-            VStack(spacing: 0) {
-                if state.canStop, let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId {
-                    VoiceControlButton(label: "Stop Ask", action: {
-                        Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
-                    }) {
-                        Image(systemName: "stop.fill").accessibilityHidden(true)
-                    }
+    }
+
+    private var permissionScreen: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.cyan).frame(width: 76, height: 76)
+                .background(.cyan.opacity(0.12), in: Circle()).accessibilityHidden(true)
+            VStack(spacing: 10) {
+                Text(preparingMicrophone ? "Waiting for permission…" : (permissionError ?? "Talk to SlopZooka"))
+                    .font(.title.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                Text(permissionMessage).foregroundStyle(.secondary)
+            }
+            HStack(spacing: 12) {
+                Button("Not Now") {
+                    permissionTask?.cancel()
+                    windows.closeCoordinator()
                 }
-                TerminalVoiceButton(id: CoordinatorState.sceneID, isAvailable: canSpeak, mode: .coordinator)
-            }
-            // Leave room for the system's lift effect beyond the circular hit regions.
-            .padding(12)
-            .fixedSize()
-        }
-        .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
-        .sheet(isPresented: $showingDetails) { details }
-        .onAppear { selectInitialContext() }
-        .onChange(of: client.current?.id) { _, _ in selectInitialContext() }
-        .onChange(of: phase) { _, next in
-            if next == .active { microphoneReady = SpeechCaptureController.hasPermissions }
-        }
-        .onDisappear {
-            voice.closeInput(CoordinatorState.sceneID)
-        }
-        .task(id: state.context?.hostID) {
-            guard let hostID = state.context?.hostID else { return }
-            while !Task.isCancelled {
-                await state.refresh(client: client, hostID: hostID)
-                do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                .buttonStyle(.bordered)
+                if !preparingMicrophone {
+                    Button(permissionError == nil ? "Enable Microphone" : "Check Again") {
+                        preparingMicrophone = true
+                        permissionTask = Task { await prepareMicrophone() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                }
             }
         }
-        .onChange(of: state.snapshot?.workers.map(\.sessionId)) { _, _ in
-            guard let hostID = state.context?.hostID else { return }
-            Task { await launcher.loadWorkspaces(hostID: hostID) }
-        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 360)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var permissionMessage: String {
+        if preparingMicrophone { return "Allow access to continue to Ask." }
+        if permissionError != nil { return "Allow microphone and speech recognition access for SlopZooka in visionOS Settings." }
+        return "Ask uses your microphone and speech recognition to turn what you say into a request."
     }
 
     private var conversation: some View {
@@ -222,13 +269,21 @@ struct CoordinatorView: View {
         state.select(CoordinatorContext(hostID: host.id))
     }
     private func prepareMicrophone() async {
-        preparingMicrophone = true
-        defer { preparingMicrophone = false }
+        defer {
+            if !Task.isCancelled {
+                preparingMicrophone = false
+                permissionTask = nil
+            }
+        }
         do {
             try await SpeechCaptureController.requestPermissions()
-            microphoneReady = true
-            permissionError = nil
-        } catch { permissionError = "\(error.localizedDescription) Check SlopZooka's permissions in Settings." }
+            guard !Task.isCancelled else { return }
+            microphoneReady = SpeechCaptureController.hasPermissions
+            permissionError = SpeechCaptureController.permissionDenial
+        } catch {
+            guard !Task.isCancelled else { return }
+            permissionError = SpeechCaptureController.permissionDenial ?? error.localizedDescription
+        }
     }
     private func answer(_ worker: CoordinatorWorker, accept: Bool) {
         guard let hostID = state.context?.hostID else { return }

@@ -1,14 +1,12 @@
 import SwiftUI
 
 struct ContentView: View {
-    private let launcherWindowSize = CGSize(width: 620, height: 760)
-
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var state: LauncherState
     @EnvironmentObject private var client: CompanionClient
     @AppStorage("launcherSection") private var section: LauncherSection = .repos
     private enum Sheet: String, Identifiable {
-        case settings, newRepo
+        case settings, newRepo, connection
         var id: String { rawValue }
     }
     @State private var activeSheet: Sheet?
@@ -16,32 +14,15 @@ struct ContentView: View {
     @FocusState private var projectSearchFocused: Bool
 
     var body: some View {
-        VStack(spacing: 16) {
-            launcherHeader
-            if client.isReady {
-                HStack(spacing: 4) {
-                    ForEach(LauncherSection.allCases) { item in
-                        Button { section = item } label: {
-                            Text(item.title)
-                                .font(.subheadline.weight(section == item ? .semibold : .regular))
-                                .foregroundStyle(section == item ? .primary : .secondary)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                        }
-                        .buttonStyle(.bordered)
-                        .buttonBorderShape(.roundedRectangle(radius: 12))
-                        .tint(.white.opacity(section == item ? 0.18 : 0.04))
-                        .accessibilityAddTraits(section == item ? .isSelected : [])
-                    }
-                }
-                .accessibilityLabel("Browse")
+        Group {
+            if client.hasWorkspace {
+                workspace.frame(width: 910, height: 580)
+            } else {
+                MacConnectionFlow(isSetup: true)
+                    .frame(width: 550, height: 480)
             }
-            ScrollView {
-                launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
-            }.scrollIndicators(.hidden)
         }
-        .padding(24)
-        .frame(width: launcherWindowSize.width, height: launcherWindowSize.height)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 32))
         .sheet(item: $activeSheet, onDismiss: {
             createRepoTask?.cancel()
             createRepoTask = nil
@@ -50,6 +31,9 @@ struct ContentView: View {
             switch sheet {
             case .settings:
                 LauncherSettingsView()
+            case .connection:
+                MacConnectionFlow(isSetup: false)
+                    .frame(width: 540, height: 620)
             case .newRepo:
                 NewRepoSheetView(
                     owners: state.availableOwners,
@@ -67,139 +51,208 @@ struct ContentView: View {
                 }
             }
         }
+        .onChange(of: section) { _, _ in state.searchText = "" }
         .onChange(of: state.selectedTool) { _, _ in
             state.persistSelectedTool()
         }
     }
 
     private enum LauncherSection: String, CaseIterable, Identifiable {
-        case sessions = "Terminals"
-        case repos = "Projects" // Stored launcherSection value from earlier releases.
-        case frontends = "Frontends"
-        var title: String { self == .repos ? "Repos" : rawValue }
-        var id: String { rawValue }
+        case repos = "Projects", worktrees = "Terminals", threads = "Threads", frontends = "Frontends"
+        var id: Self { self }
+        var title: String {
+            switch self {
+            case .repos: "Repos"
+            case .worktrees: "Worktrees"
+            default: rawValue
+            }
+        }
+        var icon: String {
+            switch self {
+            case .repos: "folder"
+            case .worktrees: "point.topleft.down.to.point.bottomright.curvepath"
+            case .threads: "text.bubble"
+            case .frontends: "globe"
+            }
+        }
     }
 
-    private var launcherHeader: some View {
-        HStack {
-            Text("SlopZooka").font(.title2.weight(.semibold))
-            Spacer()
-            Image(systemName: "desktopcomputer")
-                .foregroundStyle(client.isReady ? Color.green : Color.secondary)
-                .accessibilityLabel(client.isReady ? "Mac connected" : "Mac disconnected")
-                .help(client.isReady ? "Mac connected" : "Mac disconnected")
-            Button("Ask", systemImage: "mic") { windows.openCoordinator() }
-                .buttonStyle(.bordered)
-                .accessibilityLabel("Ask SlopZooka")
-                .help("Open the voice coordinator")
-            Button { activeSheet = .settings } label: {
-                Image(systemName: "gearshape")
-                    .frame(width: 44, height: 44)
+    private var workspace: some View {
+        HStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 20) {
+                Text("SlopZooka").font(.title2.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader).padding(.horizontal, 12)
+                VStack(spacing: 4) {
+                    ForEach(LauncherSection.allCases) { item in
+                        if item == .frontends { Divider().padding(.vertical, 8) }
+                        sidebarRow(item.title, icon: item.icon, selected: section == item) { section = item }
+                    }
+                }
+                Spacer()
+                VStack(spacing: 4) {
+                    sidebarRow("Ask SlopZooka", icon: "mic") { windows.openCoordinator() }
+                    sidebarRow("Settings", icon: "gearshape") { activeSheet = .settings }
+                }
             }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .accessibilityLabel("Settings")
-            .help("Settings")
+            .padding(.horizontal, 14).padding(.vertical, 24).frame(width: 230)
+            .background(.black.opacity(0.12))
+            Divider()
+            VStack(spacing: 20) {
+                HStack(spacing: 12) {
+                    Text(section.title).font(.largeTitle.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Spacer()
+                    Button {
+                        activeSheet = .connection
+                    } label: {
+                        Label {
+                            Text(client.launcherConnectionLabel)
+                        } icon: {
+                            Image(systemName: client.isReady || client.isActivelyReconnecting
+                                  ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
+                                .foregroundStyle(client.isActivelyReconnecting ? Color.cyan : (client.isReady ? .primary : .orange))
+                                .overlay {
+                                    if client.isActivelyReconnecting { ConnectionActivityRing().frame(width: 25, height: 25) }
+                                }
+                                .accessibilityHidden(true)
+                        }
+                        .font(.subheadline.weight(.medium))
+                    }
+                    .buttonStyle(.bordered)
+                    .accessibilityHint("Opens connection controls")
+                }
+                ScrollView {
+                    launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+                .scrollIndicators(.hidden)
+            }
+            .padding(.horizontal, 36).padding(.vertical, 28)
         }
+    }
+
+    private func sidebarRow(_ title: String, icon: String, selected: Bool = false, action: @escaping () -> Void) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14)
+        return Button(action: action) {
+            Label {
+                Text(title).font(.body.weight(selected ? .semibold : .regular))
+            } icon: {
+                Image(systemName: icon).font(.system(size: 16, weight: .medium))
+                    .foregroundStyle(selected ? Color.cyan : Color.secondary)
+                    .frame(width: 28, height: 28).accessibilityHidden(true)
+            }
+            .padding(.horizontal, 10)
+            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+            .background(.white.opacity(selected ? 0.16 : 0), in: shape)
+            .contentShape([.interaction, .hoverEffect], shape)
+            .hoverEffect(.highlight)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private var launcherMode: some View {
         VStack(alignment: .leading, spacing: 20) {
             if let feedback = state.feedback { feedbackBanner(feedback) }
-            if let error = windows.persistenceError {
-                Text(error).font(.footnote).foregroundStyle(.orange)
-            }
-            if !client.isReady {
-                if activeSheet != .settings { MacConnectionView() }
-            } else {
-                switch section {
-                case .sessions:
-                    VStack(alignment: .leading, spacing: 12) {
-                        sectionHeading("Your terminals", count: windows.terminalSessions.count)
-                        Text("Reopen a session without interrupting what’s running.")
-                            .font(.footnote).foregroundStyle(.secondary)
-                        quickOpenSessionsContent
-                        if windows.terminalSessions.isEmpty {
-                            Button("Open a Repo") { section = .repos }.buttonStyle(.borderedProminent)
-                        }
-                    }
-                case .repos:
-                    projectsContent
-                case .frontends:
-                    FrontendListView(hostID: client.current?.id)
-                }
-            }
-        }
-    }
-
-    private var projectsContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Picker("Open with", selection: $state.selectedTool) {
-                    ForEach(LaunchTarget.allCases) { target in Text(target.title).tag(target) }
-                }.pickerStyle(.menu)
-                Spacer()
-                Menu {
-                    Button("New Repo…") { state.repoCreationError = nil; activeSheet = .newRepo }
-                    Button(state.isPruningMissingWorkspaces ? "Hiding Missing…" : "Hide Missing Worktrees") {
-                        Task { await state.pruneMissingWorkspaces() }
-                    }
-                } label: {
-                    Label("Add or manage", systemImage: "plus")
-                }
-                .disabled(state.isMutatingWorkspace)
-            }
-            HStack(spacing: 12) {
-                TextField("Search repos or branches", text: $state.searchText)
-                    .textFieldStyle(.plain)
-                    .focused($projectSearchFocused)
-                    .textInputAutocapitalization(.never).autocorrectionDisabled()
-                    .hoverEffectDisabled()
-                Image(systemName: "magnifyingglass")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 44, height: 44)
-                    .accessibilityHidden(true)
-            }
-            .padding(.leading, 18)
-            .padding(.trailing, 6)
-            .padding(.vertical, 6)
-            .contentShape(RoundedRectangle(cornerRadius: 16))
-            .onTapGesture { projectSearchFocused = true }
-            .background {
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(.white)
-                    .hoverEffect { effect, isActive, _ in
-                        effect.opacity(isActive ? 0.16 : 0.08)
-                    }
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: 16)
-                    .strokeBorder(.white.opacity(projectSearchFocused ? 0.4 : 0.16), lineWidth: 1)
-                    .allowsHitTesting(false)
-            }
-            VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Start from a repo", count: state.filteredRepos.count)
-                quickRepoContent
-            }
-            Divider()
-            VStack(alignment: .leading, spacing: 12) {
-                sectionHeading("Continue a worktree", count: matchingWorkspaces.count)
-                quickWorkspaceContent
-            }
-            Divider()
-            VStack(alignment: .leading, spacing: 12) {
+            switch section {
+            case .repos:
+                projectsContent
+            case .worktrees:
+                worktreesContent
+            case .threads:
                 HStack {
-                    sectionHeading("Codex threads", count: state.filteredCodexThreads.count)
+                    sectionHeading("Recent Codex threads", count: state.filteredCodexThreads.count)
                     Button {
                         if let hostID = client.current?.id { Task { await state.loadCodexThreads(hostID: hostID) } }
                     } label: {
                         Image(systemName: "arrow.clockwise").frame(width: 44, height: 44)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!client.isReady)
                     .accessibilityLabel("Refresh Codex threads")
                 }
-                codexThreadsContent
+                searchField("Search threads")
+                codexThreadsContent.disabled(!client.isReady)
+            case .frontends:
+                FrontendListView(hostID: state.catalogHostID).disabled(!client.isReady)
             }
+        }
+    }
+
+    private var worktreesContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                toolPicker
+                Spacer()
+                if !windows.terminalSessions.isEmpty {
+                    Menu("Reopen Terminal", systemImage: "terminal") {
+                        ForEach(windows.terminalSessions) { session in
+                            Button(session.payload.displayTitle) {
+                                do { try windows.open(id: session.id) }
+                                catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
+                            }
+                        }
+                    }
+                    .disabled(!client.isReady)
+                }
+                Menu("Manage Worktrees", systemImage: "ellipsis") {
+                    Button("Hide Missing Worktrees") { Task { await state.pruneMissingWorkspaces() } }
+                }
+                .disabled(!client.isReady || state.isMutatingWorkspace)
+            }
+            searchField("Search worktrees or branches")
+            quickWorkspaceContent
+        }
+    }
+
+    private var toolPicker: some View {
+        Picker("Open with", selection: $state.selectedTool) {
+            ForEach(LaunchTarget.allCases) { target in Text(target.title).tag(target) }
+        }.pickerStyle(.menu)
+    }
+
+    private var projectsContent: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack {
+                toolPicker
+                Spacer()
+                Button("New Repo…", systemImage: "plus") {
+                    state.repoCreationError = nil
+                    activeSheet = .newRepo
+                }
+                .disabled(!client.isReady || state.isMutatingWorkspace)
+            }
+            searchField("Search repos")
+            quickRepoContent.disabled(!client.isReady)
+        }
+    }
+
+    private func searchField(_ prompt: String) -> some View {
+        HStack(spacing: 12) {
+            TextField(prompt, text: $state.searchText)
+                .textFieldStyle(.plain)
+                .focused($projectSearchFocused)
+                .textInputAutocapitalization(.never).autocorrectionDisabled()
+                .hoverEffectDisabled()
+            Image(systemName: "magnifyingglass")
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
+        }
+        .padding(.leading, 18)
+        .padding(.trailing, 6)
+        .padding(.vertical, 6)
+        .contentShape(RoundedRectangle(cornerRadius: 16))
+        .onTapGesture { projectSearchFocused = true }
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(.white)
+                .hoverEffect { effect, isActive, _ in
+                    effect.opacity(isActive ? 0.16 : 0.08)
+                }
+        }
+        .overlay {
+            RoundedRectangle(cornerRadius: 16)
+                .strokeBorder(.white.opacity(projectSearchFocused ? 0.4 : 0.16), lineWidth: 1)
+                .allowsHitTesting(false)
         }
     }
 
@@ -221,6 +274,9 @@ struct ContentView: View {
                             Task { await state.resume(thread) }
                         } label: {
                             HStack(spacing: 12) {
+                                Image(systemName: "text.bubble")
+                                    .foregroundStyle(.secondary).frame(width: 40, height: 40)
+                                    .background(.quaternary, in: Circle()).accessibilityHidden(true)
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(thread.title).font(.subheadline.weight(.semibold)).lineLimit(1)
                                     HStack {
@@ -232,6 +288,10 @@ struct ContentView: View {
                                 if state.busyThreadID == thread.id {
                                     ProgressView().scaleEffect(0.8)
                                 } else {
+                                    Text(Date(timeIntervalSince1970: thread.updatedAt), style: .relative)
+                                        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                        .padding(.horizontal, 8).padding(.vertical, 4)
+                                        .background(.quaternary, in: Capsule())
                                     Image(systemName: "arrow.up.forward").font(.caption).foregroundStyle(.secondary)
                                         .accessibilityHidden(true)
                                 }
@@ -243,7 +303,7 @@ struct ContentView: View {
                         .buttonStyle(.plain)
                         .hoverEffectDisabled()
                         .disabled(state.isMutatingWorkspace || !thread.available)
-                        .accessibilityLabel("Resume Codex thread, \(thread.title), \(thread.cwd)")
+                        .accessibilityHint(thread.available ? "Resumes this Codex thread" : "The folder is missing on the Mac")
                         .modifier(LauncherRowSurface())
                     }
                 }
@@ -269,29 +329,6 @@ struct ContentView: View {
     }
 
     @ViewBuilder
-    private var quickOpenSessionsContent: some View {
-        if windows.terminalSessions.isEmpty {
-            compactEmptyView("No open terminal sessions.")
-        } else {
-            LazyVStack(spacing: 10) {
-                ForEach(windows.terminalSessions) { session in
-                    HStack(spacing: 0) {
-                        Button {
-                            do { try windows.open(id: session.id) }
-                            catch { state.feedback = LaunchFeedback(message: error.localizedDescription, style: .error) }
-                        } label: {
-                            TerminalRowView(session: session)
-                        }
-                        .buttonStyle(.plain)
-                        .hoverEffectDisabled()
-                    }
-                    .modifier(LauncherRowSurface())
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
     private var quickWorkspaceContent: some View {
         switch state.workspaceState {
         case .idle, .loading:
@@ -303,52 +340,61 @@ struct ContentView: View {
                 compactEmptyView(
                     state.searchText.isEmpty ? "Your worktrees will appear here." : "No matching worktrees.")
             } else {
-                LazyVStack(spacing: 10) {
-                    ForEach(matchingWorkspaces) { workspace in
-                        HStack(spacing: 0) {
-                            Button {
-                                projectSearchFocused = false
-                                Task {
-                                    await state.reopen(workspace)
-                                }
-                            } label: {
-                                WorkspaceRowView(
-                                    workspace: workspace,
-                                    selectedTool: state.selectedTool,
-                                    isBusy: state.busyWorkspaceID == workspace.id
-                                )
+                let groups = Dictionary(grouping: matchingWorkspaces) { $0.repo.nameWithOwner }
+                let order = orderedWorktreeRepos(in: groups)
+                let sessions = windows.terminalSessions.filter { windows.reference(for: $0.id)?.hostID == state.catalogHostID }
+                let sessionsByWorktree = Dictionary(grouping: sessions, by: \.payload.workspaceId)
+                LazyVStack(alignment: .leading, spacing: 24) {
+                    ForEach(order, id: \.self) { repo in
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(repo).font(.headline).accessibilityAddTraits(.isHeader)
+                            ForEach(groups[repo] ?? []) { workspace in
+                                workspaceRow(workspace, sessionCount: sessionsByWorktree[workspace.id]?.count ?? 0)
                             }
-                            .buttonStyle(.plain)
-                            .hoverEffectDisabled()
-                            .disabled(
-                                state.isMutatingWorkspace)
-
-                            Menu {
-                                Button(
-                                    workspace.existsOnDisk ? "Archive Worktree" : "Hide Missing Worktree",
-                                    role: .destructive
-                                ) {
-                                    Task {
-                                        await state.archive(workspace)
-                                    }
-                                }
-                            } label: {
-                                Image(systemName: "ellipsis")
-                                    .font(.body.weight(.semibold))
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 48, height: 48)
-                                    .contentShape(Circle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel("Options for \(workspace.repo.nameWithOwner), \(workspace.name ?? workspace.branchName)")
-                            .padding(.trailing, 8)
-                            .disabled(
-                                state.isMutatingWorkspace)
                         }
-                        .modifier(LauncherRowSurface())
                     }
                 }
             }
+        }
+    }
+
+    private func orderedWorktreeRepos(in groups: [String: [WorkspaceSummary]]) -> [String] {
+        var remaining = Set(groups.keys)
+        let catalogOrder = state.recentRepos.map(\.nameWithOwner).filter { remaining.remove($0) != nil }
+        return catalogOrder + remaining.sorted()
+    }
+
+    @ViewBuilder
+    private func workspaceRow(_ workspace: WorkspaceSummary, sessionCount: Int) -> some View {
+        if client.isReady {
+            HStack(spacing: 0) {
+                Button {
+                    projectSearchFocused = false
+                    Task { await state.reopen(workspace) }
+                } label: {
+                    WorkspaceRowView(workspace: workspace, selectedTool: state.selectedTool,
+                                     isBusy: state.busyWorkspaceID == workspace.id, sessionCount: sessionCount)
+                }
+                .buttonStyle(.plain)
+                .hoverEffectDisabled()
+                .disabled(state.isMutatingWorkspace)
+                Menu {
+                    Button(workspace.existsOnDisk ? "Archive Worktree" : "Hide Missing Worktree", role: .destructive) {
+                        Task { await state.archive(workspace) }
+                    }
+                } label: {
+                    Image(systemName: "ellipsis").frame(width: 48, height: 48)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Options for \(workspace.name ?? workspace.branchName)")
+                .padding(.trailing, 8)
+                .disabled(state.isMutatingWorkspace)
+            }
+            .modifier(LauncherRowSurface())
+        } else {
+            WorkspaceRowView(workspace: workspace, selectedTool: state.selectedTool, isBusy: false,
+                             sessionCount: sessionCount, lastKnown: true)
+                .modifier(LauncherRowSurface(interactive: false))
         }
     }
 

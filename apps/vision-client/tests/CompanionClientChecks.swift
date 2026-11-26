@@ -447,6 +447,18 @@ struct CompanionClientChecks {
         let accepted = client.current
         release?.resume(); await old.value
         precondition(client.current == accepted && client.connectionMethod == .localNetwork, "Late Direct success must not win a rapid toggle")
+        pause = true
+        release = nil
+        let cancelled = Task { await client.setConnectionMethod(.direct) }
+        while release == nil { await Task.yield() }
+        await client.cancelConnection()
+        let restored = client.current
+        release?.resume()
+        await cancelled.value
+        precondition(client.isReady && restored != nil && client.current == restored
+            && client.connectionMethod == .localNetwork
+            && defaults.string(forKey: "connectionMethod:mac") == ConnectionMethod.localNetwork.rawValue,
+            "Cancelling a method switch restores the old route and rejects late success")
         offline = true
         await client.setConnectionMethod(.direct)
         precondition(client.connectionMethod == .direct && client.current == nil && !client.isReady)
