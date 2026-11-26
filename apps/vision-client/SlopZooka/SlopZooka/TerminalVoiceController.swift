@@ -74,8 +74,21 @@ final class VoiceAudioMeter: ObservableObject {
 }
 
 enum WindowName {
+    // Match JavaScript String.trim(), which validates saved preview records.
+    private static let layoutWhitespace = CharacterSet(charactersIn:
+        "\u{0009}\u{000A}\u{000B}\u{000C}\u{000D}\u{0020}\u{00A0}\u{1680}\u{2000}\u{2001}\u{2002}\u{2003}\u{2004}" +
+        "\u{2005}\u{2006}\u{2007}\u{2008}\u{2009}\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}\u{FEFF}")
+
     static func normalized(_ text: String) -> String {
         text.split(whereSeparator: \.isWhitespace).joined(separator: "-")
+    }
+
+    static func trimmedPreviewLabel(_ text: String) -> String {
+        text.trimmingCharacters(in: layoutWhitespace)
+    }
+
+    static func isValid(_ text: String) -> Bool {
+        !text.isEmpty && text.utf16.count <= 120 && !text.unicodeScalars.contains { $0.value < 32 }
     }
 }
 
@@ -154,6 +167,11 @@ final class TerminalVoiceController: ObservableObject {
     var canResume: Bool { mode != nil && sendDeadline == nil && !isSubmitting && pendingCommand == nil && captureState != .listening
         && captureState != .preparing && captureState != .finishing }
     var needsRetry: Bool { pendingCommand != nil && !isSubmitting }
+
+    func pendingDeliveryTarget(excluding id: String) -> String? {
+        guard let target = pendingCommand?.targetID, target != id else { return nil }
+        return target
+    }
 
     var statusText: String {
         if isSubmitting { return mode == .rename ? "Saving name…" : "Sending…" }

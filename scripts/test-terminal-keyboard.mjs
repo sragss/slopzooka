@@ -276,8 +276,8 @@ window.runKeyboardChecks = async () => {
     executable,
   ]);
   run(executable, [html]);
-  // Exercise the production renderer and zoom bridge in real WebKit. The fake
-  // transport records PTY resize messages without creating any sessions.
+  // Exercise the production renderer and its native bridges in real WebKit.
+  // The fake transport records outgoing messages without creating any sessions.
   const esbuild = await import(
     pathToFileURL(
       path.join(root, "apps/mac-companion/node_modules/esbuild/lib/main.js"),
@@ -327,7 +327,17 @@ window.runViewportChecks = async () => {
   };
   const resizes = () => sent.filter(message => message.type === 'resize');
   await until(() => resizes().length > 0);
+  check(!dragScrollbackAvailable, 'An empty terminal must leave pinch-drag to WebKit');
   const isFocused = () => document.activeElement === terminal.textarea;
+  const native = new URLSearchParams(location.search).has('native');
+  const selectSurface = () => mount.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
+  if (native) {
+    check(!isFocused() && terminal.textarea.inputMode === 'none', 'A headset terminal must suppress the software keyboard before native activation');
+    selectSurface();
+    check(isFocused() && terminal.textarea.inputMode === 'none', 'Early pointer selection must focus without the floating keyboard');
+    window.slzBlurTerminal();
+    window.slzFocusTerminal(false);
+  }
   const inputs = () => sent.filter(message => message.type === 'input').map(message => message.data);
   const checkInputs = (expected, label) => check(JSON.stringify(inputs()) === JSON.stringify(expected), label + ': ' + JSON.stringify(inputs()));
   const hardwareKey = (key, code, keyCode, modifiers = {}) => {
@@ -350,6 +360,14 @@ window.runViewportChecks = async () => {
   await Promise.resolve(); // Let the sampled receipt return before retiring this socket.
   window.slzFocusTerminal(true);
   check(isFocused() && terminal.textarea.inputMode === 'text', 'The Keyboard button must request software UI while keeping input focused');
+  selectSurface();
+  check(isFocused() && terminal.textarea.inputMode === 'text', 'Selection must preserve an explicitly requested keyboard during the same focus session');
+  if (native) {
+    let refocused = false;
+    terminal.textarea.addEventListener('focus', () => { refocused = true; }, {once: true});
+    window.slzFocusTerminal(true);
+    check(refocused && terminal.textarea.inputMode === 'text', 'Another explicit request must restart WebKit focus so the system can reopen the keyboard');
+  }
   window.slzInterruptTerminal();
   check(isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must preserve the requested keyboard mode');
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b'], 'Focused interrupt must send exactly one Escape');
@@ -357,13 +375,17 @@ window.runViewportChecks = async () => {
   check(isFocused() && terminal.textarea.inputMode === 'none', 'Reactivating a terminal must restore physical input without software UI');
   hardwareKey('b', 'KeyB', 66);
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b'], 'Hardware typing must work after reactivation');
-  terminal.blur();
-  mount.dispatchEvent(new PointerEvent('pointerdown', {bubbles: true}));
-  check(isFocused() && terminal.textarea.inputMode === 'text', 'Tapping the terminal must explicitly request the software keyboard');
-  terminal.blur();
+  window.slzFocusTerminal(true);
+  window.slzBlurTerminal();
+  check(!isFocused() && terminal.textarea.inputMode === (native ? 'none' : 'text'), 'Losing headset terminal focus must clear the explicit keyboard request');
+  selectSurface();
+  const selectedMode = native ? 'none' : 'text';
+  check(isFocused() && terminal.textarea.inputMode === selectedMode, 'Selecting a headset terminal must focus for typing without reopening the floating keyboard');
+  hardwareKey('e', 'KeyE', 69);
+  window.slzBlurTerminal();
   window.slzInterruptTerminal();
-  check(!isFocused() && terminal.textarea.inputMode === 'text', 'Interrupt must not change focus or keyboard mode');
-  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b'], 'Unfocused interrupt must send exactly one Escape');
+  check(!isFocused() && terminal.textarea.inputMode === selectedMode, 'Interrupt must not change focus or keyboard mode');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', 'e', '\\x1b'], 'Hardware typing must work immediately after selection and unfocused interrupt must send exactly one Escape');
   window.slzFocusTerminal(false);
   const attachments = () => sent.filter(message => message.type === 'attach').length;
   const beforeReconnect = attachments();
@@ -371,7 +393,23 @@ window.runViewportChecks = async () => {
   await until(() => attachments() > beforeReconnect && resizes().length > 1);
   check(isFocused() && terminal.textarea.inputMode === 'none', 'Reconnecting must preserve physical keyboard focus and software suppression');
   hardwareKey('d', 'KeyD', 68);
-  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
+  checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', 'e', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
+  terminal.blur();
+  const controlKey = window.slzSendTerminalControlKey;
+  const beforeControlKeys = inputs().length;
+  // The onscreen controls must work while a toolbar button owns focus.
+  controlKey('ArrowDown');
+  controlKey('Enter');
+  controlKey('Enter');
+  await new Promise(resolve => terminal.write('\\x1b[?1h', resolve));
+  for (const key of ['ArrowUp', 'ArrowDown', 'ArrowRight', 'ArrowLeft']) controlKey(key);
+  controlKey('toString');
+  await new Promise(resolve => terminal.write('\\x1b[?1l', resolve));
+  check(JSON.stringify(inputs().slice(beforeControlKeys)) === JSON.stringify([
+    '\\x1b[B', '\\r', '\\r', '\\x1bOA', '\\x1bOB', '\\x1bOC', '\\x1bOD',
+  ]), 'Terminal buttons must send exactly one key per tap and honor application cursor mode');
+  check(!isFocused() && terminal.textarea.inputMode === 'none', 'Terminal buttons must preserve focus and keyboard mode');
+  window.slzFocusTerminal(false);
   const legacy = new URLSearchParams(location.search).has('legacy');
   check(legacy || typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
@@ -511,12 +549,32 @@ window.runViewportChecks = async () => {
   commit('Z'); hardwareKey('F1', 'F1', 0);
   paste('read-only paste');
   nativeKey('ArrowUp', {altKey: true});
+  controlKey('ArrowDown');
+  controlKey('Enter');
   check(inputs().length === beforeReadOnlyShortcut, 'Keyboard shortcuts and paste must respect read-only ownership');
+  const write = (text) => new Promise(resolve => terminal.write(text, resolve));
+  await write('history\\r\\n'.repeat(terminal.rows * 3));
+  const bottom = terminal.buffer.active.baseY;
+  check(bottom >= terminal.rows, 'The scrollback fixture must have history');
+  await until(() => dragScrollbackAvailable);
+  const tenthOfLine = 0.1 / terminal.rows;
+  window.slzScrollback(-tenthOfLine);
+  check(terminal.buffer.active.viewportY === bottom, 'Keep sub-line scroll deltas');
+  window.slzScrollback(-10 * tenthOfLine);
+  check(terminal.buffer.active.viewportY === bottom - 1, 'Accumulate fractional movement into one line');
+  window.slzScrollback(-4);
+  check(terminal.buffer.active.viewportY === 0, 'Clamp at the oldest retained line');
+  window.slzScrollback(4);
+  check(terminal.buffer.active.viewportY === bottom, 'Clamp at the live viewport');
+  window.slzScrollback(-1);
+  check(terminal.buffer.active.viewportY === bottom - terminal.rows, 'VoiceOver page distance must use the current fitted grid');
+  check(inputs().length === beforeReadOnlyShortcut && isFocused(), 'Local history must work read only without PTY input or a focus change');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
+  delete document.documentElement.dataset.nativeTerminal;
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
   document.documentElement.dataset.nativeTerminal = 'true';
   check(getComputedStyle(button).display === 'none', 'Take Control must stay hidden on Vision Pro');
-  delete document.documentElement.dataset.nativeTerminal;
+  if (!native) delete document.documentElement.dataset.nativeTerminal;
   button.click();
   check(sent.at(-1).type === 'take-control', 'Takeover must use the existing session connection');
   check(!button.hidden, 'Control must not change before the service confirms it');
@@ -524,7 +582,50 @@ window.runViewportChecks = async () => {
   await until(() => readOnlyBadge.hidden);
   check(button.hidden, 'Confirmed takeover dismisses the action');
   check(document.activeElement === terminal.textarea, 'Taking control must focus terminal input');
+  const beforeWheel = inputs().length;
+  const wheel = () => {
+    const target = terminal.element.querySelector('.xterm-screen');
+    const rect = target.getBoundingClientRect();
+    target.dispatchEvent(new WheelEvent('wheel', {
+      deltaY: -3, deltaMode: WheelEvent.DOM_DELTA_LINE,
+      clientX: rect.left + 5, clientY: rect.top + 5, bubbles: true, cancelable: true,
+    }));
+  };
+  // xterm uses its own view/layout update to synchronize a buffer switch.
+  await write('\\x1b[?1049h');
+  await until(() => !dragScrollbackAvailable);
+  window.slzScrollback(-1);
+  check(terminal.buffer.active.type === 'alternate' && terminal.buffer.active.viewportY === 0, 'The strip must leave the alternate buffer still');
+  check(inputs().length === beforeWheel, 'The strip must not send alternate-screen arrow keys');
+  wheel();
+  check(inputs().at(-1) === '\\x1b[A' && inputs().length === beforeWheel + 1, 'Ordinary alternate-screen wheel must retain xterm arrow emulation');
+  await write('\\x1b[?1000h\\x1b[?1006h');
+  window.slzScrollback(1);
+  check(inputs().length === beforeWheel + 1, 'The strip must not emit mouse reports');
+  wheel();
+  check(inputs().at(-1) === '\\x1b[<64;1;1M' && inputs().length === beforeWheel + 2, 'Ordinary wheel must retain xterm SGR mouse reporting');
+  await write('\\x1b[?1000l\\x1b[?1006l\\x1b[?1049l');
+  await until(() => dragScrollbackAvailable);
+  await write('\\x1b[?1000h');
+  terminal.scrollToBottom();
+  const mouseModeBottom = terminal.buffer.active.viewportY;
+  window.slzScrollback(-1, true);
+  check(terminal.buffer.active.viewportY === mouseModeBottom, 'A delayed body drag must respect current mouse reporting');
+  window.slzScrollback(-1);
+  check(terminal.buffer.active.viewportY < mouseModeBottom, 'The separate strip must still scroll local history before exiting mouse mode');
+  await until(() => !dragScrollbackAvailable);
+  await write('\\x1b[?1000l');
+  await until(() => dragScrollbackAvailable);
+  const beforeInvalidScroll = terminal.buffer.active.viewportY;
+  for (const invalid of [NaN, Infinity, 5, '1']) window.slzScrollback(invalid);
+  check(terminal.buffer.active.viewportY === beforeInvalidScroll, 'Reject nonnumeric and unbounded scroll deltas');
   window.slzDetachTerminal();
+  check(!dragScrollbackAvailable, 'Detach must disable body drag');
+  window.slzScrollback(-1);
+  check(terminal.buffer.active.viewportY === beforeInvalidScroll, 'A detached renderer must ignore scroll commands');
+  const beforeDetachedKeys = inputs().length;
+  controlKey('Enter');
+  check(inputs().length === beforeDetachedKeys, 'Terminal buttons must drop input after disconnect');
   return 'PASS';
 };`,
     },

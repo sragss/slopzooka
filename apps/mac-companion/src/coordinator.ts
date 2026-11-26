@@ -102,6 +102,48 @@ const result = (value: unknown) => ({
   details: {},
 });
 
+// Pi formats Responses API failures with the HTTP status when available.
+function modelFailure(message: string) {
+  const status =
+    Number(/^OpenAI API error \(([45]\d{2})\):/.exec(message)?.[1]) ||
+    undefined;
+  if (status === 401 || status === 403)
+    return {
+      status,
+      kind: "access",
+      reply: "Ask’s model service rejected its credentials or model access.",
+    };
+  if (status === 429)
+    return {
+      status,
+      kind: "limit",
+      reply: "Ask’s model service reached a rate or usage limit.",
+    };
+  if ((status && status >= 500) || status === 408)
+    return {
+      status,
+      kind: "provider-unavailable",
+      reply:
+        "Ask’s model service is temporarily unavailable. Try again in a moment.",
+    };
+  if (
+    /^(connection error|request timed out|fetch failed|terminated|openai responses stream ended)\b/i.test(
+      message,
+    )
+  )
+    return {
+      status,
+      kind: "connection",
+      reply:
+        "Ask lost its connection to the model service. Try again in a moment.",
+    };
+  return {
+    status,
+    kind: "model-error",
+    reply: "Ask couldn’t finish its model request.",
+  };
+}
+
 /** Replaceable reasoning state. Resource/session/window ownership stays in existing services. */
 export class Coordinator {
   private closed = false;
@@ -953,8 +995,37 @@ export class Coordinator {
               ...options,
               apiKey: settings.apiKey,
               maxTokens: 2048,
-              maxRetries: 0,
+              // Retry the inference HTTP request before a stream opens, at
+              // the existing tool boundary. Never replay the Ask turn.
+              maxRetries: 1,
+              maxRetryDelayMs: 2_000,
               reasoning: "low",
+              fetch: async (input, init) => {
+                try {
+                  return await fetch(input, init);
+                } catch (error) {
+                  if (!init?.signal?.aborted) {
+                    const cause =
+                      error instanceof Error ? error.cause : undefined;
+                    const code =
+                      cause && typeof cause === "object" && "code" in cause
+                        ? cause.code
+                        : undefined;
+                    this.options.logger.warn(
+                      "coordinator.model.transport-failed",
+                      {
+                        requestId: c.turn.request.requestId,
+                        code:
+                          typeof code === "string" &&
+                          /^(?:E|CERT_|UND_ERR_)[A-Z0-9_]{1,48}$/.test(code)
+                            ? code
+                            : undefined,
+                      },
+                    );
+                  }
+                  throw error;
+                }
+              },
             })),
         toolExecution: "sequential",
         beforeToolCall: async () => {
@@ -1011,7 +1082,21 @@ export class Coordinator {
           .filter((part) => part.type === "text")
           .map((part) => part.text)
           .join("\n");
-        if (reply && !c.stopped) c.turn.reply = reply;
+        if (reply && !c.stopped && last.stopReason !== "error")
+          c.turn.reply = reply;
+      }
+      if (
+        !c.stopped &&
+        (last?.stopReason === "error" || c.agent.state.errorMessage)
+      ) {
+        const failure = modelFailure(c.agent.state.errorMessage ?? "");
+        c.failure = failure.reply;
+        this.options.logger.warn("coordinator.model.failed", {
+          requestId: c.turn.request.requestId,
+          kind: failure.kind,
+          model: model.id,
+          providerStatus: failure.status,
+        });
       }
       if (c.failure)
         c.turn.reply = [c.turn.reply, c.failure].filter(Boolean).join("\n\n");
@@ -1019,9 +1104,7 @@ export class Coordinator {
         ? "failed"
         : c.stopped
           ? "stopped"
-          : c.agent.state.errorMessage
-            ? "failed"
-            : "completed";
+          : "completed";
     } finally {
       clearTimeout(timer);
     }

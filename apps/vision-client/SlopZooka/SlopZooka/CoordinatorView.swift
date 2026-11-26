@@ -45,7 +45,9 @@ struct CoordinatorView: View {
                 }
             }
             conversation
-            if anotherDraft { Text("Finish or cancel the voice draft in your other window.").font(.footnote).foregroundStyle(.secondary) }
+            if anotherDraft && voice.pendingDeliveryTarget(excluding: CoordinatorState.sceneID) == nil {
+                Text("Finish or cancel the voice draft in your other window.").font(.footnote).foregroundStyle(.secondary)
+            }
             if let error = state.error { Text(error).font(.footnote).foregroundStyle(.orange) }
             if state.needsApproval {
                 Button("Review requested action") { showingDetails = true }.buttonStyle(.borderedProminent)

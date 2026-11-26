@@ -166,17 +166,21 @@ struct TerminalVoiceChecks {
         reply!.resume(throwing: URLError(.networkConnectionLost)); reply = nil
         await until { !voice.isSubmitting }
         precondition(voice.needsRetry && !voice.canResume && voice.hasText)
+        precondition(voice.pendingDeliveryTarget(excluding: "a") == nil, "The owner already shows the draft")
+        precondition(voice.pendingDeliveryTarget(excluding: "b") == "a", "Other mics review the original pending draft")
         voice.beginTerminalHold("b")
         precondition(voice.targetID == "a")
         voice.send()
         await until { reply != nil }
         precondition(commands.last == retryCommand, "Retry must preserve ID, text, and destination")
+        precondition(voice.pendingDeliveryTarget(excluding: "b") == "a", "Keep recovery visible during Retry")
         available.remove("a")
         voice.targetUnavailable("a")
         reply!.resume(); reply = nil
         await until { !voice.isSubmitting }
         available.insert("a")
         precondition(capture.state == .idle && !voice.hasText, "A late acknowledgement cannot rearm after suspension")
+        precondition(voice.pendingDeliveryTarget(excluding: "b") == nil, "Acknowledgement restores the other microphone")
         print("PASS: disconnect keeps drafts, reconnect needs a fresh hold, and uncertain delivery retries the immutable command")
 
         voice.beginTerminalHold("a")

@@ -30,6 +30,8 @@ In **Repos → + → New Repo**, enter a name to create a Git repo on this Mac. 
 
 **Codex threads** appears last under Repos: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
 
+If Codex opens an **Update available** menu, open **Session Actions (⋯)** in the new terminal. Move the highlight with the arrows in that menu, then tap **Return**. For example, move to **Skip** and confirm to continue with the installed version. Codex owns its update checks and choices, including **Update now**. SlopZooka sends a key only when you press one. The same buttons work in first-run sign-in and trust menus, whose choices can vary by Codex version. If Codex reports that the installed version can no longer start, update it on the Mac and launch again.
+
 The toolbar uses native glass controls. The larger **globe button** at the left opens worktree frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the worktree’s apps or discovery notices.
 
 Terminal rows match repo rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
@@ -40,7 +42,13 @@ In preview windows, VoiceOver identifies the reload and close controls as **Relo
 
 ## Keyboard and zoom
 
-Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose the **keyboard icon** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.
+Selecting a terminal focuses it for hardware typing. Use the **keyboard icon** in the terminal toolbar to request the full floating keyboard. The request clears when the terminal loses input focus.
+
+With Mac Virtual Display, use the Mac's keyboard and pointer to type in the Vision Pro terminal. Moving the Mac pointer into the terminal and clicking may be necessary to hand off input from the previous window. Pairing SlopZooka connects the terminal to its Mac process. Mac Virtual Display or a keyboard connected to Vision Pro supplies physical keystrokes. [Apple's Mac Virtual Display guide](https://support.apple.com/en-us/118521)
+
+visionOS can still show its compact typing preview with a physical keyboard. Selecting a terminal with an unread alert can clear its badge at the same time the terminal gains input focus. [Apple's keyboard guidance](https://developer.apple.com/design/human-interface-guidelines/keyboards/)
+
+The terminal's **Session Actions** menu has arrow and **Return** buttons that work without keyboard focus. Update the headset app and Mac companion to use these controls. They send input only while the terminal is connected and has keyboard control. If another viewer owns input, close that viewer to release control.
 
 With the terminal focused, select output and press **⌘C** to copy it. **⌘A** selects the terminal buffer, including scrollback. **⌘V** pastes text from the Vision Pro system clipboard into the focused terminal. Update both the headset app and the Mac companion for the terminal selection shortcuts.
 
@@ -58,6 +66,14 @@ Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom*
 
 Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. Older Mac companions without the font-zoom bridge use a scaled logical viewport so their resize observer still refits the terminal. Update both apps for the bounded emulator/PTY grid at extreme zoom.
 
+## Terminal scrollback
+
+On updated headset and Mac builds, look at the terminal text, pinch, and drag down to reveal earlier lines. Pinch to Scroll is on by default when local history is available. It pauses in the alternate screen and when a terminal app asks for mouse reports. Use **Session actions → Disable Pinch to Scroll** to give pinch-drag back to the terminal. Mouse and trackpad wheel scrolling use the existing terminal behavior.
+
+Choose **Session actions → Show Scrollback Strip** for a separate scroll control with VoiceOver page steps. Both preferences are per window. Local history is available in read-only views of running terminals.
+
+Physical headset behavior is still unverified. See the [scrolling investigation and device checklist](terminal-scrolling.md) for platform support and current limits.
+
 ## Terminal notifications
 
 Terminal bells (BEL) and desktop notification escapes (OSC 9 and OSC 777) give that terminal an orange border and an **Unread notification** badge. Bring that terminal into the foreground, tap or pinch inside it, use its controls, or type in it to mark the notification read. Selecting another terminal does not clear it. Repeated focus observations, automatic keyboard focus inside an already-active scene, and content reloads do not mark new notifications read. The native transition into the foreground is sufficient; no extra click inside the terminal is required.
@@ -68,17 +84,19 @@ SlopZooka reports native scene deactivation to terminal programs as focus-out. C
 
 This handles alerts emitted by the terminal program; it does not infer completion from output text or a process exit. Enable terminal notifications in your coding agent if they are disabled. Update both apps and restart an older Mac session service after ending its sessions to enable alert detection. Test the path from a shell with `printf '\a'`.
 
+## Window names
+
+The header above each terminal shows **repo / worktree / window**. Worktrees default to a short UTC creation timestamp such as **nov-09-2104**. Terminal defaults are assigned per tool within each worktree, such as **codex**, **codex2**, **claude**, and **terminal**. Resumed Codex threads show **codex** in the header until renamed. The saved thread title is available in the thread list and, before renaming, in the terminal's session details. Existing custom names stay in place.
+
+Pinch the **pencil** beside the worktree or window name. The same editor works in terminal, web preview, and Mac window preview headers. Type with a keyboard or use the system keyboard's dictation. Choose **Save** or press Return to apply the name. **Cancel**, Escape, or dismissing the editor before saving discards the draft. Failed saves keep the draft for retry. Names allow up to 120 UTF-16 code units. Terminal and worktree names turn whitespace into dashes. Preview names keep interior spaces.
+
+Duplicate labels are allowed. A rename follows the window you edited and keeps its session, preview source, and worktree binding. Terminal names follow the running Mac session across window closures, reconnects, headset rebuilds, and HTTP companion restarts. The launcher, dashboard, and wrist menu show the same terminal names. Preview names belong to this headset's saved window layout and return with restored previews. A clock by the pencil means the preview name is waiting to sync to the Mac. Closing a preview removes its layout entry.
+
+Web preview headers include the repo and worktree when the Mac can match the local server directory to a managed worktree. Mac window previews default to the source app and window title.
+
 ## Dictation
 
-The header above each terminal shows **repo / worktree / window** on the same rounded glass surface. Repo is the repo name and cannot be edited. Worktrees default to a short UTC creation timestamp such as **nov-09-2104**. Window defaults are assigned per tool within each worktree: **codex**, **codex2**, **claude**, **terminal**, and so on. Labels remain stable when windows close, sessions are removed, or the HTTP companion restarts; existing custom window names are preserved.
-
-Web previews show **repo / worktree / preview** above the window when the Mac can match the local web server’s directory to one managed worktree. The label follows the Mac’s frontend catalog when ownership or names change. Generic Mac window streams, including Simulator captures, have an app and window identity only.
-
-The diagonal dividers also bound the full-height hover regions: worktree fills between the slashes, and window fills through the rounded right edge. Naming is available independently of terminal keyboard/renderer readiness.
-
-Look at the worktree or window segment and pinch to use the existing centered voice rename overlay. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes. A worktree rename updates its sibling windows and repo listings; a window rename changes only that session. The launcher, companion dashboard, and wrist menu show the same naming context. These are display labels: renaming never changes the Git branch, worktree path, window identity, or running process.
-
-Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. The rename overlay’s **×** cancels naming; failed saves keep the draft for retry. Send, save, or cancel an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
+Pinch the worktree or window text in the terminal header to use SlopZooka's voice rename overlay. Say a name and pause, or tap **Save Name**. Tap **×** to cancel. A worktree rename updates sibling windows and repo listings. Naming works while the terminal renderer reconnects. Send, save, or cancel an existing voice draft before switching voice tasks. Terminal naming uses the Mac session service's rename support. An older running service may need an update and restart after its sessions end.
 
 Look at the large glass microphone at the terminal’s bottom right, then **pinch and hold** while speaking. Keep holding through pauses or while looking at another window. Release to finish transcription. A silver bar fills around the centered transcript box for **two seconds**, then the message sends with Return. During the countdown, hold the same mic again to append more words, or tap **×** to discard the message. The next release starts a fresh countdown. This also works in Ask. A short mechanical click and a soft border pulse confirm delivery; the transcript fades out in place. The status title fades gently between messages and stays quiet while transcription finishes or the microphone is paused. The microphone stays off until your next hold.
 
@@ -102,6 +120,7 @@ voice sheet after the popover closes, including while the terminal is disconnect
 - **New Shell** adds a terminal to the same worktree. The toolbar’s **Stop** button confirms before explicitly stopping the process and its current descendants. Ending an already exited session removes its retained screen.
 - Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
 - Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or the launcher’s reload button; these preserve running sessions.
+- If dictation delivery is unconfirmed, tap a mic in another window to review the pending draft. **Retry** sends the same message to its original destination when available. **×** discards the draft and frees the microphone.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
 
 ## Window recovery

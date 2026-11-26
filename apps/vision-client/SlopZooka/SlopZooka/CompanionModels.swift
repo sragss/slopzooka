@@ -94,6 +94,8 @@ struct TerminalWindowPayload: Equatable {
     let urlString: String
     var projectName: String? = nil
     var workspaceName: String? = nil
+    var compactTitle: String? = nil
+    var headerTitle: String { compactTitle ?? title }
     var displayTitle: String { [projectName, workspaceName, title].compactMap { $0 }.joined(separator: " / ") }
 
     var url: URL? {
@@ -251,6 +253,7 @@ struct HostSession: Decodable, Identifiable {
     var name: String? = nil
     var projectName: String? = nil
     var workspaceName: String? = nil
+    var codexThreadId: String? = nil
 }
 struct HostSessionsResponse: Decodable {
     let sessions: [HostSession]

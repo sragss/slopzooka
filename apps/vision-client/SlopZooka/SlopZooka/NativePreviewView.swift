@@ -22,8 +22,13 @@ struct NativePreviewView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .background(PreviewGeometry(size: model.contentSize ?? CGSize(width: payload.source.contentWidth, height: payload.source.contentHeight)))
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
+            let title = windows.previewName(for: id) ?? "\(payload.source.application) · \(payload.source.title)"
             HStack {
-                Text(windows.previewName(for: id) ?? "\(payload.source.application) · \(payload.source.title)").lineLimit(1).frame(maxWidth: 350)
+                Text(title).lineLimit(1).frame(maxWidth: 260)
+                    .fixedSize(horizontal: true, vertical: false)
+                NameEditorButton(title: title, isAvailable: phase == .active && windows.canRenamePreview(id),
+                    isPending: windows.isPreviewNamePending(id),
+                    save: { try windows.renamePreview(id: id, name: $0) })
                 Button("Reload", systemImage: "arrow.clockwise") { windows.reload(id: id) }.labelStyle(.iconOnly)
                 Menu("Preview actions", systemImage: "ellipsis") {
                     Button("Close Preview", systemImage: "xmark") { windows.close(id: id) }
