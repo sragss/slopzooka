@@ -56,22 +56,41 @@ final class WindowPersistence {
     }
     private let defaults: UserDefaults
     private let key = "windowIntentOutbox.v1"
+    // Older apps can still read the open/close outbox without mistaking a
+    // pending label for an instruction to open a window.
+    private let namesKey = "windowNameOutbox.v1"
     private var pending: [String: [String: Change]] = [:]
+    private var pendingNames: [String: [String: WindowRecord]] = [:]
     private var snapshots: [String: WindowLayout] = [:]
     private var loadError: Error?
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let data = defaults.data(forKey: key) {
-            do { pending = try JSONDecoder().decode([String: [String: Change]].self, from: data) }
-            catch { loadError = error }
-        }
+        do {
+            let decoder = JSONDecoder()
+            if let data = defaults.data(forKey: key) { pending = try decoder.decode([String: [String: Change]].self, from: data) }
+            if let data = defaults.data(forKey: namesKey) {
+                pendingNames = try decoder.decode([String: [String: WindowRecord]].self, from: data)
+            }
+        } catch { loadError = error }
     }
 
     func windows(hostID: String) -> [WindowRecord] {
         var records = Dictionary(uniqueKeysWithValues: (snapshots[hostID]?.windows ?? []).map { ($0.id, $0) })
         for change in pending[hostID]?.values ?? [:].values {
-            records[change.window.id] = change.isOpen ? change.window : nil
+            let id = change.window.id
+            let existing = records[id].flatMap { $0.sameContent(as: change.window) ? $0 : nil }
+            if change.isOpen {
+                records[id] = change.window
+                if let existing { records[id]?.name = existing.name }
+            } else {
+                records[id] = nil
+            }
+        }
+        // Rebase only the label onto the current record. In particular,
+        // a remote close or replacement cannot become a local open.
+        for record in pendingNames[hostID]?.values ?? [:].values where records[record.id]?.sameContent(as: record) == true {
+            records[record.id]?.name = record.name
         }
         return records.values.sorted { $0.id < $1.id }
     }
@@ -79,8 +98,31 @@ final class WindowPersistence {
     func set(_ reference: WindowReference, isOpen: Bool) throws {
         log.info("intent.queued", ["hostId": reference.hostID, "windowId": reference.window.id, "open": String(isOpen)])
         if let loadError { throw loadError }
-        pending[reference.hostID, default: [:]][reference.window.id] = Change(window: reference.window, isOpen: isOpen)
+        let hostID = reference.hostID, window = reference.window
+        pending[hostID, default: [:]][window.id] = Change(window: window, isOpen: isOpen)
         try save()
+        if !isOpen, pendingNames[hostID]?.removeValue(forKey: window.id) != nil { try saveNames() }
+    }
+
+    func rename(_ reference: WindowReference, name: String) throws -> WindowReference {
+        if let loadError { throw loadError }
+        let hostID = reference.hostID
+        let id = reference.window.id
+        guard var record = windows(hostID: hostID).first(where: { $0.sameContent(as: reference.window) }) else {
+            throw CompanionError(message: "This preview is no longer open.")
+        }
+        record.name = name
+        pendingNames[hostID, default: [:]][id] = record
+        try saveNames()
+        return WindowReference(hostID: hostID, window: record)
+    }
+
+    func isNamePending(_ reference: WindowReference) -> Bool {
+        pendingNames[reference.hostID]?[reference.window.id]?.sameContent(as: reference.window) == true
+    }
+
+    func hasPendingNames(hostID: String) -> Bool {
+        pendingNames[hostID]?.isEmpty == false
     }
 
     // Caller serializes synchronization; changes arriving during a request stay in the outbox.
@@ -93,18 +135,27 @@ final class WindowPersistence {
         }
         snapshots[hostID] = snapshot
         let changes = pending[hostID] ?? [:]
-        guard !changes.isEmpty else { return }
-        log.info("layout.saving", ["hostId": hostID, "revision": String(snapshot.revision), "pending": String(changes.count)])
+        let names = pendingNames[hostID] ?? [:]
+        guard !changes.isEmpty || !names.isEmpty else { return }
+        log.info("layout.saving", ["hostId": hostID, "revision": String(snapshot.revision), "pending": String(changes.count + names.count)])
         let next = WindowLayout(revision: snapshot.revision, windows: windows(hostID: hostID))
-        let saved = try await client.saveWindowLayout(hostID: hostID, layout: next).validated()
+        let saved = changes.isEmpty && next.windows == snapshot.windows.sorted { $0.id < $1.id }
+            ? snapshot : try await client.saveWindowLayout(hostID: hostID, layout: next).validated()
         snapshots[hostID] = saved
         for (id, change) in changes where pending[hostID]?[id] == change { pending[hostID]?.removeValue(forKey: id) }
         if pending[hostID]?.isEmpty == true { pending.removeValue(forKey: hostID) }
         try save()
+        for (id, record) in names where pendingNames[hostID]?[id] == record { pendingNames[hostID]?.removeValue(forKey: id) }
+        if pendingNames[hostID]?.isEmpty == true { pendingNames.removeValue(forKey: hostID) }
+        if !names.isEmpty { try saveNames() }
         log.info("layout.acknowledged", ["hostId": hostID, "revision": String(saved.revision)])
     }
 
     private func save() throws {
         defaults.set(try JSONEncoder().encode(pending), forKey: key)
+    }
+
+    private func saveNames() throws {
+        defaults.set(try JSONEncoder().encode(pendingNames), forKey: namesKey)
     }
 }

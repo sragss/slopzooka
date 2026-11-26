@@ -135,17 +135,32 @@ private struct WebPreviewHeader: View {
     let reference: WindowReference
     let title: String
     @EnvironmentObject private var client: CompanionClient
+    @EnvironmentObject private var windows: WindowGateway
+    @Environment(\.scenePhase) private var phase
 
     var body: some View {
-        if let owner = client.frontends(for: reference.hostID).frontends
-            .first(where: { $0.id == reference.window.targetID })?.worktreeLabel {
-            Text("\(owner.repo) / \(owner.worktree) / \(title)")
-                .font(.system(size: 48, weight: .bold, design: .rounded))
-                .lineLimit(1).minimumScaleFactor(0.5)
-                .padding(.horizontal, 28).padding(.vertical, 14)
-                .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-                .frame(maxWidth: 1000).padding(.bottom, 20)
+        let id = reference.window.id
+        let owner = client.frontends(for: reference.hostID).frontends
+            .first(where: { $0.id == reference.window.targetID })?.worktreeLabel
+        HStack(spacing: 8) {
+            if let owner {
+                Text("\(owner.repo) / \(owner.worktree) /")
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .frame(maxWidth: 260)
+                    .fixedSize(horizontal: true, vertical: false)
+            }
+            Text(title).lineLimit(1).frame(maxWidth: 220)
+                .fixedSize(horizontal: true, vertical: false)
+            NameEditorButton(title: title, isAvailable: phase == .active && windows.canRenamePreview(id),
+                isPending: windows.isPreviewNamePending(id),
+                save: { try windows.renamePreview(id: id, name: $0) })
         }
+        .font(.system(size: 28, weight: .bold, design: .rounded))
+        .padding(.leading, 18).padding(.trailing, 6)
+        .frame(minHeight: 54)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .padding(.bottom, 20)
     }
 }
 

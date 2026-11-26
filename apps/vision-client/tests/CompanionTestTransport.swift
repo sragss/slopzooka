@@ -10,7 +10,8 @@ func json(_ object: Any, for request: URLRequest, status: Int = 200) throws -> (
 func sessionJSON(_ session: HostSession) -> [String: Any] {
     ["id": session.id, "workspaceId": session.workspaceId, "profile": NSNull(),
         "title": session.title, "cwd": session.cwd, "status": "running", "name": session.name as Any? ?? NSNull(),
-        "projectName": session.projectName as Any? ?? NSNull(), "workspaceName": session.workspaceName as Any? ?? NSNull()]
+        "projectName": session.projectName as Any? ?? NSNull(), "workspaceName": session.workspaceName as Any? ?? NSNull(),
+        "codexThreadId": session.codexThreadId as Any? ?? NSNull()]
 }
 
 func origin(_ url: URL) -> URL {
