@@ -29,12 +29,14 @@ struct CompanionWebView: UIViewRepresentable {
     let interruptRequestToken: Int
     let controlKeyRequest: TerminalControlKeyRequest?
     let zoom: Double
+    let showsScrollback: Bool
+    let dragScrollback: Bool
     @AppStorage(TerminalKeyboard.optionAsMetaKey) private var optionAsMeta = false
     var onNotification: (Int, String) -> Bool = { _, _ in false }
     var onSelect: () -> Void = {}
 
     func makeCoordinator() -> TerminalSessionController { TerminalSessionController(loadState: $loadState) }
-    func makeUIView(context: Context) -> WKWebView {
+    func makeUIView(context: Context) -> TerminalSurface {
         context.coordinator.reloadToken = reloadToken
         context.coordinator.hostID = hostID
         context.coordinator.focusToken = focusRequestToken
@@ -44,6 +46,7 @@ struct CompanionWebView: UIViewRepresentable {
         configuration.userContentController.addUserScript(WKUserScript(
             source: TerminalKeyboard.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
         configuration.userContentController.add(context.coordinator, name: "terminalState")
+        configuration.userContentController.add(context.coordinator, name: "terminalScrollback")
         configuration.userContentController.add(context.coordinator, name: "terminalNotification")
         configuration.userContentController.add(context.coordinator, name: "diagnostics")
         context.coordinator.onNotification = onNotification
@@ -55,16 +58,28 @@ struct CompanionWebView: UIViewRepresentable {
         webView.isOpaque = false
         webView.backgroundColor = UIColor(red: 0.02, green: 0.03, blue: 0.04, alpha: 1)
         webView.scrollView.contentInsetAdjustmentBehavior = .never
+        let surface = TerminalSurface(webView: webView)
+        context.coordinator.scrollStrip = surface.scrollStrip
+        context.coordinator.bodyPan = surface.bodyPan
+        surface.scrollStrip.onScroll = { [weak coordinator = context.coordinator] pages in
+            coordinator?.scrollHistory(pages, from: .strip)
+        }
+        surface.bodyPan.onScroll = { [weak coordinator = context.coordinator] pages in
+            coordinator?.scrollHistory(pages, from: .body)
+        }
+        context.coordinator.configureScrollback(strip: showsScrollback, drag: dragScrollback)
         context.coordinator.updateActivity(isActive, in: webView)
         context.coordinator.load(url, in: webView)
-        return webView
+        return surface
     }
-    func updateUIView(_ webView: WKWebView, context: Context) {
+    func updateUIView(_ surface: TerminalSurface, context: Context) {
+        let webView = surface.webView
         context.coordinator.loadState = $loadState
         context.coordinator.hostID = hostID
         context.coordinator.onNotification = onNotification
         context.coordinator.onSelect = onSelect
         context.coordinator.updateActivity(isActive, in: webView)
+        context.coordinator.configureScrollback(strip: showsScrollback, drag: dragScrollback)
         let reload = context.coordinator.reloadToken != reloadToken
         context.coordinator.reloadToken = reloadToken
         context.coordinator.load(url, in: webView, force: reload)
@@ -80,10 +95,15 @@ struct CompanionWebView: UIViewRepresentable {
             context.coordinator.requestFocus(in: webView, showKeyboard: true)
         }
     }
-    static func dismantleUIView(_ webView: WKWebView, coordinator: TerminalSessionController) {
+    static func dismantleUIView(_ surface: TerminalSurface, coordinator: TerminalSessionController) {
+        let webView = surface.webView
+        coordinator.configureScrollback(strip: false, drag: false)
+        surface.scrollStrip.onScroll = nil
+        surface.bodyPan.onScroll = nil
         coordinator.onNotification = { _, _ in false }
         coordinator.onSelect = {}
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalState")
+        webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalScrollback")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "terminalNotification")
         webView.configuration.userContentController.removeScriptMessageHandler(forName: "diagnostics")
         webView.evaluateJavaScript("window.slzDetachTerminal?.()")
@@ -197,6 +217,70 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     private var pendingFocus: Bool?
     private var zoom = 1.0
     private var optionAsMeta = false
+    #if canImport(UIKit)
+    enum ScrollSource { case strip, body }
+
+    weak var scrollStrip: TerminalScrollStrip?
+    weak var bodyPan: TerminalScrollPan?
+    private var hasScrollbackBridge = false
+    private var bodyScrollAvailable = false
+    private var wantsScrollStrip = false
+    private var wantsBodyScroll = true
+    private var pendingScroll: (source: ScrollSource, pages: Double)?
+    private var scrollInFlight = false
+
+    func configureScrollback(strip: Bool, drag: Bool) {
+        wantsScrollStrip = strip
+        wantsBodyScroll = drag
+        updateScrollback()
+    }
+
+    private var canScrollHistory: Bool {
+        hasScrollbackBridge && terminalReady && isActive
+    }
+
+    private func updateScrollback() {
+        scrollStrip?.isHidden = !(wantsScrollStrip && hasScrollbackBridge)
+        let stripEnabled = canScrollHistory && wantsScrollStrip
+        let bodyEnabled = canScrollHistory && wantsBodyScroll && bodyScrollAvailable
+        scrollStrip?.setEnabled(stripEnabled)
+        if let bodyPan, bodyPan.isEnabled != bodyEnabled { bodyPan.isEnabled = bodyEnabled }
+        if let pendingScroll, !scrollEnabled(for: pendingScroll.source) { self.pendingScroll = nil }
+    }
+
+    private func scrollEnabled(for source: ScrollSource) -> Bool {
+        switch source {
+        case .strip: return scrollStrip?.isUserInteractionEnabled == true
+        case .body: return bodyPan?.isEnabled == true
+        }
+    }
+
+    func scrollHistory(_ pages: Double, from source: ScrollSource) {
+        guard scrollEnabled(for: source), pages.isFinite, pages != 0 else { return }
+        // Motion from a new control replaces any unsent motion from the previous one.
+        let queuedPages = pendingScroll?.source == source ? pendingScroll?.pages ?? 0 : 0
+        // Bound the catch-up distance when WebKit is busy with output.
+        pendingScroll = (source, min(4, max(-4, queuedPages + pages)))
+        flushScrollHistory()
+    }
+
+    private func flushScrollHistory() {
+        guard canScrollHistory, !scrollInFlight, let pendingScroll, pendingScroll.pages != 0,
+            let webView, let url = webView.url, let requestedURL,
+            !webView.isLoading, TerminalNavigation.allows(url, document: requestedURL)
+        else { return }
+        self.pendingScroll = nil
+        scrollInFlight = true
+        webView.callAsyncJavaScript(
+            "window.slzScrollback?.(pages, fromBody)",
+            arguments: ["pages": pendingScroll.pages, "fromBody": pendingScroll.source == .body],
+            in: nil, in: .page
+        ) { [weak self] _ in
+            self?.scrollInFlight = false
+            self?.flushScrollHistory()
+        }
+    }
+    #endif
 
     func requestOptionAsMeta(_ enabled: Bool, in webView: WKWebView) {
         guard optionAsMeta != enabled else { return }
@@ -222,6 +306,9 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     func updateActivity(_ active: Bool, in webView: WKWebView) {
         guard isActive != active else { return }
         isActive = active
+        #if canImport(UIKit)
+        updateScrollback()
+        #endif
         focusGeneration += 1
         if active { requestFocus(in: webView) }
         else {
@@ -250,6 +337,11 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         self.webView = webView
         terminalReady = false
         documentReady = false
+        #if canImport(UIKit)
+        hasScrollbackBridge = false
+        bodyScrollAvailable = false
+        updateScrollback()
+        #endif
         focusGeneration += 1
         pendingFocus = isActive ? false : nil
         DispatchQueue.main.async { self.loadState.wrappedValue = .loading("Connecting") }
@@ -285,8 +377,27 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
             }
             return
         }
+        #if canImport(UIKit)
+        if message.name == "terminalScrollback" {
+            guard let requestedURL, let frameURL = message.frameInfo.request.url,
+                TerminalNavigation.allows(frameURL, document: requestedURL),
+                let available = message.body as? String else { return }
+            bodyScrollAvailable = available == "1"
+            updateScrollback()
+            return
+        }
+        #endif
         guard message.name == "terminalState", let body = message.body as? [String: String] else { return }
+        #if canImport(UIKit)
+        if let requestedURL, let frameURL = message.frameInfo.request.url,
+            TerminalNavigation.allows(frameURL, document: requestedURL) {
+            hasScrollbackBridge = body["scrollback"] == "1"
+        }
+        #endif
         terminalReady = body["state"] == "running"
+        #if canImport(UIKit)
+        updateScrollback()
+        #endif
         switch body["state"] {
         case "running":
             terminalReady = true
@@ -308,6 +419,9 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     }
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         documentReady = true
+        #if canImport(UIKit)
+        flushScrollHistory()
+        #endif
         applyZoom(in: webView)
         applyOptionAsMeta(in: webView)
         // Older companion pages focus their textarea on load. Keep inactive
@@ -337,6 +451,11 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
         guard let requestedURL else { return }
         terminalReady = false
         documentReady = false
+        #if canImport(UIKit)
+        hasScrollbackBridge = false
+        bodyScrollAvailable = false
+        updateScrollback()
+        #endif
         focusGeneration += 1
         // Restore physical typing without replaying an old software-keyboard request.
         pendingFocus = isActive ? false : nil

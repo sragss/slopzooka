@@ -42,7 +42,11 @@ In preview windows, VoiceOver identifies the reload and close controls as **Relo
 
 ## Keyboard and zoom
 
-Terminal input stays focused and editable for a connected physical keyboard. Automatic focus suppresses the floating keyboard; choose the **keyboard icon** in the terminal toolbar or tap inside the terminal to request it. When using Mac Virtual Display, moving the pointer into the terminal and clicking may still be necessary to transfer typing from the previous text field. Pinching a window alone does not guarantee that handoff.
+Selecting a terminal focuses it for hardware typing. Use the **keyboard icon** in the terminal toolbar to request the full floating keyboard. The request clears when the terminal loses input focus.
+
+With Mac Virtual Display, use the Mac's keyboard and pointer to type in the Vision Pro terminal. Moving the Mac pointer into the terminal and clicking may be necessary to hand off input from the previous window. Pairing SlopZooka connects the terminal to its Mac process. Mac Virtual Display or a keyboard connected to Vision Pro supplies physical keystrokes. [Apple's Mac Virtual Display guide](https://support.apple.com/en-us/118521)
+
+visionOS can still show its compact typing preview with a physical keyboard. Selecting a terminal with an unread alert can clear its badge at the same time the terminal gains input focus. [Apple's keyboard guidance](https://developer.apple.com/design/human-interface-guidelines/keyboards/)
 
 The terminal's **Session Actions** menu has arrow and **Return** buttons that work without keyboard focus. Update the headset app and Mac companion to use these controls. They send input only while the terminal is connected and has keyboard control. If another viewer owns input, close that viewer to release control.
 
@@ -61,6 +65,14 @@ Fn/Globe alone sends no terminal bytes. Function or navigation keys produced by 
 Terminal zoom ranges from **10% to 200%**. **Settings → Default terminal zoom** starts at **80%** and persists across app launches. Terminals without a custom zoom follow that default; existing scene zoom preferences are preserved. Reset Zoom applies the current saved default. Use the zoom controls in the actions menu; it stays open for repeated adjustments.
 
 Zoom changes the terminal font size and explicitly refits the emulator and PTY while keeping the web view full size. Older Mac companions without the font-zoom bridge use a scaled logical viewport so their resize observer still refits the terminal. Update both apps for the bounded emulator/PTY grid at extreme zoom.
+
+## Terminal scrollback
+
+On updated headset and Mac builds, look at the terminal text, pinch, and drag down to reveal earlier lines. Pinch to Scroll is on by default when local history is available. It pauses in the alternate screen and when a terminal app asks for mouse reports. Use **Session actions → Disable Pinch to Scroll** to give pinch-drag back to the terminal. Mouse and trackpad wheel scrolling use the existing terminal behavior.
+
+Choose **Session actions → Show Scrollback Strip** for a separate scroll control with VoiceOver page steps. Both preferences are per window. Local history is available in read-only views of running terminals.
+
+Physical headset behavior is still unverified. See the [scrolling investigation and device checklist](terminal-scrolling.md) for platform support and current limits.
 
 ## Terminal notifications
 

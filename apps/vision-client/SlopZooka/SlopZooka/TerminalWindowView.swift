@@ -20,6 +20,8 @@ struct TerminalWindowView: View {
     @State private var controlKeyRequest: TerminalControlKeyRequest?
     @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
     @SceneStorage("terminalZoomSteps") private var terminalZoomSteps: Int?
+    @SceneStorage("terminalScrollStrip") private var showsScrollback = false
+    @SceneStorage("terminalDragScrollback") private var dragScrollback = true
 
     private var zoomSteps: Binding<Int> {
         Binding(
@@ -67,6 +69,8 @@ struct TerminalWindowView: View {
                     interruptRequestToken: interruptRequestToken,
                     controlKeyRequest: controlKeyRequest,
                     zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue),
+                    showsScrollback: showsScrollback,
+                    dragScrollback: dragScrollback,
                     onNotification: { sequence, instance in
                         windows.receiveTerminalNotification(id: payload.id, sequence: sequence, serviceInstanceID: instance)
                     },
@@ -250,6 +254,20 @@ struct TerminalWindowView: View {
         VStack(spacing: 8) {
             TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
             terminalKeys
+            TerminalMenuAction(
+                title: dragScrollback ? "Disable Pinch to Scroll" : "Enable Pinch to Scroll",
+                symbol: "hand.draw"
+            ) {
+                dragScrollback.toggle()
+                isActionsPresented = false
+            }
+            TerminalMenuAction(
+                title: showsScrollback ? "Hide Scrollback Strip" : "Show Scrollback Strip",
+                symbol: "arrow.up.and.down"
+            ) {
+                showsScrollback.toggle()
+                isActionsPresented = false
+            }
             Divider()
             TerminalMenuAction(title: "New Shell", symbol: "terminal") {
                 isActionsPresented = false
