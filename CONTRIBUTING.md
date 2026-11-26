@@ -64,8 +64,12 @@ races. Avoid homemade DOM replicas and repeated assertions already covered by
 an integration check. Keep regressions for ownership, cancellation, and recovery.
 
 Run `pnpm lint` for both languages, or `pnpm lint:ts` / `pnpm lint:swift`
-individually. CI runs the same checks and fails on warnings. ESLint uses the
-recommended JavaScript and TypeScript correctness rules, with additional promise,
+individually. CI runs both and fails on warnings. The `companion` check requires
+all companion jobs to pass, including the Mac-only suites and package smoke
+test. See the [CI timing audit](docs/ci-performance.md) for the job split and
+measurement method.
+
+ESLint uses the recommended JavaScript and TypeScript correctness rules, with additional promise,
 `await`, and exhaustive-switch checks on companion and shared protocol sources.
 Tests use the recommended rules without typed linting and allow `any` for test
 doubles; unused arguments and caught errors can be prefixed with `_`. SwiftLint
