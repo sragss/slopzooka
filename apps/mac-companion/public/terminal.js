@@ -9838,7 +9838,7 @@ var browserLog = eventLogger(
     bytes += length;
   },
   {
-    buildId: true ? "83b8a6a2f0241ba744c5845eb986ea7038abe9faa3ff7bd9a6161d8497fafeea" : "unknown"
+    buildId: true ? "5121e0a60a8ad7589d326dfbc99a8f6f0e372a12878448f10f438ae643b8f6b3" : "unknown"
   }
 );
 var log = browserLog("diagnostics");
@@ -10000,6 +10000,20 @@ window.slzBlurTerminal = () => terminal.blur();
 window.slzInterruptTerminal = () => {
   log2.info("interrupt.requested");
   terminal.input("\x1B", true);
+};
+var cursorKeySuffixes = {
+  ArrowUp: "A",
+  ArrowDown: "B",
+  ArrowRight: "C",
+  ArrowLeft: "D"
+};
+window.slzSendTerminalControlKey = (key) => {
+  if (key === "Enter") {
+    terminal.input("\r", true);
+  } else if (Object.hasOwn(cursorKeySuffixes, key)) {
+    const prefix = terminal.modes.applicationCursorKeysMode ? "\x1BO" : "\x1B[";
+    terminal.input(prefix + cursorKeySuffixes[key], true);
+  }
 };
 window.slzSelectedTerminalText = () => document.activeElement === terminal.textarea ? terminal.getSelection() : "";
 window.slzSelectAllTerminalText = () => {

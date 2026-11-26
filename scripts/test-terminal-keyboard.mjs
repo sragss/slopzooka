@@ -372,6 +372,22 @@ window.runViewportChecks = async () => {
   check(isFocused() && terminal.textarea.inputMode === 'none', 'Reconnecting must preserve physical keyboard focus and software suppression');
   hardwareKey('d', 'KeyD', 68);
   checkInputs(['a', '\\x1b[D', '\\r', '\\x03', '\\x1b', 'b', '\\x1b', 'd'], 'Hardware typing must survive reconnection');
+  terminal.blur();
+  const controlKey = window.slzSendTerminalControlKey;
+  const beforeControlKeys = inputs().length;
+  // The onscreen controls must work while a toolbar button owns focus.
+  controlKey('ArrowDown');
+  controlKey('Enter');
+  controlKey('Enter');
+  await new Promise(resolve => terminal.write('\\x1b[?1h', resolve));
+  for (const key of ['ArrowUp', 'ArrowDown', 'ArrowRight', 'ArrowLeft']) controlKey(key);
+  controlKey('toString');
+  await new Promise(resolve => terminal.write('\\x1b[?1l', resolve));
+  check(JSON.stringify(inputs().slice(beforeControlKeys)) === JSON.stringify([
+    '\\x1b[B', '\\r', '\\r', '\\x1bOA', '\\x1bOB', '\\x1bOC', '\\x1bOD',
+  ]), 'Terminal buttons must send exactly one key per tap and honor application cursor mode');
+  check(!isFocused() && terminal.textarea.inputMode === 'none', 'Terminal buttons must preserve focus and keyboard mode');
+  window.slzFocusTerminal(false);
   const legacy = new URLSearchParams(location.search).has('legacy');
   check(legacy || typeof window.slzSetTerminalZoom === 'function', 'Native zoom bridge missing');
   let normalCols = terminal.cols, normalRows = terminal.rows;
@@ -511,6 +527,8 @@ window.runViewportChecks = async () => {
   commit('Z'); hardwareKey('F1', 'F1', 0);
   paste('read-only paste');
   nativeKey('ArrowUp', {altKey: true});
+  controlKey('ArrowDown');
+  controlKey('Enter');
   check(inputs().length === beforeReadOnlyShortcut, 'Keyboard shortcuts and paste must respect read-only ownership');
   check(!readOnlyBadge.hidden, 'Revoked viewers must show read-only state');
   check(getComputedStyle(button).display !== 'none', 'Browser takeover action must be visible');
@@ -525,6 +543,9 @@ window.runViewportChecks = async () => {
   check(button.hidden, 'Confirmed takeover dismisses the action');
   check(document.activeElement === terminal.textarea, 'Taking control must focus terminal input');
   window.slzDetachTerminal();
+  const beforeDetachedKeys = inputs().length;
+  controlKey('Enter');
+  check(inputs().length === beforeDetachedKeys, 'Terminal buttons must drop input after disconnect');
   return 'PASS';
 };`,
     },

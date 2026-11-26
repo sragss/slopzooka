@@ -16,6 +16,7 @@ struct TerminalWindowView: View {
     private struct Report { let hostID: String? }
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
+    @State private var controlKeyRequest: TerminalControlKeyRequest?
     @AppStorage(TerminalZoom.defaultStepsKey) private var defaultTerminalZoomSteps = TerminalZoom.initialDefaultSteps
     @SceneStorage("terminalZoomSteps") private var terminalZoomSteps: Int?
 
@@ -63,6 +64,7 @@ struct TerminalWindowView: View {
                     isActive: scenePhase == .active,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
+                    controlKeyRequest: controlKeyRequest,
                     zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue),
                     onNotification: { sequence, instance in
                         windows.receiveTerminalNotification(id: payload.id, sequence: sequence, serviceInstanceID: instance)
@@ -211,9 +213,41 @@ struct TerminalWindowView: View {
         }
     }
 
+    private var terminalKeys: some View {
+        HStack(spacing: 8) {
+            terminalKey(.left, title: "Left Arrow", symbol: "arrow.left")
+            terminalKey(.up, title: "Up Arrow", symbol: "arrow.up")
+            terminalKey(.down, title: "Down Arrow", symbol: "arrow.down")
+            terminalKey(.right, title: "Right Arrow", symbol: "arrow.right")
+            Button {
+                controlKeyRequest = TerminalControlKeyRequest(.enter)
+            } label: {
+                Label("Return", systemImage: "return")
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 60)
+            }
+            .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
+        }
+        .disabled(!canUseKeyboard)
+    }
+
+    private func terminalKey(_ key: TerminalControlKey, title: String, symbol: String) -> some View {
+        Button {
+            controlKeyRequest = TerminalControlKeyRequest(key)
+        } label: {
+            Label(title, systemImage: symbol)
+                .labelStyle(.iconOnly)
+                .font(.title3.weight(.medium))
+                .frame(width: 60, height: 60)
+        }
+        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+        .accessibilityLabel(title)
+    }
+
     private func terminalActions(payload: TerminalWindowPayload) -> some View {
         VStack(spacing: 8) {
             TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
+            terminalKeys
             Divider()
             TerminalMenuAction(title: "New Shell", symbol: "terminal") {
                 isActionsPresented = false

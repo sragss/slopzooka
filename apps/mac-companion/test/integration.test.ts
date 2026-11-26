@@ -131,7 +131,7 @@ test(
           PORTLESS_STATE_DIR: path.join(home, "portless"),
           SHELL: "/bin/sh",
           CODEX_HOME: codexHome,
-          SLOPZOOKA_CODEX_COMMAND: `"${process.execPath}" "${path.resolve(import.meta.dirname, "fixtures/codex.mjs")}"`,
+          SLOPZOOKA_CODEX_COMMAND: `"${process.execPath}" "${path.resolve(import.meta.dirname, "fixtures/codex.mjs")}" --yolo`,
         },
         stdio: ["ignore", "pipe", "pipe"],
       },
@@ -251,15 +251,43 @@ test(
           .split("\n")
           .filter(Boolean)
           .map((line) => JSON.parse(line))
-          .find((call) => call.args?.[0] === "-c");
+          .find((call) => call.args?.includes("-c"));
       });
-      const mcpArgs: string[] = JSON.parse(launch.args[3].split("args=")[1]);
+      assert.equal(launch.args[0], "--yolo");
+      const mcpArgs: string[] = JSON.parse(launch.args[4].split("args=")[1]);
       assert.equal(mcpArgs.at(-1), "fresh-codex");
       const route = await readPreviewConfig(mcpArgs.at(-2)!);
       assert.equal(route.clientId, clientId);
       assert.equal(route.origin, base);
       assert.ok(route.token === token);
       assert.ok(!JSON.stringify(launch.args).includes(token));
+
+      const terminal = await connect();
+      terminal.send({ type: "attach", sessionId: "fresh-codex" });
+      const terminalOutput = () =>
+        terminal.messages
+          .map((m) =>
+            m.type === "attached"
+              ? m.snapshot
+              : m.type === "output"
+                ? m.data
+                : "",
+          )
+          .join("");
+      const input = (data: string) =>
+        terminal.send({ type: "input", sessionId: "fresh-codex", data });
+      await until(() => terminalOutput().includes("Skip until next version"));
+      assert.ok(terminalOutput().includes("› 1. Update now"));
+      input("\x1b[B");
+      await until(() => terminalOutput().includes("› 2. Skip"));
+      assert.doesNotMatch(terminalOutput(), /Welcome to Codex|CODEX_READY/);
+      input("\r");
+      await until(() => terminalOutput().includes("Welcome to Codex"));
+      input("\r");
+      await until(() => terminalOutput().includes("CODEX_READY"));
+      assert.doesNotMatch(terminalOutput(), /FIXTURE_UPDATE_SELECTED/);
+      terminal.ws.close();
+
       await api("/api/sessions/fresh-codex", undefined, "DELETE");
       await until(
         async () =>
