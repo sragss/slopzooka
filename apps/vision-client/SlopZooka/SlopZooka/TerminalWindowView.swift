@@ -13,6 +13,7 @@ struct TerminalWindowView: View {
     @State private var isActionsPresented = false
     @State private var report: Report?
     @State private var isReportPresented = false
+    @State private var editingName: TerminalVoiceController.NameTarget?
     private struct Report { let hostID: String? }
     @State private var focusRequestToken = 0
     @State private var interruptRequestToken = 0
@@ -60,7 +61,7 @@ struct TerminalWindowView: View {
                     hostID: windows.reference(for: payload.id)?.hostID,
                     reloadToken: windows.reloadToken(for: payload.id),
                     loadState: $loadState,
-                    isActive: scenePhase == .active,
+                    isActive: scenePhase == .active && editingName == nil,
                     focusRequestToken: focusRequestToken,
                     interruptRequestToken: interruptRequestToken,
                     zoom: TerminalZoom.scale(steps: zoomSteps.wrappedValue),
@@ -194,9 +195,10 @@ struct TerminalWindowView: View {
         }
         .simultaneousGesture(TapGesture().onEnded { windows.readTerminalNotifications(id: payload.id) })
         .ornament(attachmentAnchor: .scene(.top), contentAlignment: .bottom) {
-            TerminalNameHeader(payload: payload, isAvailable: canRename)
-                .frame(maxWidth: 1000)
+            TerminalNameHeader(payload: payload, isAvailable: canRename, editingName: $editingName)
+                .frame(maxWidth: 720)
                 .padding(.bottom, 20)
+                .onDisappear { editingName = nil }
         }
         .confirmationDialog("End this session?", isPresented: $confirmEndSession, titleVisibility: .visible) {
             Button("End Session", role: .destructive) { Task { await endSession(payload: payload) } }
@@ -331,7 +333,7 @@ struct TerminalWindowView: View {
     }
 
     private var canUseKeyboard: Bool {
-        scenePhase == .active && loadState == .loaded
+        scenePhase == .active && loadState == .loaded && editingName == nil
     }
 
     private func newShell(payload: TerminalWindowPayload) async {

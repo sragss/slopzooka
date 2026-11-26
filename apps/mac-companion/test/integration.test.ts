@@ -443,6 +443,14 @@ test(
         namedSessions.find((s: any) => s.id === "terminal-2").name,
         undefined,
       );
+      const duplicate = await api(
+        "/api/sessions/terminal-2",
+        { name: renamed.body.session.name },
+        "PATCH",
+      );
+      assert.equal(duplicate.status, 200);
+      assert.equal(duplicate.body.session.id, "terminal-2");
+      assert.equal(duplicate.body.session.name, renamed.body.session.name);
       for (const name of ["", "   ", 42, "x".repeat(121), "invalid\0name"]) {
         assert.equal(
           (await api("/api/sessions/terminal-1", { name }, "PATCH")).status,

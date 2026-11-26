@@ -50,7 +50,8 @@ enum Fixture {
             resumeIDs.append(id)
             let key = base.host!
             if sessions[key, default: []].isEmpty {
-                sessions[key] = [HostSession(id: id, workspaceId: "codex-directory", title: "Saved thread", cwd: "/original/folder")]
+                sessions[key] = [HostSession(id: id, workspaceId: "codex-directory", title: "Codex Coordinator",
+                    cwd: "/original/folder", codexThreadId: "00000000-0000-4000-8000-000000000001")]
             }
             if let callback = beforeResumeReply { beforeResumeReply = nil; try await callback() }
             return try json(["session": sessionJSON(sessions[key]![0])], for: request)
@@ -523,6 +524,22 @@ struct WindowGatewayChecks {
         var nameCommands: [WindowCommand] = []
         naming.attachPresenter(UUID()) { nameCommands.append($0) }
         nameCommands.removeAll()
+        let originalTerminal = naming.terminalPayload(for: names[1].id)
+        let originalReference = naming.reference(for: names[1].id)
+        let originalReload = naming.reloadToken(for: names[1].id)
+        for invalid in [" \t ", String(repeating: "👋", count: 61), "Bad\u{0}name"] {
+            let requests = Fixture.requests.count
+            do { try await naming.rename(id: names[1].id, name: invalid); preconditionFailure("Invalid name accepted") }
+            catch let error as CompanionError { precondition(error.statusCode == nil) }
+            precondition(Fixture.requests.count == requests, "Locally invalid names must not reach the Mac")
+        }
+        try await naming.rename(id: names[1].id, name: names[0].name!)
+        precondition(names.allSatisfy { naming.terminalPayload(for: $0.id)?.title == names[0].name })
+        precondition(naming.reference(for: names[1].id) == originalReference
+            && naming.terminalPayload(for: names[1].id)?.url == originalTerminal?.url
+            && naming.terminalPayload(for: names[1].id)?.workspaceId == originalTerminal?.workspaceId
+            && naming.reloadToken(for: names[1].id) == originalReload,
+            "Duplicate labels must still route by the original host, session and worktree IDs")
         try await naming.rename(id: names[1].id, name: "  Fix\tthe\nsearch  ")
         precondition(naming.terminalPayload(for: names[1].id)?.title == "Fix-the-search")
         precondition(naming.terminalSessions.contains(where: { $0.payload.title == "Fix-the-search" }))
@@ -730,6 +747,13 @@ struct WindowGatewayChecks {
         let closeBaseline = remoteCloses
         let captureBaseline = Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count
         let reloadBaseline = nativeGateway.reloadToken(for: nativeID)
+        try nativeGateway.renamePreview(id: nativeID, name: "  \u{FEFF}Boss Preview  ")
+        precondition(nativeGateway.previewName(for: nativeID) == "Boss Preview" && nativeGateway.isPreviewNamePending(nativeID))
+        await until { Fixture.layouts[base.host!]!.windows.first(where: { $0.id == nativeID })?.name == "Boss Preview" }
+        await until { !nativeGateway.isPreviewNamePending(nativeID) }
+        precondition(nativeGateway.reference(for: nativeID) == nativeRecord && remoteOpens == 1 && remoteCloses == closeBaseline)
+        precondition(nativeGateway.reloadToken(for: nativeID) == reloadBaseline
+            && Fixture.requests.filter { $0 == "POST /api/window-previews/open" }.count == captureBaseline)
         var namedNative = nativeRecord.window
         namedNative.name = "Login verification"
         Fixture.layouts[base.host!]!.windows = [namedNative]
@@ -798,8 +822,52 @@ struct WindowGatewayChecks {
         precondition(Fixture.layouts[base.host!]!.windows.isEmpty, "Availability repair must not create desired-open intent")
         print("PASS: remote reopen survives late observations, unpaired Macs cannot poison recovery, and restored previews show route availability")
         try await checkPresentationReadiness()
+        try await checkPreviewRenameRebase()
 
         try await checkCodexResume()
+    }
+
+    @MainActor
+    static func checkPreviewRenameRebase() async throws {
+        let suite = "PreviewRenameRebase.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let base = URL(string: "http://rename-rebase.invalid:7777")!
+        let hostID = "rename-rebase-host"
+        let client = Fixture.api
+        try client.accept(fixtureHealth(hostID, endpoint: base), endpoint: base, authenticated: true)
+        let record = WindowRecord(id: "preview", kind: .preview, targetID: "web", ownerSessionIds: ["first"])
+        let other = WindowRecord(id: "other", kind: .preview, targetID: "window:other", name: "Boss Preview")
+        let reference = WindowReference(hostID: hostID, window: record)
+        Fixture.layouts[base.host!] = WindowLayout(windows: [record, other])
+        let store = WindowPersistence(defaults: defaults)
+        try await store.synchronize(hostID: hostID, client: client)
+        _ = try store.rename(reference, name: "Boss Preview")
+
+        // Conflict with an owner change after the fetched revision. The name
+        // remains pending across an app restart and merges onto the new owners.
+        Fixture.beforePut = {
+            Fixture.layouts[base.host!]!.revision += 1
+            Fixture.layouts[base.host!]!.windows[0].ownerSessionIds = ["second"]
+        }
+        do {
+            try await store.synchronize(hostID: hostID, client: client)
+            preconditionFailure("Expected a competing layout write")
+        } catch let error as CompanionError { precondition(error.statusCode == 409) }
+        let restarted = WindowPersistence(defaults: defaults)
+        precondition(restarted.isNamePending(reference))
+        try await restarted.synchronize(hostID: hostID, client: client)
+        let saved = Fixture.layouts[base.host!]!.windows
+        precondition(saved.count == 2 && saved.allSatisfy { $0.name == "Boss Preview" })
+        precondition(saved.first(where: { $0.sameContent(as: record) })?.ownerSessionIds == ["second"])
+
+        _ = try restarted.rename(reference, name: "Late rename")
+        Fixture.layouts[base.host!]!.windows = [other]
+        Fixture.layouts[base.host!]!.revision += 1
+        try await restarted.synchronize(hostID: hostID, client: client)
+        precondition(Fixture.layouts[base.host!]!.windows == [other] && !restarted.isNamePending(reference),
+            "A queued rename must never reopen a remotely closed preview")
+        print("PASS: preview name intent survives a restart, rebases over owner changes, allows duplicate labels, and respects remote close")
     }
 
     @MainActor
@@ -823,6 +891,11 @@ struct WindowGatewayChecks {
             "A lost resume reply must retain the operation ID")
         let id = Fixture.resumeIDs[0]
         precondition(opened == [id] && gateway.terminalPayload(for: id)?.workspaceId == "codex-directory")
+        precondition(gateway.terminalPayload(for: id)?.headerTitle == "codex"
+            && gateway.terminalPayload(for: id)?.title == "Codex Coordinator • folder")
+        try await gateway.rename(id: id, name: "Boss")
+        precondition(opened == [id] && gateway.terminalPayload(for: id)?.headerTitle == "Boss")
+        precondition(Fixture.sessions[base.host!]!.first?.codexThreadId == thread.id)
         gateway.observe(id: id, isPresented: true, isFocused: true)
         gateway.close(id: id)
         await gateway.launcher.resume(thread)
@@ -837,6 +910,7 @@ struct WindowGatewayChecks {
         await client.refreshSessions(hostID: "codex-host", force: true)
         precondition(recovered.terminalPayload(for: id) != nil,
             "Thread terminals must recover from session snapshots without a launcher action")
+        precondition(recovered.terminalPayload(for: id)?.headerTitle == "Boss")
         precondition(Fixture.resumeIDs.count == 3, "Restoration must not launch another Codex process")
 
         var closeRelease: CheckedContinuation<Void, Never>?

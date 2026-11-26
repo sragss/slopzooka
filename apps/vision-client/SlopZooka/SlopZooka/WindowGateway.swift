@@ -137,11 +137,7 @@ final class WindowGateway: ObservableObject {
         guard canRename(id), let reference = windows[id]?.reference else {
             throw CompanionError(message: "Reconnect to this terminal before renaming it.")
         }
-        let normalized = WindowName.normalized(name)
-        guard !normalized.isEmpty, normalized.utf16.count <= 120,
-            !normalized.unicodeScalars.contains(where: { $0.value < 32 }) else {
-            throw CompanionError(message: "Speak a name of 120 characters or fewer.")
-        }
+        let normalized = try validatedName(WindowName.normalized(name))
         let token = UUID()
         windows[id]?.renameRequest = token
         defer { if windows[id]?.renameRequest == token { windows[id]?.renameRequest = nil } }
@@ -158,6 +154,30 @@ final class WindowGateway: ObservableObject {
     }
     func previewPayload(for id: String) -> PreviewWindowPayload? { windows[id]?.preview }
     func previewName(for id: String) -> String? { windows[id]?.reference?.window.name }
+    func canRenamePreview(_ id: String) -> Bool {
+        guard let window = windows[id], window.preview != nil,
+            let reference = window.reference, window.openRequested != false else { return false }
+        return persistence.windows(hostID: reference.hostID).contains { $0.sameContent(as: reference.window) }
+    }
+    func renamePreview(id: String, name: String) throws {
+        guard canRenamePreview(id), let reference = reference(for: id) else {
+            throw CompanionError(message: "Reconnect to this preview before renaming it.")
+        }
+        let name = try validatedName(WindowName.trimmedPreviewLabel(name))
+        let updated = try persistence.rename(reference, name: name)
+        windows[id]?.reference = updated
+        Task { await synchronize() }
+    }
+    private func validatedName(_ name: String) throws -> String {
+        guard WindowName.isValid(name) else {
+            throw CompanionError(message: "Enter a name of 1–120 characters without control characters.")
+        }
+        return name
+    }
+    func isPreviewNamePending(_ id: String) -> Bool {
+        guard let reference = reference(for: id) else { return false }
+        return persistence.isNamePending(reference)
+    }
     func reference(for id: String) -> WindowReference? { windows[id]?.reference }
     func remember(_ reference: WindowReference) {
         if windows[reference.window.id]?.reference == nil { windows[reference.window.id, default: WindowState()].reference = reference }
@@ -386,7 +406,8 @@ final class WindowGateway: ObservableObject {
         url.queryItems = [URLQueryItem(name: "sessionId", value: session.id)]
         let payload = TerminalWindowPayload(id: session.id, workspaceId: session.workspaceId,
             title: session.name ?? (session.workspaceName == nil ? "\(session.title) • \(URL(fileURLWithPath: session.cwd).lastPathComponent)" : session.title),
-            urlString: url.url!.absoluteString, projectName: session.projectName, workspaceName: session.workspaceName)
+            urlString: url.url!.absoluteString, projectName: session.projectName, workspaceName: session.workspaceName,
+            compactTitle: session.name == nil && session.codexThreadId != nil ? "codex" : nil)
         let reference = WindowReference(hostID: hostID,
             window: WindowRecord(id: session.id, kind: .terminal, targetID: session.id))
         guard windows[session.id]?.terminal != payload || windows[session.id]?.reference != reference
@@ -404,7 +425,9 @@ final class WindowGateway: ObservableObject {
         var firstError: String?
         for hostID in client.pairedHostIDs {
             do {
+                let pendingNames = persistence.hasPendingNames(hostID: hostID)
                 try await persistence.synchronize(hostID: hostID, client: client, canPresent: { !self.presenters.isEmpty })
+                if pendingNames { objectWillChange.send() }
                 reconcileRemoteCloses(hostID: hostID)
             } catch {
                 log.error("recovery.failed", error: error, ["hostId": hostID])

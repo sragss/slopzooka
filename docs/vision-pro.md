@@ -68,17 +68,19 @@ SlopZooka reports native scene deactivation to terminal programs as focus-out. C
 
 This handles alerts emitted by the terminal program; it does not infer completion from output text or a process exit. Enable terminal notifications in your coding agent if they are disabled. Update both apps and restart an older Mac session service after ending its sessions to enable alert detection. Test the path from a shell with `printf '\a'`.
 
+## Window names
+
+The header above each terminal shows **repo / worktree / window**. Worktrees default to a short UTC creation timestamp such as **nov-09-2104**. Terminal defaults are assigned per tool within each worktree, such as **codex**, **codex2**, **claude**, and **terminal**. Resumed Codex threads show **codex** in the header until renamed. The saved thread title is available in the thread list and, before renaming, in the terminal's session details. Existing custom names stay in place.
+
+Pinch the **pencil** beside the worktree or window name. The same editor works in terminal, web preview, and Mac window preview headers. Type with a keyboard or use the system keyboard's dictation. Choose **Save** or press Return to apply the name. **Cancel**, Escape, or dismissing the editor before saving discards the draft. Failed saves keep the draft for retry. Names allow up to 120 UTF-16 code units. Terminal and worktree names turn whitespace into dashes. Preview names keep interior spaces.
+
+Duplicate labels are allowed. A rename follows the window you edited and keeps its session, preview source, and worktree binding. Terminal names follow the running Mac session across window closures, reconnects, headset rebuilds, and HTTP companion restarts. The launcher, dashboard, and wrist menu show the same terminal names. Preview names belong to this headset's saved window layout and return with restored previews. A clock by the pencil means the preview name is waiting to sync to the Mac. Closing a preview removes its layout entry.
+
+Web preview headers include the repo and worktree when the Mac can match the local server directory to a managed worktree. Mac window previews default to the source app and window title.
+
 ## Dictation
 
-The header above each terminal shows **repo / worktree / window** on the same rounded glass surface. Repo is the repo name and cannot be edited. Worktrees default to a short UTC creation timestamp such as **nov-09-2104**. Window defaults are assigned per tool within each worktree: **codex**, **codex2**, **claude**, **terminal**, and so on. Labels remain stable when windows close, sessions are removed, or the HTTP companion restarts; existing custom window names are preserved.
-
-Web previews show **repo / worktree / preview** above the window when the Mac can match the local web server’s directory to one managed worktree. The label follows the Mac’s frontend catalog when ownership or names change. Generic Mac window streams, including Simulator captures, have an app and window identity only.
-
-The diagonal dividers also bound the full-height hover regions: worktree fills between the slashes, and window fills through the rounded right edge. Naming is available independently of terminal keyboard/renderer readiness.
-
-Look at the worktree or window segment and pinch to use the existing centered voice rename overlay. Say a name and pause, or tap **Save Name**. Whitespace becomes dashes. A worktree rename updates its sibling windows and repo listings; a window rename changes only that session. The launcher, companion dashboard, and wrist menu show the same naming context. These are display labels: renaming never changes the Git branch, worktree path, window identity, or running process.
-
-Names support up to 120 characters and stay with the Mac session across reconnects, window closure, app rebuilds, and companion restarts. The rename overlay’s **×** cancels naming; failed saves keep the draft for retry. Send, save, or cancel an existing voice draft before switching voice tasks. Update both apps for shared names; an older running session service requires an explicit restart after ending its sessions.
+Pinch the worktree or window text in the terminal header to use SlopZooka's voice rename overlay. Say a name and pause, or tap **Save Name**. Tap **×** to cancel. A worktree rename updates sibling windows and repo listings. Naming works while the terminal renderer reconnects. Send, save, or cancel an existing voice draft before switching voice tasks. Terminal naming uses the Mac session service's rename support. An older running service may need an update and restart after its sessions end.
 
 Look at the large glass microphone at the terminal’s bottom right, then **pinch and hold** while speaking. Keep holding through pauses or while looking at another window. Release to finish transcription. A silver bar fills around the centered transcript box for **two seconds**, then the message sends with Return. During the countdown, hold the same mic again to append more words, or tap **×** to discard the message. The next release starts a fresh countdown. This also works in Ask. A short mechanical click and a soft border pulse confirm delivery; the transcript fades out in place. The status title fades gently between messages and stays quiet while transcription finishes or the microphone is paused. The microphone stays off until your next hold.
 
