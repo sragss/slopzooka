@@ -313,6 +313,8 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
     var reply: String?
     var workStatus: String?
     var hasActiveWork: Bool?
+    var canStopAgent: Bool?
+    var agentStopError: String?
     var resultExcerpt: String?
     var id: String { requestId }
 
@@ -325,7 +327,7 @@ struct CoordinatorTurn: Decodable, Identifiable, Equatable {
         if status == "unconfirmed" { return "Delivery not confirmed — retry keeps this request" }
         if status == "queued" { return "Queued" }
         if status == "failed" { return "Request failed" }
-        if status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
+        if status == "stopped" && workStatus == nil { return "Ask stopped" }
         if status == "running" { return "Working…" }
         switch workStatus {
         case "queued": return "Queued in terminal · waiting to start"

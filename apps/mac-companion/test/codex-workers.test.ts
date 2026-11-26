@@ -151,7 +151,14 @@ test(
         ).length,
         1,
       );
-      await workers.stop(sessionId, [sessionId, "lost"]);
+      await workers.stop(sessionId, ["lost"]);
+      const afterQueueStop = (await workers.list(client))[0]!;
+      assert.equal(afterQueueStop.turnId, recovered.turnId);
+      assert.equal(afterQueueStop.status, "running");
+      await workers.stop(sessionId, ["steer"]);
+      await until(
+        async () => (await workers.list(client))[0]?.status === "interrupted",
+      );
       const stopped = (await workers.list(client))[0]!;
       assert.equal(
         stopped.deliveries.find((d) => d.requestId === "queued-1")?.status,

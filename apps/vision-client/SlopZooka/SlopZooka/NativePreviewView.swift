@@ -47,16 +47,16 @@ private final class NativePreviewModel: ObservableObject {
     private var receiveWindow: VideoReceiveWindow?
     private var samples = WindowVideoSamples()
     private var formatID: UInt64 = 0
-    private var terminalState = false
+    private var captureState: VideoHeader.State?
     private var retry: Task<Void, Never>?
     private var attempts = 0
+    private var liveSince: TimeInterval?
     private let log = AppLog("window-preview")
 
     func start(_ source: NativeWindowPayload, retrying: Bool = false) {
         stop()
         if !retrying { attempts = 0 }
         self.source = source
-        terminalState = false
         let id = UUID(); channelID = id
         message = "Connecting to Mac window…"
         do {
@@ -81,12 +81,17 @@ private final class NativePreviewModel: ObservableObject {
         clearImage()
         source?.route.releaseWindowChannel(id: id)
         log.info("stream.ended", ["reason": reason.rawValue])
-        guard !terminalState else { return }
-        message = reason.message
-        guard reason.retryable, attempts < 3, let source else { return }
+        switch captureState {
+        case .locked, .permissionRequired, .sourceGone: return
+        default: break
+        }
+        let captureFailed = captureState == .failed
+        let retryMessage = captureFailed ? "Mac capture stopped." : reason.message
+        message = captureFailed ? "Mac capture stopped. Reload to try again." : reason.message
+        guard (captureFailed || reason.retryable), attempts < 3, let source else { return }
         attempts += 1
         let delay = Double(1 << (attempts - 1))
-        message = "\(reason.message) Reconnecting…"
+        message = "\(retryMessage) Reconnecting…"
         retry = Task { [weak self] in
             try? await Task.sleep(for: .seconds(delay))
             guard !Task.isCancelled, let self, self.channelID == id else { return }
@@ -99,6 +104,8 @@ private final class NativePreviewModel: ObservableObject {
         socket?.stop(); socket = nil
         if let channelID { source?.route.releaseWindowChannel(id: channelID) }
         channelID = nil; source = nil
+        captureState = nil
+        liveSince = nil
         receiveWindow = nil; samples.reset(); formatID = 0
         layer.sampleBufferRenderer.flush(removingDisplayedImage: true)
     }
@@ -112,15 +119,18 @@ private final class NativePreviewModel: ObservableObject {
                     if let state = packet.header.state, state != .idle {
                         samples.reset(); formatID = 0
                         layer.sampleBufferRenderer.flush(removingDisplayedImage: true)
-                        terminalState = state != .waiting
+                        captureState = state
+                        liveSince = nil
                         switch state {
                         case .waiting: message = "Waiting for a fresh frame…"
                         case .locked: message = "Unlock your Mac to share this window. Then reload."
                         case .permissionRequired: message = "Allow Screen Recording on your Mac. Then reload."
                         case .sourceGone: message = "This window is no longer available. Select a window from the launcher."
-                        case .failed: message = "Mac capture stopped. Reload to try again."
+                        case .failed: message = "Mac capture stopped."
                         case .idle: break
                         }
+                    } else if packet.header.state == .idle, let liveSince, now - liveSince >= 20 {
+                        attempts = 0
                     }
                     continue
                 }
@@ -132,10 +142,13 @@ private final class NativePreviewModel: ObservableObject {
                 guard layer.sampleBufferRenderer.isReadyForMoreMediaData else { return false }
                 layer.sampleBufferRenderer.enqueue(try samples.sample(packet))
                 guard layer.sampleBufferRenderer.status != .failed else { return false }
+                captureState = nil
                 let size = CGSize(width: packet.header.contentWidth, height: packet.header.contentHeight)
                 if contentSize != size { contentSize = size }
                 if message != nil { message = nil }
-                attempts = 0
+                if liveSince == nil { liveSince = now }
+                // A single fresh frame must not reset the budget for a recurring stall.
+                if let liveSince, now - liveSince >= 20 { attempts = 0 }
             }
             return true
         } catch { return false }

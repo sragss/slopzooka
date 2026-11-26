@@ -171,6 +171,9 @@ can open as a tall preview. The native video surface uses continuous rounded cor
 Reload and the actions menu sit above the content,
 leaving the bottom resize handles clear. **Close Preview** is in that menu;
 closing a preview does not quit the source app or end any terminal.
+The preview retries a temporary capture failure on the same Mac window.
+Use **Reload** if those attempts run out. Permission, lock and closed-window
+messages still identify what needs attention.
 
 Native previews use the selected Local Network or Direct to Mac route. Local
 Network capture requires macOS 14+; Direct requires macOS 15+ and prior LAN pairing.

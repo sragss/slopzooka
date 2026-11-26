@@ -278,7 +278,7 @@ test("Stop during workspace creation prevents later rename and preserves the acc
     await f.close();
   }
 });
-test("Stop scopes cancellation to the submitted request and blocks the next queued model tool", async () => {
+test("Stop Ask lets an in-flight submission finish and blocks the next coordinator tool", async () => {
   let release!: (x: unknown) => void;
   const gate = new Promise((r) => {
     release = r;
@@ -331,13 +331,11 @@ test("Stop scopes cancellation to the submitted request and blocks the next queu
     release({ status: "queued" });
     await new Promise((r) => setTimeout(r, 30));
     assert.equal(calls.filter((c) => c.route.endsWith("/submit")).length, 1);
-    const stop = calls.find((c) => c.route.endsWith("/stop"));
-    assert.equal(stop.route, "/workers/ours/stop");
-    assert.equal(stop.body.requestIds.length, 1);
+    assert.ok(!calls.some((c) => c.route.endsWith("/stop")));
     const stopped = await f.coordinator.status(clientId);
     assert.equal(stopped.status, "stopped");
     assert.deepEqual(stopped.workerSessionIds, ["ours"]);
-    assert.match(stopped.reply!, /Stopped this request/);
+    assert.match(stopped.reply!, /Stopped Ask/);
   } finally {
     release({});
     await f.close();
@@ -364,6 +362,10 @@ test("coordinator routes require pairing and capture the native client and desti
     stop: async (id: string, requestId: string) => {
       calls.push({ stop: { clientId: id, requestId } });
       return { clientId: id, status: "stopped" };
+    },
+    stopAgent: async (id: string, requestId: string) => {
+      calls.push({ stopAgent: { clientId: id, requestId } });
+      return { clientId: id, status: "completed" };
     },
     answer: async (...args: any[]) => {
       calls.push({ answer: args });
@@ -393,6 +395,8 @@ test("coordinator routes require pairing and capture the native client and desti
       ["", "GET"],
       ["", "POST"],
       ["/stop", "POST"],
+      ["/stop-coordinator", "POST"],
+      ["/stop-agent", "POST"],
       ["/answer", "POST"],
     ]) {
       assert.equal(
@@ -434,8 +438,8 @@ test("coordinator routes require pairing and capture the native client and desti
     assert.deepEqual(calls[0].request, request);
     assert.equal(calls[0].config.clientId, clientId);
     assert.equal(calls[0].config.token, pair.token);
-    const stop = (body: unknown) =>
-      fetch(origin + "/api/coordinator/stop", {
+    const stop = (body: unknown, action = "stop-coordinator") =>
+      fetch(origin + "/api/coordinator/" + action, {
         method: "POST",
         headers,
         body: JSON.stringify(body),
@@ -449,6 +453,15 @@ test("coordinator routes require pairing and capture the native client and desti
     assert.equal(calls.length, 1);
     assert.equal((await stop({ requestId: request.requestId })).status, 200);
     assert.deepEqual(calls[1].stop, { clientId, requestId: request.requestId });
+    assert.equal((await stop({}, "stop-agent")).status, 400);
+    assert.equal(
+      (await stop({ requestId: request.requestId }, "stop-agent")).status,
+      200,
+    );
+    assert.deepEqual(calls[2].stopAgent, {
+      clientId,
+      requestId: request.requestId,
+    });
     const other = randomUUID();
     assert.equal(
       (
@@ -499,25 +512,22 @@ test("uncertain Stop stays visible and retries only the same owned submissions",
     await until(
       async () => (await f.coordinator.status(clientId)).status !== "running",
     );
-    await assert.rejects(
-      f.coordinator.stop(clientId, requestId),
-      /could not be confirmed/,
-    );
-    const uncertain = await f.coordinator.status(clientId);
-    assert.equal(uncertain.status, "failed");
-    assert.match(uncertain.reply!, /may still be working/);
+    const before = await f.coordinator.status(clientId);
+    const uncertain = await f.coordinator.stopAgent(clientId, requestId);
+    assert.equal(uncertain.status, before.status);
+    assert.equal(uncertain.reply, before.reply);
+    assert.equal(uncertain.turns![0].canStopAgent, true);
+    assert.match(uncertain.turns![0].agentStopError!, /Could not confirm/);
     failStop = false;
-    assert.equal(
-      (await f.coordinator.stop(clientId, requestId)).status,
-      "stopped",
-    );
+    const retried = await f.coordinator.stopAgent(clientId, requestId);
+    assert.equal(retried.turns![0].agentStopError, undefined);
     assert.deepEqual(stops[0], stops[1]);
   } finally {
     await f.close();
   }
 });
 
-test("new requests cannot replace ownership while Stop is awaiting confirmation", async () => {
+test("Ask can accept a new request while Stop agent is awaiting confirmation", async () => {
   let release!: () => void;
   const gate = new Promise<void>((resolve) => {
     release = resolve;
@@ -554,22 +564,26 @@ test("new requests cannot replace ownership while Stop is awaiting confirmation"
     await until(
       async () => (await f.coordinator.status(clientId)).status !== "running",
     );
-    const stop = f.coordinator.stop(clientId, requestId);
+    const stop = f.coordinator.stopAgent(clientId, requestId);
     await until(async () => stopping);
+    const nextId = randomUUID();
+    await f.coordinator.submit(f.config, {
+      requestId: nextId,
+      text: "Another task",
+    });
     await assert.rejects(
-      f.coordinator.submit(f.config, {
-        requestId: randomUUID(),
-        text: "Another task",
-      }),
-      /busy/,
-    );
-    await assert.rejects(
-      f.coordinator.stop(clientId, requestId),
+      f.coordinator.stopAgent(clientId, requestId),
       /still being confirmed/,
     );
-    assert.equal((await f.coordinator.status(clientId)).requestId, requestId);
+    assert.equal((await f.coordinator.status(clientId)).requestId, nextId);
     release();
-    assert.equal((await stop).status, "stopped");
+    const result = await stop;
+    assert.equal(result.requestId, nextId);
+    assert.equal(
+      result.turns?.find((turn) => turn.requestId === requestId)
+        ?.agentStopError,
+      undefined,
+    );
   } finally {
     release();
     await f.close();
@@ -897,7 +911,7 @@ test("conversation progress stays attached to each delivery when a worker is reu
       (await f.coordinator.status(clientId)).turns![1].hasActiveWork,
       true,
     );
-    await f.coordinator.stop(clientId, secondRequestId);
+    await f.coordinator.stopAgent(clientId, secondRequestId);
     const turns = (await f.coordinator.status(clientId)).turns!;
     assert.deepEqual(
       turns.map((t) => t.workStatus),
@@ -906,7 +920,7 @@ test("conversation progress stays attached to each delivery when a worker is reu
     assert.equal(turns[1].hasActiveWork, false);
     assert.equal(deliveries[2].status, "interrupted");
     assert.equal(turns[0].reply, "Started the first task.");
-    assert.equal(turns[1].status, "stopped");
+    assert.equal(turns[1].status, "completed");
     assert.equal(turns[0].resultExcerpt, "First **passed**.");
     assert.equal(
       turns[1].resultExcerpt,
@@ -953,8 +967,9 @@ test("bounded model tool history preserves the visible conversation and target c
   }
 });
 
-test("a delayed Stop cannot cancel a newer request on the same headset", async () => {
+test("a stale Stop Ask cannot cancel a newer request and Stop agent can target history", async () => {
   const stops: any[] = [];
+  const submissions: string[] = [];
   const f = await fixture(
     [
       turn("worker_submit", {
@@ -978,11 +993,15 @@ test("a delayed Stop cannot cancel a newer request on the same headset", async (
               sessionId: "ours",
               workspaceId: "one",
               status: "running",
-              deliveries: [],
+              deliveries: submissions.map((requestId) => ({
+                requestId,
+                status: "running",
+              })),
             },
           ],
         };
       if (route.endsWith("/stop")) stops.push(body);
+      if (route.endsWith("/submit")) submissions.push(body.requestId);
       return { status: "running" };
     },
   );
@@ -1013,11 +1032,18 @@ test("a delayed Stop cannot cancel a newer request on the same headset", async (
     const current = await f.coordinator.status(clientId);
     assert.equal(current.requestId, second.requestId);
     assert.equal(current.status, "completed");
-    assert.equal(
-      (await f.coordinator.stop(clientId, second.requestId)).status,
-      "stopped",
+    await assert.rejects(
+      f.coordinator.stop(clientId, second.requestId),
+      /finished processing/,
     );
-    assert.equal(stops.length, 1);
+    await assert.rejects(
+      f.coordinator.stopAgent(randomUUID(), first.requestId),
+      /No delegated agent work/,
+    );
+    assert.equal(current.turns?.[0].canStopAgent, true);
+    await f.coordinator.stopAgent(clientId, first.requestId);
+    assert.equal(submissions.length, 2);
+    assert.deepEqual(stops, [{ requestIds: [submissions[0]] }]);
   } finally {
     await f.close();
   }

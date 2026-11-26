@@ -50,8 +50,9 @@ struct CoordinatorChecks {
             }
             if let responseOverride { return try json(responseOverride, for: request) }
             let body = request.httpBody.flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-            return try json(["available": true, "status": request.url!.path.hasSuffix("/stop") ? "stopped" : "completed",
-                "requestId": body?["requestId"] ?? "old-request", "reply": request.httpMethod == "GET" ? "Older status" : "Accepted task", "workers": [], "workerSessionIds": []], for: request)
+            let stoppingAsk = request.url!.path.hasSuffix("/stop-coordinator")
+            return try json(["available": true, "status": stoppingAsk ? "stopped" : "completed",
+                "requestId": body?["requestId"] ?? "old-request", "reply": stoppingAsk ? "Stopped Ask" : (request.httpMethod == "GET" ? "Older status" : "Accepted task"), "workers": [], "workerSessionIds": []], for: request)
         }
         let base = URL(string: "http://fixture.invalid:7777")!
         try credentials.pair(base, hostID: "fixture", token: "fixture-token")
@@ -149,14 +150,19 @@ struct CoordinatorChecks {
         state.observeScene(presenter, presented: false)
         precondition(!state.canReceiveVoice(client: client))
         precondition(state.snapshot?.requestId == next.commandID, "Hiding the window does not stop or resubmit a task")
+        blocked = false
+        responseOverride = ["available": true, "status": "running", "requestId": next.commandID, "workers": []]
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.canStop)
+        responseOverride = nil
         let beforeStaleStop = requests.count
         await state.stop(client: client, hostID: "fixture", requestID: firstBody["requestId"] as! String)
         precondition(requests.count == beforeStaleStop, "A stale button action cannot target the next request")
         await state.stop(client: client, hostID: "fixture", requestID: next.commandID)
-        precondition(requests.last!.url!.path == "/api/coordinator/stop")
+        precondition(requests.last!.url!.path == "/api/coordinator/stop-coordinator")
         let stopBody = try JSONSerialization.jsonObject(with: requests.last!.httpBody!) as! [String: String]
         precondition(stopBody["requestId"] == next.commandID, "Stop carries the request captured by the UI")
-        precondition(state.statusText == "Stopped" && !state.responseText.contains("Accepted"), "Current cancellation state replaces an earlier acknowledgement")
+        precondition(state.statusText == "Ask stopped" && !state.canStop, "Current cancellation state replaces an earlier acknowledgement")
         blocked = false
         responseOverride = ["available": true, "status": "completed", "requestId": "current", "reply": "The agent is running", "workerSessionIds": ["ours"],
             "workers": [["sessionId": "ours", "workspaceId": "workspace", "status": "completed", "result": "Counter 3"],
@@ -168,8 +174,8 @@ struct CoordinatorChecks {
         responseOverride?["reply"] = "Cancellation could not be confirmed; agent may still be working"
         responseOverride?["workers"] = [["sessionId": "ours", "workspaceId": "workspace", "status": "running"]]
         await state.refresh(client: client, hostID: "fixture")
-        precondition(state.statusText == "Needs attention" && state.responseText.contains("could not be confirmed") && state.canStop,
-            "Uncertain cancellation must remain visible and retryable while the agent is active")
+        precondition(state.statusText == "Needs attention" && state.responseText.contains("could not be confirmed") && !state.canStop,
+            "Agent activity cannot enable the mic-side Stop Ask control")
         responseOverride?["turns"] = [
             ["requestId": "earlier", "text": "Name the window", "status": "completed", "reply": "Named **Login**.", "workStatus": "completed"],
             ["requestId": "current", "text": "Run its test", "status": "failed", "reply": "Cannot confirm Stop", "workStatus": "running"]
@@ -177,6 +183,18 @@ struct CoordinatorChecks {
         await state.refresh(client: client, hostID: "fixture")
         precondition(state.conversation.count == 2 && state.conversation[0].reply == "Named **Login**.")
         precondition(state.conversation[0].progress == "Completed" && state.conversation[1].progress == "Request failed")
+        var history = responseOverride!["turns"] as! [[String: Any]]
+        history[0]["workStatus"] = "running"
+        history[0]["canStopAgent"] = true
+        history[0]["agentStopError"] = "Could not confirm agent cancellation"
+        responseOverride?["turns"] = history
+        await state.refresh(client: client, hostID: "fixture")
+        precondition(state.conversation[0].agentStopError?.contains("Could not confirm") == true)
+        await state.stop(client: client, hostID: "fixture", requestID: "earlier", agentWork: true)
+        precondition(requests.last!.url!.path == "/api/coordinator/stop-agent")
+        let agentStopBody = try JSONSerialization.jsonObject(with: requests.last!.httpBody!) as! [String: String]
+        precondition(agentStopBody["requestId"] == "earlier" && state.snapshot?.requestId == "current",
+            "The history action targets its own request while preserving the active exchange")
         // A worker can already be busy with a follow-up when this request is finished.
         responseOverride?["status"] = "completed"
         var turns = responseOverride!["turns"] as! [[String: Any]]
@@ -195,9 +213,10 @@ struct CoordinatorChecks {
         await state.refresh(client: client, hostID: "fixture")
         precondition(redraws > 0 && state.statusText == "Agent unavailable", "Missing delivery must update both the header and the turn")
         turns[1]["hasActiveWork"] = true
+        turns[1]["canStopAgent"] = true
         responseOverride?["turns"] = turns
         await state.refresh(client: client, hostID: "fixture")
-        precondition(state.statusText == "Agent unavailable" && state.isWorking && state.canStop,
+        precondition(state.statusText == "Agent unavailable" && state.isWorking && !state.canStop && state.conversation.last?.canStopAgent == true,
             "A request with a missing worker can still stop its other active deliveries")
         observer.cancel()
         state.observeScene(presenter, presented: true)
