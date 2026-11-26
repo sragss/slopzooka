@@ -1,0 +1,382 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		03AD9F7720831E8DE82E8304 /* TerminalVoiceSubmitSound.swift in Sources */ = {isa = PBXBuildFile; fileRef = 45DC5A1F76D52003FF800FF9 /* TerminalVoiceSubmitSound.swift */; };
+		0FA439E37990A87D75A230EF /* terminal-voice-submit.wav in Resources */ = {isa = PBXBuildFile; fileRef = 63493004F0E43DD24C5F4E7B /* terminal-voice-submit.wav */; };
+		1C63C0802FEBFEA8611090D9 /* FixtureSurfaces.swift in Sources */ = {isa = PBXBuildFile; fileRef = A606951856585596211D868A /* FixtureSurfaces.swift */; };
+		3168C7799CC8F4882EBA5259 /* TerminalVoiceController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08083DE73C08C68B1532178E /* TerminalVoiceController.swift */; };
+		41291D42D5EA3F66FF15E3C9 /* LabTerminalWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8ED25CF2FFD23A9732EAC502 /* LabTerminalWindow.swift */; };
+		457B3513E2E65B65471458E8 /* TerminalZoom.swift in Sources */ = {isa = PBXBuildFile; fileRef = 593AB87451D4A85303F1B9AD /* TerminalZoom.swift */; };
+		47F7682CEEAE606A534F474D /* LauncherRowSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AC01B0B115933C3B1C564C5 /* LauncherRowSurface.swift */; };
+		953F6141AB4D260AC8459AF5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 390CDF372DDA541267882CC7 /* Assets.xcassets */; };
+		9AEF90036D2F2BF6EBFA1FFA /* TerminalGlassControlStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD95E105CF25F9724BAA3BEC /* TerminalGlassControlStyle.swift */; };
+		9E31936254A8A07A9732B4DC /* LabModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = C373FB2C9FE57E5ACE7AE33A /* LabModel.swift */; };
+		C6B74139F6F23DDD9A9DBC49 /* TerminalLabApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 60A255E20B60A177DAF51190 /* TerminalLabApp.swift */; };
+		D1DFDC9B28DFD2D52AA7D92D /* NativeLogFile.swift in Sources */ = {isa = PBXBuildFile; fileRef = 682DB0650991B1FE0E5615F6 /* NativeLogFile.swift */; };
+		D270B431DA77FA709B2B6F68 /* Diagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A92D7F60AC462B0F2CDE9F52 /* Diagnostics.swift */; };
+		F4E993DDD72B9B8B8C6DEEE1 /* TerminalZoomControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 99747B366CA45E6BDCAAA5EE /* TerminalZoomControls.swift */; };
+		FDDD7DE8019874A03B7DFAC1 /* TerminalVoiceControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C091A3E82FBDAD1074794FE /* TerminalVoiceControls.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		08083DE73C08C68B1532178E /* TerminalVoiceController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceController.swift; sourceTree = "<group>"; };
+		390CDF372DDA541267882CC7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		45DC5A1F76D52003FF800FF9 /* TerminalVoiceSubmitSound.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceSubmitSound.swift; sourceTree = "<group>"; };
+		593AB87451D4A85303F1B9AD /* TerminalZoom.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalZoom.swift; sourceTree = "<group>"; };
+		5C091A3E82FBDAD1074794FE /* TerminalVoiceControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalVoiceControls.swift; sourceTree = "<group>"; };
+		60A255E20B60A177DAF51190 /* TerminalLabApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalLabApp.swift; sourceTree = "<group>"; };
+		63493004F0E43DD24C5F4E7B /* terminal-voice-submit.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = "terminal-voice-submit.wav"; sourceTree = "<group>"; };
+		682DB0650991B1FE0E5615F6 /* NativeLogFile.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeLogFile.swift; sourceTree = "<group>"; };
+		6AC01B0B115933C3B1C564C5 /* LauncherRowSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherRowSurface.swift; sourceTree = "<group>"; };
+		8ED25CF2FFD23A9732EAC502 /* LabTerminalWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabTerminalWindow.swift; sourceTree = "<group>"; };
+		99747B366CA45E6BDCAAA5EE /* TerminalZoomControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalZoomControls.swift; sourceTree = "<group>"; };
+		A606951856585596211D868A /* FixtureSurfaces.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FixtureSurfaces.swift; sourceTree = "<group>"; };
+		A92D7F60AC462B0F2CDE9F52 /* Diagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Diagnostics.swift; sourceTree = "<group>"; };
+		C373FB2C9FE57E5ACE7AE33A /* LabModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabModel.swift; sourceTree = "<group>"; };
+		CB6543BA3CF2AB2D85DC1B18 /* TerminalLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = TerminalLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD95E105CF25F9724BAA3BEC /* TerminalGlassControlStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalGlassControlStyle.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		3D856E4F79A3FF4C3603DD5B /* SlopZooka */ = {
+			isa = PBXGroup;
+			children = (
+				6AC01B0B115933C3B1C564C5 /* LauncherRowSurface.swift */,
+				63493004F0E43DD24C5F4E7B /* terminal-voice-submit.wav */,
+				DD95E105CF25F9724BAA3BEC /* TerminalGlassControlStyle.swift */,
+				08083DE73C08C68B1532178E /* TerminalVoiceController.swift */,
+				5C091A3E82FBDAD1074794FE /* TerminalVoiceControls.swift */,
+				45DC5A1F76D52003FF800FF9 /* TerminalVoiceSubmitSound.swift */,
+				593AB87451D4A85303F1B9AD /* TerminalZoom.swift */,
+				99747B366CA45E6BDCAAA5EE /* TerminalZoomControls.swift */,
+			);
+			name = SlopZooka;
+			path = "../../apps/vision-client/SlopZooka/SlopZooka";
+			sourceTree = "<group>";
+		};
+		51CC806CF230071A6EDB0A1D /* TerminalLab */ = {
+			isa = PBXGroup;
+			children = (
+				390CDF372DDA541267882CC7 /* Assets.xcassets */,
+				A606951856585596211D868A /* FixtureSurfaces.swift */,
+				C373FB2C9FE57E5ACE7AE33A /* LabModel.swift */,
+				8ED25CF2FFD23A9732EAC502 /* LabTerminalWindow.swift */,
+				60A255E20B60A177DAF51190 /* TerminalLabApp.swift */,
+			);
+			path = TerminalLab;
+			sourceTree = "<group>";
+		};
+		796615930E6839F692E766BE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				CB6543BA3CF2AB2D85DC1B18 /* TerminalLab.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D0951703CCF818504C0EC33D /* shared */ = {
+			isa = PBXGroup;
+			children = (
+				A92D7F60AC462B0F2CDE9F52 /* Diagnostics.swift */,
+				682DB0650991B1FE0E5615F6 /* NativeLogFile.swift */,
+			);
+			name = shared;
+			path = ../../apps/shared;
+			sourceTree = "<group>";
+		};
+		D836A7D33AD2BAD070DEBE77 = {
+			isa = PBXGroup;
+			children = (
+				D0951703CCF818504C0EC33D /* shared */,
+				3D856E4F79A3FF4C3603DD5B /* SlopZooka */,
+				51CC806CF230071A6EDB0A1D /* TerminalLab */,
+				796615930E6839F692E766BE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5819DFA0E1D1FE739BAEF943 /* TerminalLab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = BB3AFB605FFE11B7A309DDF6 /* Build configuration list for PBXNativeTarget "TerminalLab" */;
+			buildPhases = (
+				E4ED5C5263DE87D57BC4B770 /* Sources */,
+				2AFC0AE88C981A4D97C3E07B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = TerminalLab;
+			packageProductDependencies = (
+			);
+			productName = TerminalLab;
+			productReference = CB6543BA3CF2AB2D85DC1B18 /* TerminalLab.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		1D9E99669954D9E7AB6B032E /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					5819DFA0E1D1FE739BAEF943 = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 175B7F8357548C90BB6CD58A /* Build configuration list for PBXProject "TerminalLab" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = D836A7D33AD2BAD070DEBE77;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 796615930E6839F692E766BE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5819DFA0E1D1FE739BAEF943 /* TerminalLab */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		2AFC0AE88C981A4D97C3E07B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				953F6141AB4D260AC8459AF5 /* Assets.xcassets in Resources */,
+				0FA439E37990A87D75A230EF /* terminal-voice-submit.wav in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E4ED5C5263DE87D57BC4B770 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D270B431DA77FA709B2B6F68 /* Diagnostics.swift in Sources */,
+				1C63C0802FEBFEA8611090D9 /* FixtureSurfaces.swift in Sources */,
+				9E31936254A8A07A9732B4DC /* LabModel.swift in Sources */,
+				41291D42D5EA3F66FF15E3C9 /* LabTerminalWindow.swift in Sources */,
+				47F7682CEEAE606A534F474D /* LauncherRowSurface.swift in Sources */,
+				D1DFDC9B28DFD2D52AA7D92D /* NativeLogFile.swift in Sources */,
+				9AEF90036D2F2BF6EBFA1FFA /* TerminalGlassControlStyle.swift in Sources */,
+				C6B74139F6F23DDD9A9DBC49 /* TerminalLabApp.swift in Sources */,
+				3168C7799CC8F4882EBA5259 /* TerminalVoiceController.swift in Sources */,
+				FDDD7DE8019874A03B7DFAC1 /* TerminalVoiceControls.swift in Sources */,
+				03AD9F7720831E8DE82E8304 /* TerminalVoiceSubmitSound.swift in Sources */,
+				457B3513E2E65B65471458E8 /* TerminalZoom.swift in Sources */,
+				F4E993DDD72B9B8B8C6DEEE1 /* TerminalZoomControls.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		07EA50C6A567E37B24005B03 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		11A73F4744948783E9855528 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TerminalLab/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZooka.TerminalLab;
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
+		12A2B478988D659FDEE37426 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		80EC1F05BD4F3312A33A9998 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = TerminalLab/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZooka.TerminalLab;
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		175B7F8357548C90BB6CD58A /* Build configuration list for PBXProject "TerminalLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				12A2B478988D659FDEE37426 /* Debug */,
+				07EA50C6A567E37B24005B03 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		BB3AFB605FFE11B7A309DDF6 /* Build configuration list for PBXNativeTarget "TerminalLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				80EC1F05BD4F3312A33A9998 /* Debug */,
+				11A73F4744948783E9855528 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 1D9E99669954D9E7AB6B032E /* Project object */;
+}

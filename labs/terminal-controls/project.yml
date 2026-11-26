@@ -1,0 +1,42 @@
+name: TerminalLab
+options:
+  deploymentTarget:
+    visionOS: "26.2"
+targets:
+  TerminalLab:
+    type: application
+    platform: visionOS
+    sources:
+      - path: TerminalLab
+        excludes: [Info.plist]
+      - path: ../../apps/shared/Diagnostics.swift
+      - path: ../../apps/shared/NativeLogFile.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/LauncherRowSurface.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalGlassControlStyle.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalVoiceController.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalVoiceControls.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalVoiceSubmitSound.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalZoom.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/TerminalZoomControls.swift
+      - path: ../../apps/vision-client/SlopZooka/SlopZooka/terminal-voice-submit.wav
+        buildPhase: resources
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        CURRENT_PROJECT_VERSION: 1
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_FILE: TerminalLab/Info.plist
+        MARKETING_VERSION: "1.0"
+        PRODUCT_BUNDLE_IDENTIFIER: com.samragsdale.SlopZooka.TerminalLab
+        SUPPORTED_PLATFORMS: xros xrsimulator
+        SWIFT_VERSION: "6.0"
+        SWIFT_STRICT_CONCURRENCY: complete
+        SWIFT_TREAT_WARNINGS_AS_ERRORS: YES
+        TARGETED_DEVICE_FAMILY: 7
+schemes:
+  TerminalLab:
+    build:
+      targets:
+        TerminalLab: all
+    run:
+      config: Debug

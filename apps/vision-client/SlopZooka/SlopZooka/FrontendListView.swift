@@ -1,60 +1,10 @@
 import SwiftUI
 
-struct WorkspaceFrontendButton: View {
-    @EnvironmentObject private var client: CompanionClient
-    let hostID: String?
-    let workspaceId: String
-    let sessionID: String
-    @State private var expanded = false
-    private var catalog: FrontendCatalog { client.frontends(for: hostID) }
-    private var frontends: [FrontendSummary] { catalog.visibleFrontends(workspaceID: workspaceId) }
-
-    var body: some View {
-        Button { expanded.toggle() } label: {
-            Image(systemName: "globe")
-                .font(.system(size: 26, weight: .medium))
-                .frame(width: 72, height: 72)
-        }
-        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
-        // The badge has its own foreground plane, outside the globe's glass.
-        .overlay(alignment: .topTrailing) {
-            if !frontends.isEmpty {
-                Text(frontends.count > 99 ? "99+" : "\(frontends.count)")
-                    .font(.caption2.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.black)
-                    .padding(.horizontal, 6)
-                    .frame(minWidth: 24, minHeight: 24)
-                    .background(Color("AccentHighlight"), in: Capsule())
-                    .compositingGroup()
-                    .clipShape(Capsule())
-                    .offset(x: -2, y: 2)
-                    .offset(z: 1)
-                    .allowsHitTesting(false)
-                    .accessibilityHidden(true)
-            }
-        }
-        .disabled(hostID == nil)
-        .accessibilityLabel("Show worktree frontends")
-        .accessibilityValue(accessibilityStatus)
-        .popover(isPresented: $expanded, arrowEdge: .top) {
-            ScrollView {
-                FrontendListView(hostID: hostID, workspaceId: workspaceId, sessionID: sessionID).id(hostID)
-            }
-            .frame(width: 420).frame(maxHeight: 420)
-        }
-    }
-
-    private var accessibilityStatus: String {
-        guard hostID != nil else { return "Unavailable" }
-        if catalog.warning != nil { return "\(frontends.count) frontends, discovery notice" }
-        return "\(frontends.count) frontends"
-    }
-}
-
 struct FrontendListView: View {
     let hostID: String?
     var workspaceId: String? = nil
     var sessionID: String? = nil
+    var onOpen: (() -> Void)? = nil
     @EnvironmentObject private var windows: WindowGateway
     @EnvironmentObject private var client: CompanionClient
     @State private var error: String?
@@ -67,10 +17,10 @@ struct FrontendListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Label("Web frontends", systemImage: "globe").font(.headline)
-                Spacer()
-                if workspaceId == nil {
+            if workspaceId == nil {
+                HStack {
+                    Label("Web frontends", systemImage: "globe").font(.headline)
+                    Spacer()
                     Button("Add URL", systemImage: "plus") { showAddURL = true }
                         .disabled(hostID == nil)
                 }
@@ -125,7 +75,6 @@ struct FrontendListView: View {
                 }.font(.subheadline)
             }
         }
-        .padding(workspaceId == nil ? 0 : 16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .sheet(isPresented: $showAddURL) {
             if let hostID { AddFrontendSheet(hostID: hostID) }
@@ -206,6 +155,7 @@ struct FrontendListView: View {
         failureAction = "open this frontend"
         do {
             try windows.openPreview(frontend, hostID: hostID, sessionID: sessionID)
+            onOpen?()
         } catch { self.error = error.localizedDescription }
     }
 }

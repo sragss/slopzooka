@@ -8,6 +8,7 @@ included:
   - apps/mac-menu/Sources
   - apps/vision-client/SlopZooka/SlopZooka
   - apps/voice-ux-demo/VoicePlayground
+  - labs/terminal-controls/TerminalLab
 
 # Correctness checks only; formatting and size limits are intentionally omitted.
 only_rules:
