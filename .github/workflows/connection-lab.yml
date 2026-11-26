@@ -1,0 +1,32 @@
+name: Connection Lab checks
+on:
+  pull_request:
+    paths: ['apps/connection-ux-lab/**', '.github/workflows/connection-lab.yml']
+  push:
+    branches: [main, master]
+    paths: ['apps/connection-ux-lab/**', '.github/workflows/connection-lab.yml']
+permissions:
+  contents: read
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+jobs:
+  connection-lab:
+    runs-on: macos-26
+    env:
+      DEVELOPER_DIR: /Applications/Xcode_26.3.app/Contents/Developer
+    defaults:
+      run:
+        working-directory: apps/connection-ux-lab
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run fixture state checks
+        run: |
+          swiftc -swift-version 6 -warnings-as-errors -o "$RUNNER_TEMP/connection-lab-checks" \
+            ConnectionLab/LabModel.swift tests/LabModelChecks.swift
+          "$RUNNER_TEMP/connection-lab-checks"
+      - name: Build the visionOS simulator app
+        run: |
+          xcodebuild -project ConnectionLab.xcodeproj -scheme ConnectionLab \
+            -sdk xrsimulator -configuration Debug -destination 'generic/platform=visionOS Simulator' \
+            -derivedDataPath "$RUNNER_TEMP/connection-lab-derived" CODE_SIGNING_ALLOWED=NO build
