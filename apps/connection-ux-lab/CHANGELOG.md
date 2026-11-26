@@ -28,3 +28,4 @@ production behavior that was refreshed or intentionally changed.
   as a self-contained project with an editing guide and fixture checks.
 - Replaced the Troubleshooting disclosure with visible address and log rows
   and a full-width reload action in the connection sheet.
+- Moved retry into the interrupted connection status row as a circular arrow.

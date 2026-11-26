@@ -32,6 +32,8 @@ struct ConnectionFlowView: View {
 private enum ConnectionPage: Hashable { case chooseMac, options }
 
 private struct ConnectionHomeView: View {
+    private enum StatusAction { case cancel, retry }
+
     var isPicker = false
     @Environment(LabModel.self) private var lab
     @State private var showManualAddress = false
@@ -89,7 +91,7 @@ private struct ConnectionHomeView: View {
             connectionFailure(message)
         } else if lab.phase == .checking {
             status("Connecting…", detail: lab.method == .localNetwork ? lab.normalizedHost : nil,
-                   icon: "desktopcomputer", canCancel: true)
+                   icon: "desktopcomputer", action: .cancel)
         } else if isSetup && lab.discoveryError == nil && lab.discovered.isEmpty {
             status(lab.isDiscovering ? "Searching nearby…" : "No Macs found",
                    detail: "Open SlopZooka on your Mac.", icon: "desktopcomputer")
@@ -114,7 +116,7 @@ private struct ConnectionHomeView: View {
         }
     }
 
-    private func status(_ label: String, detail: String?, icon: String, color: Color = .cyan, canCancel: Bool = false) -> some View {
+    private func status(_ label: String, detail: String?, icon: String, color: Color = .cyan, action: StatusAction? = nil) -> some View {
         HStack(spacing: 16) {
             HStack(spacing: 16) {
                 Image(systemName: icon)
@@ -129,9 +131,12 @@ private struct ConnectionHomeView: View {
                 }
             }
             .accessibilityElement(children: .combine)
-            if canCancel {
+            if let action {
                 Spacer(minLength: 0)
-                cancelButton
+                switch action {
+                case .cancel: cancelButton
+                case .retry: retryButton
+                }
             }
         }
         .padding(20)
@@ -143,6 +148,19 @@ private struct ConnectionHomeView: View {
         Button("Cancel", action: lab.cancelConnection)
             .buttonStyle(.bordered)
             .fixedSize(horizontal: true, vertical: false)
+    }
+
+    private var retryButton: some View {
+        Button(action: lab.connect) {
+            Image(systemName: "arrow.clockwise")
+                .font(.body.weight(.semibold))
+                .frame(width: 44, height: 44)
+                .accessibilityHidden(true)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.circle)
+        .accessibilityLabel("Try Again")
+        .help("Try Again")
     }
 
     private var pairing: some View {
@@ -174,16 +192,12 @@ private struct ConnectionHomeView: View {
                 lab.phase.isReconnecting ? "Connection interrupted" : "Couldn’t reach your Mac",
                 detail: lab.method == .direct && isSetup ? "Pair over Local Network before using Direct." : nil,
                 icon: "exclamationmark",
-                color: .orange
+                color: .orange,
+                action: lab.normalizedHost.isEmpty ? nil : .retry
             )
-            HStack {
-                if !lab.normalizedHost.isEmpty {
-                    Button("Try Again", action: lab.connect).buttonStyle(.borderedProminent)
-                }
-                if lab.method == .direct && !isPicker {
-                    Button("Use Local Network") { lab.changeMethod(.localNetwork) }
-                        .buttonStyle(.bordered)
-                }
+            if lab.method == .direct && !isPicker {
+                Button("Use Local Network") { lab.changeMethod(.localNetwork) }
+                    .buttonStyle(.bordered)
             }
             errorDetails(message)
         }
