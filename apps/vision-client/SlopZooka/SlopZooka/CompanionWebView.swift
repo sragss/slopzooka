@@ -4,6 +4,21 @@ import WebKit
 #if canImport(UIKit)
 import UIKit
 
+enum TerminalControlKey: String {
+    case up = "ArrowUp"
+    case down = "ArrowDown"
+    case left = "ArrowLeft"
+    case right = "ArrowRight"
+    case enter = "Enter"
+}
+
+struct TerminalControlKeyRequest: Equatable {
+    let key: TerminalControlKey
+    private let id = UUID()
+
+    init(_ key: TerminalControlKey) { self.key = key }
+}
+
 struct CompanionWebView: UIViewRepresentable {
     let url: URL
     let hostID: String?
@@ -12,6 +27,7 @@ struct CompanionWebView: UIViewRepresentable {
     let isActive: Bool
     let focusRequestToken: Int
     let interruptRequestToken: Int
+    let controlKeyRequest: TerminalControlKeyRequest?
     let zoom: Double
     @AppStorage(TerminalKeyboard.optionAsMetaKey) private var optionAsMeta = false
     var onNotification: (Int, String) -> Bool = { _, _ in false }
@@ -22,6 +38,7 @@ struct CompanionWebView: UIViewRepresentable {
         context.coordinator.reloadToken = reloadToken
         context.coordinator.hostID = hostID
         context.coordinator.focusToken = focusRequestToken
+        context.coordinator.controlKeyRequest = controlKeyRequest
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .nonPersistent()
         configuration.userContentController.addUserScript(WKUserScript(
@@ -57,6 +74,7 @@ struct CompanionWebView: UIViewRepresentable {
             context.coordinator.interruptToken = interruptRequestToken
             webView.evaluateJavaScript("window.slzInterruptTerminal?.()")
         }
+        context.coordinator.updateControlKeyRequest(controlKeyRequest, in: webView)
         if context.coordinator.focusToken != focusRequestToken {
             context.coordinator.focusToken = focusRequestToken
             context.coordinator.requestFocus(in: webView, showKeyboard: true)
@@ -152,6 +170,17 @@ final class TerminalSessionController: NSObject, WKNavigationDelegate, WKScriptM
     var loadState: Binding<TerminalLoadState>
     var focusToken = 0
     var interruptToken = 0
+    #if canImport(UIKit)
+    var controlKeyRequest: TerminalControlKeyRequest?
+
+    func updateControlKeyRequest(_ request: TerminalControlKeyRequest?, in webView: WKWebView) {
+        guard controlKeyRequest != request else { return }
+        controlKeyRequest = request
+        // Never carry a tap across reload, disconnect, or scene inactivity.
+        guard isActive, terminalReady, let request else { return }
+        webView.evaluateJavaScript("window.slzSendTerminalControlKey?.('\(request.key.rawValue)')")
+    }
+    #endif
     var reloadToken = 0
     var onNotification: (Int, String) -> Bool = { _, _ in false }
     var onSelect: () -> Void = {}
