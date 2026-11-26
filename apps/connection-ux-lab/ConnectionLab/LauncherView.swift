@@ -99,8 +99,14 @@ struct LauncherView: View {
             Label {
                 Text(connectionLabel(macName))
             } icon: {
-                Image(systemName: lab.isReady ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
-                    .foregroundStyle(lab.isReady ? Color.primary : Color.orange)
+                Image(systemName: lab.isReady || lab.isReconnectAttempt
+                      ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
+                    .foregroundStyle(lab.isReconnectAttempt ? Color.cyan : (lab.isReady ? Color.primary : Color.orange))
+                    .overlay {
+                        if lab.isReconnectAttempt {
+                            ConnectionActivityRing().frame(width: 25, height: 25)
+                        }
+                    }
                     .accessibilityHidden(true)
             }
             .font(.subheadline.weight(.medium))

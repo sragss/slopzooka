@@ -92,7 +92,7 @@ private struct ConnectionHomeView: View {
         } else if lab.phase == .checking {
             status(lab.isReconnectAttempt ? "Reconnecting…" : "Connecting…",
                    detail: lab.method == .localNetwork ? lab.normalizedHost : nil,
-                   icon: "desktopcomputer", action: .cancel)
+                   icon: "desktopcomputer", action: .cancel, showsActivity: lab.isReconnectAttempt)
         } else if isSetup && lab.discoveryError == nil && lab.discovered.isEmpty {
             status(lab.isDiscovering ? "Searching nearby…" : "No Macs found",
                    detail: "Open SlopZooka on your Mac.", icon: "desktopcomputer")
@@ -117,7 +117,10 @@ private struct ConnectionHomeView: View {
         }
     }
 
-    private func status(_ label: String, detail: String?, icon: String, color: Color = .cyan, action: StatusAction? = nil) -> some View {
+    private func status(
+        _ label: String, detail: String?, icon: String, color: Color = .cyan,
+        action: StatusAction? = nil, showsActivity: Bool = false
+    ) -> some View {
         HStack(spacing: 16) {
             HStack(spacing: 16) {
                 Image(systemName: icon)
@@ -125,6 +128,9 @@ private struct ConnectionHomeView: View {
                     .foregroundStyle(color)
                     .frame(width: 52, height: 52)
                     .background(color.opacity(0.13), in: Circle())
+                    .overlay {
+                        if showsActivity { ConnectionActivityRing().padding(-3) }
+                    }
                     .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(label).font(.title3.weight(.semibold))
@@ -369,6 +375,32 @@ private struct ConnectionHomeView: View {
         lab.select(host)
     }
 
+}
+
+struct ConnectionActivityRing: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            Circle().strokeBorder(.cyan.opacity(0.20), lineWidth: 2)
+            if reduceMotion {
+                arc
+            } else {
+                TimelineView(.animation(minimumInterval: 1.0 / 30)) { context in
+                    let elapsed = context.date.timeIntervalSinceReferenceDate
+                    let turn = elapsed.truncatingRemainder(dividingBy: 1.2) / 1.2
+                    arc.rotationEffect(.degrees(turn * 360))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private var arc: some View {
+        Circle().inset(by: 1).trim(from: 0, to: 0.27)
+            .stroke(.cyan, style: StrokeStyle(lineWidth: 2, lineCap: .round))
+    }
 }
 
 private struct ConnectionOptionsPage: View {

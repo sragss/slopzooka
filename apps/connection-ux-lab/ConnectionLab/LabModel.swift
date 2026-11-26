@@ -45,6 +45,7 @@ enum LabScenario: String, CaseIterable, Identifiable {
     case codeHidden = "Mac code window dismissed"
     case connected = "Connected on Local Network"
     case localReconnecting = "Local Network reconnecting"
+    case localRetrying = "Local Network retry in progress"
     case pairingRevoked = "Pairing revoked"
     case workspaceBusy = "Workspace action in progress"
     case directUnpaired = "Direct requires initial LAN pairing"
@@ -148,13 +149,6 @@ enum VoicePermission: String, CaseIterable, Identifiable {
 
     var id: Self { self }
 
-    var error: String? {
-        switch self {
-        case .microphoneDenied: "Microphone permission was denied."
-        case .speechDenied: "Speech recognition permission was denied."
-        default: nil
-        }
-    }
 }
 
 enum ImmersiveOutcome: String, CaseIterable, Identifiable {
@@ -366,7 +360,7 @@ final class LabModel {
             case .codeHidden: dismissCode(); codeDisplaySuppressed = true
             default: break
             }
-        case .connected, .workspaceBusy, .localReconnecting, .pairingRevoked:
+        case .connected, .workspaceBusy, .localReconnecting, .localRetrying, .pairingRevoked:
             prepareConnected()
             if scenario == .connected {
                 discoveryOutcome = .twoMacs
@@ -374,6 +368,10 @@ final class LabModel {
             }
             if scenario == .workspaceBusy { workspaceBusy = true; destination = .yourMac }
             if scenario == .localReconnecting { loseConnection() }
+            if scenario == .localRetrying {
+                loseConnection()
+                connect()
+            }
             if scenario == .pairingRevoked { revokePairing(); destination = .yourMac }
         case .directUnpaired, .directUnprepared, .directChecking, .directOffline, .directUnsupported,
                 .directWrongMac, .directRevoked, .directConnected, .directReconnecting:
@@ -708,6 +706,10 @@ final class LabModel {
 
     func requestVoice() {
         if voicePermission != .granted { isRequestingVoice = true }
+    }
+
+    func cancelVoiceRequest() {
+        isRequestingVoice = false
     }
 
     func advanceVoice() {

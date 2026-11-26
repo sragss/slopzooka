@@ -116,8 +116,88 @@ struct FrontendPermissionView: View {
 
 struct VoicePermissionView: View {
     @Environment(LabModel.self) private var lab
+    @Environment(\.dismissWindow) private var dismissWindow
 
     var body: some View {
+        Group {
+            if lab.voicePermission == .granted {
+                askContent
+            } else {
+                permissionScreen
+            }
+        }
+        .padding(24)
+        .frame(width: 520, height: 560)
+        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
+        .onDisappear(perform: lab.cancelVoiceRequest)
+        .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
+            if lab.voicePermission == .granted {
+                Button {
+                    lab.voiceActive.toggle()
+                } label: {
+                    Image(systemName: lab.voiceActive ? "stop.fill" : "mic.fill").frame(width: 56, height: 56)
+                }
+                .accessibilityLabel(lab.voiceActive ? "Stop Voice Input" : "Microphone")
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .disabled(!lab.isReady)
+                .padding(12)
+            }
+        }
+    }
+
+    private var permissionScreen: some View {
+        VStack(spacing: 24) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 30, weight: .medium))
+                .foregroundStyle(.cyan)
+                .frame(width: 76, height: 76)
+                .background(.cyan.opacity(0.12), in: Circle())
+                .accessibilityHidden(true)
+            VStack(spacing: 10) {
+                Text(permissionTitle)
+                    .font(.title.weight(.semibold))
+                    .accessibilityAddTraits(.isHeader)
+                Text(permissionMessage)
+                    .foregroundStyle(.secondary)
+            }
+            HStack(spacing: 12) {
+                Button("Not Now") {
+                    lab.cancelVoiceRequest()
+                    dismissWindow(id: "ask")
+                }
+                .buttonStyle(.bordered)
+
+                if !lab.isRequestingVoice {
+                    Button(lab.voicePermission == .undetermined ? "Enable Microphone" : "Check Again",
+                           action: lab.requestVoice)
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+        }
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: 360)
+    }
+
+    private var permissionTitle: String {
+        if lab.isRequestingVoice { return "Waiting for permission…" }
+        switch lab.voicePermission {
+        case .microphoneDenied: return "Microphone access is off"
+        case .speechDenied: return "Speech recognition is off"
+        case .undetermined, .granted: return "Talk to SlopZooka"
+        }
+    }
+
+    private var permissionMessage: String {
+        if lab.isRequestingVoice { return "Allow access to continue to Ask." }
+        switch lab.voicePermission {
+        case .microphoneDenied: return "Allow microphone access for SlopZooka in visionOS Settings."
+        case .speechDenied: return "Allow speech recognition for SlopZooka in visionOS Settings."
+        case .undetermined, .granted: return "Ask uses your microphone and speech recognition to turn what you say into a request."
+        }
+    }
+
+    private var askContent: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Ask SlopZooka").font(.title3.weight(.semibold))
             Text("Global").font(.footnote).foregroundStyle(.secondary)
@@ -130,29 +210,6 @@ struct VoicePermissionView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .defaultScrollAnchor(.bottom)
-            if !lab.isRequestingVoice, let error = lab.voicePermission.error {
-                Text("\(error) Check SlopZooka's permissions in Settings.")
-                    .font(.footnote).foregroundStyle(.orange).lineLimit(2)
-            }
-            if lab.voicePermission != .granted {
-                Button(lab.isRequestingVoice ? "Getting ready…" : "Enable Microphone", action: lab.requestVoice)
-                    .disabled(lab.isRequestingVoice).buttonStyle(.bordered)
-            }
-        }
-        .padding(24)
-        .frame(width: 520, height: 560)
-        .glassBackgroundEffect(in: RoundedRectangle(cornerRadius: 24))
-        .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
-            Button {
-                lab.voiceActive.toggle()
-            } label: {
-                Image(systemName: lab.voiceActive ? "stop.fill" : "mic.fill").frame(width: 56, height: 56)
-            }
-            .accessibilityLabel(lab.voiceActive ? "Stop Voice Input" : "Microphone")
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.circle)
-            .disabled(lab.voicePermission != .granted || !lab.isReady)
-            .padding(12)
         }
     }
 }

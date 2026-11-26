@@ -31,3 +31,7 @@ production behavior that was refreshed or intentionally changed.
 - Moved retry into the interrupted connection status row as a circular arrow.
 - Distinguished an interrupted connection from an active reconnect. Kept
   worktree rows readable and labeled their session badges as last known.
+- Added a compact activity ring to the computer icon while a reconnect runs
+  and a preset that holds the active retry on screen.
+- Gave Ask a dedicated permission screen with a way to leave and separate
+  guidance for microphone and speech recognition denials.

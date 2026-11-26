@@ -88,6 +88,8 @@ struct LabModelChecks {
                 precondition(lab.phase.error != nil && !lab.phase.isReconnecting)
             case .localReconnecting, .directReconnecting:
                 precondition(lab.phase.isReconnecting)
+            case .localRetrying:
+                precondition(lab.phase == .checking && lab.isReconnectAttempt)
             case .multipleMacs:
                 precondition(lab.phase == .idle && lab.discovered.count == 2 && lab.workspaceMacName == nil)
             case .pairing, .pairingRevoked:
@@ -207,6 +209,10 @@ struct LabModelChecks {
         precondition(lab.reloadCount == 1)
 
         lab.load(.micNotAsked)
+        lab.requestVoice()
+        lab.cancelVoiceRequest()
+        lab.advanceVoice()
+        precondition(lab.voicePermission == .undetermined && !lab.isRequestingVoice)
         lab.requestVoice()
         lab.nextVoicePermission = .speechDenied
         lab.advanceVoice()
