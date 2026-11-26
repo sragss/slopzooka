@@ -11,6 +11,8 @@ struct TerminalWindowView: View {
     @State private var confirmEndSession = false
     @State private var isSessionDetailsExpanded = false
     @State private var isActionsPresented = false
+    @State private var isPreviewsExpanded = false
+    @State private var requestKeyboardAfterActions = false
     @State private var report: Report?
     @State private var isReportPresented = false
     @State private var editingName: TerminalVoiceController.NameTarget?
@@ -104,7 +106,7 @@ struct TerminalWindowView: View {
 
             VStack(alignment: .leading, spacing: 10) {
                 HStack(spacing: 16) {
-                    WorkspaceFrontendButton(hostID: windows.reference(for: payload.id)?.hostID, workspaceId: payload.workspaceId, sessionID: payload.id)
+                    actionsButton(payload: payload)
 
                     if let statusText = terminalStatusText {
                         Text(statusText)
@@ -119,43 +121,15 @@ struct TerminalWindowView: View {
 
                     HStack(spacing: 12) {
                         Button {
-                            isActionsPresented.toggle()
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.title3.weight(.medium))
-                                .frame(width: 60, height: 60)
-                        }
-                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
-                        .accessibilityLabel("Session actions")
-                        .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
-                            terminalActions(payload: payload)
-                                .onDisappear {
-                                    // Let the popover finish before presenting a sheet.
-                                    if report != nil { isReportPresented = true }
-                                }
-                        }
-
-                        Button {
-                            focusRequestToken += 1
-                        } label: {
-                            Image(systemName: "keyboard")
-                                .font(.title3.weight(.medium))
-                                .frame(width: 60, height: 60)
-                        }
-                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
-                        .disabled(!canUseKeyboard)
-                        .accessibilityLabel("Show terminal keyboard")
-
-                        Button {
                             interruptRequestToken += 1
                         } label: {
-                            Label("Interrupt", systemImage: "escape")
-                                .font(.body.weight(.medium))
-                                .padding(.horizontal, 20)
-                                .frame(minHeight: 60)
+                            Image(systemName: "hand.raised.fill")
+                                .font(.title3.weight(.medium))
+                                .frame(width: 60, height: 60)
                         }
-                        .buttonStyle(TerminalGlassControlStyle(shape: Capsule()))
+                        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
                         .disabled(!canUseKeyboard)
+                        .accessibilityLabel("Interrupt")
                         .accessibilityHint("Send Escape to the terminal")
 
                         Button(role: .destructive) {
@@ -250,58 +224,103 @@ struct TerminalWindowView: View {
         .accessibilityLabel(title)
     }
 
-    private func terminalActions(payload: TerminalWindowPayload) -> some View {
-        VStack(spacing: 8) {
-            TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
-            terminalKeys
-            TerminalMenuAction(
-                title: dragScrollback ? "Disable Pinch to Scroll" : "Enable Pinch to Scroll",
-                symbol: "hand.draw"
-            ) {
-                dragScrollback.toggle()
-                isActionsPresented = false
-            }
-            TerminalMenuAction(
-                title: showsScrollback ? "Hide Scrollback Strip" : "Show Scrollback Strip",
-                symbol: "arrow.up.and.down"
-            ) {
-                showsScrollback.toggle()
-                isActionsPresented = false
-            }
-            Divider()
-            TerminalMenuAction(title: "New Shell", symbol: "terminal") {
-                isActionsPresented = false
-                Task { await newShell(payload: payload) }
-            }
-            TerminalMenuAction(title: "Reload Content", symbol: "arrow.clockwise") {
-                isActionsPresented = false
-                windows.reload(id: payload.id)
-            }
-            TerminalMenuAction(title: "Ask SlopZooka", symbol: "mic.badge.plus") {
-                isActionsPresented = false
-                windows.openCoordinator(from: payload.id)
-            }
-            TerminalMenuAction(title: "Open Launcher", symbol: "square.grid.2x2") {
-                isActionsPresented = false
-                windows.openLauncher()
-            }
-            TerminalMenuAction(title: "Session Details", symbol: "info.circle") {
-                isActionsPresented = false
-                isUtilitiesExpanded.toggle()
-                isSessionDetailsExpanded = isUtilitiesExpanded
-            }
-            TerminalMenuAction(title: "Report a Bug", symbol: "ladybug") {
-                report = Report(hostID: windows.reference(for: payload.id)?.hostID)
-                isActionsPresented = false
-            }
-            Divider()
-            TerminalMenuAction(title: "Close Window", symbol: "xmark") {
-                isActionsPresented = false
-                windows.close(id: payload.id)
-            }
+    private func actionsButton(payload: TerminalWindowPayload) -> some View {
+        Button {
+            isActionsPresented.toggle()
+        } label: {
+            Image(systemName: "ellipsis")
+                .font(.title3.weight(.medium))
+                .frame(width: 60, height: 60)
         }
-        .padding(12)
+        .buttonStyle(TerminalGlassControlStyle(shape: Circle()))
+        .accessibilityLabel("Session actions")
+        .popover(isPresented: $isActionsPresented, arrowEdge: .top) {
+            terminalActions(payload: payload)
+                .onDisappear {
+                    isPreviewsExpanded = false
+                    // Wait for the popover to release focus before requesting a keyboard or sheet.
+                    if requestKeyboardAfterActions {
+                        requestKeyboardAfterActions = false
+                        focusRequestToken += 1
+                    }
+                    if report != nil { isReportPresented = true }
+                }
+        }
+    }
+
+    private func terminalActions(payload: TerminalWindowPayload) -> some View {
+        ScrollView {
+            VStack(spacing: 8) {
+                TerminalZoomControls(steps: zoomSteps, defaultSteps: defaultZoomSteps)
+                Divider()
+                DisclosureGroup(isExpanded: $isPreviewsExpanded) {
+                    FrontendListView(hostID: windows.reference(for: payload.id)?.hostID,
+                        workspaceId: payload.workspaceId, sessionID: payload.id,
+                        onOpen: { isActionsPresented = false })
+                        .padding(.top, 8)
+                } label: {
+                    Label("Previews", systemImage: "globe")
+                        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+                }
+                Divider()
+                TerminalMenuAction(title: "Show Terminal Keyboard", symbol: "keyboard") {
+                    requestKeyboardAfterActions = true
+                    isActionsPresented = false
+                }
+                .disabled(!canUseKeyboard)
+                TerminalMenuAction(title: "Ask SlopZooka", symbol: "mic.badge.plus") {
+                    isActionsPresented = false
+                    windows.openCoordinator(from: payload.id)
+                }
+                TerminalMenuAction(title: "Open Launcher", symbol: "square.grid.2x2") {
+                    isActionsPresented = false
+                    windows.openLauncher()
+                }
+                Divider()
+                terminalKeys
+                TerminalMenuAction(
+                    title: dragScrollback ? "Disable Pinch to Scroll" : "Enable Pinch to Scroll",
+                    symbol: "hand.draw"
+                ) {
+                    dragScrollback.toggle()
+                    isActionsPresented = false
+                }
+                TerminalMenuAction(
+                    title: showsScrollback ? "Hide Scrollback Strip" : "Show Scrollback Strip",
+                    symbol: "arrow.up.and.down"
+                ) {
+                    showsScrollback.toggle()
+                    isActionsPresented = false
+                }
+                Divider()
+                TerminalMenuAction(title: "New Shell", symbol: "terminal") {
+                    isActionsPresented = false
+                    Task { await newShell(payload: payload) }
+                }
+                TerminalMenuAction(title: "Reload Content", symbol: "arrow.clockwise") {
+                    isActionsPresented = false
+                    windows.reload(id: payload.id)
+                }
+                TerminalMenuAction(title: "Session Details", symbol: "info.circle") {
+                    isActionsPresented = false
+                    isUtilitiesExpanded.toggle()
+                    isSessionDetailsExpanded = isUtilitiesExpanded
+                }
+                TerminalMenuAction(title: "Report a Bug", symbol: "ladybug") {
+                    report = Report(hostID: windows.reference(for: payload.id)?.hostID)
+                    isActionsPresented = false
+                }
+                Divider()
+                TerminalMenuAction(title: "Close Window", symbol: "xmark") {
+                    isActionsPresented = false
+                    windows.close(id: payload.id)
+                }
+            }
+            .padding(12)
+        }
         .frame(width: 400)
+        .frame(maxHeight: 690)
+        .defaultScrollAnchor(.top, for: .alignment)
     }
 
     private func terminalUtilitiesSection(payload: TerminalWindowPayload) -> some View {

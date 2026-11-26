@@ -129,6 +129,23 @@ struct VoiceControlButton<Content: View>: View {
     }
 }
 
+/// Match the microphone’s face and hit area. Keep the glass mounted so only opacity animates.
+struct VoiceDraftCancelButton: View {
+    let isVisible: Bool
+    let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VoiceControlButton(label: "Cancel voice input and discard draft", action: action) {
+            Image(systemName: "xmark").accessibilityHidden(true)
+        }
+        .opacity(isVisible ? 1 : 0)
+        .animation(reduceMotion ? nil : .easeOut(duration: 0.18), value: isVisible)
+        .allowsHitTesting(isVisible)
+        .accessibilityHidden(!isVisible)
+    }
+}
+
 /// Foreground content only; visionOS owns the button's glass material and lighting.
 /// Listening motion follows microphone energy inside a fixed hit area.
 private struct VoiceOrb: View {
@@ -203,7 +220,7 @@ struct TerminalVoiceOverlay: ViewModifier {
                 // Keep the glass surface mounted at its centered geometry. Only
                 // opacity changes; closing never presents/dismisses glass from
                 // the microphone's interaction origin.
-                TerminalVoiceDraft(id: id)
+                TerminalVoiceDraft(id: id, transcriptOnly: mode == .terminal && voice.mode != .rename)
                     .transaction { $0.animation = nil }
                     .frame(maxWidth: 520)
                     .padding(20)
@@ -214,9 +231,16 @@ struct TerminalVoiceOverlay: ViewModifier {
             }
             .overlay(alignment: .bottomTrailing) {
                 if mode != .coordinator {
-                    TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
-                        .fixedSize()
-                        .padding(20)
+                    VStack(spacing: 0) {
+                        VoiceDraftCancelButton(
+                            isVisible: voice.targetID == id && voice.mode == .terminal && !voice.isSubmitting
+                        ) {
+                            if voice.targetID == id && voice.mode == .terminal && !voice.isSubmitting { voice.stop() }
+                        }
+                        TerminalVoiceButton(id: id, isAvailable: isAvailable, mode: mode)
+                    }
+                    .fixedSize()
+                    .padding(20)
                 }
             }
             .onChange(of: voice.mode == .rename ? canRename : isAvailable) { _, available in
@@ -250,47 +274,22 @@ struct TerminalVoiceOverlay: ViewModifier {
 
 private struct TerminalVoiceDraft: View {
     let id: String
+    var transcriptOnly = false
     @EnvironmentObject private var voice: TerminalVoiceController
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var retainedTranscript = ""
 
     var body: some View {
-        let status = visibleStatusText
         VStack(alignment: .leading, spacing: 10) {
             if voice.mode == .rename {
                 Text("Name this \(voice.renameTarget.rawValue)").font(.title2.weight(.semibold))
             }
-            HStack {
-                ZStack(alignment: .leading) {
-                    if !status.isEmpty {
-                        HStack(spacing: 6) {
-                            Image(systemName: "mic.fill")
-                                .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
-                                .accessibilityHidden(true)
-                            if let deadline = voice.sendDeadline {
-                                TimelineView(.periodic(from: .now, by: 0.1)) { context in
-                                    Text("Sending in \(max(1, Int(ceil(deadline.timeIntervalSince(context.date)))))s")
-                                        .font(.caption)
-                                }
-                            } else {
-                                Text(status).font(.caption)
-                            }
-                        }
-                        .id(status)
-                        .transition(.opacity)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: status)
-                Button("Cancel", systemImage: "xmark") {
-                    if voice.targetID == id { voice.stop() }
-                }
-                .labelStyle(.iconOnly)
-                .disabled(voice.targetID != id || voice.isSubmitting)
-                .accessibilityLabel("Cancel voice input and discard draft")
-            }
+            if !transcriptOnly { statusRow }
             VoiceTranscript(text: hasVisibleText ? visibleTranscript : placeholder, isPlaceholder: !hasVisibleText)
-            .frame(height: voice.mode == .rename || voice.mode == .draft ? 148 : 80)
+                .frame(height: transcriptOnly ? 136 : (voice.mode == .rename || voice.mode == .draft ? 148 : 80))
+            if transcriptOnly, voice.targetID == id, let issue = voice.dictationIssue {
+                Text(issue).font(.caption)
+            }
             // Recognition handoffs briefly pass through idle/preparing. They are
             // still part of the hold, and never expose a separate Send action.
             if voice.mode != nil && (!voice.usesHoldToTalk || voice.needsRetry) {
@@ -333,6 +332,39 @@ private struct TerminalVoiceDraft: View {
         }
     }
 
+    private var statusRow: some View {
+        let status = visibleStatusText
+        return HStack {
+            ZStack(alignment: .leading) {
+                if !status.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "mic.fill")
+                            .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
+                            .accessibilityHidden(true)
+                        if let deadline = voice.sendDeadline {
+                            TimelineView(.periodic(from: .now, by: 0.1)) { context in
+                                Text("Sending in \(max(1, Int(ceil(deadline.timeIntervalSince(context.date)))))s")
+                                    .font(.caption)
+                            }
+                        } else {
+                            Text(status).font(.caption)
+                        }
+                    }
+                    .id(status)
+                    .transition(.opacity)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: status)
+            Button("Cancel", systemImage: "xmark") {
+                if voice.targetID == id { voice.stop() }
+            }
+            .labelStyle(.iconOnly)
+            .disabled(voice.targetID != id || voice.isSubmitting)
+            .accessibilityLabel("Cancel voice input and discard draft")
+        }
+    }
+
     // stop() clears voice state immediately. Keep the last words and terminal
     // card height steady while the now-inert surface fades out.
     private var visibleTranscript: String { voice.targetID == id ? draft : retainedTranscript }
@@ -361,7 +393,7 @@ private struct TerminalVoiceDraft: View {
 
 /// Content growth follows the last line without animating behind live speech.
 /// Short drafts stay top aligned; only text clipped above the viewport fades.
-private struct VoiceTranscript: View {
+struct VoiceTranscript: View {
     let text: String
     let isPlaceholder: Bool
     @State private var fadesTop = false
@@ -374,7 +406,7 @@ private struct VoiceTranscript: View {
                         .foregroundStyle(isPlaceholder ? .secondary : .primary)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .textSelection(.enabled)
-                    Color.clear.frame(height: 1).id("latest-words")
+                    Color.clear.frame(height: 1).id("latest-words").accessibilityHidden(true)
                 }
             }
             .defaultScrollAnchor(.bottom)
@@ -390,6 +422,16 @@ private struct VoiceTranscript: View {
                     .init(color: .black, location: 1),
                 ], startPoint: .top, endPoint: .bottom)
             }
+        }
+    }
+}
+
+extension TerminalVoiceController {
+    var dictationIssue: String? {
+        if let error { return error }
+        switch captureState {
+        case .failed(let message), .unavailable(let message): return message
+        default: return nil
         }
     }
 }
