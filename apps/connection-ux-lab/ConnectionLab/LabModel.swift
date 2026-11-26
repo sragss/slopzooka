@@ -253,6 +253,10 @@ final class LabModel {
     }
 
     var isReady: Bool { phase == .connected }
+    var isReconnectAttempt: Bool {
+        if case .connect(_, _, let reconnect, _) = pending { return reconnect }
+        return false
+    }
     var automaticConnectionID: UUID? {
         guard autoConnectFixture, case .connect(let id, _, _, _) = pending else { return nil }
         return id
@@ -454,7 +458,8 @@ final class LabModel {
     func select(_ address: String) {
         guard method == .localNetwork, canChangeConnection else { return }
         let previous = connectionSnapshot()
-        let reconnect = phase.isReconnecting || isReady
+        let sameOrigin = Self.baseURL(address).map(Self.originKey) == Self.baseURL(host).map(Self.originKey)
+        let reconnect = sameOrigin && (phase.isReconnecting || isReady)
         host = address
         if let url = Self.baseURL(address), let selected = authorizedAddresses[Self.originKey(url)],
            credentials.contains(selected), selected != mac {
@@ -673,7 +678,7 @@ final class LabModel {
             restartDiscovery()
         } else {
             phase = rememberedMac == nil ? .idle : .reconnecting("Connection interrupted.")
-            startConnection(expected: mac, reconnect: false)
+            startConnection(expected: mac, reconnect: rememberedMac != nil)
         }
         navigate(.launcher)
     }

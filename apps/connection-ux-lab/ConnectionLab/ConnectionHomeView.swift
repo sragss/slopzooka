@@ -90,7 +90,8 @@ private struct ConnectionHomeView: View {
         } else if let message = lab.phase.error {
             connectionFailure(message)
         } else if lab.phase == .checking {
-            status("Connecting…", detail: lab.method == .localNetwork ? lab.normalizedHost : nil,
+            status(lab.isReconnectAttempt ? "Reconnecting…" : "Connecting…",
+                   detail: lab.method == .localNetwork ? lab.normalizedHost : nil,
                    icon: "desktopcomputer", action: .cancel)
         } else if isSetup && lab.discoveryError == nil && lab.discovered.isEmpty {
             status(lab.isDiscovering ? "Searching nearby…" : "No Macs found",

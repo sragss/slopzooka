@@ -8,6 +8,7 @@ struct LauncherView: View {
     @State private var presentedSheet: LauncherSheet?
     @State private var search = ""
     @State private var tool = "Codex"
+    private let catalogRowShape = RoundedRectangle(cornerRadius: 18)
 
     private enum LauncherSheet: String, Identifiable {
         case settings, connection
@@ -95,9 +96,14 @@ struct LauncherView: View {
         Button {
             presentedSheet = .connection
         } label: {
-            Label(connectionLabel(macName), systemImage: lab.isReady ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(lab.isReady ? Color.primary : Color.orange)
+            Label {
+                Text(connectionLabel(macName))
+            } icon: {
+                Image(systemName: lab.isReady ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
+                    .foregroundStyle(lab.isReady ? Color.primary : Color.orange)
+                    .accessibilityHidden(true)
+            }
+            .font(.subheadline.weight(.medium))
         }
         .buttonStyle(.bordered)
         .accessibilityHint("Opens connection controls")
@@ -106,7 +112,9 @@ struct LauncherView: View {
     private func connectionLabel(_ macName: String) -> String {
         if lab.isReady { return macName }
         if lab.needsPairing { return "Pairing required" }
-        if lab.phase.isReconnecting || lab.phase == .checking { return "Reconnecting to \(macName)…" }
+        if lab.isReconnectAttempt { return "Reconnecting to \(macName)…" }
+        if lab.phase == .checking { return "Connecting…" }
+        if lab.phase.error != nil { return "Connection interrupted" }
         return "\(macName) disconnected"
     }
 
@@ -173,7 +181,7 @@ struct LauncherView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text(group.repository).font(.headline)
                             .accessibilityAddTraits(.isHeader)
-                        catalog(group.entries, icon: LauncherSection.worktrees.icon)
+                        catalog(group.entries, icon: LauncherSection.worktrees.icon, lastKnown: !lab.isReady)
                     }
                 }
             }
@@ -222,48 +230,64 @@ struct LauncherView: View {
         }
     }
 
-    private func catalog(_ entries: [FixtureEntry], icon: String) -> some View {
-        let shape = RoundedRectangle(cornerRadius: 18)
-        return VStack(spacing: 10) {
+    private func catalog(_ entries: [FixtureEntry], icon: String, lastKnown: Bool = false) -> some View {
+        VStack(spacing: 10) {
             ForEach(entries) { entry in
-                Button {
-                    openTerminal(entry)
-                } label: {
-                    HStack(spacing: 12) {
-                        Image(systemName: icon)
-                            .foregroundStyle(.secondary)
-                            .frame(width: 40, height: 40)
-                            .background(.quaternary, in: Circle())
-                            .accessibilityHidden(true)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(entry.title).font(.subheadline.weight(.semibold))
-                            Text(entry.detail).font(.caption).foregroundStyle(.secondary)
-                        }
-                        Spacer(minLength: 8)
-                        Text(entry.badge)
-                            .font(.caption)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(.quaternary, in: Capsule())
-                        Image(systemName: "arrow.up.forward")
-                            .font(.caption).foregroundStyle(.secondary)
-                            .accessibilityHidden(true)
+                if lastKnown {
+                    catalogRow(entry, icon: icon, lastKnown: true)
+                        .accessibilityElement(children: .combine)
+                } else {
+                    Button {
+                        openTerminal(entry)
+                    } label: {
+                        catalogRow(entry, icon: icon, lastKnown: false)
+                            .contentShape([.interaction, .hoverEffect], catalogRowShape)
+                            .hoverEffect(.highlight)
                     }
-                    .padding(14)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(.white.opacity(0.05), in: shape)
-                    .overlay {
-                        shape.strokeBorder(.white.opacity(0.12), lineWidth: 1)
-                            .allowsHitTesting(false)
-                    }
-                    .contentShape([.interaction, .hoverEffect], shape)
-                    .hoverEffect(.highlight)
+                    .buttonStyle(.plain)
+                    .accessibilityHint("Opens a simulated terminal")
+                    .disabled(!lab.isReady || lab.workspaceBusy)
                 }
-                .buttonStyle(.plain)
-                .accessibilityHint("Opens a simulated terminal")
             }
         }
-        .disabled(!lab.isReady || lab.workspaceBusy)
+    }
+
+    private func catalogRow(_ entry: FixtureEntry, icon: String, lastKnown: Bool) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 40)
+                .background(.quaternary, in: Circle())
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                Text(entry.title).font(.subheadline.weight(.semibold))
+                Text(entry.detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 3) {
+                if lastKnown {
+                    Text("Last known").font(.caption2).foregroundStyle(.secondary)
+                }
+                Text(entry.badge)
+                    .font(.caption)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(.quaternary, in: Capsule())
+            }
+            .accessibilityElement(children: .combine)
+            if !lastKnown {
+                Image(systemName: "arrow.up.forward")
+                    .font(.caption).foregroundStyle(.secondary)
+                    .accessibilityHidden(true)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(.white.opacity(0.05), in: catalogRowShape)
+        .overlay {
+            catalogRowShape.strokeBorder(.white.opacity(0.12), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
     }
 
     private func openTerminal(_ entry: FixtureEntry) {

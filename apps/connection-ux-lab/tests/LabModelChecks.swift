@@ -63,9 +63,11 @@ struct LabModelChecks {
         precondition(lab.isReady && lab.method == .localNetwork)
 
         lab.loseConnection()
+        precondition(!lab.isReconnectAttempt)
         lab.connect()
+        precondition(lab.isReconnectAttempt)
         lab.cancelConnection()
-        precondition(lab.phase.isReconnecting && lab.pendingLabel == nil)
+        precondition(lab.phase.isReconnecting && lab.pendingLabel == nil && !lab.isReconnectAttempt)
     }
 
     private static func presets() {

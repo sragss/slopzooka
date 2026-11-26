@@ -29,3 +29,5 @@ production behavior that was refreshed or intentionally changed.
 - Replaced the Troubleshooting disclosure with visible address and log rows
   and a full-width reload action in the connection sheet.
 - Moved retry into the interrupted connection status row as a circular arrow.
+- Distinguished an interrupted connection from an active reconnect. Kept
+  worktree rows readable and labeled their session badges as last known.
