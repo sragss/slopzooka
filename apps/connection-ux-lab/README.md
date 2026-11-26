@@ -53,7 +53,7 @@ use **Enter address manually**. After pairing, the launcher sidebar shows
 Open the Mac name in the page header to see the connection status.
 **Choose Another Mac** opens the setup picker with a back arrow, and **Done**
 returns to the same workspace section. Use **Connection options** to switch
-methods or **Troubleshooting** to inspect the connection. During
+methods. The connection screen shows the address, logs, and reload action together. During
 reconnection, the header shows the status and keeps the current page in view.
 **Settings** in the sidebar contains app preferences.
 
@@ -79,7 +79,7 @@ completing it to inspect a retry or failure.
 | Local Network | First-run discovery, no or multiple Macs, denied or failed Bonjour, manual hostname/IP, invalid address, unreachable Mac, protocol or identity mismatch, connected, and reconnecting. Set **Bonjour discovery result** and choose **Restart Bonjour Discovery** to model permission recovery. |
 | Pairing | Complete discovery, choose a Mac, and complete the connection check. Enter **123456** for success or another six-digit code for rejection. Complete the pairing request, then the authenticated connection check. The code window, wrong code, rate limit, network interruption, and revoked pairing can each be staged directly. Expand **Sample addresses** for both fixture Macs. |
 | Direct | Try Direct before pairing or with missing trust, or simulate a nearby paired Mac, an offline peer, unsupported versions, wrong identity, and revoked credentials. **Try Again** stays on Direct. **Use Local Network** switches explicitly. **Simulate Relaunch** tests the saved method within the current fixture. |
-| Settings | Change zoom, Option as Meta, and wrist selection. Advance immersive transitions with success, cancellation, or failure. Try **Stop Voice Input**. Open the Mac control for **Troubleshooting**, including window reload, address, logs, and layout error. The lab counts reload requests in Controls. |
+| Settings | Change zoom, Option as Meta, and wrist selection. Advance immersive transitions with success, cancellation, or failure. Try **Stop Voice Input**. Open the Mac control for window reload, address, logs, and layout error. The lab counts reload requests in Controls. |
 | Permissions and previews | **Ask SlopZooka** shows microphone/speech permission entry, preparation, denial and granted states. The Frontends tab shows Screen Recording prompts, locked/unavailable Mac windows, and Direct’s web-preview restriction alongside available Mac windows. Controls record the Mac permission action and let you stage a grant. |
 
 **Reset Scenario** restores the fixture’s initial state. Terminal zoom, Option
@@ -107,7 +107,7 @@ Preview rows model availability with sample content.
 
 | Change | Start here |
 | --- | --- |
-| First-run setup, Mac picker, connection options, and troubleshooting | [ConnectionHomeView.swift](ConnectionLab/ConnectionHomeView.swift) |
+| First-run setup, Mac picker, connection options, and diagnostics | [ConnectionHomeView.swift](ConnectionLab/ConnectionHomeView.swift) |
 | Sidebar, workspace catalogs, and the Mac control | [LauncherView.swift](ConnectionLab/LauncherView.swift) |
 | Presets and simulated discovery, pairing, and reconnects | [LabModel.swift](ConnectionLab/LabModel.swift) and [ScenarioControls.swift](ConnectionLab/ScenarioControls.swift) |
 | Sample repos, worktrees, Codex threads, and writable terminals | [WorkspaceFixtures.swift](ConnectionLab/WorkspaceFixtures.swift) |

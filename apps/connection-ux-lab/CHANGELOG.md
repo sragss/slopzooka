@@ -26,3 +26,5 @@ production behavior that was refreshed or intentionally changed.
   targets with matching padding.
 - Removed the remaining production source references. Archived the prototype
   as a self-contained project with an editing guide and fixture checks.
+- Replaced the Troubleshooting disclosure with visible address and log rows
+  and a full-width reload action in the connection sheet.

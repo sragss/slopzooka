@@ -35,7 +35,6 @@ private struct ConnectionHomeView: View {
     var isPicker = false
     @Environment(LabModel.self) private var lab
     @State private var showManualAddress = false
-    @State private var showTroubleshooting = false
     @State private var address = ""
 
     private var isSetup: Bool { lab.workspaceMacName == nil }
@@ -58,12 +57,11 @@ private struct ConnectionHomeView: View {
                 }
             }
             connectionOptions
-            if !showsMacPicker { troubleshooting }
+            if !showsMacPicker { connectionDetails }
         }
         .onAppear {
             address = lab.host
             showManualAddress = lab.startsWithManualAddress
-            showTroubleshooting = lab.layoutError != nil
         }
         .onChange(of: lab.host) { old, new in
             if address.isEmpty || address == old { address = new }
@@ -293,34 +291,47 @@ private struct ConnectionHomeView: View {
         .hoverEffect(.highlight)
     }
 
-    private var troubleshooting: some View {
+    private var connectionDetails: some View {
         let radius: CGFloat = 16
         return VStack(alignment: .leading, spacing: 0) {
+            if let origin = lab.healthOrigin {
+                detailRow("Address", value: origin)
+                Divider()
+                detailRow("Logs", value: "/Users/demo/.slopzooka/logs/companion.jsonl")
+                Divider()
+            }
+            if let error = lab.layoutError {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.orange)
+                    .padding(16)
+                Divider()
+            }
             Button {
-                showTroubleshooting.toggle()
+                lab.reload()
             } label: {
-                optionLabel("Troubleshooting", symbol: showTroubleshooting ? "chevron.down" : "chevron.right",
-                            topRadius: radius, bottomRadius: showTroubleshooting ? 0 : radius)
+                optionLabel("Reload All Window Content", symbol: "arrow.clockwise",
+                            topRadius: lab.healthOrigin == nil && lab.layoutError == nil ? radius : 0,
+                            bottomRadius: radius)
             }
             .buttonStyle(.plain)
-            .accessibilityValue(showTroubleshooting ? "Expanded" : "Collapsed")
-            if showTroubleshooting {
-                VStack(alignment: .leading, spacing: 10) {
-                    Button("Reload All Window Content", systemImage: "arrow.clockwise", action: lab.reload)
-                        .disabled(!lab.isReady)
-                    if let origin = lab.healthOrigin {
-                        LabeledContent("Address", value: origin).textSelection(.enabled)
-                        LabeledContent("Logs", value: "/Users/demo/.slopzooka/logs/companion.jsonl")
-                            .textSelection(.enabled)
-                    }
-                    if let error = lab.layoutError { Text(error).foregroundStyle(.orange) }
-                }
-                .font(.footnote)
-                .padding(.horizontal, 16)
-                .padding(.bottom, 16)
-            }
+            .disabled(!lab.isReady)
         }
         .background(.black.opacity(0.12), in: RoundedRectangle(cornerRadius: radius))
+    }
+
+    private func detailRow(_ title: String, value: String) -> some View {
+        LabeledContent {
+            Text(value)
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+        } label: {
+            Text(title)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .frame(minHeight: 48)
     }
 
     private func errorDetails(_ message: String) -> some View {

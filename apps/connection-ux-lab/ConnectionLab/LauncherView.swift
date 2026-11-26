@@ -47,7 +47,7 @@ struct LauncherView: View {
                 LauncherSettingsView()
             case .connection:
                 ConnectionFlowView { presentedSheet = nil }
-                    .frame(width: 540, height: 540)
+                    .frame(width: 540, height: 620)
             }
         }
         .ornament(attachmentAnchor: .scene(.bottom), contentAlignment: .top) {
