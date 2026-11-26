@@ -102,6 +102,7 @@ voice sheet after the popover closes, including while the terminal is disconnect
 - **New Shell** adds a terminal to the same worktree. The toolbar’s **Stop** button confirms before explicitly stopping the process and its current descendants. Ending an already exited session removes its retained screen.
 - Sessions survive client disconnects and menu/HTTP companion restarts. They do not survive session-service crashes/restarts or Mac reboots. Processes continue running until explicitly ended or the session service stops.
 - Terminal viewers retry interrupted connections automatically, including stalled connection attempts. After detecting a restarted Mac companion, the headset refreshes visible terminal content in the same windows. If recovery still stalls, use **Reload Content** in the terminal’s actions menu or the launcher’s reload button; these preserve running sessions.
+- If dictation delivery is unconfirmed, tap a mic in another window to review the pending draft. **Retry** sends the same message to its original destination when available. **×** discards the draft and frees the microphone.
 - One viewer controls keyboard input and terminal size. Additional viewers are read-only; control transfers when the controlling viewer detaches. Native dictation is an authenticated host command and is ordered with keyboard input.
 
 ## Window recovery

@@ -7,17 +7,38 @@ struct TerminalVoiceButton: View {
     let isAvailable: Bool
     var mode: TerminalVoiceController.Mode = .terminal
     @EnvironmentObject private var voice: TerminalVoiceController
+    @State private var showingPendingDraft = false
+
+    private var pendingTarget: String? { voice.pendingDeliveryTarget(excluding: id) }
 
     var body: some View {
-        VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
-            .modifier(VoicePinchHold(id: id, mode: mode, voice: voice))
-            .accessibilityHint("Hold to speak. Release to send in two seconds. Hold again to add more, or tap close to cancel.")
-            .accessibilityAction {
-                if voice.heldTargetID == id { voice.endHold(id) }
-                else { voice.beginHold(id, mode: mode) }
+        Group {
+            if let pendingTarget {
+                VoiceInputButton(voice: voice, id: pendingTarget, label: "Resolve pending dictation") {
+                    showingPendingDraft = true
+                }
+                .accessibilityHint("Review dictation from another window.")
+                .popover(isPresented: $showingPendingDraft) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Pending dictation from another window").font(.headline)
+                        TerminalVoiceDraft(id: pendingTarget)
+                    }
+                    .frame(width: 440)
+                    .padding(16)
+                }
+            } else {
+                VoiceInputButton(voice: voice, id: id, label: "Hold to dictate") {}
+                    .modifier(VoicePinchHold(id: id, mode: mode, voice: voice))
+                    .accessibilityHint("Hold to speak. Release to send in two seconds. Hold again to add more, or tap close to cancel.")
+                    .accessibilityAction {
+                        if voice.heldTargetID == id { voice.endHold(id) }
+                        else { voice.beginHold(id, mode: mode) }
+                    }
+                    .opacity(isAvailable ? 1 : 0.45)
+                    .disabled(!isAvailable || voice.isSubmitting || voice.needsRetry)
             }
-            .opacity(isAvailable ? 1 : 0.45)
-            .disabled(!isAvailable || voice.isSubmitting)
+        }
+        .onChange(of: pendingTarget) { _, _ in showingPendingDraft = false }
     }
 }
 
@@ -261,10 +282,12 @@ private struct TerminalVoiceDraft: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: status)
-                Button("Cancel", systemImage: "xmark") { voice.stop() }
-                    .labelStyle(.iconOnly)
-                    .disabled(voice.isSubmitting)
-                    .accessibilityLabel("Cancel voice input and discard draft")
+                Button("Cancel", systemImage: "xmark") {
+                    if voice.targetID == id { voice.stop() }
+                }
+                .labelStyle(.iconOnly)
+                .disabled(voice.targetID != id || voice.isSubmitting)
+                .accessibilityLabel("Cancel voice input and discard draft")
             }
             VoiceTranscript(text: hasVisibleText ? visibleTranscript : placeholder, isPlaceholder: !hasVisibleText)
             .frame(height: voice.mode == .rename || voice.mode == .draft ? 148 : 80)
@@ -276,9 +299,11 @@ private struct TerminalVoiceDraft: View {
                     if voice.canResume && !voice.usesHoldToTalk {
                         Button("Resume") { voice.resume() }
                     }
-                    Button(voice.mode == .rename ? "Save Name" : (voice.needsRetry ? "Retry" : "Send")) { voice.send() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!voice.canSend)
+                    Button(voice.mode == .rename ? "Save Name" : (voice.needsRetry ? "Retry" : "Send")) {
+                        if voice.targetID == id { voice.send() }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(voice.targetID != id || !voice.canSend)
                 }
                 .buttonStyle(.bordered)
             }
