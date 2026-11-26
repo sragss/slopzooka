@@ -188,6 +188,21 @@ window.slzInterruptTerminal = () => {
   log.info("interrupt.requested");
   terminal.input("\u001b", true);
 };
+const cursorKeySuffixes = {
+  ArrowUp: "A",
+  ArrowDown: "B",
+  ArrowRight: "C",
+  ArrowLeft: "D",
+} as const;
+type TerminalControlKey = keyof typeof cursorKeySuffixes | "Enter";
+window.slzSendTerminalControlKey = (key) => {
+  if (key === "Enter") {
+    terminal.input("\r", true);
+  } else if (Object.hasOwn(cursorKeySuffixes, key)) {
+    const prefix = terminal.modes.applicationCursorKeysMode ? "\x1bO" : "\x1b[";
+    terminal.input(prefix + cursorKeySuffixes[key], true);
+  }
+};
 // Native copy/select all use the emulator's selection, which WebKit cannot see.
 window.slzSelectedTerminalText = () =>
   document.activeElement === terminal.textarea ? terminal.getSelection() : "";
@@ -216,6 +231,7 @@ declare global {
     slzFocusTerminal?: (showKeyboard?: boolean) => void;
     slzBlurTerminal?: () => void;
     slzInterruptTerminal?: () => void;
+    slzSendTerminalControlKey?: (key: TerminalControlKey) => void;
     slzSelectedTerminalText?: () => string;
     slzSelectAllTerminalText?: () => void;
     slzSetTerminalOptionAsMeta?: (enabled: boolean) => void;

@@ -30,6 +30,8 @@ In **Repos → + → New Repo**, enter a name to create a Git repo on this Mac. 
 
 **Codex threads** appears last under Repos: the 25 most recently updated saved threads on the selected Mac, with search across those titles and folders and a refresh button. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex; **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
 
+If Codex opens an **Update available** menu, open **Session Actions (⋯)** in the new terminal. Move the highlight with the arrows in that menu, then tap **Return**. For example, move to **Skip** and confirm to continue with the installed version. Codex owns its update checks and choices, including **Update now**. SlopZooka sends a key only when you press one. The same buttons work in first-run sign-in and trust menus, whose choices can vary by Codex version. If Codex reports that the installed version can no longer start, update it on the Mac and launch again.
+
 The toolbar uses native glass controls. The larger **globe button** at the left opens worktree frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the worktree’s apps or discovery notices.
 
 Terminal rows match repo rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
@@ -45,6 +47,8 @@ Selecting a terminal focuses it for hardware typing. Use the **keyboard icon** i
 With Mac Virtual Display, use the Mac's keyboard and pointer to type in the Vision Pro terminal. Moving the Mac pointer into the terminal and clicking may be necessary to hand off input from the previous window. Pairing SlopZooka connects the terminal to its Mac process. Mac Virtual Display or a keyboard connected to Vision Pro supplies physical keystrokes. [Apple's Mac Virtual Display guide](https://support.apple.com/en-us/118521)
 
 visionOS can still show its compact typing preview with a physical keyboard. Selecting a terminal with an unread alert can clear its badge at the same time the terminal gains input focus. [Apple's keyboard guidance](https://developer.apple.com/design/human-interface-guidelines/keyboards/)
+
+The terminal's **Session Actions** menu has arrow and **Return** buttons that work without keyboard focus. Update the headset app and Mac companion to use these controls. They send input only while the terminal is connected and has keyboard control. If another viewer owns input, close that viewer to release control.
 
 With the terminal focused, select output and press **⌘C** to copy it. **⌘A** selects the terminal buffer, including scrollback. **⌘V** pastes text from the Vision Pro system clipboard into the focused terminal. Update both the headset app and the Mac companion for the terminal selection shortcuts.
 
