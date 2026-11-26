@@ -26,6 +26,8 @@ The app uses a graphite and silver palette. Listening indicators and app icons u
 
 The sidebar separates **Repos**, **Worktrees**, and **Threads** from **Frontends**, and remembers your last selection. Worktrees are grouped by repository. The tool picker selects what opens when you use a repo or worktree row. Use **Worktrees → Reopen Terminal** to return to an existing terminal session. The **Settings** sidebar item contains app preferences.
 
+Repo and worktree rows show a repository icon when their GitHub owner avatar is unavailable.
+
 Choose **Repos → New Repo** to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Worktrees** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately.
 
 **Threads** shows the 25 most recently updated saved Codex threads on the selected Mac. Search their titles and folders or refresh the list. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex, and **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.

@@ -31,7 +31,7 @@ async function fixture(
   handler?: (app: express.Express) => void,
 ) {
   const home = await fs.mkdtemp("/tmp/slz-coordinator-test-");
-  const configFile = home + "/config.json";
+  const configFile = home + "/coordinator.json";
   await fs.writeFile(
     configFile,
     JSON.stringify({
@@ -57,7 +57,6 @@ async function fixture(
   };
   const coordinator = new Coordinator({
     home,
-    configFile,
     service: {
       info: async () => ({ capabilities: ["coordinator-workers-v1"] }),
       request: serviceRequest,
@@ -93,6 +92,20 @@ async function fixture(
     },
   };
 }
+test("Ask stays unavailable until its default configuration file exists", async () => {
+  const f = await fixture([], async () => {
+    throw new Error("Unconfigured Ask must not request worker state");
+  });
+  try {
+    await fs.unlink(f.home + "/coordinator.json");
+    const status = await f.coordinator.status(clientId);
+    assert.equal(status.available, false);
+    assert.equal(status.message, "Coordinator is not configured on this Mac.");
+  } finally {
+    await f.close();
+  }
+});
+
 test("Ask retries a model connection failure after a tool without resending worker input", async (t) => {
   let modelRequests = 0;
   let workerSubmissions = 0;
