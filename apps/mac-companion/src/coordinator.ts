@@ -163,12 +163,17 @@ export class Coordinator {
   ) {}
   private configure() {
     return (this.settings ??= (async () => {
-      if (!this.options.configFile)
-        throw new ServiceError(
-          "Coordinator is not configured on this Mac.",
-          503,
-        );
-      const stat = await fs.stat(this.options.configFile);
+      const configFile =
+        this.options.configFile ??
+        path.join(this.options.home, "coordinator.json");
+      const stat = await fs.stat(configFile).catch((error: unknown) => {
+        if ((error as NodeJS.ErrnoException).code === "ENOENT")
+          throw new ServiceError(
+            "Coordinator is not configured on this Mac.",
+            503,
+          );
+        throw error;
+      });
       if (
         stat.uid !== process.getuid?.() ||
         stat.mode & 0o077 ||
@@ -179,7 +184,7 @@ export class Coordinator {
           503,
         );
       const config = configSchema.parse(
-        JSON.parse(await fs.readFile(this.options.configFile, "utf8")),
+        JSON.parse(await fs.readFile(configFile, "utf8")),
       );
       return config;
     })());

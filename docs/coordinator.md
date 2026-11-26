@@ -117,9 +117,9 @@ Preview intent is not queued for an offline headset.
 
 ## Mac configuration
 
-Set `SLOPZOOKA_COORDINATOR_CONFIG` to an owner-only JSON file when launching the
-companion. The setting is inherited by the packaged companion as well as the
-source host. The file contains `model`, `apiKey`, `codexExecutable`, optional
+Save an owner-only `coordinator.json` in the companion’s data directory
+(`~/.slopzooka` by default). Set `SLOPZOOKA_COORDINATOR_CONFIG` at launch to use
+a different file in either the packaged companion or the source host. The file contains `model`, `apiKey`, `codexExecutable`, optional
 `workerModel`, and optional `nativeControl`. A configured `workerModel` overrides Codex’s default at thread creation. Omit it to inherit the app-server default. Store it outside the repo with
 mode `0600`; do not put credentials in prompts or commit them. Restart the HTTP
 companion after changing this configuration.
