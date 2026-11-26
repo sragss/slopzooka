@@ -50,6 +50,8 @@ export type CoordinatorTurn = {
   reply?: string;
   workStatus?: string;
   hasActiveWork: boolean;
+  canStopAgent?: boolean;
+  agentStopError?: string;
   resultExcerpt?: string;
 };
 export type CoordinatorStatus = {
@@ -80,6 +82,8 @@ type Turn = {
   reply?: string;
   owned: Map<string, Set<string>>;
   observed: Map<string, { status: string; excerpt?: string }>;
+  stoppingAgent?: boolean;
+  agentStopError?: string;
 };
 type Conversation = {
   agent?: Agent;
@@ -88,7 +92,6 @@ type Conversation = {
   config: PreviewControlConfig;
   active?: Promise<void>;
   stopped: boolean;
-  stopping?: boolean;
   failure?: string;
   calls: number;
 };
@@ -151,7 +154,8 @@ export class Coordinator {
     workers?: WorkerState[],
   ): CoordinatorTurn[] {
     const turns = Array.from(c?.history.values() ?? []);
-    return turns.map(({ request, status, reply, owned, observed }) => {
+    return turns.map((turn) => {
+      const { request, status, reply, owned, observed } = turn;
       const deliveries: string[] = [...owned].flatMap(([id, requests]) => {
         const worker = workers?.find((w) => w.sessionId === id);
         return [...requests].map((requestId) => {
@@ -196,6 +200,9 @@ export class Coordinator {
         "interrupted",
         "completed",
       ].find((s) => deliveries.includes(s));
+      const hasActiveWork = deliveries.some(
+        (s) => s === "running" || s === "queued",
+      );
       return {
         requestId: request.requestId,
         text: request.text,
@@ -204,9 +211,12 @@ export class Coordinator {
         status,
         reply,
         workStatus,
-        hasActiveWork: deliveries.some(
-          (s) => s === "running" || s === "queued",
-        ),
+        hasActiveWork,
+        canStopAgent:
+          !turn.stoppingAgent &&
+          !(c?.active && c.turn === turn) &&
+          (hasActiveWork || Boolean(turn.agentStopError)),
+        agentStopError: turn.agentStopError,
         resultExcerpt:
           [
             ...new Set(
@@ -286,11 +296,6 @@ export class Coordinator {
         );
       return this.snapshot(existing, ready.workers);
     }
-    if (existing?.stopping)
-      throw new ServiceError(
-        "Coordinator is busy. Wait for its reply or stop this request.",
-        409,
-      );
     if (existing && existing.history.size >= 64)
       throw new ServiceError(
         "Coordinator conversation limit reached. Restart the HTTP companion before continuing; terminals remain running.",
@@ -320,7 +325,7 @@ export class Coordinator {
     return this.snapshot(current, ready.workers);
   }
   private advance(current: Conversation) {
-    if (this.closed || current.active || current.stopping) return;
+    if (this.closed || current.active) return;
     const turn = [...current.history.values()].find(
       (t) => t.status === "queued",
     );
@@ -342,6 +347,7 @@ export class Coordinator {
     });
     current.active = this.run(current)
       .catch((error: unknown) => {
+        if (turn.status === "stopped") return;
         turn.status = current.stopped ? "stopped" : "failed";
         turn.reply =
           error instanceof ServiceError
@@ -816,14 +822,7 @@ export class Coordinator {
             launch,
             30000,
           );
-          if (c.stopped) {
-            await this.options.service.request(
-              `/workers/${sessionId}/stop`,
-              "POST",
-              { requestIds: [sessionId] },
-            );
-            return worker;
-          }
+          if (c.stopped) return worker;
           try {
             await previews().showTerminal(sessionId);
           } catch {
@@ -993,6 +992,7 @@ export class Coordinator {
       c.agent.reset();
     }
     const timer = setTimeout(() => {
+      if (c.stopped) return;
       c.failure =
         "Coordinator time limit reached. Accepted worker tasks may still be running; inspect their status.";
       c.stopped = true;
@@ -1033,38 +1033,51 @@ export class Coordinator {
         "Coordinator request changed. Refresh before stopping it.",
         409,
       );
-    if (c.stopping)
-      throw new ServiceError("Cancellation is still being confirmed.", 409);
-    c.stopping = true;
+    if (c.turn.status === "stopped") return this.status(clientId);
+    if (c.turn.status !== "running")
+      throw new ServiceError("Ask has finished processing this request.", 409);
     c.stopped = true;
-    c.agent?.abort();
+    c.failure = undefined;
     c.turn.status = "stopped";
     c.turn.activity = undefined;
-    c.turn.reply = "Stopping this request…";
+    c.turn.reply = "Stopped Ask. Any delegated agent work continues.";
+    c.agent?.abort();
+    return this.status(clientId);
+  }
+  async stopAgent(clientId: string, requestId: string) {
+    const c = this.conversations.get(clientId);
+    const turn = c?.history.get(requestId);
+    if (!turn || !turn.owned.size)
+      throw new ServiceError("No delegated agent work for this request.", 404);
+    if (turn.stoppingAgent)
+      throw new ServiceError("Cancellation is still being confirmed.", 409);
+    if (c?.turn === turn && c.active)
+      throw new ServiceError(
+        "Stop Ask or wait for it to finish dispatching first.",
+        409,
+      );
+
+    turn.stoppingAgent = true;
     try {
-      await Promise.all(
-        [...c.turn.owned].map(([id, requestIds]) =>
+      const outcomes = await Promise.allSettled(
+        [...turn.owned].map(([id, requestIds]) =>
           this.options.service.request(`/workers/${id}/stop`, "POST", {
             requestIds: [...requestIds],
           }),
         ),
       );
-    } catch {
-      c.failure =
-        "Cancellation could not be confirmed. The agent may still be working. Check its status or retry Stop.";
-      c.turn.status = "failed";
-      c.turn.reply = c.failure;
-      this.options.logger.warn("coordinator.stop.uncertain", {
-        requestId: c.turn.request.requestId,
-      });
-      throw new ServiceError(c.failure, 503);
+      turn.agentStopError = outcomes.some(
+        (outcome) => outcome.status === "rejected",
+      )
+        ? "Could not confirm agent cancellation. Check the terminal or retry."
+        : undefined;
+      if (turn.agentStopError)
+        this.options.logger.warn("coordinator.agent-stop.uncertain", {
+          requestId,
+        });
     } finally {
-      c.stopping = false;
-      queueMicrotask(() => this.advance(c));
+      turn.stoppingAgent = false;
     }
-    c.failure = undefined;
-    c.turn.reply =
-      "Stopped this request. Existing apps, windows and terminals were kept.";
     return this.status(clientId);
   }
   async answer(

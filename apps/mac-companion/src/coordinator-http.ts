@@ -32,9 +32,19 @@ export function installCoordinatorRoutes(
       ),
     );
   });
-  app.post("/api/coordinator/stop", async (req, res) =>
+  app.post(
+    ["/api/coordinator/stop", "/api/coordinator/stop-coordinator"],
+    async (req, res) =>
+      res.json(
+        await coordinator.stop(
+          client(req),
+          z.object({ requestId: z.uuid() }).parse(req.body).requestId,
+        ),
+      ),
+  );
+  app.post("/api/coordinator/stop-agent", async (req, res) =>
     res.json(
-      await coordinator.stop(
+      await coordinator.stopAgent(
         client(req),
         z.object({ requestId: z.uuid() }).parse(req.body).requestId,
       ),

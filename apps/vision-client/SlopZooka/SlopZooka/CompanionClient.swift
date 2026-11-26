@@ -580,8 +580,9 @@ final class CompanionClient: NSObject, ObservableObject {
         body["sessionId"] = sessionID
         return try await request(hostID: hostID, path: "/api/coordinator", method: "POST", body: JSONSerialization.data(withJSONObject: body, options: .sortedKeys))
     }
-    func coordinatorStop(hostID: String, requestID: String) async throws -> CoordinatorSnapshot {
-        try await request(hostID: hostID, path: "/api/coordinator/stop", method: "POST", body: Self.json(["requestId": requestID]))
+    func coordinatorStop(hostID: String, requestID: String, agentWork: Bool) async throws -> CoordinatorSnapshot {
+        let path = agentWork ? "/api/coordinator/stop-agent" : "/api/coordinator/stop-coordinator"
+        return try await request(hostID: hostID, path: path, method: "POST", body: Self.json(["requestId": requestID]))
     }
     func coordinatorAnswer(hostID: String, sessionID: String, questionID: String, accept: Bool) async throws -> CoordinatorSnapshot {
         try await request(hostID: hostID, path: "/api/coordinator/answer", method: "POST",

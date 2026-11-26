@@ -84,24 +84,29 @@ final class CoordinatorState: ObservableObject {
         do {
             let value = try await client.coordinatorSubmit(hostID: captured.hostID, requestID: command.commandID, text: command.text,
                 workspaceID: captured.workspaceID, sessionID: captured.sessionID, launcherNames: launcherNames)
-            guard current == generation, submittedRevision == revision else { return }
+            guard current == generation else { return }
             pendingTurn = nil
-            apply(value)
+            if submittedRevision == revision { apply(value) }
         } catch {
-            if current == generation, submittedRevision == revision {
+            if current == generation, pendingTurn?.id == command.commandID {
                 pendingTurn?.status = "unconfirmed"
                 self.error = "Could not confirm submission. Retry keeps the same request."
             }
             throw error
         }
     }
-    func stop(client: CompanionClient, hostID: String, requestID: String) async {
-        guard context?.hostID == hostID, snapshot?.requestId == requestID else { return }
+    func stop(client: CompanionClient, hostID: String, requestID: String, agentWork: Bool = false) async {
+        guard context?.hostID == hostID, snapshot?.available == true else { return }
+        if agentWork {
+            guard conversation.contains(where: { $0.id == requestID && $0.canStopAgent == true }) else { return }
+        } else {
+            guard snapshot?.requestId == requestID, canStop else { return }
+        }
         revision += 1
         let current = generation
         let mutation = revision
         do {
-            let value = try await client.coordinatorStop(hostID: hostID, requestID: requestID)
+            let value = try await client.coordinatorStop(hostID: hostID, requestID: requestID, agentWork: agentWork)
             guard current == generation, mutation == revision else { return }
             revision += 1
             apply(value)
@@ -146,7 +151,7 @@ final class CoordinatorState: ObservableObject {
         if let currentTurn { return currentTurn.isWorking }
         return snapshot?.status == "running" || requestWorkers.contains { ["starting", "running", "waiting"].contains($0.status) }
     }
-    var canStop: Bool { snapshot?.requestId != nil && isWorking }
+    var canStop: Bool { snapshot?.available == true && snapshot?.requestId != nil && snapshot?.status == "running" }
     var statusText: String {
         if submitting { return "Sending…" }
         if needsApproval { return "Approval needed" }
@@ -154,7 +159,7 @@ final class CoordinatorState: ObservableObject {
         if !snapshot.available { return "Not available right now" }
         if snapshot.status == "running" { return snapshot.activity ?? "Working…" }
         if let currentTurn { return currentTurn.progress.isEmpty ? "Done" : currentTurn.progress }
-        if snapshot.status == "stopped" { return isWorking ? "Stopping…" : "Stopped" }
+        if snapshot.status == "stopped" { return "Ask stopped" }
         if snapshot.status == "failed" || requestWorkers.contains(where: { ["failed", "unavailable"].contains($0.status) }) { return "Needs attention" }
         if isWorking { return "Agent working…" }
         if requestWorkers.contains(where: { $0.status == "interrupted" }) { return "Interrupted" }
@@ -165,7 +170,7 @@ final class CoordinatorState: ObservableObject {
         guard let snapshot else { return "Hold the microphone and say what you need." }
         if !snapshot.available { return snapshot.message ?? "Reconnect to your Mac and try again." }
         if needsApproval { return "Review the requested action before the agent continues." }
-        if snapshot.status == "stopped" { return isWorking ? "Cancellation sent. Waiting for the agent to stop." : "Your apps, windows and terminals remain open." }
+        if snapshot.status == "stopped" { return snapshot.reply ?? "Stopped Ask. Any delegated agent work continues." }
         if snapshot.status == "failed" { return snapshot.reply ?? "The request could not finish. Open Details to check its state." }
         if isWorking { return "You can follow the work in its terminal." }
         if let error = requestWorkers.compactMap(\.error).first { return error }

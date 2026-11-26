@@ -17,7 +17,7 @@ countdown; tap × to cancel before submission. Delivery uses the same click/puls
 and transcript fade as terminal dictation. Pinch the Ask mic once and keep holding while looking elsewhere or pausing between phrases. Releasing that pinch starts the send countdown. Hold the mic again before delivery to append to the same message. If visionOS cancels the gesture, Ask pauses with the draft retained.
 Ask accepts another utterance while the coordinator is working. It displays
 accepted follow-ups as **Queued** and runs them in order with their captured
-destinations. The mic sits at the bottom of the right edge. A matching Stop button appears directly above it while a request can be stopped. Both leave the chat area clear. Recent repo
+destinations. The mic sits at the bottom of the right edge. A matching **Stop Ask** button appears directly above it while Ask is processing a request. Both leave the chat area clear. Recent repo
 and worktree names from the selected launcher's catalog help interpret spoken
 names. The model can ask about ambiguous matches.
 
@@ -60,8 +60,10 @@ Each exchange tracks its own worker delivery, so later tasks cannot rewrite an
 earlier result. If a worker disappears mid-task, that exchange shows **Agent unavailable**
 until the Mac can confirm its progress again. Completed results stay readable.
 Activity appears inside the exchange it describes. If one of its tasks needs attention
-while another is still running, **Stop** remains available.
-Reading older messages does not force the scroll back to the bottom.
+while another is still running, **Stop agent** remains available once Ask finishes dispatching.
+Ask follows new replies and progress while you’re at the bottom. Scroll up to
+keep your place while reading earlier messages. Return to the bottom to follow
+new activity again.
 
 The line below **Ask SlopZooka** shows Global or the terminal context. Opening
 Ask from a terminal targets the Mac that owns it, including a restored terminal.
@@ -82,11 +84,19 @@ Unshared Mac capture sources are a separate catalog. “Name this terminal Login
 the session rename API; native preview naming uses the existing layout owner. These
 actions do not require a coding worker or Mac terminal title manipulation.
 
-**Stop** stops further coordinator actions and cancels only the submissions owned
-by the request shown when you tap it. A delayed Stop cannot cancel a newer
-request; refresh if Ask reports that the request changed. It preserves worktrees,
-terminals, apps and unrelated queued tasks. An uncertain cancellation stays visible rather than claiming the
-agent stopped. Closing the window cancels unsubmitted voice/countdown, while an
+**Stop Ask**, above the microphone, cancels the current coordinator turn. Agent
+work already sent to the Mac continues. A delayed tap cannot stop a newer Ask
+request.
+
+**Stop agent** appears in a request’s exchange once Ask has finished dispatching
+and its agent work is queued or running. It targets that request’s submissions,
+even if a newer request is visible or another terminal has focus. Codex removes
+those queued submissions and interrupts a running turn that contains one of them.
+If a steer joined an existing Codex turn, interrupting it stops the whole turn.
+Worktrees, windows, terminals and unrelated queue entries stay open or queued.
+If cancellation cannot be confirmed, that exchange offers **Retry Stop agent**.
+
+Closing the window cancels unsubmitted voice/countdown, while an
 uncertain submission retains its ID for Retry. Already accepted work keeps running.
 Reopening refreshes its state without resubmitting. If the reply was lost after
 acceptance, **Retry** can confirm that same request while the coordinator is busy;

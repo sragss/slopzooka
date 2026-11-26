@@ -563,8 +563,12 @@ export class CodexWorkers {
   }
   async stop(id: string, requestIds?: string[]) {
     const w = this.get(id);
-    w.stopped = true;
-    if (!w.rpc || !w.state.threadId) return this.snapshot(w);
+    if (!requestIds) w.stopped = true;
+    if (!w.rpc || !w.state.threadId) {
+      if (requestIds)
+        throw new ServiceError("Agent is unavailable for cancellation.", 409);
+      return this.snapshot(w);
+    }
     return this.serialize(w, async () => {
       const queue = await w.rpc!.call<{ data: QueueEntry[] }>(
         "thread/queue/list",
@@ -584,9 +588,10 @@ export class CodexWorkers {
       const turnId = w.state.turnId;
       const scoped =
         !requestIds ||
-        w.state.deliveries.some(
-          (d) => d.turnId === turnId && requestIds.includes(d.requestId),
-        );
+        (turnId &&
+          w.state.deliveries.some(
+            (d) => d.turnId === turnId && requestIds.includes(d.requestId),
+          ));
       if (turnId && scoped)
         await w.rpc!.call("turn/interrupt", {
           threadId: w.state.threadId,

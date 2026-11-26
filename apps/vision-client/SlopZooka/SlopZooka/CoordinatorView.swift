@@ -62,7 +62,7 @@ struct CoordinatorView: View {
         .ornament(attachmentAnchor: .scene(.bottomTrailing), contentAlignment: .bottomLeading) {
             VStack(spacing: 0) {
                 if state.canStop, let hostID = state.context?.hostID, let requestID = state.snapshot?.requestId {
-                    VoiceControlButton(label: "Stop this request", action: {
+                    VoiceControlButton(label: "Stop Ask", action: {
                         Task { await state.stop(client: client, hostID: hostID, requestID: requestID) }
                     }) {
                         Image(systemName: "stop.fill").accessibilityHidden(true)
@@ -70,6 +70,8 @@ struct CoordinatorView: View {
                 }
                 TerminalVoiceButton(id: CoordinatorState.sceneID, isAvailable: canSpeak, mode: .coordinator)
             }
+            // Leave room for the system's lift effect beyond the circular hit regions.
+            .padding(12)
             .fixedSize()
         }
         .modifier(TerminalVoiceOverlay(id: CoordinatorState.sceneID, isAvailable: canSpeak, canRename: false, mode: .coordinator))
@@ -96,61 +98,86 @@ struct CoordinatorView: View {
     }
 
     private var conversation: some View {
-        ScrollViewReader { reader in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 18) {
-                    if state.conversation.isEmpty || state.snapshot?.available == false {
-                        Text(state.statusText).font(.subheadline.weight(.medium))
-                        Text(state.responseText).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
-                    }
-                    ForEach(state.conversation) { turn in
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text(turn.text).textSelection(.enabled)
-                                .padding(12).background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
-                                .frame(maxWidth: .infinity, alignment: .trailing)
-                            if let reply = turn.reply { CoordinatorMarkdown(text: reply) }
-                            if let result = turn.resultExcerpt {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Agent result").font(.caption).foregroundStyle(.secondary)
-                                    CoordinatorMarkdown(text: result)
-                                }
-                            }
-                            if turn.id == state.snapshot?.requestId && state.snapshot?.available == true {
-                                HStack(spacing: 8) {
-                                    if state.isWorking { ProgressView().controlSize(.small) }
-                                    Text(state.statusText).font(.caption).foregroundStyle(.secondary)
-                                }
-                            } else if !turn.progress.isEmpty {
-                                Text(turn.progress).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }.id(turn.id)
-                    }
-                    Color.clear.frame(height: 1).id("latest")
-                }.padding(.vertical, 4)
-            }
-            .mask {
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [clippedEdges.contains(.top) ? .clear : .black, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
-                    Color.black
-                    LinearGradient(colors: [.black, clippedEdges.contains(.bottom) ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 18) {
+                if state.conversation.isEmpty || state.snapshot?.available == false {
+                    Text(state.statusText).font(.subheadline.weight(.medium))
+                    Text(state.responseText).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading)
                 }
+                ForEach(state.conversation) { turn in
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(turn.text).textSelection(.enabled)
+                            .padding(12).background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                        if let reply = turn.reply { CoordinatorMarkdown(text: reply) }
+                        if let result = turn.resultExcerpt {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("Agent result").font(.caption).foregroundStyle(.secondary)
+                                CoordinatorMarkdown(text: result)
+                            }
+                        }
+                        if turn.id == state.snapshot?.requestId && state.snapshot?.available == true {
+                            HStack(spacing: 8) {
+                                if state.isWorking { ProgressView().controlSize(.small) }
+                                Text(state.statusText).font(.caption).foregroundStyle(.secondary)
+                            }
+                        } else if !turn.progress.isEmpty {
+                            Text(turn.progress).font(.caption).foregroundStyle(.secondary)
+                        }
+                        if let error = turn.agentStopError {
+                            Text(error).font(.caption).foregroundStyle(.orange)
+                        }
+                        if turn.canStopAgent == true, state.snapshot?.available == true, let hostID = state.context?.hostID {
+                            Button(turn.agentStopError == nil ? "Stop agent" : "Retry Stop agent", role: .destructive) {
+                                Task { await state.stop(client: client, hostID: hostID, requestID: turn.id, agentWork: true) }
+                            }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                        }
+                    }.id(turn.id)
+                }
+            }.padding(.vertical, 4)
+        }
+        .mask {
+            VStack(spacing: 0) {
+                LinearGradient(colors: [clippedEdges.contains(.top) ? .clear : .black, .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
+                Color.black
+                LinearGradient(colors: [.black, clippedEdges.contains(.bottom) ? .clear : .black], startPoint: .top, endPoint: .bottom).frame(height: 18)
             }
-            .onScrollGeometryChange(for: VerticalEdge.Set.self) { geometry in
-                var edges: VerticalEdge.Set = []
-                if geometry.contentOffset.y + geometry.contentInsets.top > 1 { edges.insert(.top) }
-                if geometry.visibleRect.maxY < geometry.contentSize.height - 1 { edges.insert(.bottom) }
-                return edges
-            } action: { _, edges in clippedEdges = edges }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentOffset.y + geometry.containerSize.height >= geometry.contentSize.height - 48
-            } action: { _, atBottom in followingLatest = atBottom }
-            .onAppear { reader.scrollTo("latest", anchor: .bottom) }
-            .onChange(of: state.conversation.last) { _, _ in
-                if followingLatest { reader.scrollTo("latest", anchor: .bottom) }
+        }
+        .defaultScrollAnchor(.bottom, for: .initialOffset)
+        .defaultScrollAnchor(followingLatest ? .bottom : nil, for: .sizeChanges)
+        .onScrollGeometryChange(for: ConversationScrollGeometry.self) { geometry in
+            ConversationScrollGeometry(geometry)
+        } action: { previous, current in
+            clippedEdges = current.clippedEdges
+            if !current.clippedEdges.contains(.bottom) {
+                followingLatest = true
+            } else if previous.contentHeight == current.contentHeight,
+                previous.viewportHeight == current.viewportHeight {
+                // Content growth can move the bottom without the reader scrolling away.
+                followingLatest = false
             }
-            .onChange(of: state.submitting) { _, submitting in
-                if submitting { followingLatest = true; reader.scrollTo("latest", anchor: .bottom) }
+        }
+        .onScrollPhaseChange { previous, phase, context in
+            if phase == .idle && (previous == .interacting || previous == .decelerating) {
+                followingLatest = !ConversationScrollGeometry(context.geometry).clippedEdges.contains(.bottom)
             }
+        }
+    }
+
+    private struct ConversationScrollGeometry: Equatable {
+        let clippedEdges: VerticalEdge.Set
+        let contentHeight: CGFloat
+        let viewportHeight: CGFloat
+
+        init(_ geometry: ScrollGeometry) {
+            contentHeight = geometry.contentSize.height
+            viewportHeight = geometry.containerSize.height
+            var edges: VerticalEdge.Set = []
+            if geometry.contentOffset.y + geometry.contentInsets.top > 1 { edges.insert(.top) }
+            if geometry.visibleRect.maxY < contentHeight - 1 { edges.insert(.bottom) }
+            clippedEdges = edges
         }
     }
 

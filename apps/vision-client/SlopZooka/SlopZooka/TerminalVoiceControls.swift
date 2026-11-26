@@ -98,7 +98,7 @@ struct VoiceControlButton<Content: View>: View {
                 .frame(width: 88, height: 88)
                 .glassBackgroundEffect(in: Circle())
                 .frame(width: 120, height: 120)
-                .contentShape(Circle())
+                .contentShape(.interaction, Circle())
         }
         .buttonStyle(.plain)
         .buttonBorderShape(.circle)
@@ -131,7 +131,7 @@ private struct VoiceOrb: View {
             } else if isListening {
                 VoiceWaveform(meter: meter)
             } else {
-                Image(systemName: isSelected ? "mic.slash.fill" : "mic.fill")
+                Image(systemName: "mic.fill")
                     .foregroundStyle(isSelected ? voiceAccent : .white)
             }
         }
@@ -243,7 +243,7 @@ private struct TerminalVoiceDraft: View {
                 ZStack(alignment: .leading) {
                     if !status.isEmpty {
                         HStack(spacing: 6) {
-                            Image(systemName: voice.captureState == .listening ? "mic.fill" : "mic.slash")
+                            Image(systemName: "mic.fill")
                                 .foregroundStyle(voice.captureState == .listening ? voiceAccent : .secondary)
                                 .accessibilityHidden(true)
                             if let deadline = voice.sendDeadline {
