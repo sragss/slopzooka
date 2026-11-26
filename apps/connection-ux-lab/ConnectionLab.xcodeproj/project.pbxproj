@@ -1,0 +1,346 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		022735CD2DA244ABE6A422A8 /* LabModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE59AC40C4144AF466B31BE6 /* LabModel.swift */; };
+		1919A8A037F3CBF8DD172FC7 /* PermissionViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DED518BE74B0D1DC2C80C21F /* PermissionViews.swift */; };
+		2CFD7F1A3D196191CDCC5A1C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8284F5F5A55E8C36133A6249 /* Assets.xcassets */; };
+		59A7157525704DE6CF7A2C28 /* ScenarioControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3B0E579A6FF442183C0F656 /* ScenarioControls.swift */; };
+		6D89A442DA94E5277FE6A587 /* LabRowSurface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16F7421DC8547B97C7F33C98 /* LabRowSurface.swift */; };
+		76AFE0B5D8CC42445A448364 /* WorkspaceFixtures.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA340C29BC511E366FBDC0DF /* WorkspaceFixtures.swift */; };
+		8EDECA1766D56E72A64ADF62 /* ConnectionLabApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3A94FF4F3A51DEB65C7684A4 /* ConnectionLabApp.swift */; };
+		B551382FF9F4DDD539C7E8F9 /* LauncherView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 010F0FDAB53BCCCAFE88FF2B /* LauncherView.swift */; };
+		D128361352093E782D416E32 /* ConnectionHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 71B93CD36573F65EE60ADA73 /* ConnectionHomeView.swift */; };
+		F18D587E941269A26E2B930F /* LauncherSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E61081AD228F831E46E976D5 /* LauncherSettingsView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		010F0FDAB53BCCCAFE88FF2B /* LauncherView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherView.swift; sourceTree = "<group>"; };
+		16F7421DC8547B97C7F33C98 /* LabRowSurface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabRowSurface.swift; sourceTree = "<group>"; };
+		3A94FF4F3A51DEB65C7684A4 /* ConnectionLabApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionLabApp.swift; sourceTree = "<group>"; };
+		71B93CD36573F65EE60ADA73 /* ConnectionHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConnectionHomeView.swift; sourceTree = "<group>"; };
+		8284F5F5A55E8C36133A6249 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A961763CB5E3B251341502C4 /* ConnectionLab.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ConnectionLab.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BA340C29BC511E366FBDC0DF /* WorkspaceFixtures.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkspaceFixtures.swift; sourceTree = "<group>"; };
+		DED518BE74B0D1DC2C80C21F /* PermissionViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PermissionViews.swift; sourceTree = "<group>"; };
+		E3B0E579A6FF442183C0F656 /* ScenarioControls.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScenarioControls.swift; sourceTree = "<group>"; };
+		E61081AD228F831E46E976D5 /* LauncherSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherSettingsView.swift; sourceTree = "<group>"; };
+		EE59AC40C4144AF466B31BE6 /* LabModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LabModel.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		67460B64E900430BBDF2F452 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A961763CB5E3B251341502C4 /* ConnectionLab.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7A1647FCDF38D7B2855B5674 = {
+			isa = PBXGroup;
+			children = (
+				D60EF9ABFB78271BF132A0A3 /* ConnectionLab */,
+				67460B64E900430BBDF2F452 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D60EF9ABFB78271BF132A0A3 /* ConnectionLab */ = {
+			isa = PBXGroup;
+			children = (
+				8284F5F5A55E8C36133A6249 /* Assets.xcassets */,
+				71B93CD36573F65EE60ADA73 /* ConnectionHomeView.swift */,
+				3A94FF4F3A51DEB65C7684A4 /* ConnectionLabApp.swift */,
+				EE59AC40C4144AF466B31BE6 /* LabModel.swift */,
+				16F7421DC8547B97C7F33C98 /* LabRowSurface.swift */,
+				E61081AD228F831E46E976D5 /* LauncherSettingsView.swift */,
+				010F0FDAB53BCCCAFE88FF2B /* LauncherView.swift */,
+				DED518BE74B0D1DC2C80C21F /* PermissionViews.swift */,
+				E3B0E579A6FF442183C0F656 /* ScenarioControls.swift */,
+				BA340C29BC511E366FBDC0DF /* WorkspaceFixtures.swift */,
+			);
+			path = ConnectionLab;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		0501DA68B5D306F1FD147E0D /* ConnectionLab */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 4275625D94EA7945DEB5AC0E /* Build configuration list for PBXNativeTarget "ConnectionLab" */;
+			buildPhases = (
+				871F52BDDF55FE08A10BC999 /* Sources */,
+				95C009410F7D751844D7E602 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ConnectionLab;
+			packageProductDependencies = (
+			);
+			productName = ConnectionLab;
+			productReference = A961763CB5E3B251341502C4 /* ConnectionLab.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		64E8E41F96F4FB2B109BAAC2 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					0501DA68B5D306F1FD147E0D = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = B81314A1C3545322CEC5A3F3 /* Build configuration list for PBXProject "ConnectionLab" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7A1647FCDF38D7B2855B5674;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 67460B64E900430BBDF2F452 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				0501DA68B5D306F1FD147E0D /* ConnectionLab */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		95C009410F7D751844D7E602 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				2CFD7F1A3D196191CDCC5A1C /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		871F52BDDF55FE08A10BC999 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D128361352093E782D416E32 /* ConnectionHomeView.swift in Sources */,
+				8EDECA1766D56E72A64ADF62 /* ConnectionLabApp.swift in Sources */,
+				022735CD2DA244ABE6A422A8 /* LabModel.swift in Sources */,
+				6D89A442DA94E5277FE6A587 /* LabRowSurface.swift in Sources */,
+				F18D587E941269A26E2B930F /* LauncherSettingsView.swift in Sources */,
+				B551382FF9F4DDD539C7E8F9 /* LauncherView.swift in Sources */,
+				1919A8A037F3CBF8DD172FC7 /* PermissionViews.swift in Sources */,
+				59A7157525704DE6CF7A2C28 /* ScenarioControls.swift in Sources */,
+				76AFE0B5D8CC42445A448364 /* WorkspaceFixtures.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		302B960C518627CFDD726E08 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ConnectionLab/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZooka.ConnectionLab;
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Release;
+		};
+		9039DAA1E0E30D82D409428C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Debug;
+		};
+		9139E0CC90ECFBF2C5760031 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = xros;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+				XROS_DEPLOYMENT_TARGET = 26.2;
+			};
+			name = Release;
+		};
+		DFD9CC18E3B4BE9F51974CAE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ConnectionLab/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.samragsdale.SlopZooka.ConnectionLab;
+				SDKROOT = xros;
+				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SWIFT_STRICT_CONCURRENCY = complete;
+				SWIFT_TREAT_WARNINGS_AS_ERRORS = YES;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 7;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		4275625D94EA7945DEB5AC0E /* Build configuration list for PBXNativeTarget "ConnectionLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DFD9CC18E3B4BE9F51974CAE /* Debug */,
+				302B960C518627CFDD726E08 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B81314A1C3545322CEC5A3F3 /* Build configuration list for PBXProject "ConnectionLab" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9039DAA1E0E30D82D409428C /* Debug */,
+				9139E0CC90ECFBF2C5760031 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 64E8E41F96F4FB2B109BAAC2 /* Project object */;
+}
