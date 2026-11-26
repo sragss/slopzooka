@@ -32,7 +32,7 @@ In **Repos → + → New Repo**, enter a name to create a Git repo on this Mac. 
 
 If Codex opens an **Update available** menu, open **Session Actions (⋯)** in the new terminal. Move the highlight with the arrows in that menu, then tap **Return**. For example, move to **Skip** and confirm to continue with the installed version. Codex owns its update checks and choices, including **Update now**. SlopZooka sends a key only when you press one. The same buttons work in first-run sign-in and trust menus, whose choices can vary by Codex version. If Codex reports that the installed version can no longer start, update it on the Mac and launch again.
 
-The toolbar uses native glass controls. The larger **globe button** at the left opens worktree frontends. Its rounded corner badge shows the app count (up to **99+**) when at least one app is present. The badge is hidden at zero while the globe stays visible. Open it to inspect the worktree’s apps or discovery notices.
+Expand **… → Previews** to see the worktree’s apps and discovery notices. Choosing an available app opens its preview in a separate window.
 
 Terminal rows match repo rows’ rounded targets, circular icons, and compact status tags. Select anywhere in a terminal row to reopen it; its tag shows connection and window state.
 
@@ -42,7 +42,7 @@ In preview windows, VoiceOver identifies the reload and close controls as **Relo
 
 ## Keyboard and zoom
 
-Selecting a terminal focuses it for hardware typing. Use the **keyboard icon** in the terminal toolbar to request the full floating keyboard. The request clears when the terminal loses input focus.
+Selecting a terminal focuses it for hardware typing. Choose **… → Show Terminal Keyboard** to request the full floating keyboard. The request clears when the terminal loses input focus.
 
 With Mac Virtual Display, use the Mac's keyboard and pointer to type in the Vision Pro terminal. Moving the Mac pointer into the terminal and clicking may be necessary to hand off input from the previous window. Pairing SlopZooka connects the terminal to its Mac process. Mac Virtual Display or a keyboard connected to Vision Pro supplies physical keystrokes. [Apple's Mac Virtual Display guide](https://support.apple.com/en-us/118521)
 

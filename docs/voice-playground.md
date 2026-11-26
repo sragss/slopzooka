@@ -7,7 +7,7 @@ SlopZooka. Open **Voice Playground** on the headset; no Mac pairing is needed.
 2. Look at the microphone at the bottom right, then pinch and hold while speaking.
 3. Release. Once the last words settle, a bar fills around the transcript box for
    two seconds.
-4. Tap **×** in that window to cancel. Otherwise the message appears
+4. Tap **×** above the microphone to cancel during that window. Otherwise the message appears
    in the demo with a short mechanical click and a soft border pulse. The transcript
    fades out in place, keeping its position and last words as it disappears.
 5. Hold again for another message. Pauses while holding keep the same draft.
