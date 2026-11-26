@@ -49,6 +49,8 @@ try {
         "-swift-version",
         "5",
         "-parse-as-library",
+        // Compile each test module in one pass, still using the default -Onone.
+        "-whole-module-optimization",
         ...(sources.includes("CompanionTransport") ? [path.join(root, "packages/transport/NativeStream.swift")] : []),
         ...sharedSources,
         ...sources.map((name) =>
