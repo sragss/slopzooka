@@ -61,6 +61,7 @@ private struct SceneActions: ViewModifier {
             case .close(let window): dismissWindow(id: window.kind.rawValue, value: window.id)
             case .openLauncher: openWindow(id: "launcher")
             case .openCoordinator: openWindow(id: CoordinatorState.sceneID, value: CoordinatorState.sceneID)
+            case .closeCoordinator: dismissWindow(id: CoordinatorState.sceneID, value: CoordinatorState.sceneID)
             }
         }
     }

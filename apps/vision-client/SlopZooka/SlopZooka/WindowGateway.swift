@@ -48,6 +48,7 @@ enum WindowCommand: Equatable {
     case close(WindowRecord)
     case openLauncher
     case openCoordinator
+    case closeCoordinator
 }
 
 /// The only entry point for window intent, content resolution, and restoration.
@@ -291,6 +292,7 @@ final class WindowGateway: ObservableObject {
         close(reference, dismiss: false)
     }
     func openLauncher() { presenters.values.first?(.openLauncher) }
+    func closeCoordinator() { presenters.values.first?(.closeCoordinator) }
 
     func openCoordinator(from terminalID: String? = nil) {
         let context: CoordinatorContext?

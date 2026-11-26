@@ -29,6 +29,19 @@ final class CompanionClient: NSObject, ObservableObject {
     private var selection = UUID()
     private var selectedIdentity: String?
     private var currentRoute: Route? { current.flatMap { routes[$0.id] } }
+    private struct ConnectionSnapshot {
+        let host: String
+        let identity: String?
+        let method: ConnectionMethod
+        let current: ConnectedHost?
+        let health: HealthState
+        let needsPairing: Bool
+        let pairingError: String?
+    }
+    private var connectionSnapshot: ConnectionSnapshot?
+    private var pairingAttempt: UUID?
+    private var recoveryPaused = false
+    private var checkCancellation: (() -> Void)?
 
     init(defaults: UserDefaults = .standard, credentials: CompanionCredentials? = nil, diagnostics: NativeDiagnostics? = nil, exchange: Exchange? = nil) {
         self.exchangeOverride = exchange
@@ -61,6 +74,9 @@ final class CompanionClient: NSObject, ObservableObject {
     @Published private(set) var healthState: HealthState = .idle
     @Published private(set) var companions: [DiscoveredCompanion] = []
     @Published private(set) var discoveryError: String?
+    @Published private(set) var establishedHostID: String?
+    @Published private var reconnectingCheck = false
+    @Published private var recoveryProbe: UUID?
     @Published private var frontendCatalogs: [String: FrontendCatalog] = [:]
     var onRouteRetiring: ((String) -> Void)?
     var onConnected: ((ConnectedHost) -> Void)?
@@ -78,6 +94,23 @@ final class CompanionClient: NSObject, ObservableObject {
     private var refreshingSessions: [String: (route: UUID, request: UUID)] = [:]
     private var pendingHosts: [String] = []
     private var selectedHostID: String? { selectedIdentity }
+    var hasWorkspace: Bool { establishedHostID != nil || defaults.string(forKey: "companionHostID") != nil }
+    var isChecking: Bool { if case .checking = healthState { return true }; return false }
+    var isActivelyReconnecting: Bool { reconnectingCheck || (healthState.isReconnecting && recoveryProbe != nil) }
+    var macName: String {
+        if let name = health?.bonjourServiceName, !name.isEmpty { return name }
+        if let name = companions.first(where: { $0.candidateHosts.contains(normalizedHost) })?.name { return name }
+        return currentRoute?.remoteEndpoint.host ?? establishedHostID.flatMap { routes[$0]?.remoteEndpoint.host }
+            ?? Self.baseURL(host: normalizedHost)?.host ?? "your Mac"
+    }
+    var launcherConnectionLabel: String {
+        if isReady { return macName }
+        if needsPairing { return "Pairing required" }
+        if isActivelyReconnecting { return "Reconnecting to \(macName)…" }
+        if isChecking { return "Connecting…" }
+        if healthState.connectionError != nil { return "Connection interrupted" }
+        return "Mac disconnected"
+    }
     var connectionDescription: String {
         isReady ? "Connected via \(currentRoute?.method.title ?? connectionMethod.title)" : "\(connectionMethod.title) · Not connected"
     }
@@ -132,6 +165,7 @@ final class CompanionClient: NSObject, ObservableObject {
         host = defaults.string(forKey: "companionHost") ?? ""
         if connectionMethod == .localNetwork { browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.") }
         sessionPoll = poll { client in
+            guard !client.recoveryPaused, !client.isChecking, !client.isPairing else { return }
             if client.current == nil { await client.maybeAutoConnect(candidateHosts: []) }
             else { await client.refreshSessions() }
         }
@@ -166,6 +200,7 @@ final class CompanionClient: NSObject, ObservableObject {
         routes[health.hostId] = route
         let target = ConnectedHost(id: health.hostId, revision: route.revision)
         current = target
+        if authenticated { establishedHostID = health.hostId }
         selectedIdentity = health.hostId
         needsPairing = !authenticated
         healthState = .success
@@ -180,6 +215,8 @@ final class CompanionClient: NSObject, ObservableObject {
 
     func setConnectionMethod(_ method: ConnectionMethod) async {
         guard method != connectionMethod else { return }
+        rememberConnection()
+        recoveryPaused = false
         let id = selectedHostID
         log.info("connection.method.changed", ["hostId": id ?? "unpaired", "from": connectionMethod.rawValue, "to": method.rawValue])
         connectionMethod = method
@@ -210,22 +247,113 @@ final class CompanionClient: NSObject, ObservableObject {
     }
 
     func select(_ address: String) async {
-        if let url = Self.baseURL(host: address), let id = credentials.hostID(for: url), id != selectedHostID {
-            current = nil
-            selectedIdentity = id
-            defaults.set(id, forKey: "companionHostID")
-            connectionMethod = defaults.string(forKey: "connectionMethod:\(id)").flatMap(ConnectionMethod.init(rawValue:)) ?? .localNetwork
-            browser.stop()
-            if connectionMethod == .localNetwork { browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.") }
+        await select(addresses: [address])
+    }
+
+    func select(_ companion: DiscoveredCompanion) async {
+        await select(addresses: companion.candidateHosts)
+    }
+
+    private func select(addresses: [String]) async {
+        guard !addresses.isEmpty else { return }
+        rememberConnection()
+        let initial = connectionSnapshot
+        for address in addresses {
+            connectionSnapshot = initial
+            if let url = Self.baseURL(host: address), let id = credentials.hostID(for: url), id != selectedHostID {
+                current = nil
+                selectedIdentity = id
+                connectionMethod = defaults.string(forKey: "connectionMethod:\(id)").flatMap(ConnectionMethod.init(rawValue:)) ?? .localNetwork
+                browser.stop()
+                if connectionMethod == .localNetwork { retryDiscovery() }
+            }
+            host = address
+            pairingCode = ""
+            pairingError = nil
+            let attempt = UUID()
+            let accepted = await checkConnection(expectedHostID: nil, attempt: attempt)
+            if accepted || selection != attempt || Task.isCancelled || connectionMethod == .direct { return }
         }
-        host = address
+    }
+
+    func retryDiscovery() {
+        guard connectionMethod == .localNetwork else { return }
+        browser.stop()
+        discoveryError = nil
+        browser.searchForServices(ofType: "_slopzooka._tcp.", inDomain: "local.")
+    }
+
+    private func rememberConnection() {
+        if connectionSnapshot == nil {
+            connectionSnapshot = ConnectionSnapshot(host: host, identity: selectedIdentity, method: connectionMethod,
+                current: current, health: healthState, needsPairing: needsPairing, pairingError: pairingError)
+        }
+    }
+
+    func cancelConnection() async {
+        if isPairing, !isChecking {
+            pairingAttempt = nil
+            checkCancellation?()
+            checkCancellation = nil
+            isPairing = false
+            pairingCode = ""
+            return
+        }
+        guard let restoreHostID = restoreCancelledConnection() else { return }
+        await connect(expectedHostID: restoreHostID)
+    }
+
+    /// Invalidates the operation before restoring intent. A retired transport must
+    /// be recreated by the normal connection path.
+    private func restoreCancelledConnection() -> String? {
+        guard isChecking, let previous = connectionSnapshot else { return nil }
+        selection = UUID()
+        checkCancellation?()
+        checkCancellation = nil
+        pendingTransport?.cancel()
+        pendingTransport = nil
+        pendingHosts.removeAll()
+        pairingAttempt = nil
+        isPairing = false
+        reconnectingCheck = false
+        recoveryProbe = nil
+        connectionSnapshot = nil
+        recoveryPaused = true
+        let changedMethod = connectionMethod != previous.method
+        connectionMethod = previous.method
+        if changedMethod {
+            if let id = previous.identity, credentials.read("host:\(id)") != nil {
+                defaults.set(previous.method.rawValue, forKey: "connectionMethod:\(id)")
+            }
+            browser.stop()
+            for service in services.values { service.stop() }
+            services.removeAll()
+            companions.removeAll()
+            retryDiscovery()
+        }
+        host = previous.host
+        selectedIdentity = previous.identity
+        needsPairing = previous.needsPairing
         pairingCode = ""
-        pairingError = nil
-        await connect()
+        pairingError = previous.pairingError
+        if let prior = previous.current, routes[prior.id]?.revision != prior.revision {
+            current = nil
+            healthState = .reconnecting("Restoring the previous connection.")
+            recoveryPaused = false
+            return prior.id
+        } else {
+            current = previous.current
+            healthState = previous.health
+            if case .idle = healthState, hasWorkspace {
+                healthState = .reconnecting("Connection cancelled.")
+            }
+            if isReady { recoveryPaused = false }
+            return nil
+        }
     }
 
     func maybeAutoConnect(candidateHosts: [String]) async {
-        guard Date() >= retryAfter else { return }
+        guard !recoveryPaused, Date() >= retryAfter else { return }
         if connectionMethod == .direct {
             guard !connecting else { return }
             connecting = true
@@ -257,15 +385,33 @@ final class CompanionClient: NSObject, ObservableObject {
 
     @discardableResult
     func connect(expectedHostID: String? = nil) async -> Bool {
+        await checkConnection(expectedHostID: expectedHostID, attempt: UUID())
+    }
+
+    private func checkConnection(expectedHostID: String?, attempt: UUID) async -> Bool {
         await DiagnosticContext.$actionID.withValue(DiagnosticContext.actionID ?? UUID().uuidString) {
-            await connectAttempt(expectedHostID: expectedHostID)
+            await connectAttempt(expectedHostID: expectedHostID, attempt: attempt)
         }
     }
 
-    private func connectAttempt(expectedHostID: String?) async -> Bool {
+    private func connectAttempt(expectedHostID: String?, attempt: UUID) async -> Bool {
+        rememberConnection()
+        recoveryPaused = false
+        checkCancellation?()
+        checkCancellation = nil
+        pairingAttempt = nil
+        isPairing = false
         pendingTransport?.cancel()
-        selection = UUID()
-        let attempt = selection
+        selection = attempt
+        defer {
+            if selection == attempt {
+                if Task.isCancelled { _ = restoreCancelledConnection() }
+                connectionSnapshot = nil
+                checkCancellation = nil
+                pendingTransport = nil
+                reconnectingCheck = false
+            }
+        }
         let started = ProcessInfo.processInfo.systemUptime
         var fields = ["connectionMethod": connectionMethod.rawValue, "routeRevision": attempt.uuidString, "actionId": DiagnosticContext.actionID ?? attempt.uuidString]
         fields["hostId"] = selectedHostID
@@ -281,12 +427,16 @@ final class CompanionClient: NSObject, ObservableObject {
         }
         guard let remote = Self.baseURL(host: normalizedHost) else {
             outcome = "invalidAddress"
-            healthState = .failure("Enter a valid companion host")
+            healthState = .failure(connectionMethod == .direct
+                ? "Pair over Local Network before using Direct to Mac."
+                : "Enter a valid companion host")
             return false
         }
         needsPairing = false
         pairingError = nil
         healthState = .checking
+        let previousHost = connectionSnapshot?.host.trimmingCharacters(in: .whitespacesAndNewlines)
+        reconnectingCheck = hasWorkspace && (previousHost == normalizedHost || expectedHostID != nil)
         var transport: CompanionTransportRoute?
         var acceptedTransport = false
         defer { if !acceptedTransport { transport?.stop() } }
@@ -313,7 +463,14 @@ final class CompanionClient: NSObject, ObservableObject {
             }
             guard selection == attempt, !Task.isCancelled else { return false }
             var base = transport?.endpoint ?? remote
-            let health: CompanionHealthResponse = try await request(base: base, transport: transport, path: "/health", timeout: connectionMethod == .direct ? 15 : 4)
+            let address = base
+            let route = transport
+            let timeout: TimeInterval = connectionMethod == .direct ? 15 : 4
+            let check = Task<CompanionHealthResponse, Error> {
+                try await request(base: address, transport: route, path: "/health", timeout: timeout)
+            }
+            checkCancellation = { check.cancel() }
+            let health = try await withTaskCancellationHandler { try await check.value } onCancel: { check.cancel() }
             guard !Task.isCancelled, selection == attempt else { return false }
             if (connectionMethod == .direct && health.hostId != expectedHost) || (expectedHostID != nil && health.hostId != expectedHostID) {
                 throw CompanionError(message: "The connection did not authenticate the selected Mac.")
@@ -341,6 +498,9 @@ final class CompanionClient: NSObject, ObservableObject {
                 base = remote
             }
             try accept(health, endpoint: base, authenticated: authenticated, remoteEndpoint: remote, transport: transport, revision: attempt)
+            connectionSnapshot = nil
+            checkCancellation = nil
+            reconnectingCheck = false
             outcome = "ready"
             acceptedTransport = true
             pendingTransport = nil
@@ -375,24 +535,40 @@ final class CompanionClient: NSObject, ObservableObject {
             pairingCode.allSatisfy({ $0 >= "0" && $0 <= "9" }),
             let base = currentRoute?.endpoint else { return }
         let attempt = selection
+        let pairing = UUID()
+        pairingAttempt = pairing
         isPairing = true
         pairingError = nil
-        defer { isPairing = false }
+        defer {
+            if pairingAttempt == pairing {
+                pairingAttempt = nil
+                isPairing = false
+            }
+        }
         do {
             struct PairResponse: Decodable {
                 let token: String
                 let hostId: String
             }
-            let response: PairResponse = try await request(base: base, transport: currentRoute?.transport, path: "/api/pair", method: "POST",
-                body: Self.json(["code": pairingCode]))
-            guard !Task.isCancelled, selection == attempt else { return }
+            let route = currentRoute?.transport
+            let code = pairingCode
+            let check = Task<PairResponse, Error> {
+                try await request(base: base, transport: route, path: "/api/pair", method: "POST",
+                    body: Self.json(["code": code]))
+            }
+            checkCancellation = { check.cancel() }
+            let response = try await withTaskCancellationHandler { try await check.value } onCancel: { check.cancel() }
+            guard !Task.isCancelled, pairingAttempt == pairing, selection == attempt else { return }
+            checkCancellation = nil
             guard let remote = currentRoute?.remoteEndpoint else { return }
+            guard response.hostId == current?.id else { throw CompanionError(message: "The pairing reply came from a different Mac.") }
             try credentials.pair(remote, hostID: response.hostId, token: response.token)
             await select(remote.absoluteString)
         } catch {
-            guard !Task.isCancelled, selection == attempt else { return }
+            guard !Task.isCancelled, pairingAttempt == pairing, selection == attempt else { return }
+            checkCancellation = nil
             pairingCode = ""
-            pairingError = "\(base.absoluteString)\n\(error.localizedDescription)"
+            pairingError = "\(currentRoute?.remoteEndpoint.absoluteString ?? base.absoluteString)\n\(error.localizedDescription)"
         }
     }
 
@@ -435,7 +611,11 @@ final class CompanionClient: NSObject, ObservableObject {
         let target = ConnectedHost(id: id, revision: route.revision)
         let attempt = selection, request = UUID()
         refreshingSessions[id] = (target.revision, request)
-        defer { if refreshingSessions[id]?.request == request { refreshingSessions[id] = nil } }
+        if current?.id == id && healthState.isReconnecting { recoveryProbe = request }
+        defer {
+            if refreshingSessions[id]?.request == request { refreshingSessions[id] = nil }
+            if recoveryProbe == request { recoveryProbe = nil }
+        }
         if let sessions = try? await sessions(hostID: id) {
             guard !Task.isCancelled, routes[id]?.revision == target.revision,
                 hostID != nil || (current == target && selection == attempt),
@@ -624,13 +804,13 @@ final class CompanionClient: NSObject, ObservableObject {
         do {
             let result: T = try await request(base: route.endpoint, transport: route.transport, path: path, hostID: hostID, method: method, body: body, timeout: timeout)
             guard routes[hostID] == route else { throw URLError(.cancelled) }
-            if current?.id == hostID, selection == attempt, !needsPairing {
+            if current?.id == hostID, selection == attempt, !needsPairing, !isChecking, !recoveryPaused {
                 if case .reconnecting = healthState { healthState = .success }
             }
             return result
         } catch {
             guard routes[hostID] == route else { throw URLError(.cancelled) }
-            if current?.id == hostID, selection == attempt {
+            if current?.id == hostID, selection == attempt, !isChecking, !recoveryPaused {
                 if (error as? CompanionError)?.statusCode == 401 { needsPairing = true }
                 else if let network = error as? URLError, network.code != .cancelled {
                     healthState = .reconnecting(network.localizedDescription)
@@ -788,7 +968,9 @@ extension CompanionClient: @preconcurrency NetServiceBrowserDelegate, @preconcur
         companions.append(DiscoveredCompanion(id: key(service), name: service.name, candidateHosts: candidates))
         companions.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         slzLog("bonjour resolved service name=\(service.name) host=\(candidates[0])")
-        Task { [weak self] in await self?.maybeAutoConnect(candidateHosts: candidates) }
+        if defaults.string(forKey: "companionHost") != nil {
+            Task { [weak self] in await self?.maybeAutoConnect(candidateHosts: candidates) }
+        }
     }
     func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
         guard services[key(sender)] === sender else { return }

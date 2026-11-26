@@ -125,7 +125,17 @@ final class SpeechCaptureController: SpeechCapturing {
         SFSpeechRecognizer.authorizationStatus() == .authorized && AVAudioApplication.shared.recordPermission == .granted
     }
 
+    static var permissionDenial: String? {
+        switch SFSpeechRecognizer.authorizationStatus() {
+        case .denied, .restricted: return "Speech recognition is off"
+        default: break
+        }
+        if AVAudioApplication.shared.recordPermission == .denied { return "Microphone access is off" }
+        return nil
+    }
+
     static func requestPermissions() async throws {
+        try Task.checkCancellation()
         let speechStatus = await withCheckedContinuation { continuation in
             SFSpeechRecognizer.requestAuthorization { status in
                 continuation.resume(returning: status)
@@ -135,6 +145,7 @@ final class SpeechCaptureController: SpeechCapturing {
         guard speechStatus == .authorized else {
             throw SpeechCaptureError.permissions("Speech recognition permission was denied.")
         }
+        try Task.checkCancellation()
 
         let micGranted = await withCheckedContinuation { continuation in
             AVAudioApplication.requestRecordPermission { granted in
@@ -145,6 +156,7 @@ final class SpeechCaptureController: SpeechCapturing {
         guard micGranted else {
             throw SpeechCaptureError.permissions("Microphone permission was denied.")
         }
+        try Task.checkCancellation()
     }
 
     private func receive(_ event: SpeechCaptureWorker.Event) {

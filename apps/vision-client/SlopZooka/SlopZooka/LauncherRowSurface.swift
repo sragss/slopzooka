@@ -2,6 +2,7 @@ import SwiftUI
 
 /// Shared surface for launcher rows; actions remain inside the outline.
 struct LauncherRowSurface: ViewModifier {
+    var interactive = true
     private let shape = RoundedRectangle(cornerRadius: 18)
 
     func body(content: Content) -> some View {
@@ -11,7 +12,8 @@ struct LauncherRowSurface: ViewModifier {
                 shape.strokeBorder(.white.opacity(0.12), lineWidth: 1)
                     .allowsHitTesting(false)
             }
-            .contentShape(.hoverEffect, shape)
+            .contentShape([.interaction, .hoverEffect], shape)
             .hoverEffect(.highlight)
+            .hoverEffectDisabled(!interactive)
     }
 }

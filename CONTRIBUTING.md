@@ -43,7 +43,8 @@ There is one session service per canonical `SLOPZOOKA_HOME`, independent of the 
 For terminal web UI development, keep your development companion running and run
 `pnpm --filter @slz/mac-companion dev:web` in another terminal. The watcher rebuilds
 browser assets without restarting the host or its PTYs. Use **Reload Content** in
-a terminal's actions menu, or the launcher's reload button for all visible windows.
+a terminal's actions menu, or **Reload All Window Content** in the launcher's
+connection panel for all visible windows.
 This reloads content inside the same native scenes. Preview reload also refreshes
 its gateway connection while keeping the WebView. Swift changes still require a
 native build; this workflow does not inject Swift code into a running app. The
