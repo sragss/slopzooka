@@ -26,7 +26,7 @@ const until = async (fn: () => Promise<boolean>) => {
   throw new Error("Condition timed out");
 };
 async function fixture(
-  responses: any[],
+  responses: any[] | undefined,
   serviceRequest: (path: string, method?: string, body?: any) => Promise<any>,
   handler?: (app: express.Express) => void,
 ) {
@@ -49,7 +49,7 @@ async function fixture(
   const faux = fauxProvider(),
     models = createModels();
   models.setProvider(faux.provider);
-  faux.setResponses(responses);
+  faux.setResponses(responses ?? []);
   const modelContexts: any[] = [];
   const events: { event: string; fields?: LogFields }[] = [];
   const record = (event: string, fields?: LogFields) => {
@@ -65,7 +65,7 @@ async function fixture(
     logger: { info: record, warn: record, error: record },
     previewCommand: process.execPath,
     previewArgs: [],
-    inference: {
+    inference: responses && {
       model: faux.getModel(),
       streamFn: (model, context, options) => {
         modelContexts.push(structuredClone(context));
@@ -93,6 +93,128 @@ async function fixture(
     },
   };
 }
+test("Ask retries a model connection failure after a tool without resending worker input", async (t) => {
+  let modelRequests = 0;
+  let workerSubmissions = 0;
+  const fetchOriginal = globalThis.fetch;
+  t.mock.method(
+    globalThis,
+    "fetch",
+    async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (url !== "https://api.openai.com/v1/responses")
+        return fetchOriginal(input, init);
+      modelRequests++;
+      if (modelRequests === 2) {
+        const cause = Object.assign(new Error("private provider detail"), {
+          code: "UND_ERR_CONNECT_TIMEOUT",
+        });
+        throw new TypeError("fetch failed", { cause });
+      }
+      if (modelRequests >= 4)
+        return Response.json(
+          {
+            error: {
+              message: "Incorrect API key provided: private provider detail",
+            },
+          },
+          { status: 401 },
+        );
+      const item =
+        modelRequests === 1
+          ? {
+              type: "function_call",
+              id: "fc_fixture",
+              call_id: "call_fixture",
+              name: "worker_submit",
+              arguments: JSON.stringify({
+                sessionId: "ours",
+                text: "Apply the change",
+                mode: "queue",
+              }),
+            }
+          : {
+              type: "message",
+              id: "msg_fixture",
+              role: "assistant",
+              content: [
+                {
+                  type: "output_text",
+                  text: "Queued the change.",
+                  annotations: [],
+                },
+              ],
+            };
+      const events = [
+        { type: "response.output_item.done", output_index: 0, item },
+        {
+          type: "response.completed",
+          response: { status: "completed", output: [item] },
+        },
+      ];
+      return new Response(
+        events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(""),
+        {
+          headers: { "Content-Type": "text/event-stream" },
+        },
+      );
+    },
+  );
+  const f = await fixture(undefined, async (route, _method, body) => {
+    if (route.startsWith("/workers?"))
+      return {
+        workers: [{ sessionId: "ours", status: "idle", deliveries: [] }],
+      };
+    if (route === "/workers/ours/submit") {
+      workerSubmissions++;
+      return { deliveries: [{ requestId: body.requestId, status: "queued" }] };
+    }
+    throw new Error(`Unexpected route ${route}`);
+  });
+  try {
+    const requestId = randomUUID();
+    await f.coordinator.submit(f.config, {
+      requestId,
+      text: "Apply the change",
+      sessionId: "ours",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    const recovered = await f.coordinator.status(clientId);
+    assert.equal(recovered.status, "completed");
+    assert.equal(recovered.reply, "Queued the change.");
+    assert.equal(modelRequests, 3);
+    assert.equal(workerSubmissions, 1);
+    assert.equal(
+      f.events.find((e) => e.event === "coordinator.model.transport-failed")
+        ?.fields?.code,
+      "UND_ERR_CONNECT_TIMEOUT",
+    );
+
+    await f.coordinator.submit(f.config, {
+      requestId: randomUUID(),
+      text: "Give me a status update",
+    });
+    await until(
+      async () => (await f.coordinator.status(clientId)).status !== "running",
+    );
+    const failed = await f.coordinator.status(clientId);
+    assert.equal(failed.status, "failed");
+    assert.match(failed.reply!, /rejected its credentials/);
+    assert.equal(modelRequests, 4, "A credential failure is not retried");
+    const event = f.events.find((e) => e.event === "coordinator.model.failed");
+    assert.equal(event?.fields?.providerStatus, 401);
+    assert.ok(
+      !JSON.stringify({ failed, events: f.events }).includes(
+        "private provider detail",
+      ),
+    );
+  } finally {
+    await f.close();
+  }
+});
+
 test("real Pi loop retains captured destination, deduplicates a retried request and rejects cross-client worker routing", async () => {
   const writes: any[] = [];
   const f = await fixture(
