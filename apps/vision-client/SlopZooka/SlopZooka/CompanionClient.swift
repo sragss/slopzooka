@@ -708,8 +708,10 @@ final class CompanionClient: NSObject, ObservableObject {
     }
     func submitInput(hostID: String, sessionID: String, commandID: String, text: String) async throws {
         log.info("voice.dispatch", ["hostId": hostID, "sessionId": sessionID, "commandId": commandID, "destination": "terminal"])
+        // The gateway may retry an unacknowledged command. Use an interactive
+        // timeout so a silent connection doesn't hold the draft for two default timeouts.
         let _: APIAcknowledgement = try await request(hostID: hostID, path: "/api/sessions/\(sessionID)/input", method: "POST",
-            body: Self.json(["commandId": commandID, "text": text, "sendReturn": true]))
+            body: Self.json(["commandId": commandID, "text": text, "sendReturn": true]), timeout: 4)
     }
     func windowLayout(hostID: String) async throws -> WindowLayout {
         try await request(hostID: hostID, path: "/api/window-layout")
