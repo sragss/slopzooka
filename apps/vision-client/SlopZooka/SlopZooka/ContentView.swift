@@ -106,7 +106,7 @@ struct ContentView: View {
                         activeSheet = .connection
                     } label: {
                         Label {
-                            Text(client.launcherConnectionLabel)
+                            Text(client.launcherConnectionLabel).lineLimit(1)
                         } icon: {
                             Image(systemName: client.isReady || client.isActivelyReconnecting
                                   ? "desktopcomputer" : "desktopcomputer.trianglebadge.exclamationmark")
