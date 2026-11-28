@@ -268,12 +268,14 @@ struct LauncherStateChecks {
                     finishedOldCodexLoad = true
                 }
                 let threads = (0..<30).map { index in
-                    ["id": "\(id)-\(index)", "title": "\(id) thread \(index)", "cwd": "/\(id)/project", "updatedAt": 2000 - index, "available": true] as [String: Any]
+                    var thread: [String: Any] = ["id": "\(id)-\(index)", "title": "\(id) thread \(index)", "cwd": "/\(id)/project", "updatedAt": 2000 - index, "available": true]
+                    if index == 0 { thread["repository"] = "other/actual-repo" }
+                    return thread
                 }
                 return try json(["threads": threads], for: request)
             case "/api/workspaces":
-                let workspaces: [[String: Any]] = pruned ? [] : [["workspaceId": id, "repo": repo, "localCheckoutPath": "/",
-                    "worktreePath": "/", "branchName": "main", "baseRef": "main", "createdAt": "2026-01-01T00:00:00Z",
+                let workspaces: [[String: Any]] = pruned ? [] : [["workspaceId": id, "repo": repo, "localCheckoutPath": "/clone/\(id)",
+                    "worktreePath": "/\(id)", "branchName": "main", "baseRef": "main", "createdAt": "2026-01-01T00:00:00Z",
                     "updatedAt": "2026-01-01T00:00:00Z", "existsOnDisk": true]]
                 if id == "second", releaseWorkspaces == nil {
                     await withCheckedContinuation { releaseWorkspaces = $0 }
@@ -295,6 +297,16 @@ struct LauncherStateChecks {
         precondition(state.availableOwners.first?.login == "first")
         while state.filteredCodexThreads.isEmpty { await Task.yield() }
         precondition(state.filteredCodexThreads.count == 25 && state.filteredCodexThreads.first?.id == "first-0")
+        let threads = state.filteredCodexThreads
+        precondition(state.threadRepository(threads[0]) == "other/actual-repo")
+        precondition(state.threadRepository(threads[1]) == "test/first", "Older thread replies can match a known worktree")
+        let updated = Date(timeIntervalSince1970: threads[0].updatedAt)
+        precondition(threads[0].age(at: updated.addingTimeInterval(415)) ==
+            Duration.seconds(360).formatted(.units(allowed: [.minutes], width: .abbreviated)))
+        precondition(threads[0].age(at: updated.addingTimeInterval(7199)) ==
+            Duration.seconds(3600).formatted(.units(allowed: [.hours], width: .abbreviated)))
+        state.searchText = "actual-repo"
+        precondition(state.filteredCodexThreads.map(\.id) == ["first-0"])
         state.searchText = "FIRST THREAD 2"
         precondition(state.filteredCodexThreads.map(\.id) == ["first-2", "first-20", "first-21", "first-22", "first-23", "first-24"],
             "Thread search must filter only the first 25, preserving catalog order")

@@ -3,6 +3,7 @@ import SwiftUI
 struct WorkspaceRowView: View {
     let workspace: WorkspaceSummary
     let selectedTool: LaunchTarget
+    let hostID: String?
     let isBusy: Bool
     let sessionCount: Int
     var lastKnown = false
@@ -16,7 +17,7 @@ struct WorkspaceRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            RepositoryAvatar(urlString: workspace.repo.owner.avatarUrl)
+            RepositoryAvatar(owner: workspace.repo.avatarOwner, hostID: hostID)
             VStack(alignment: .leading, spacing: 5) {
                 Text(workspace.name ?? workspace.branchName)
                     .font(.subheadline.weight(.semibold)).lineLimit(1)

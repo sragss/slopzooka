@@ -37,6 +37,7 @@ struct ContentView: View {
             case .newRepo:
                 NewRepoSheetView(
                     owners: state.availableOwners,
+                    ownersUnavailable: state.ownersUnavailable,
                     suggestedOwnerLogin: state.preferredOwnerLogin(),
                     selectedTool: state.selectedTool,
                     isSubmitting: state.isCreatingRepo,
@@ -97,7 +98,7 @@ struct ContentView: View {
             .padding(.horizontal, 14).padding(.vertical, 24).frame(width: 230)
             .background(.black.opacity(0.12))
             Divider()
-            VStack(spacing: 20) {
+            VStack(spacing: 0) {
                 HStack(spacing: 12) {
                     Text(section.title).font(.largeTitle.weight(.semibold)).accessibilityAddTraits(.isHeader)
                     Spacer()
@@ -120,12 +121,14 @@ struct ContentView: View {
                     .buttonStyle(.bordered)
                     .accessibilityHint("Opens connection controls")
                 }
+                .padding(.horizontal, 36).padding(.vertical, 24)
+                Divider()
                 ScrollView {
                     launcherMode.frame(maxWidth: .infinity, alignment: .topLeading)
+                        .padding(.horizontal, 36).padding(.vertical, 20)
                 }
                 .scrollIndicators(.hidden)
             }
-            .padding(.horizontal, 36).padding(.vertical, 28)
         }
     }
 
@@ -164,12 +167,13 @@ struct ContentView: View {
                         if let hostID = client.current?.id { Task { await state.loadCodexThreads(hostID: hostID) } }
                     } label: {
                         Image(systemName: "arrow.clockwise").frame(width: 44, height: 44)
+                            .accessibilityHidden(true)
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.bordered).buttonBorderShape(.circle)
                     .disabled(!client.isReady)
                     .accessibilityLabel("Refresh Codex threads")
                 }
-                searchField("Search threads")
+                searchField("Search threads or repos")
                 codexThreadsContent.disabled(!client.isReady)
             case .frontends:
                 FrontendListView(hostID: state.catalogHostID).disabled(!client.isReady)
@@ -221,6 +225,17 @@ struct ContentView: View {
                 .disabled(!client.isReady || state.isMutatingWorkspace)
             }
             searchField("Search repos")
+            if state.repoState.value?.githubUnavailable == true {
+                HStack {
+                    Text("GitHub repos are unavailable on your Mac.").foregroundStyle(.secondary)
+                    Spacer()
+                    Button("Retry") {
+                        if let hostID = client.current?.id { Task { await state.loadRepositories(hostID: hostID) } }
+                    }
+                    .disabled(!client.isReady)
+                }
+                .font(.footnote)
+            }
             quickRepoContent.disabled(!client.isReady)
         }
     }
@@ -269,26 +284,30 @@ struct ContentView: View {
             } else {
                 LazyVStack(spacing: 10) {
                     ForEach(state.filteredCodexThreads) { thread in
+                        let repository = state.threadRepository(thread)
+                        let project = repository?.replacingOccurrences(of: "~local/", with: "", options: .anchored)
+                            ?? thread.folderName
                         Button {
                             projectSearchFocused = false
                             Task { await state.resume(thread) }
                         } label: {
                             HStack(spacing: 12) {
-                                Image(systemName: "text.bubble")
-                                    .foregroundStyle(.secondary).frame(width: 40, height: 40)
-                                    .background(.quaternary, in: Circle()).accessibilityHidden(true)
+                                RepositoryAvatar(owner: repository.flatMap(state.threadAvatarOwner), hostID: state.catalogHostID,
+                                                 fallbackIcon: repository == nil ? "text.bubble" : "folder")
                                 VStack(alignment: .leading, spacing: 5) {
                                     Text(thread.title).font(.subheadline.weight(.semibold)).lineLimit(1)
-                                    HStack {
-                                        Text(thread.cwd).lineLimit(1).truncationMode(.middle)
-                                        if !thread.available { Text("Missing on Mac").foregroundStyle(.orange) }
-                                    }.font(.caption).foregroundStyle(.secondary)
+                                    Text(project).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                                    if !thread.available {
+                                        Text("Missing on Mac").font(.caption).foregroundStyle(.orange)
+                                    }
                                 }
                                 Spacer(minLength: 0)
                                 if state.busyThreadID == thread.id {
                                     ProgressView().scaleEffect(0.8)
                                 } else {
-                                    Text(Date(timeIntervalSince1970: thread.updatedAt), style: .relative)
+                                    TimelineView(.periodic(from: .now, by: 60)) { context in
+                                        Text(thread.age(at: context.date))
+                                    }
                                         .font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                         .padding(.horizontal, 8).padding(.vertical, 4)
                                         .background(.quaternary, in: Capsule())
@@ -373,7 +392,7 @@ struct ContentView: View {
                     Task { await state.reopen(workspace) }
                 } label: {
                     WorkspaceRowView(workspace: workspace, selectedTool: state.selectedTool,
-                                     isBusy: state.busyWorkspaceID == workspace.id, sessionCount: sessionCount)
+                                     hostID: state.catalogHostID, isBusy: state.busyWorkspaceID == workspace.id, sessionCount: sessionCount)
                 }
                 .buttonStyle(.plain)
                 .hoverEffectDisabled()
@@ -392,7 +411,7 @@ struct ContentView: View {
             }
             .modifier(LauncherRowSurface())
         } else {
-            WorkspaceRowView(workspace: workspace, selectedTool: state.selectedTool, isBusy: false,
+            WorkspaceRowView(workspace: workspace, selectedTool: state.selectedTool, hostID: state.catalogHostID, isBusy: false,
                              sessionCount: sessionCount, lastKnown: true)
                 .modifier(LauncherRowSurface(interactive: false))
         }
@@ -422,6 +441,7 @@ struct ContentView: View {
                             } label: {
                                 RepoRowView(
                                     repo: repo,
+                                    hostID: state.catalogHostID,
                                     isBusy: state.busyRepoID == repo.id,
                                     isSelectedToolTerminal: state.selectedTool == .terminal
                                 )

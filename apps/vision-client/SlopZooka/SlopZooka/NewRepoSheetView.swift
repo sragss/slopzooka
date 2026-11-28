@@ -2,6 +2,7 @@ import SwiftUI
 
 struct NewRepoSheetView: View {
     let owners: [RepoOwnerSummary]
+    let ownersUnavailable: Bool
     let suggestedOwnerLogin: String?
     let selectedTool: LaunchTarget
     let isSubmitting: Bool
@@ -28,6 +29,10 @@ struct NewRepoSheetView: View {
 
                 Toggle("Create on GitHub", isOn: $createOnGitHub)
                     .disabled(owners.isEmpty || isSubmitting)
+                if ownersUnavailable {
+                    Text("Your Mac couldn’t load GitHub owners. You can still create a local repo.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
                 if createOnGitHub {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Owner")

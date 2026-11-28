@@ -83,6 +83,12 @@ if (process.env.SLOPZOOKA_SESSION_ID === "fresh-codex") {
     cwd: path.join(home, index === 2 ? "missing" : "project"),
     updatedAt: 2000 - index,
     ephemeral: false,
+    gitInfo:
+      index === 0
+        ? { originUrl: "git@github.com:fixture-org/fixture-repo.git" }
+        : index === 1
+          ? { originUrl: "https://github.com.example.com/other/repo.git" }
+          : null,
     turns: [],
   }));
   const lines = readline.createInterface({ input: process.stdin });

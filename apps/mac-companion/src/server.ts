@@ -355,10 +355,11 @@ app.get("/api/repos/recent", async (req, res) => {
 
   try {
     const local = await workspaceService.localRepos();
+    let githubUnavailable = false;
     const result = await gitHubClient
       .listRecentRepos(limit)
       .catch((error: unknown) => {
-        if (!local.length) throw error;
+        githubUnavailable = true;
         logger.warn("Remote repo catalog unavailable", {
           error: logError(error),
         });
@@ -367,6 +368,7 @@ app.get("/api/repos/recent", async (req, res) => {
     res.json({
       viewerLogin: result.viewerLogin,
       repos: [...local, ...result.repos].slice(0, limit),
+      githubUnavailable,
     });
   } catch (error) {
     logger.error("Failed to load recent repositories", {
@@ -387,14 +389,20 @@ app.get("/api/owners", async (_req, res) => {
     res.json(result);
   } catch (error) {
     logger.error("Failed to load available owners", {
-      error: error instanceof Error ? error.message : String(error),
+      error: logError(error),
     });
-    res.status(500).json({
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to load available owners.",
+    res.status(503).json({
+      error: "GitHub owners are unavailable on your Mac.",
     });
+  }
+});
+
+app.get("/api/repo-avatar", async (req, res, next) => {
+  try {
+    const image = await gitHubClient.ownerAvatar(req.query.owner);
+    res.json({ image: image.toString("base64") });
+  } catch (error) {
+    next(error);
   }
 });
 

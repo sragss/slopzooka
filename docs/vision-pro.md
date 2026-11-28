@@ -14,7 +14,7 @@ During a connection loss, the launcher keeps your current section and labels wor
 
 ## Connection method
 
-In the launcher, open the top-right Mac control and choose **Connection options**. Select **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and supports control, terminals, and experimental native Mac window previews. Keep Wi-Fi enabled on both devices. Initial pairing must happen over a trusted Local Network with the updated companion; Direct reuses that pairing afterward. Travel, cold startup without an access point, and sleep/wake still need device qualification.
+In the launcher, open the top-right Mac control and choose **Connection options**. Select **Local Network** (the default) or **Direct to Mac (Experimental)**. Local Network uses the existing Wi-Fi/LAN path and supports web previews. Direct uses a nearby Mac's peer connection, requires macOS 15 or later, and supports control, terminals, and experimental native Mac window previews. Keep Wi-Fi enabled on both devices. Pair once over a trusted Local Network with the updated companion. That connection saves the Mac’s identity and credentials. Direct reuses them and connects without another code or a shared Wi-Fi network. Travel, cold startup without an access point, and sleep/wake still need device qualification.
 
 The choice is remembered for each paired Mac on this headset. A failed Direct connection stays on Direct: use **Try Again** or explicitly choose **Use Local Network**. The app does not silently switch methods. Manual IP/hostname entry belongs to Local Network.
 
@@ -28,9 +28,9 @@ The sidebar separates **Repos**, **Worktrees**, and **Threads** from **Frontends
 
 Repo and worktree rows show a repository icon when their GitHub owner avatar is unavailable.
 
-Choose **Repos → New Repo** to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Worktrees** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately.
+Choose **Repos → New Repo** to create a Git repo on this Mac. It starts on `main` with its first worktree. Open the repo again to create a separate branch and worktree, or use **Worktrees** to return to the first one. Enable **Create on GitHub** only when you want the launcher to create a remote repo immediately. Repo browsing, GitHub owner lookup, and repo avatars use the Mac companion in either connection mode. Your Mac needs GitHub access for those features. Local repos, worktrees, and saved threads remain available if GitHub is unreachable.
 
-**Threads** shows the 25 most recently updated saved Codex threads on the selected Mac. Search their titles and folders or refresh the list. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex, and **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
+**Threads** shows the 25 most recently updated saved Codex threads on the selected Mac. Rows show the thread title, its repo or project folder, and its age in whole minutes, hours, or days. Search titles, folders, or repos, or refresh the list. Select one to resume in its original folder, including folders outside SlopZooka worktrees. Repeated opens reuse its running SlopZooka terminal. Missing folders cannot be resumed. Resumed terminals exit with Codex, and **New Shell** opens a separate shell in the same folder. Codex sessions running in other apps are not tracked here.
 
 Terminal windows keep Interrupt, Stop, and dictation visible. The top-left **…** menu starts with zoom, **Previews**, **Show Terminal Keyboard**, **Ask SlopZooka**, and **Open Launcher**. Shell creation, details, and **Close Window** are farther down the menu.
 
