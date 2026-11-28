@@ -656,6 +656,18 @@ final class CompanionClient: NSObject, ObservableObject {
     func repositories(hostID: String) async throws -> RecentReposResponse {
         try await request(hostID: hostID, path: "/api/repos/recent?limit=30")
     }
+    func repositoryAvatar(hostID: String, owner: String) async throws -> Data {
+        struct AvatarResponse: Decodable { let image: Data }
+        guard owner.range(of: "^[a-zA-Z0-9][a-zA-Z0-9-]{0,38}$", options: .regularExpression) != nil else {
+            throw URLError(.badURL)
+        }
+        let route = try route(for: hostID)
+        guard route.paired else { throw CompanionError(message: "Pair with this Mac first", statusCode: 401) }
+        let result: AvatarResponse = try await request(base: route.endpoint, transport: route.transport,
+            path: "/api/repo-avatar?owner=\(owner)", hostID: hostID, timeout: 10)
+        guard routes[hostID] == route else { throw URLError(.cancelled) }
+        return result.image
+    }
     func codexThreads(hostID: String) async throws -> CodexThreadsResponse {
         try await request(hostID: hostID, path: "/api/codex/threads", timeout: 25)
     }

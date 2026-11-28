@@ -90,6 +90,47 @@ type AvailableOwnersQueryResult = {
 export class GitHubClient {
   private tokenPromise: Promise<string> | null = null;
 
+  async ownerAvatar(login: unknown): Promise<Buffer> {
+    if (typeof login !== "string" || !/^[a-z\d][a-z\d-]{0,38}$/i.test(login))
+      throw new ServiceError("Invalid GitHub owner.", 400);
+    const unavailable = () =>
+      new ServiceError("GitHub avatar unavailable.", 503);
+    try {
+      const response = await fetch(
+        `https://avatars.githubusercontent.com/${login}?s=80`,
+        { redirect: "error", signal: AbortSignal.timeout(5_000) },
+      );
+      if (
+        !response.ok ||
+        !/^image\/(png|jpeg|webp)$/.test(
+          response.headers.get("content-type") ?? "",
+        ) ||
+        !response.body
+      ) {
+        await response.body?.cancel();
+        throw unavailable();
+      }
+      const reader = response.body.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      for (
+        let chunk = await reader.read();
+        !chunk.done;
+        chunk = await reader.read()
+      ) {
+        size += chunk.value.byteLength;
+        if (size > 64 * 1024) {
+          await reader.cancel();
+          throw unavailable();
+        }
+        chunks.push(chunk.value);
+      }
+      return Buffer.concat(chunks, size);
+    } catch {
+      throw unavailable();
+    }
+  }
+
   async listRecentRepos(
     limit: number,
   ): Promise<{ viewerLogin: string; repos: RecentRepo[] }> {

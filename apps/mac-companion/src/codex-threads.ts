@@ -13,6 +13,7 @@ export type CodexThread = {
   cwd: string;
   updatedAt: number;
   available: boolean;
+  repository?: string;
 };
 
 // Resolve through the same interactive login shell as the terminal launcher.
@@ -144,6 +145,7 @@ export class CodexThreads {
           name?: unknown;
           preview?: unknown;
           ephemeral?: unknown;
+          gitInfo?: { originUrl?: unknown };
         })
       | null;
     if (
@@ -160,6 +162,13 @@ export class CodexThreads {
     const title = [thread.name, thread.preview].find(
       (text) => typeof text === "string" && text.trim(),
     ) as string | undefined;
+    const origin = thread.gitInfo?.originUrl;
+    const repository =
+      typeof origin === "string"
+        ? /^(?:https:\/\/github\.com\/|ssh:\/\/git@github\.com\/|git@github\.com:)([a-z\d-]+\/[a-z\d_.-]+?)\/?$/i
+            .exec(origin)?.[1]
+            ?.replace(/\.git$/i, "")
+        : undefined;
     return {
       id: thread.id,
       title:
@@ -173,6 +182,7 @@ export class CodexThreads {
           .join("") || "Codex thread",
       cwd: thread.cwd,
       updatedAt: thread.updatedAt,
+      ...(repository && { repository }),
       available: await stat(thread.cwd).then(
         (info) => info.isDirectory(),
         () => false,

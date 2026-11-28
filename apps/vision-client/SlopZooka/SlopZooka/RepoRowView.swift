@@ -2,12 +2,13 @@ import SwiftUI
 
 struct RepoRowView: View {
     let repo: RecentRepoSummary
+    let hostID: String?
     let isBusy: Bool
     let isSelectedToolTerminal: Bool
 
     var body: some View {
         HStack(spacing: 12) {
-            RepositoryAvatar(urlString: repo.owner.avatarUrl)
+            RepositoryAvatar(owner: repo.avatarOwner, hostID: hostID)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 8) {

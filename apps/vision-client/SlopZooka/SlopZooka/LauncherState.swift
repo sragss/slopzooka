@@ -13,6 +13,7 @@ final class LauncherState: ObservableObject {
             self.catalogTask?.cancel()
             self.catalogHostID = target.id
             self.availableOwners = []
+            self.ownersUnavailable = false
             self.repoState = .idle
             self.workspaceState = .idle
             self.codexState = .idle
@@ -38,6 +39,7 @@ final class LauncherState: ObservableObject {
             .compactMap { $0 }.filter { !$0.isEmpty && $0.utf16.count <= 256 }
     }
     @Published private(set) var availableOwners: [RepoOwnerSummary] = []
+    @Published private(set) var ownersUnavailable = false
     @Published private(set) var catalogHostID: String?
     @Published private(set) var repoState: CatalogState<RecentReposResponse> = .idle
     @Published private(set) var workspaceState: CatalogState<RecentWorkspacesResponse> = .idle
@@ -72,7 +74,24 @@ final class LauncherState: ObservableObject {
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
         return Array((codexState.value?.threads ?? []).prefix(25)).filter {
             query.isEmpty || $0.title.localizedCaseInsensitiveContains(query) || $0.cwd.localizedCaseInsensitiveContains(query)
+                || threadRepository($0)?.localizedCaseInsensitiveContains(query) == true
         }
+    }
+
+    func threadRepository(_ thread: CodexThreadSummary) -> String? {
+        if let repository = thread.repository { return repository }
+        // Worktree and checkout paths are Mac paths. Match on directory boundaries.
+        let paths = recentWorkspaces.flatMap { workspace in
+            [workspace.worktreePath, workspace.localCheckoutPath].compactMap { $0 }
+                .map { (path: $0, name: workspace.repo.nameWithOwner) }
+        }
+        return paths.filter { thread.cwd == $0.path || thread.cwd.hasPrefix($0.path + "/") }
+            .max { $0.path.count < $1.path.count }?.name
+    }
+
+    func threadAvatarOwner(_ repository: String) -> String? {
+        if repository.hasPrefix("~local/") { return nil }
+        return repository.split(separator: "/").first.map(String.init)
     }
 
     func loadCodexThreads(hostID: String) async {
@@ -99,7 +118,7 @@ final class LauncherState: ObservableObject {
         return availableOwners.first(where: { $0.login == saved })?.login ?? availableOwners.first?.login
     }
 
-    private func loadRepositories(hostID: String) async {
+    func loadRepositories(hostID: String) async {
         await load(\.repoState, hostID: hostID, fetch: client.repositories)
     }
     func loadWorkspaces(hostID: String) async {
@@ -127,9 +146,10 @@ final class LauncherState: ObservableObject {
             let result = try await client.owners(hostID: hostID)
             guard !Task.isCancelled, target == client.current else { return }
             availableOwners = result.owners
+            ownersUnavailable = false
         } catch {
             guard !Task.isCancelled, target == client.current else { return }
-            feedback = LaunchFeedback(message: error.localizedDescription, style: .error)
+            ownersUnavailable = true
         }
     }
 

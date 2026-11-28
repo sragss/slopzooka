@@ -19,6 +19,7 @@ struct CompanionTransportSupport: Decodable, Equatable {
 
 struct RecentReposResponse: Decodable {
     let repos: [RecentRepoSummary]
+    let githubUnavailable: Bool?
 }
 
 struct AvailableOwnersResponse: Decodable {
@@ -41,6 +42,9 @@ struct RecentRepoSummary: Decodable, Identifiable {
     let owner: OwnerSummary
 
     var id: String { nameWithOwner }
+    var avatarOwner: String? {
+        owner.avatarUrl.isEmpty ? nil : nameWithOwner.split(separator: "/").first.map(String.init)
+    }
 }
 
 struct LaunchWorkspaceResponse: Decodable {
@@ -67,6 +71,8 @@ struct WorkspaceSummary: Decodable, Identifiable {
     let branchName: String
     var name: String? = nil
     let existsOnDisk: Bool
+    let worktreePath: String?
+    let localCheckoutPath: String?
 
     var id: String { workspaceId }
 }
@@ -267,6 +273,21 @@ struct CodexThreadSummary: Decodable, Identifiable {
     let cwd: String
     let updatedAt: Double
     let available: Bool
+    var repository: String? = nil
+
+    var folderName: String { URL(fileURLWithPath: cwd).lastPathComponent }
+
+    func age(at date: Date) -> String {
+        let elapsed = date.timeIntervalSince1970 - updatedAt
+        let units: [(Double, Duration.UnitsFormatStyle.Unit)] = [(86_400, .days), (3_600, .hours), (60, .minutes)]
+        for (seconds, unit) in units {
+            if elapsed >= seconds {
+                let rounded = (elapsed / seconds).rounded(.down) * seconds
+                return Duration.seconds(rounded).formatted(.units(allowed: [unit], width: .abbreviated))
+            }
+        }
+        return "Just now"
+    }
 }
 struct APIAcknowledgement: Decodable { let ok: Bool }
 

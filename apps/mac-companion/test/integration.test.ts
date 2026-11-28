@@ -120,11 +120,18 @@ test(
     );
     const child = spawn(
       process.execPath,
-      ["--import", "tsx", "src/server.ts"],
+      [
+        "--import",
+        "tsx",
+        "--import",
+        path.join(import.meta.dirname, "fixtures/github-network.mjs"),
+        "src/server.ts",
+      ],
       {
         cwd: path.resolve(import.meta.dirname, ".."),
         env: {
           ...process.env,
+          GITHUB_TOKEN: "fixture-token",
           SLOPZOOKA_HOME: home,
           SLOPZOOKA_HOST: "127.0.0.1",
           SLOPZOOKA_PORT: String(port),
@@ -186,6 +193,7 @@ test(
       });
       assert.equal((await api("/api/sessions")).status, 401);
       assert.equal((await api("/api/codex/threads")).status, 401);
+      assert.equal((await api("/api/repo-avatar?owner=test")).status, 401);
       assert.equal(
         (
           await api(
@@ -231,6 +239,22 @@ test(
       assert.equal(badOrigin.status, 403);
       token = (await api("/api/pair", { code })).body.token;
       assert.ok(token);
+      assert.deepEqual(await api("/api/repos/recent"), {
+        status: 200,
+        body: { viewerLogin: null, repos: [], githubUnavailable: true },
+      });
+      assert.deepEqual(await api("/api/owners"), {
+        status: 503,
+        body: { error: "GitHub owners are unavailable on your Mac." },
+      });
+      assert.deepEqual(await api("/api/repo-avatar?owner=test"), {
+        status: 200,
+        body: { image: Buffer.from("avatar fixture").toString("base64") },
+      });
+      assert.equal(
+        (await api("/api/repo-avatar?owner=test.example")).status,
+        400,
+      );
       const clientId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
       const fresh = await fetch(base + "/api/workspaces/workspace-1/sessions", {
         method: "POST",
@@ -761,6 +785,15 @@ test(
       ]);
       assert.deepEqual(creations.map((r) => r.status).sort(), [201, 409]);
       const local = creations.find((r) => r.status === 201)!.body;
+      const localCatalog = await api("/api/repos/recent");
+      assert.equal(localCatalog.status, 200);
+      assert.equal(localCatalog.body.githubUnavailable, true);
+      assert.deepEqual(
+        localCatalog.body.repos.map(
+          (repo: { nameWithOwner: string }) => repo.nameWithOwner,
+        ),
+        ["~local/email-test"],
+      );
       assert.equal(local.repo.nameWithOwner, "~local/email-test");
       assert.equal(local.repo.source, "local");
       assert.equal(local.branchName, "main");

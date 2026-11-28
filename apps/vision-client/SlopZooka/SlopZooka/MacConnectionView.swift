@@ -332,7 +332,7 @@ private struct ConnectionOptionsPage: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(method.title)
                     if method == .direct {
-                        Text("Experimental · Requires pairing over Local Network")
+                        Text("Experimental · Uses your saved pairing")
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                 }

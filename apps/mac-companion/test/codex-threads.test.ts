@@ -54,6 +54,8 @@ test("Codex catalog requests exactly one recent page, shares concurrent reads, a
     assert.deepEqual(a, b);
     assert.equal(a.length, 25);
     assert.equal(a[0]!.title, "Fallback title");
+    assert.equal(a[0]!.repository, "fixture-org/fixture-repo");
+    assert.equal(a[1]!.repository, undefined);
     assert.equal(a[2]!.available, false);
     assert.ok(a[0]!.updatedAt > a[24]!.updatedAt);
     const calls = await f.calls();

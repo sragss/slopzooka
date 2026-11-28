@@ -1,63 +1,52 @@
 import SwiftUI
 
 struct RepositoryAvatar: View {
-    let urlString: String
-    @State private var retriedURL: URL?
-    private let log = AppLog("repository-avatar")
+    let owner: String?
+    let hostID: String?
+    var fallbackIcon = "folder"
+
+    @EnvironmentObject private var client: CompanionClient
+    @State private var loaded: (owner: String, image: UIImage)?
+    private static let cache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 128
+        return cache
+    }()
 
     var body: some View {
         Group {
-            if !urlString.isEmpty, let url = URL(string: urlString) {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image.resizable().scaledToFill()
-                    case .empty:
-                        Circle().fill(.quaternary)
-                            .overlay { ProgressView().scaleEffect(0.75) }
-                    case let .failure(error):
-                        fallback
-                            .task(id: url) { await handleFailure(error, url: url) }
-                    @unknown default:
-                        fallback
-                    }
-                }
-                .id(retriedURL == url)
+            if let loaded, loaded.owner == owner {
+                Image(uiImage: loaded.image).resizable().scaledToFill()
             } else {
-                fallback
+                Circle().fill(.quaternary)
+                    .overlay {
+                        Image(systemName: fallbackIcon)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .accessibilityHidden(true)
+                    }
             }
         }
         .frame(width: 40, height: 40)
         .clipShape(Circle())
         .accessibilityHidden(true)
-    }
-
-    private var fallback: some View {
-        Circle().fill(.quaternary)
-            .overlay {
-                Image(systemName: "folder")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundStyle(.secondary)
-                    .accessibilityHidden(true)
+        .task(id: RequestID(owner: owner, host: client.current, ready: client.isReady)) {
+            guard let owner else { return }
+            let key = owner.lowercased() as NSString
+            if let image = Self.cache.object(forKey: key) {
+                loaded = (owner, image)
+            } else if let hostID, client.current?.id == hostID, client.isReady,
+                      let data = try? await client.repositoryAvatar(hostID: hostID, owner: owner),
+                      !Task.isCancelled, let image = UIImage(data: data) {
+                Self.cache.setObject(image, forKey: key)
+                loaded = (owner, image)
             }
+        }
     }
 
-    private func handleFailure(_ error: Error, url: URL) async {
-        let networkError = error as? URLError
-        let transient: Set<URLError.Code> = [
-            .cancelled, .timedOut, .networkConnectionLost, .notConnectedToInternet,
-            .cannotConnectToHost, .cannotFindHost, .dnsLookupFailed,
-        ]
-        if retriedURL != url, let code = networkError?.code, transient.contains(code) {
-            do { try await Task.sleep(for: .milliseconds(350)) }
-            catch { return }
-            guard !Task.isCancelled else { return }
-            retriedURL = url
-            return
-        }
-        if networkError?.code != .cancelled {
-            let failure = error as NSError
-            log.warn("avatar.load.failed", ["errorDomain": failure.domain, "code": String(failure.code)])
-        }
+    private struct RequestID: Equatable {
+        let owner: String?
+        let host: ConnectedHost?
+        let ready: Bool
     }
 }
