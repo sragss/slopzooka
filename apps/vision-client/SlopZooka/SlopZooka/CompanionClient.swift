@@ -98,7 +98,7 @@ final class CompanionClient: NSObject, ObservableObject {
     var isChecking: Bool { if case .checking = healthState { return true }; return false }
     var isActivelyReconnecting: Bool { reconnectingCheck || (healthState.isReconnecting && recoveryProbe != nil) }
     var macName: String {
-        if let name = health?.bonjourServiceName, !name.isEmpty { return name }
+        if let name = health?.displayName { return name }
         if let name = companions.first(where: { $0.candidateHosts.contains(normalizedHost) })?.name { return name }
         return currentRoute?.remoteEndpoint.host ?? establishedHostID.flatMap { routes[$0]?.remoteEndpoint.host }
             ?? Self.baseURL(host: normalizedHost)?.host ?? "your Mac"
@@ -122,7 +122,7 @@ final class CompanionClient: NSObject, ObservableObject {
     func endpoint(for hostID: String) throws -> URL { try route(for: hostID).endpoint }
     func destinationName(for hostID: String) -> String {
         guard let route = routes[hostID] else { return hostID }
-        if let name = route.health.bonjourServiceName, !name.isEmpty { return name }
+        if let name = route.health.displayName { return name }
         let endpoint = route.remoteEndpoint
         return endpoint.host(percentEncoded: false).map { host in endpoint.port.map { "\(host):\($0)" } ?? host } ?? hostID
     }
@@ -979,7 +979,12 @@ extension CompanionClient: @preconcurrency NetServiceBrowserDelegate, @preconcur
         let candidates = (["\(hostname):\(service.port)"] + addresses).filter { seen.insert($0).inserted }
         discoveryError = nil
         companions.removeAll { $0.id == key(service) }
-        companions.append(DiscoveredCompanion(id: key(service), name: service.name, candidateHosts: candidates))
+        let computerName = service.txtRecordData()
+            .flatMap { NetService.dictionary(fromTXTRecord: $0)["computerName"] }
+            .flatMap { String(data: $0, encoding: .utf8) }?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        companions.append(DiscoveredCompanion(id: key(service),
+            name: computerName.flatMap { $0.isEmpty ? nil : $0 } ?? service.name, candidateHosts: candidates))
         companions.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         slzLog("bonjour resolved service name=\(service.name) host=\(candidates[0])")
         if defaults.string(forKey: "companionHost") != nil {

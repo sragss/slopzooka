@@ -4,7 +4,7 @@
 
 ## Connect to your Mac
 
-Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. On first launch, choose a nearby Mac in **Connect to a Mac**, or enter its address manually. The app tries discovered addresses for the selected Mac in order. If pairing is needed, the six-digit code appears on the Mac and the headset submits it automatically. The Mac menu also shows the code. The app stores pairing credentials in Keychain and uses the saved connection method on later launches.
+Open `apps/vision-client/SlopZooka/SlopZooka.xcodeproj` in Xcode and run the headset app. On first launch, choose a nearby Mac in **Connect to a Mac**, or enter its address manually. The launcher uses the Mac’s computer name. If nearby Macs share a name, the picker also shows their connection addresses. The app tries discovered addresses for the selected Mac in order. If pairing is needed, the six-digit code appears on the Mac and the headset submits it automatically. The Mac menu also shows the code. The app stores pairing credentials in Keychain and uses the saved connection method on later launches.
 
 The display dismisses after 45 seconds, successful pairing, or an authenticated reconnection by the device that requested it. Late display requests from a recently connected device do not reopen the prompt; other devices can still pair. Repeated display requests are limited to once per minute. Manual host/IP entry remains available behind Enter address manually. A verified IP is never rewritten into an untested hostname.
 

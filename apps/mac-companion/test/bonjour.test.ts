@@ -68,7 +68,11 @@ test(
   },
   async (t) => {
     const context = fixture();
-    const service = startBonjourAdvertiser({ ...context, port: 7777 });
+    const service = startBonjourAdvertiser({
+      ...context,
+      port: 7777,
+      computerName: "Studio Mac",
+    });
     t.after(() => service.stop());
     await until(() =>
       context.entries.some(
@@ -95,7 +99,11 @@ test(
     const hostname = execFileSync("scutil", ["--get", "LocalHostName"], {
       encoding: "utf8",
     }).trim();
-    await until(() => output.includes(`hostId=${context.hostId}`));
+    const displayName = /computerName=Studio(?: |\\ |\\032)Mac/;
+    await until(
+      () =>
+        output.includes(`hostId=${context.hostId}`) && displayName.test(output),
+    );
     assert.ok(output.includes(`at ${hostname}.local.:7777`), output);
     assert.ok(
       output.includes(`name=SlopZooka version=${PRODUCT_VERSION}`),

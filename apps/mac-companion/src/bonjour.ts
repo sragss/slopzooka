@@ -8,6 +8,7 @@ export const SLOPZOOKA_BONJOUR_TYPE = "slopzooka";
 type BonjourAdvertiserOptions = {
   logger: Logger;
   name: string;
+  computerName?: string;
   port: number;
   hostId: string;
 };
@@ -59,6 +60,7 @@ export function startBonjourAdvertiser(
       "name=SlopZooka",
       `version=${PRODUCT_VERSION}`,
       `hostId=${options.hostId}`,
+      ...(options.computerName ? [`computerName=${options.computerName}`] : []),
     ],
     { stdio: ["pipe", "pipe", "pipe"] },
   );

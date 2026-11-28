@@ -7,8 +7,14 @@ struct CompanionHealthResponse: Decodable, Equatable {
     let controlOrigin: String
     let logFilePath: String
     var bonjourServiceName: String? = nil
+    var computerName: String? = nil
     var diagnosticsVersion: Int? = nil
     var transport: CompanionTransportSupport? = nil
+
+    var displayName: String? {
+        [computerName, bonjourServiceName].compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .first { !$0.isEmpty }
+    }
 }
 
 struct CompanionTransportSupport: Decodable, Equatable {

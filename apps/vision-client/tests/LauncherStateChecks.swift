@@ -257,7 +257,11 @@ struct LauncherStateChecks {
             let repo: [String: Any] = ["name": id, "nameWithOwner": "test/\(id)", "url": "", "sshUrl": "",
                 "pushedAt": "2026-01-01T00:00:00Z", "isPrivate": true, "owner": ["login": "test", "avatarUrl": ""]]
             switch path {
-            case "/health": return try json(healthJSON(id == "second" ? secondID : id, endpoint: origin(request.url!)), for: request)
+            case "/health":
+                var health = healthJSON(id == "second" ? secondID : id, endpoint: origin(request.url!))
+                health["bonjourServiceName"] = "SlopZooka-\(id)-7777"
+                if id == "first" { health["computerName"] = "Sam’s MacBook Pro" }
+                return try json(health, for: request)
             case "/api/sessions":
                 if id == "second" { await withCheckedContinuation { releaseSessions = $0 } }
                 return try json(["sessions": []], for: request)
@@ -292,6 +296,7 @@ struct LauncherStateChecks {
         }
         let state = LauncherState(client: client)
         await client.select(first.absoluteString)
+        precondition(client.launcherConnectionLabel == "Sam’s MacBook Pro")
         while state.availableOwners.isEmpty || state.recentWorkspaces.isEmpty || state.recentRepos.isEmpty { await Task.yield() }
         precondition(state.recentRepos.first?.id == "test/first" && state.recentWorkspaces.first?.id == "first")
         precondition(state.availableOwners.first?.login == "first")
@@ -314,6 +319,7 @@ struct LauncherStateChecks {
         let switching = Task { await client.select(second.absoluteString) }
         while releaseSessions == nil { await Task.yield() }
         precondition(client.current?.id == secondID && client.isReady)
+        precondition(client.launcherConnectionLabel == "SlopZooka-second-7777", "Older companions retain their advertised name")
         precondition(state.recentRepos.allSatisfy { $0.id == "test/second" }
             && state.recentWorkspaces.allSatisfy { $0.id == "second" }
             && state.filteredCodexThreads.allSatisfy { $0.id.hasPrefix("second-") }

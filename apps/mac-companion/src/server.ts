@@ -55,6 +55,14 @@ const LOCAL_HOST_NAME = localHostName();
 const CONTROL_HOST = `${LOCAL_HOST_NAME}.local:${PORT}`;
 const CONTROL_ORIGIN = `http://${CONTROL_HOST}`;
 const BONJOUR_SERVICE_NAME = advertisedServiceName();
+// A Bonjour TXT entry holds at most 255 bytes, including its key.
+const COMPUTER_NAME = Array.from(
+  (macNameSetting("ComputerName") ?? LOCAL_HOST_NAME)
+    .replace(/\p{Cc}/gu, " ")
+    .trim() || LOCAL_HOST_NAME,
+)
+  .slice(0, 60)
+  .join("");
 const DEFAULT_CWD = path.resolve(import.meta.dirname, "../../..");
 await mkdir(workspacePaths().slopzookaHome, { recursive: true, mode: 0o700 });
 const companionInstanceId = randomUUID();
@@ -243,6 +251,7 @@ app.get("/health", (_req, res) => {
     localHostName: LOCAL_HOST_NAME,
     controlOrigin: CONTROL_ORIGIN,
     bonjourServiceName: BONJOUR_SERVICE_NAME,
+    computerName: COMPUTER_NAME,
     bonjourServiceType: `_${SLOPZOOKA_BONJOUR_TYPE}._tcp`,
     cwd: DEFAULT_CWD,
     logFilePath: diagnostics.store.file,
@@ -857,6 +866,7 @@ server.listen(
     bonjourAdvertiser = startBonjourAdvertiser({
       logger,
       name: BONJOUR_SERVICE_NAME,
+      computerName: COMPUTER_NAME,
       port: PORT,
       hostId: pairing.hostId,
     });
@@ -920,19 +930,24 @@ function localHostName(): string {
     return process.env.SLOPZOOKA_LOCAL_HOSTNAME;
   }
 
-  try {
-    const output = execFileSync("scutil", ["--get", "LocalHostName"], {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-    if (output) {
-      return output;
-    }
-  } catch {
-    // Fall through to os.hostname() below.
-  }
+  return (
+    macNameSetting("LocalHostName") ?? os.hostname().replace(/\.local$/, "")
+  );
+}
 
-  return os.hostname().replace(/\.local$/, "");
+function macNameSetting(
+  key: "ComputerName" | "LocalHostName",
+): string | undefined {
+  try {
+    return (
+      execFileSync("scutil", ["--get", key], {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "ignore"],
+      }).trim() || undefined
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 function advertisedServiceName(): string {

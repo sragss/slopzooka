@@ -194,7 +194,12 @@ private struct MacConnectionView: View {
                         Image(systemName: "desktopcomputer").frame(width: 36, height: 36)
                             .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
                             .accessibilityHidden(true)
-                        Text(mac.name)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(mac.name).lineLimit(1)
+                            if client.companions.contains(where: { $0.id != mac.id && $0.name == mac.name }) {
+                                Text(mac.host).font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
                         Spacer()
                         if selected { Image(systemName: "checkmark").accessibilityHidden(true) }
                     }
