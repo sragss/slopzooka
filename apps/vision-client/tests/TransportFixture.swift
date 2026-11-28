@@ -8,7 +8,7 @@ struct TransportFixture {
     static func main() async throws {
         let args = CommandLine.arguments
         let remote = URL(string: args[1])!, token = args[2]
-        if args.count == 4, args[3] == "client" {
+        if args.count == 4, ["client", "client-voice"].contains(args[3]) {
             let suite = "TransportFixture.\(UUID().uuidString)"
             let defaults = UserDefaults(suiteName: suite)!
             defer { defaults.removePersistentDomain(forName: suite) }
@@ -31,6 +31,17 @@ struct TransportFixture {
             for _ in 0..<3 { await client.flushDiagnostics() }
             precondition(diagnostics.pendingCount == 0)
             let endpoint = try client.endpoint(for: "fixture")
+            if args[3] == "client-voice" {
+                let started = ContinuousClock.now
+                do {
+                    try await client.submitInput(hostID: "fixture", sessionID: "silent", commandID: "voice-fixture", text: "hello")
+                    preconditionFailure("The input fixture never sends an acknowledgement")
+                } catch let error as URLError where error.code == .timedOut {
+                    let elapsed = started.duration(to: .now)
+                    precondition(elapsed < .seconds(8), "Silent voice input took \(elapsed) to time out")
+                    print("{\"voiceTimedOut\":true}")
+                }
+            }
             print("{\"url\":\"\(endpoint.absoluteString)\"}"); fflush(stdout)
             return
         }

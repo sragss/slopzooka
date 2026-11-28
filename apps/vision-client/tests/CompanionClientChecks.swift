@@ -51,6 +51,7 @@ struct CompanionClientChecks {
         precondition(UUID(uuidString: launch.value(forHTTPHeaderField: "X-SlopZooka-Client-ID")!) != nil)
 
         try await api.submitInput(hostID: "fixture", sessionID: "session", commandID: "command", text: "echo 'hello'\n")
+        precondition(requests.last!.timeoutInterval == 4, "Terminal input uses the interactive request timeout")
         let input = requests.last!.httpBody!
         try await api.submitInput(hostID: "fixture", sessionID: "session", commandID: "command", text: "echo 'hello'\n")
         precondition(input == requests.last!.httpBody!, "Retrying a command must preserve its exact body")

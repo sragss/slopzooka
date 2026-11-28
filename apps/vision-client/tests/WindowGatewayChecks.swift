@@ -23,7 +23,7 @@ enum Fixture {
     static var previewPort = 12345
     static var requests: [String] = []
     static var inputBodies: [Data] = []
-    static var loseInputReply = false
+    static var timeOutInputReply = false
     static var beforeEndSessionReply: (() async throws -> Void)?
     static var beforeRenameReply: (() async throws -> Void)?
     static var beforeResumeReply: (() async throws -> Void)?
@@ -91,7 +91,7 @@ enum Fixture {
         }
         if method == "POST", path.hasSuffix("/input") {
             inputBodies.append(body!)
-            if loseInputReply { loseInputReply = false; throw URLError(.networkConnectionLost) }
+            if timeOutInputReply { timeOutInputReply = false; throw URLError(.timedOut) }
             return try json(["ok": true], for: request)
         }
         if path == "/api/window-layout/availability", method == "POST" {
@@ -470,7 +470,7 @@ struct WindowGatewayChecks {
         let input = TerminalVoiceCommand(targetID: terminal.id, commandID: UUID().uuidString, text: "hello")
         voiceGateway.observe(id: terminal.id, isPresented: true, isFocused: false)
         precondition(voiceGateway.canReceiveVoice(terminal.id), "Looking elsewhere preserves the original dictation destination")
-        Fixture.loseInputReply = true
+        Fixture.timeOutInputReply = true
         try await voiceGateway.submitVoiceInput(input)
         precondition(Fixture.inputBodies.count == 2 && Fixture.inputBodies[0] == Fixture.inputBodies[1])
         let body = try JSONSerialization.jsonObject(with: Fixture.inputBodies[0]) as! [String: Any]

@@ -144,6 +144,13 @@ test(
       failDiagnostics = false;
     });
     app.get("/api/sessions", (_req, res) => res.json({ sessions: [] }));
+    let silentInputs = 0;
+    app.post("/api/sessions/silent/input", (req, res) => {
+      assert.ok(pairing.authorized(req));
+      assert.equal(req.body.commandId, "voice-fixture");
+      silentInputs++;
+      res.setTimeout(0); // Keep the connection open without acknowledging the input.
+    });
     app.get("/api/frontends", (_req, res) => res.json({ frontends: [] }));
     app.use((_req, _res, next) => {
       if (_req.path === "/api/check") requests++;
@@ -273,8 +280,20 @@ test(
       transportVersion = version;
       failDiagnostics = true;
       uploads.length = 0;
-      const { stdout } = await exec(binary, [base, token, "client"]);
-      const accepted = JSON.parse(stdout.trim()).url;
+      const { stdout } = await exec(binary, [
+        base,
+        token,
+        version === 1 ? "client-voice" : "client",
+      ]);
+      const reports = stdout
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+      const accepted = reports.at(-1).url;
+      if (version === 1) {
+        assert.equal(silentInputs, 1);
+        assert.equal(reports[0].voiceTimedOut, true);
+      }
       assert.ok(uploads.length >= 2, "Failed native upload must be retried");
       const ids = (body: any) =>
         body.events.map(
